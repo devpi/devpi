@@ -2,6 +2,7 @@ import os
 import json
 import contextlib
 import time
+from functools import partial
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
 from pyramid.httpexceptions import HTTPForbidden
 from pyramid.view import view_config
@@ -191,10 +192,9 @@ class ReplicaThread:
         self._master_serial = serial
         self._master_serial_timestamp = now
 
-    def fetch(self, serial):
+    def fetch(self, handler, url):
         log = self.log
         config = self.xom.config
-        url = self.master_url.joinpath("+changelog", str(serial)).url
         log.info("fetching %s", url)
         uuid, master_uuid = make_uuid_headers(config.nodeinfo)
         assert uuid != master_uuid
@@ -234,8 +234,7 @@ class ReplicaThread:
 
         if r.status_code == 200:
             try:
-                changes, rel_renames = loads(r.content)
-                self.xom.keyfs.import_changes(serial, changes)
+                handler(r)
             except Exception:
                 log.exception("could not process: %s", r.url)
             else:
@@ -255,12 +254,34 @@ class ReplicaThread:
             log.error("%s: failed fetching %s", r.status_code, url)
         return False
 
+    def handler_single(self, response, serial):
+        changes, rel_renames = loads(response.content)
+        self.xom.keyfs.import_changes(serial, changes)
+
+    def fetch_single(self, serial):
+        url = self.master_url.joinpath("+changelog", str(serial)).url
+        return self.fetch(
+            partial(self.handler_single, serial=serial),
+            url)
+
+    def handler_multi(self, response):
+        all_changes = loads(response.content)
+        for serial, changes in all_changes:
+            self.xom.keyfs.import_changes(serial, changes)
+
+    def fetch_multi(self, serial):
+        url = self.master_url.joinpath("+changelog", "%s-" % serial).url
+        return self.fetch(self.handler_multi, url)
+
     def tick(self):
         self.thread.exit_if_shutdown()
         serial = self.xom.keyfs.get_next_serial()
-        result = self.fetch(serial)
-        # we got an error, let's wait a bit
+        result = self.fetch_multi(serial)
         if not result:
+            # BBB remove with 6.0.0
+            result = self.fetch_single(serial)
+        if not result:
+            # we got an error, let's wait a bit
             self.thread.sleep(5.0)
 
     def thread_run(self):
