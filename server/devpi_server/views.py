@@ -1,10 +1,13 @@
 from __future__ import unicode_literals
 
-import collections
 import os
 import py
 import re
 from time import time
+try:
+    from collections.abc import Iterator
+except ImportError:
+    from collections import Iterator
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
@@ -212,7 +215,7 @@ def tween_keyfs_transaction(handler, registry):
 
 
 def set_header_devpi_serial(response, tx):
-    if isinstance(response._app_iter, collections.Iterator):
+    if isinstance(response._app_iter, Iterator):
         return
     if tx.commit_serial is not None:
         serial = tx.commit_serial
