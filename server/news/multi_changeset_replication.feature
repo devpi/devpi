@@ -1,1 +1,0 @@
-Replicas will use the multiple changelog endpoint added in devpi-server 4.9.0 to reduce the number of requests necessary to synchronize state.

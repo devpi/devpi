@@ -1,1 +1,0 @@
-Allow stage customizer plugins to filter projects and versions.

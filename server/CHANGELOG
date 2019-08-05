@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+5.1.0 (2019-08-05)
+==================
+
+Features
+--------
+
+- Allow stage customizer plugins to filter projects and versions.
+
+- Replicas will use the multiple changelog endpoint added in devpi-server 4.9.0 to reduce the number of requests necessary to synchronize state.
+
+
 5.0.0 (2019-06-28)
 ==================
 
