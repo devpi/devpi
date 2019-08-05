@@ -49,8 +49,9 @@ the tests ran.
 The Windows Tests are known to fail sometimes.
 
 
-Documetation
-------------
+Documentation
+-------------
+
 Devpi's documentation uses the `Sphinx <https://www.sphinx-doc.org>`_
 documentation system, which in turn is based on `docutils <http://docutils.sourceforge.net/>`_.
 The basic idea is that lightly-formatted plain-text documentation is
