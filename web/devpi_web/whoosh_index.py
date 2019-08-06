@@ -5,7 +5,6 @@ from devpi_server.log import threadlog as log
 from devpi_server.main import fatal
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_web.indexing import is_project_cached
-from functools import partial
 from pluggy import HookimplMarker
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
@@ -256,71 +255,73 @@ class Index(object):
         writer.commit()
         log.info("Finished committing %s deletions to search index." % count)
 
-    def _add_document(self, writer, **kw):
-        try:
-            writer.add_document(**kw)
-        except:
-            log.exception("Exception while trying to add the following data to the search index:\n%r" % kw)
-            raise
+    def _update_project(self, project, counter, main_keys, writer, clear=False):
+        def add_document(**kw):
+            try:
+                writer.add_document(**kw)
+            except Exception:
+                log.exception("Exception while trying to add the following data to the search index:\n%r" % kw)
+                raise
 
-    def _update_projects(self, writer, projects, clear=False):
-        add_document = partial(self._add_document, writer)
-        counter = itertools.count()
-        count = next(counter)
-        proj_counter = itertools.count()
-        main_keys = self.project_ix.schema.names()
         text_keys = (
             ('author', 0.5),
             ('author_email', 0.5),
             ('description', 1.5),
             ('summary', 1.75),
             ('keywords', 1.75))
+        data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
+        data['path'] = u"/{user}/{index}/{name}".format(**data)
+        if not clear:
+            # because we use hierarchical documents, we have to delete
+            # everything we got for this path and index it again
+            writer.delete_by_term('path', data['path'])
+        data['type'] = "project"
+        data['text'] = "%s %s" % (data['name'], project_name(data['name']))
+        with writer.group():
+            add_document(**data)
+            next(counter)
+            for key, boost in text_keys:
+                if key not in project:
+                    continue
+                add_document(**{
+                    "path": data['path'],
+                    "type": key,
+                    "text": project[key],
+                    "_text_boost": boost})
+                next(counter)
+            if '+doczip' not in project:
+                return
+            if not project['+doczip'].exists():
+                log.error("documentation zip file is missing %s", data['path'])
+                return
+            for page in project['+doczip'].values():
+                if page is None:
+                    continue
+                add_document(**{
+                    "path": data['path'],
+                    "type": "title",
+                    "text": page['title'],
+                    "text_path": page['path'],
+                    "text_title": page['title']})
+                next(counter)
+                add_document(**{
+                    "path": data['path'],
+                    "type": "page",
+                    "text": page['text'],
+                    "text_path": page['path'],
+                    "text_title": page['title']})
+                next(counter)
+
+    def _update_projects(self, writer, projects, clear=False):
+        counter = itertools.count()
+        count = next(counter)
+        proj_counter = itertools.count()
+        main_keys = self.project_ix.schema.names()
         for project in projects:
             proj_count = next(proj_counter)
             if proj_count % 1000 == 0:
                 log.info("Processed %s projects", proj_count)
-            data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
-            data['path'] = u"/{user}/{index}/{name}".format(**data)
-            if not clear:
-                # because we use hierarchical documents, we have to delete
-                # everything we got for this path and index it again
-                writer.delete_by_term('path', data['path'])
-            data['type'] = "project"
-            data['text'] = "%s %s" % (data['name'], project_name(data['name']))
-            with writer.group():
-                add_document(**data)
-                count = next(counter)
-                for key, boost in text_keys:
-                    if key not in project:
-                        continue
-                    add_document(**{
-                        "path": data['path'],
-                        "type": key,
-                        "text": project[key],
-                        "_text_boost": boost})
-                    count = next(counter)
-                if '+doczip' not in project:
-                    continue
-                if not project['+doczip'].exists():
-                    log.error("documentation zip file is missing %s", data['path'])
-                    continue
-                for page in project['+doczip'].values():
-                    if page is None:
-                        continue
-                    add_document(**{
-                        "path": data['path'],
-                        "type": "title",
-                        "text": page['title'],
-                        "text_path": page['path'],
-                        "text_title": page['title']})
-                    count = next(counter)
-                    add_document(**{
-                        "path": data['path'],
-                        "type": "page",
-                        "text": page['text'],
-                        "text_path": page['path'],
-                        "text_title": page['title']})
-                    count = next(counter)
+            self._update_project(project, counter, main_keys, writer, clear=clear)
         return count
 
     def update_projects(self, projects, clear=False):
