@@ -18,6 +18,10 @@ def test_pypirc(tmpdir):
         repository: http://localhost:3141/
         username: test2
         password: test2
+
+        [nopassword]
+        repository: http://localhost:3141/
+        username: test3
     """))
     rc = pypirc.Auth(p)
 
@@ -30,3 +34,8 @@ def test_pypirc(tmpdir):
     assert url == "http://localhost:3141/"
     assert user == "test2"
     assert p == "test2"
+
+    url, (user, p) = rc.get_url_auth("nopassword")
+    assert url == "http://localhost:3141/"
+    assert user == "test3"
+    assert p is None

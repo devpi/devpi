@@ -23,7 +23,7 @@ def main(hub, args):
 
 @hookimpl(trylast=True)
 def devpiclient_get_password(url, username):
-    return getpass.getpass("password for user %s: " % username)
+    return getpass.getpass("password for user %s at %s: " % (username, url))
 
 
 def logoff(hub, args):

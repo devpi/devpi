@@ -43,6 +43,9 @@ def parse_target(hub, args):
         if posturl is None:
             posturl = "https://upload.pypi.org/legacy/"
             hub.info("using default pypi url %s" % posturl)
+        if password is None:
+            password = hub.hook.devpiclient_get_password(
+                url=posturl, username=user)
         return PyPIPush(posturl, user, password)
     if args.target.count("/") != 1:
         hub.fatal("target %r not of form USER/NAME or pypi:REPONAME" % (

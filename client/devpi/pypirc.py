@@ -13,5 +13,7 @@ class Auth:
     def get_url_auth(self, secname):
         section = self.ini[secname]
         repo = section.get("repository")
-        auth = (section["username"], section["password"])
+        username = section["username"]
+        password = section.get("password")
+        auth = (username, password)
         return repo, auth
