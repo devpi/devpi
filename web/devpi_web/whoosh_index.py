@@ -5,6 +5,7 @@ from devpi_server.log import threadlog as log
 from devpi_server.main import fatal
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_web.indexing import is_project_cached
+from devpi_web.indexing import preprocess_project
 from pluggy import HookimplMarker
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
@@ -245,12 +246,11 @@ class Index(object):
         counter = itertools.count()
         count = next(counter)
         writer = self.project_ix.writer()
-        main_keys = self.project_ix.schema.names()
+        searcher = self.project_ix.searcher()
         for project in projects:
-            data = dict((u(x), project[x]) for x in main_keys if x in project)
-            data['path'] = u"/{user}/{index}/{name}".format(**data)
+            path = u"/%s/%s" % (project.indexname, project.name)
             count = next(counter)
-            writer.delete_by_term('path', data['path'])
+            writer.delete_by_term('path', path, searcher=searcher)
         log.debug("Committing %s deletions to search index." % count)
         writer.commit()
         log.info("Finished committing %s deletions to search index." % count)
@@ -321,6 +321,9 @@ class Index(object):
             proj_count = next(proj_counter)
             if proj_count % 1000 == 0:
                 log.info("Processed %s projects", proj_count)
+            if project.stage is None:
+                continue
+            project = preprocess_project(project)
             self._update_project(project, counter, main_keys, writer, clear=clear)
         return count
 

@@ -3,7 +3,8 @@ from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
-from devpi_web.indexing import iter_projects, preprocess_project
+from devpi_web.indexing import ProjectIndexingInfo
+from devpi_web.indexing import iter_projects
 from devpi_server.log import threadlog
 from devpi_server.main import fatal
 from pkg_resources import resource_filename
@@ -258,7 +259,9 @@ def devpiserver_mirror_initialnames(stage, projectnames):
         "indexing '%s' mirror with %s projects",
         stage.name,
         len(projectnames))
-    ix.update_projects(preprocess_project(stage, name) for name in projectnames)
+    ix.update_projects(
+        ProjectIndexingInfo(stage=stage, name=name)
+        for name in projectnames)
     threadlog.info("finished mirror indexing operation")
 
 
@@ -279,8 +282,7 @@ def devpiserver_cmdline_run(xom):
             fatal("The --recreate-search-index option requires the --offline option.")
         ix = get_indexer(xom.config)
         ix.delete_index()
-        indexer = get_indexer(xom.config)
-        indexer.update_projects(iter_projects(xom), clear=True)
+        ix.update_projects(iter_projects(xom), clear=True)
         # only exit when indexing explicitly
         return 0
     # allow devpi-server to run
@@ -291,14 +293,14 @@ def delete_project(stage, name):
     if stage is None:
         return
     ix = get_indexer(stage.xom.config)
-    ix.delete_projects([preprocess_project(stage, name)])
+    ix.delete_projects([ProjectIndexingInfo(stage=stage, name=name)])
 
 
 def index_project(stage, name):
     if stage is None:
         return
     ix = get_indexer(stage.xom.config)
-    ix.update_projects([preprocess_project(stage, name)])
+    ix.update_projects([ProjectIndexingInfo(stage=stage, name=name)])
 
 
 @devpiserver_hookimpl

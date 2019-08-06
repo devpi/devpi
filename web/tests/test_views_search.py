@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from devpi_common.archive import zip_dict
+from devpi_web.indexing import ProjectIndexingInfo
 import pytest
 import re
 
@@ -124,9 +125,11 @@ def test_search_root_pypi(mapp, testapp, pypistage):
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
     pypistage.mock_simple("pkg2", '')
     indexer = get_indexer(mapp.xom.config)
-    indexer.update_projects([
-        dict(name=u'pkg1', user=u'root', index=u'pypi'),
-        dict(name=u'pkg2', user=u'root', index=u'pypi')], clear=True)
+    with mapp.xom.keyfs.transaction(write=False):
+        stage = mapp.xom.model.getstage('root/pypi')
+        indexer.update_projects([
+            ProjectIndexingInfo(stage=stage, name=u'pkg1'),
+            ProjectIndexingInfo(stage=stage, name=u'pkg2')], clear=True)
     r = testapp.xget(200, '/+search?query=pkg')
     search_results = r.html.select('.searchresults > dl > dt')
     assert len(search_results) == 2
@@ -254,9 +257,11 @@ def test_pip_search(mapp, pypistage, testapp):
     mapp.set_versiondata({"name": "pkg2", "version": "2.7"}, waithooks=True)
     # now we can access the indexer directly without causing locking issues
     indexer = get_indexer(mapp.xom.config)
-    indexer.update_projects([
-        dict(name=u'pkg1', user=u'root', index=u'pypi'),
-        dict(name=u'pkg2', user=u'root', index=u'pypi')], clear=True)
+    with mapp.xom.keyfs.transaction(write=False):
+        stage = mapp.xom.model.getstage('root/pypi')
+        indexer.update_projects([
+            ProjectIndexingInfo(stage=stage, name=u'pkg1'),
+            ProjectIndexingInfo(stage=stage, name=u'pkg2')], clear=True)
     mapp.set_versiondata({
         "name": "pkg2",
         "version": "2.7",

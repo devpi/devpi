@@ -4,6 +4,7 @@ from devpi_common.metadata import get_sorted_versions
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
 from devpi_web.doczip import Docs
+import attr
 import time
 
 
@@ -14,8 +15,9 @@ def is_project_cached(stage, project):
     return True
 
 
-def preprocess_project(stage, name_input):
-    name = normalize_name(name_input)
+def preprocess_project(project):
+    stage = project.stage
+    name = normalize_name(project.name)
     try:
         user = stage.user.name
         index = stage.index
@@ -50,6 +52,20 @@ def preprocess_project(stage, name_input):
     return result
 
 
+@attr.s(slots=True)
+class ProjectIndexingInfo(object):
+    stage = attr.ib()
+    name = attr.ib(type=str)
+
+    @property
+    def indexname(self):
+        return self.stage.name
+
+    @property
+    def is_from_mirror(self):
+        return self.stage.ixconfig['type'] == 'mirror'
+
+
 def iter_projects(xom):
     timestamp = time.time()
     for user in xom.model.get_userlist():
@@ -68,4 +84,6 @@ def iter_projects(xom):
                 if current_time - timestamp > 3:
                     log.debug("currently search-indexed %s", count)
                     timestamp = current_time
-                yield preprocess_project(stage, name)
+                yield ProjectIndexingInfo(
+                    stage=stage,
+                    name=name)
