@@ -27,6 +27,7 @@ def preprocess_project(project):
     index = ensure_unicode(index)
     if not is_project_cached(stage, name):
         return dict(name=name, user=user, index=index)
+    stage.offline = True
     setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
     result = dict(name=name)
