@@ -98,6 +98,8 @@ class PyPIStage(BaseStage):
         self.timeout = xom.config.args.request_timeout
         # list of locally mirrored projects
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
+        # used to log about stale projects only once
+        self._offline_logging = set()
 
     @property
     def cache_expiry(self):
@@ -363,7 +365,11 @@ class PyPIStage(BaseStage):
         is_expired, links, cache_serial = self._load_cache_links(project)
         if self.offline and links is None:
             raise self.UpstreamError("offline mode")
-        if not is_expired:
+        if self.offline or not is_expired:
+            if project not in self._offline_logging:
+                threadlog.debug(
+                    "using stale links for %r due to offline mode", project)
+                self._offline_logging.add(project)
             return links
 
         is_retrieval_expired = self.cache_retrieve_times.is_expired(
