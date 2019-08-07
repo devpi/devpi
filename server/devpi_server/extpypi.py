@@ -229,9 +229,16 @@ class PyPIStage(BaseStage):
 
     def _get_remote_projects(self):
         headers = {"Accept": "text/html"}
+        # use a minimum of 30 seconds as timeout for remote server and
+        # 60s when running as replica, because the list can be quite large
+        # and the master might take a while to process it
+        if self.xom.is_replica():
+            timeout = max(self.timeout, 60)
+        else:
+            timeout = max(self.timeout, 30)
         response = self.httpget(
             self.mirror_url, allow_redirects=True, extra_headers=headers,
-            timeout=self.timeout)
+            timeout=timeout)
         if response.status_code != 200:
             raise self.UpstreamError("URL %r returned %s %s",
                 self.mirror_url, response.status_code, response.reason)
