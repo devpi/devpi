@@ -1,0 +1,1 @@
+For plugins the ``offline`` attribute of mirror stage instances now works independently of the ``--offline-mode`` command line option. This only applies to ``_perstage`` methods.
