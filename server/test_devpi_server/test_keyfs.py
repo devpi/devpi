@@ -63,6 +63,33 @@ class TestKeyFS:
             pkey(hello="this/that")
 
     @notransaction
+    def test_remove_dict_key(self, keyfs):
+        key = keyfs.add_key("NAME", "somekey", dict)
+        with keyfs.transaction(write=True) as tx:
+            tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
+        with keyfs.transaction(write=True) as tx:
+            tx.set(key, {u'foo': u'bar'})
+        with keyfs.transaction(write=False) as tx:
+            assert tx.at_serial == 1
+            assert tx.get(key) == {u'foo': u'bar'}
+        with keyfs.transaction(write=False, at_serial=0) as tx:
+            assert tx.at_serial == 0
+            assert tx.get(key) == {u'foo': u'bar', u'ham': u'egg'}
+
+    @notransaction
+    def test_remove_set_item(self, keyfs):
+        key = keyfs.add_key("NAME", "somekey", set)
+        with keyfs.transaction(write=True) as tx:
+            tx.set(key, {'bar', 'egg'})
+        with keyfs.transaction(write=True) as tx:
+            tx.set(key, {'bar'})
+        with keyfs.transaction(write=False) as tx:
+            assert tx.at_serial == 1
+            assert tx.get(key) == {'bar'}
+        with keyfs.transaction(write=False, at_serial=0) as tx:
+            assert tx.at_serial == 0
+            assert tx.get(key) == {'bar', 'egg'}
+    @notransaction
     def test_double_set(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", dict)
         with keyfs.transaction(write=True) as tx:
@@ -74,6 +101,22 @@ class TestKeyFS:
             # the serial shouldn't have increased
             assert tx.at_serial == 0
             assert tx.get(key) == {u'foo': u'bar', u'ham': u'egg'}
+
+    @notransaction
+    @pytest.mark.parametrize("before,after", [
+        ({u'a': 1}, {u'b': 2}),
+        (set([3]), set([4])),
+        (5, 6)])
+    def test_delete_and_readd(self, keyfs, before, after):
+        key = keyfs.add_key("NAME", "somekey", type(before))
+        with keyfs.transaction(write=True) as tx:
+            tx.set(key, before)
+        with keyfs.transaction(write=True) as tx:
+            tx.delete(key)
+        with keyfs.transaction(write=True) as tx:
+            tx.set(key, after)
+        with keyfs.transaction(write=False) as tx:
+            assert tx.get(key) == after
 
 
 class TestGetKey:
