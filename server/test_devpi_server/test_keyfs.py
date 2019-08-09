@@ -131,9 +131,9 @@ class Test_addkey_combinations:
 
 class TestKey:
     def test_addkey_type_mismatch(self, keyfs):
-        dictkey = keyfs.add_key("NAME", "some", dict)
+        dictkey = keyfs.add_key("NAME1", "some", dict)
         pytest.raises(TypeError, lambda: dictkey.set("hello"))
-        dictkey = keyfs.add_key("NAME", "{that}/some", dict)
+        dictkey = keyfs.add_key("NAME2", "{that}/some", dict)
         pytest.raises(TypeError, lambda: dictkey(that="t").set("hello"))
 
     def test_addkey_registered(self, keyfs):
@@ -171,8 +171,8 @@ class TestKey:
         assert d2 != d
 
     def test_update(self, keyfs):
-        key1 = keyfs.add_key("NAME", "some1", dict)
-        key2 = keyfs.add_key("NAME", "some2", list)
+        key1 = keyfs.add_key("NAME1", "some1", dict)
+        key2 = keyfs.add_key("NAME2", "some2", list)
         keyfs.restart_as_write_transaction()
         with key1.update() as d:
             with key2.update() as l:

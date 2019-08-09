@@ -221,6 +221,8 @@ class KeyFS(object):
             key = PTypedKey(self, path, type, name)
         else:
             key = TypedKey(self, path, type, name)
+        if name in self._keys:
+            raise ValueError("Duplicate registration for key named '%s'" % name)
         self._keys[name] = key
         setattr(self, name, key)
         return key
