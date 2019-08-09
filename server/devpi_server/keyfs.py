@@ -21,6 +21,8 @@ import time
 from devpi_common.types import cached_property
 
 
+notset = object()
+
 
 class TxNotificationThread:
     def __init__(self, keyfs):
@@ -399,6 +401,7 @@ class Transaction(object):
         if at_serial is None:
             at_serial = self.conn.last_changelog_serial
         self.at_serial = at_serial
+        self._original = {}
         self.cache = {}
         self.dirty = set()
         self.closed = False
@@ -465,16 +468,28 @@ class Transaction(object):
     def is_dirty(self, typedkey):
         return typedkey in self.dirty
 
+    def get_original(self, typedkey):
+        """ Return original value from start of transaction,
+            without changes from current transaction."""
+        try:
+            return self._original[typedkey]
+        except KeyError:
+            # will raise KeyError if it doesn't exist
+            val = self.get_value_at(typedkey, self.at_serial)
+            assert is_deeply_readonly(val)
+            self._original[typedkey] = val
+        return val
+
     def get(self, typedkey, readonly=True):
-        """ Return value referenced by typedkey, either as a readonly-view
-        or as a mutable deep copy. """
+        """ Return current value referenced by typedkey,
+            either as a readonly-view or as a mutable deep copy. """
         try:
             val = self.cache[typedkey]
         except KeyError:
             absent = typedkey in self.dirty
             if not absent:
                 try:
-                    val = self.get_value_at(typedkey, self.at_serial)
+                    val = self.get_original(typedkey)
                 except KeyError:
                     absent = True
             if absent:
@@ -516,8 +531,13 @@ class Transaction(object):
         # keys, not bytes
         if typedkey.type == dict:
             check_unicode_keys(val)
+        try:
+            old_val = self.get_original(typedkey)
+        except KeyError:
+            old_val = notset
         self.cache[typedkey] = val
-        self.dirty.add(typedkey)
+        if val != old_val:
+            self.dirty.add(typedkey)
 
     def commit(self):
         if self.doomed:

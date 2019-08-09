@@ -62,6 +62,18 @@ class TestKeyFS:
         with pytest.raises(ValueError):
             pkey(hello="this/that")
 
+    @notransaction
+    def test_double_set(self, keyfs):
+        key = keyfs.add_key("NAME", "somekey", dict)
+        with keyfs.transaction(write=True) as tx:
+            tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
+        with keyfs.transaction(write=True) as tx:
+            # set to same value
+            tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
+        with keyfs.transaction(write=False) as tx:
+            # the serial shouldn't have increased
+            assert tx.at_serial == 0
+            assert tx.get(key) == {u'foo': u'bar', u'ham': u'egg'}
 
 
 class TestGetKey:
@@ -577,7 +589,7 @@ class TestSubscriber:
         pool.start()
         for i in range(10):
             with keyfs.transaction(write=True):
-                key.set(1)
+                key.set(i)
 
         l = [queue.get() for i in range(10)]
         assert sorted(l) == list(range(10))

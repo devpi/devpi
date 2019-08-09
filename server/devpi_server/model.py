@@ -971,16 +971,6 @@ class PrivateStage(BaseStage):
         version = metadata["version"]
         key_projversion = self.key_projversion(project, version)
         versiondata = key_projversion.get(readonly=False)
-        if not key_projversion.is_dirty():
-            # check if something really changed to prevent
-            # unneccessary changes on db/replica level
-            for key, val in metadata.items():
-                if val != versiondata.get(key):
-                    break
-            else:
-                threadlog.info("not re-registering same metadata for %s-%s",
-                               project, version)
-                return
         versiondata.update(metadata)
         key_projversion.set(versiondata)
         threadlog.info("set_metadata %s-%s", project, version)

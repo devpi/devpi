@@ -523,6 +523,7 @@ class TestFileReplication:
 
         with xom.keyfs.transaction(write=True):
             entry.file_set_content(content1)
+            assert entry.file_exists()
 
         # first we try to return something wrong
         master_url = replica_xom.config.master_url
@@ -540,7 +541,8 @@ class TestFileReplication:
 
         # then we try to return the correct thing
         with xom.keyfs.transaction(write=True):
-            entry.file_set_content(content1)
+            # trigger a change
+            entry.last_modified = 'Fri, 09 Aug 2019 13:15:02 GMT'
         xom.httpget.mockresponse(master_file_path, code=200, content=content1)
         replay(xom, replica_xom)
         assert replica_xom.errors.errors == {}
