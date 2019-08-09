@@ -131,6 +131,8 @@ class KeyFS(object):
             notify_on_commit=self._notify_on_commit,
             cache_size=cache_size)
         self._readonly = readonly
+
+    def finalize_init(self):
         self._storage.perform_crash_recovery()
 
     def import_changes(self, serial, changes):
@@ -225,6 +227,8 @@ class KeyFS(object):
             raise ValueError("Duplicate registration for key named '%s'" % name)
         self._keys[name] = key
         setattr(self, name, key)
+        if hasattr(self._storage, 'add_key'):
+            self._storage.add_key(key)
         return key
 
     def get_key(self, name):
