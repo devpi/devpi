@@ -495,10 +495,12 @@ class Transaction(object):
         if typedkey in self.dirty:
             return False
         try:
-            self.get_value_at(typedkey, self.at_serial)
+            val = self.get_value_at(typedkey, self.at_serial)
         except KeyError:
             return False
         else:
+            assert is_deeply_readonly(val)
+            self.cache[typedkey] = val
             return True
 
     def delete(self, typedkey):
