@@ -410,7 +410,8 @@ class Transaction(object):
     def iter_serial_and_value_backwards(self, relpath, last_serial):
         while last_serial >= 0:
             tup = self.conn.get_changes(last_serial).get(relpath)
-            assert tup, "no transaction entry at %s" % (last_serial)
+            if tup is None:
+                raise RuntimeError("no transaction entry at %s" % (last_serial))
             keyname, back_serial, val = tup
             yield (last_serial, val)
             last_serial = back_serial
