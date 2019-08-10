@@ -718,7 +718,7 @@ def test_keyfs_sqlite(gentmp):
     with keyfs.transaction(write=False) as tx:
         assert tx.conn.io_file_os_path('foo') is None
         assert tx.conn.io_file_get('foo') == b'bar'
-    assert [x.basename for x in tmp.listdir()] == ['.sqlite']
+    assert [x.basename for x in tmp.listdir()] == ['.sqlite_db']
 
 
 def test_keyfs_sqlite_fs(gentmp):

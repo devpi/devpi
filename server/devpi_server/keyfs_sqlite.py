@@ -138,10 +138,10 @@ class Connection(BaseConnection):
         self.commit()
 
 
-class BaseStorage:
+class BaseStorage(object):
     def __init__(self, basedir, notify_on_commit, cache_size):
         self.basedir = basedir
-        self.sqlpath = self.basedir.join(".sqlite")
+        self.sqlpath = self.basedir.join(self.db_filename)
         self._notify_on_commit = notify_on_commit
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
@@ -233,6 +233,7 @@ class BaseStorage:
 
 class Storage(BaseStorage):
     Connection = Connection
+    db_filename = ".sqlite_db"
 
     def perform_crash_recovery(self):
         pass

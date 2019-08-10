@@ -87,6 +87,7 @@ class Connection(BaseConnection):
 
 class Storage(BaseStorage):
     Connection = Connection
+    db_filename = ".sqlite"
 
     def perform_crash_recovery(self):
         # get last changes and verify all renames took place
