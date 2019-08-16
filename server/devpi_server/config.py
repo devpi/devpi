@@ -315,7 +315,8 @@ def addoptions(parser, pluginmanager):
 
     parser.addoption(
         "--passwd", action="store", metavar="USER",
-        help="set password for user USER (interactive)")
+        help="(DEPRECATED, use devpi-passwd command) set password for "
+             "user USER (interactive)")
 
     add_logging_options(
         parser.addgroup("logging options"),
@@ -432,6 +433,8 @@ def load_config_file(config_file):
 
 
 def default_getter(name, config_options, environ):
+    if name is None:
+        return
     if name == "serverdir":
         if "DEVPI_SERVERDIR" in environ:
             log.warn(
@@ -446,8 +449,9 @@ def default_getter(name, config_options, environ):
     return config_options[name]
 
 
-def parseoptions(pluginmanager, argv):
-    parser = get_parser(pluginmanager)
+def parseoptions(pluginmanager, argv, parser=None):
+    if parser is None:
+        parser = get_parser(pluginmanager)
     try_argcomplete(parser)
     args = parser.parse_args(argv[1:])
     config_file = None
@@ -590,7 +594,7 @@ class Config:
         if hasattr(self, '_master_url'):
             return self._master_url
         master_url = None
-        if self.args.master_url:
+        if getattr(self.args, 'master_url', None):
             master_url = URL(self.args.master_url)
         elif self.nodeinfo.get("masterurl"):
             master_url = URL(self.nodeinfo["masterurl"])
@@ -600,6 +604,10 @@ class Config:
     @master_url.setter
     def master_url(self, value):
         self._master_url = value
+
+    @property
+    def requests_only(self):
+        return getattr(self.args, 'requests_only', False)
 
     @property
     def restrict_modify(self):
@@ -641,13 +649,14 @@ class Config:
         self.nodeinfo["role"] = new_role
 
     def _determine_role(self):
+        role = getattr(self.args, "role", "auto")
         old_role = self.nodeinfo.get("role")
-        if self.args.role == "auto" and not old_role:
+        if role == "auto" and not old_role:
             self._init_role()
-        elif self.args.role == "auto":
+        elif role == "auto":
             self._automatic_role(old_role)
-        elif old_role != self.args.role:
-            self._change_role(old_role, self.args.role)
+        elif old_role != role:
+            self._change_role(old_role, role)
         assert self.nodeinfo["role"]
         if self.nodeinfo["role"] == "replica":
             assert self.master_url
@@ -696,8 +705,8 @@ class Config:
 
     def sqlite_file_needed_but_missing(self):
         return (
-            not self.args.init
-            and not self.args.import_
+            not getattr(self.args, 'init', None)
+            and not getattr(self.args, 'import_', None)
             and self.storage_info['name'] == 'sqlite'
             and not self.serverdir.join(".sqlite").exists()
         )

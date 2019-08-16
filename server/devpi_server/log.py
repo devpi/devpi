@@ -35,6 +35,15 @@ def configure_logging(config_args):
         logging.config.dictConfig(logger_cfg)
 
 
+def configure_cli_logging(config_args):
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(levelname)-5.5s %(message)s',
+        stream=sys.stderr)
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.setLevel(logging.ERROR)
+
+
 class TagLogger:
     def __init__(self, logout=None, prefix='', last=None):
         if logout is None:

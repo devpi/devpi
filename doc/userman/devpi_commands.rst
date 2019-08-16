@@ -669,3 +669,30 @@ devpi command reference (server)
                             [False]
       --indexer-backend NAME
                             the indexer backend to use [whoosh]
+
+::
+
+    $ devpi-passwd -h
+    usage: devpi-passwd [-h] [-c CONFIGFILE] [--serverdir DIR] [--storage NAME]
+                        [--keyfs-cache-size NUM]
+                        [user]
+    
+    Change password for a user directly in devpi-server database.
+    
+    positional arguments:
+      user
+    
+    optional arguments:
+      -h, --help            Show this help message and exit.
+      -c CONFIGFILE, --configfile CONFIGFILE
+                            Config file to use. [None]
+      --serverdir DIR       directory for server data. [~/.devpi/server]
+      --storage NAME        the storage backend to use. "pg8000": Postgresql
+                            backend, "sqlite": SQLite backend with files on the
+                            filesystem, "sqlite_db_files": SQLite backend with
+                            files in DB for testing only [None]
+      --keyfs-cache-size NUM
+                            size of keyfs cache. If your devpi-server installation
+                            gets a lot of writes, then increasing this might
+                            improve performance. Each entry uses 1kb of memory on
+                            average. So by default about 10MB are used. [10000]
