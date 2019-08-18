@@ -539,6 +539,8 @@ class Transaction(object):
         self.cache[typedkey] = val
         if val != old_val:
             self.dirty.add(typedkey)
+        else:
+            self.dirty.discard(typedkey)
 
     def commit(self):
         if self.doomed:

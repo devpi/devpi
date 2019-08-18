@@ -89,13 +89,16 @@ class TestKeyFS:
         with keyfs.transaction(write=False, at_serial=0) as tx:
             assert tx.at_serial == 0
             assert tx.get(key) == {'bar', 'egg'}
+
     @notransaction
     def test_double_set(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", dict)
         with keyfs.transaction(write=True) as tx:
             tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
         with keyfs.transaction(write=True) as tx:
-            # set to same value
+            # set different value
+            tx.set(key, {})
+            # set to same value again in same transaction
             tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
         with keyfs.transaction(write=False) as tx:
             # the serial shouldn't have increased
