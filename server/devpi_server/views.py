@@ -780,7 +780,7 @@ class PyPIView:
             pypiauth = (username, password)
             # prepare metadata for submission
             metadata[":action"] = "submit"
-            metadata["metadata_version"] = "1.2"
+            metadata["metadata_version"] = "2.1"
             self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
             r = session.post(posturl, data=metadata, auth=pypiauth)
