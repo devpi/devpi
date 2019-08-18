@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup
 from devpi_common.archive import zip_dict
 from io import BytesIO
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.response import HTTPResponse
 from webob.request import cgi_FieldStorage
 import json
 import pytest
@@ -49,6 +51,53 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     result = r.json["result"]
     assert len(result) == 1
     assert result[0][0] == 500
+
+
+def test_upload_and_push_external_exception(mapp, testapp, reqmock):
+    import requests
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    responses = []
+
+    def process_request(self, request, kwargs):
+        if not responses:
+            raise requests.urllib3.exceptions.NewConnectionError(None, "")
+        response = responses.pop(0)
+        r = HTTPAdapter().build_response(request, response)
+        return r
+    reqmock.process_request = process_request.__get__(reqmock)
+
+    # first test should fail during register
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password")
+    body = json.dumps(req).encode("utf-8")
+    r = testapp.request(api.index, method="POST", body=body,
+                        expect_errors=True)
+    assert r.status_code == 502
+    assert r.json['type'] == 'actionlog'
+    assert len(r.json['result']) == 1
+    assert r.json['result'][0][0] == -1
+    assert r.json['result'][0][1] == 'exception on register:'
+    assert 'NewConnectionError' in r.json['result'][0][2]
+
+    # second test should fail during release upload
+    responses.append(HTTPResponse(
+        body=BytesIO(b"msg"),
+        status=410, preload_content=False,
+        reason="Project pre-registration is no longer required or supported, so continue directly to uploading files."))
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password")
+    body = json.dumps(req).encode("utf-8")
+    r = testapp.request(api.index, method="POST", body=body,
+                        expect_errors=True)
+    assert r.status_code == 200
+    assert r.json['type'] == 'actionlog'
+    assert len(r.json['result']) == 2
+    assert r.json['result'][0][0] == 410
+    assert r.json['result'][0][1] == 'register'
+    assert r.json['result'][1][0] == -1
+    assert r.json['result'][1][1] == 'exception on release upload:'
+    assert 'NewConnectionError' in r.json['result'][1][2]
 
 
 def test_upload_and_push_external_metadata12(mapp, reqmock, testapp):
@@ -114,8 +163,6 @@ def test_upload_and_push_external_metadata21(mapp, reqmock, testapp):
 def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     # the new PyPI backend "warehouse" changes some things and they already
     # start to affect current PyPI behaviour
-    from requests.adapters import HTTPAdapter
-    from requests.packages.urllib3.response import HTTPResponse
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     zipcontent = zip_dict({"index.html": "<html/>"})
