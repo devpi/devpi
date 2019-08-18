@@ -1,6 +1,8 @@
 import py
 from devpi_common.metadata import parse_requirement, splitbasename
 from . import pypirc
+import traceback
+
 
 class PyPIPush:
     def __init__(self, posturl, user, password):
@@ -37,7 +39,11 @@ def parse_target(hub, args):
             hub.fatal("no pypirc file found at: %s" %(pypirc_path))
         hub.info("using pypirc", pypirc_path)
         auth = pypirc.Auth(pypirc_path)
-        posturl, (user, password) = auth.get_url_auth(posturl)
+        try:
+            posturl, (user, password) = auth.get_url_auth(posturl)
+        except KeyError as e:
+            hub.fatal("Error while trying to read section '%s': %s" % (
+                posturl, traceback.format_exception_only(e.__class__, e)))
         if posturl is None:
             posturl = "https://upload.pypi.org/legacy/"
             hub.info("using default pypi url %s" % posturl)
