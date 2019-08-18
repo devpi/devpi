@@ -270,7 +270,8 @@ def check_pending_renames(basedir, pending_relnames):
                 threadlog.warn("completed file-commit from crashed tx: %s",
                                dst)
             else:
-                assert os.path.exists(dst)
+                if not os.path.exists(dst):
+                    raise OSError("missing file %s" % dst)
         else:
             try:
                 os.remove(path)  # was already removed

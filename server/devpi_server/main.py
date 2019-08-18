@@ -303,7 +303,11 @@ class XOM:
             readonly=self.is_replica(),
             cache_size=self.config.args.keyfs_cache_size)
         add_keys(self, keyfs)
-        keyfs.finalize_init()
+        try:
+            keyfs.finalize_init()
+        except Exception:
+            threadlog.exception("Error while trying to initialize storage")
+            fatal("Couldn't initialize storage")
         if not self.config.args.requests_only:
             self.thread_pool.register(keyfs.notifier)
         return keyfs
