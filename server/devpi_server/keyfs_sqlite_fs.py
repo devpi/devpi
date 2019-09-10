@@ -6,12 +6,36 @@ from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
 from .readonly import get_mutable_deepcopy
 from .fileutil import get_write_file_ensure_dir, rename, loads
+from hashlib import sha256
 import os
-import py
+import re
+import threading
 import time
 
 
+class DirtyFile(object):
+    def __init__(self, path, content):
+        self.path = path
+        # use hash of path, pid and thread id to prevent conflicts
+        key = "%s%i%i" % (
+            path, os.getpid(), threading.current_thread().ident)
+        digest = sha256(key.encode('utf-8')).hexdigest()
+        self.tmppath = '%s-%s-tmp' % (path, digest)
+        if isinstance(content, BytesForHardlink):
+            dirname = os.path.dirname(self.tmppath)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            os.link(content.devpi_srcpath, self.tmppath)
+        else:
+            with get_write_file_ensure_dir(self.tmppath) as f:
+                f.write(content)
+
+
 class Connection(BaseConnection):
+    def rollback(self):
+        BaseConnection.rollback(self)
+        drop_dirty_files(self.dirty_files)
+
     def io_file_os_path(self, path):
         path = self._basedir.join(path).strpath
         if path in self.dirty_files:
@@ -20,49 +44,54 @@ class Connection(BaseConnection):
 
     def io_file_exists(self, path):
         path = self._basedir.join(path).strpath
-        try:
-            return self.dirty_files[path] is not None
-        except KeyError:
-            return os.path.exists(path)
+        if path in self.dirty_files:
+            dirty_file = self.dirty_files[path]
+            if dirty_file is None:
+                return False
+            path = dirty_file.tmppath
+        return os.path.exists(path)
 
     def io_file_set(self, path, content):
         path = self._basedir.join(path).strpath
         assert not path.endswith("-tmp")
-        self.dirty_files[path] = content
+        self.dirty_files[path] = DirtyFile(path, content)
 
     def io_file_open(self, path):
         path = self._basedir.join(path).strpath
-        try:
-            f = py.io.BytesIO(self.dirty_files[path])
-        except KeyError:
-            f = open(path, "rb")
-        return f
+        if path in self.dirty_files:
+            dirty_file = self.dirty_files[path]
+            if dirty_file is None:
+                raise IOError()
+            path = dirty_file.tmppath
+        return open(path, "rb")
 
     def io_file_get(self, path):
         path = self._basedir.join(path).strpath
-        try:
-            content = self.dirty_files[path]
-        except KeyError:
-            with open(path, "rb") as f:
-                return f.read()
-        if content is None:
-            raise IOError()
-        return content
+        if path in self.dirty_files:
+            dirty_file = self.dirty_files[path]
+            if dirty_file is None:
+                raise IOError()
+            path = dirty_file.tmppath
+        with open(path, "rb") as f:
+            return f.read()
 
     def io_file_size(self, path):
         path = self._basedir.join(path).strpath
-        try:
-            content = self.dirty_files[path]
-        except KeyError:
-            try:
-                return os.path.getsize(path)
-            except OSError:
+        if path in self.dirty_files:
+            dirty_file = self.dirty_files[path]
+            if dirty_file is None:
                 return None
-        if content is not None:
-            return len(content)
+            path = dirty_file.tmppath
+        try:
+            return os.path.getsize(path)
+        except OSError:
+            return None
 
     def io_file_delete(self, path):
         path = self._basedir.join(path).strpath
+        old = self.dirty_files.get(path)
+        if old is not None:
+            os.remove(old.tmppath)
         self.dirty_files[path] = None
 
     def write_transaction(self):
@@ -176,6 +205,7 @@ class FSWriter:
 
             self.storage._notify_on_commit(commit_serial)
         else:
+            drop_dirty_files(self.conn.dirty_files)
             self.conn.rollback()
             self.log.info("roll back at %s" %(self.next_serial))
 
@@ -197,35 +227,50 @@ class FSWriter:
         return list(self.changes), files_commit, files_del
 
 
+def drop_dirty_files(dirty_files):
+    for path, dirty_file in dirty_files.items():
+        if dirty_file is not None:
+            os.remove(dirty_file.tmppath)
+
+
 def write_dirty_files(dirty_files):
     pending_renames = []
-    for path, content in dirty_files.items():
-        if content is None:
+    for path, dirty_file in dirty_files.items():
+        if dirty_file is None:
             pending_renames.append((None, path))
         else:
-            tmppath = path + "-tmp"
-            if isinstance(content, BytesForHardlink):
-                dirname = os.path.dirname(tmppath)
-                if not os.path.exists(dirname):
-                    os.makedirs(dirname)
-                os.link(content.devpi_srcpath, tmppath)
-            else:
-                with get_write_file_ensure_dir(tmppath) as f:
-                    f.write(content)
-            pending_renames.append((tmppath, path))
+            pending_renames.append((dirty_file.tmppath, path))
     return pending_renames
+
+
+tmp_file_matcher = re.compile(r"(.*?)(-[0-9a-fA-F]{64})?(-tmp)$")
+
+
+def tmpsuffix_for_path(path):
+    # ends with -tmp and includes hash since temp files are written directly
+    # to disk instead of being kept in memory
+    m = tmp_file_matcher.match(path)
+    if m is not None:
+        if m.group(2):
+            suffix = m.group(2) + m.group(3)
+        else:
+            suffix = m.group(3)
+        return suffix
 
 
 def check_pending_renames(basedir, pending_relnames):
     for relpath in pending_relnames:
         path = os.path.join(basedir, relpath)
-        if relpath.endswith("-tmp"):
+        suffix = tmpsuffix_for_path(relpath)
+        if suffix is not None:
+            suffix_len = len(suffix)
+            dst = path[:-suffix_len]
             if os.path.exists(path):
-                rename(path, path[:-4])
+                rename(path, dst)
                 threadlog.warn("completed file-commit from crashed tx: %s",
-                               path[:-4])
+                               dst)
             else:
-                assert os.path.exists(path[:-4])
+                assert os.path.exists(dst)
         else:
             try:
                 os.remove(path)  # was already removed
@@ -233,14 +278,17 @@ def check_pending_renames(basedir, pending_relnames):
             except OSError:
                 pass
 
+
 def commit_renames(basedir, pending_renames):
     files_del = []
     files_commit = []
     for relpath in pending_renames:
         path = os.path.join(basedir, relpath)
-        if relpath.endswith("-tmp"):
-            rename(path, path[:-4])
-            files_commit.append(relpath[:-4])
+        suffix = tmpsuffix_for_path(relpath)
+        if suffix is not None:
+            suffix_len = len(suffix)
+            rename(path, path[:-suffix_len])
+            files_commit.append(relpath[:-suffix_len])
         else:
             try:
                 os.remove(path)
@@ -248,6 +296,7 @@ def commit_renames(basedir, pending_renames):
                 pass
             files_del.append(relpath)
     return files_commit, files_del
+
 
 def make_rel_renames(basedir, pending_renames):
     # produce a list of strings which are
@@ -257,9 +306,8 @@ def make_rel_renames(basedir, pending_renames):
     # - if they don't have "-tmp" they should be removed
     for source, dest in pending_renames:
         if source is not None:
-            assert source == dest + "-tmp"
+            assert source.startswith(dest) and source.endswith("-tmp")
             yield source[len(basedir)+1:]
         else:
             assert dest.startswith(basedir)
             yield dest[len(basedir)+1:]
-

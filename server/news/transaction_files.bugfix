@@ -1,0 +1,1 @@
+Files created in a transaction are written directly to temporary files instead of being kept in memory until commit.

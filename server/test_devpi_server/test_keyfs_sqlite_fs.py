@@ -1,7 +1,9 @@
-
 from devpi_server.keyfs_sqlite_fs import (
     commit_renames, make_rel_renames, check_pending_renames
 )
+import os
+import pytest
+
 
 class TestRenameFileLogic:
     def test_new_content_nocrash(self, tmpdir):
@@ -57,3 +59,14 @@ class TestRenameFileLogic:
         assert not file1.exists()
         assert len(caplog.getrecords(".*completed.*file-del.*")) == 1
 
+    @pytest.mark.storage_with_filesystem
+    @pytest.mark.notransaction
+    def test_dirty_files_removed_on_rollback(self, keyfs):
+        with pytest.raises(RuntimeError):
+            with keyfs.transaction() as tx:
+                tx.conn.io_file_set('foo', b'foo')
+                tmppath = tx.conn.dirty_files[keyfs.basedir.join('foo')].tmppath
+                assert os.path.exists(tmppath)
+                # abort transaction
+                raise RuntimeError
+        assert not os.path.exists(tmppath)
