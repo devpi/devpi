@@ -21,6 +21,30 @@ class TestStatus:
         assert data["serial"] == replica_xom.keyfs.get_current_serial()
         assert data["replication-errors"] == {}
 
+    def test_metrics_hook(self, maketestapp, makexom):
+        from devpi_server.config import hookimpl
+
+        class Plugin:
+            @hookimpl
+            def devpiserver_metrics(self):
+                return [
+                    ('devpi_plugin_my_totals', 'counter', 10.0),
+                    ('devpi_plugin_my_size', 'gauge', 20.0)]
+
+        plugin = Plugin()
+        xom = makexom(plugins=(plugin,))
+        testapp = maketestapp(xom)
+        r = testapp.get_json("/+status", status=200)
+        assert r.status_code == 200
+        data = r.json["result"]
+        metrics = []
+        for metric in data["metrics"]:
+            if metric[0] in ('devpi_plugin_my_size', 'devpi_plugin_my_totals'):
+                metrics.append(metric)
+        assert sorted(metrics) == [
+            ['devpi_plugin_my_size', 'gauge', 20.0],
+            ['devpi_plugin_my_totals', 'counter', 10.0]]
+
 
 class TestStatusInfoPlugin:
     @pytest.fixture

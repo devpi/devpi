@@ -130,3 +130,27 @@ def devpiserver_on_upload_sync(log, application_url, stage, project, version):
 def devpiserver_on_remove_file(stage, relpath):
     """ called when a relpath is removed from a private stage
     """
+
+
+@hookspec
+def devpiserver_metrics(request):
+    """ called for status view.
+
+        Returns a list of 3 item tuples:
+        1. a unique name
+        2. the type, either 'counter' or 'gauge'
+        3. the value
+
+        The name should be lowercase, must start with a letter and only contain
+        letters, numbers and underscores. It should follow this pattern:
+        [plugin name]_[name]_[unit]. The unit should be a base unit and not
+        use multipliers like kilo, giga, milli etc, use floats for the values.
+
+        For the type use 'counter' for anything that monotonically increases,
+        like number of requests or cache hits etc. Use 'gauge' for things like
+        the current queue size which can decrease or increase.
+
+        This is very likely to be exposed via Prometheus in the future, so its
+        rules apply here as well.
+        See https://prometheus.io/docs/instrumenting/writing_clientlibs/
+    """

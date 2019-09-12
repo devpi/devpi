@@ -279,7 +279,18 @@ class StatusView:
                 self.xom.keyfs.notifier.get_event_serial_timestamp(),
             "event-serial-in-sync-at":
                 self.xom.keyfs.notifier.event_serial_in_sync_at,
+            "metrics": [],
         }
+        seen = set()
+        for results in config.hook.devpiserver_metrics(request=self.request):
+            for metric in results:
+                name = metric[0]
+                if name in seen:
+                    raise RuntimeError(
+                        "A plugin returned a metric with the name '%s' which "
+                        "is already used." % name)
+                seen.add(name)
+                status["metrics"].append(metric)
         if self.xom.is_replica():
             from .replica import ReplicationErrors
             status["role"] = "REPLICA"
