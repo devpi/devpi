@@ -100,7 +100,7 @@ class Connection:
                 SET size = EXCLUDED.size, data = EXCLUDED.data;"""
         c.execute(q, (path, len(content), pg8000.Binary(content)))
         c.close()
-        self.dirty_files[path] = content
+        self.dirty_files[path] = True
 
     def io_file_open(self, path):
         return py.io.BytesIO(self.io_file_get(path))
