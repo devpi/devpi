@@ -578,7 +578,8 @@ class Transaction(object):
         return self.at_serial
 
     def rollback(self):
-        self.conn.rollback()
+        if hasattr(self.conn, 'rollback'):
+            self.conn.rollback()
         threadlog.debug("transaction rollback at %s" % (self.at_serial))
         return self._close()
 
