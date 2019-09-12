@@ -85,7 +85,7 @@ def test_push_devpi_index_option(loghub, monkeypatch, mock_http_api):
 
 
 @pytest.mark.parametrize("spec", ("pkg==1.0", "pkg-1.0"))
-def test_main_push_pypi(monkeypatch, tmpdir, spec):
+def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
     from devpi.push import main
     l = []
     def mypost(method, url, data, headers, auth=None, cert=None, verify=None):
@@ -135,6 +135,19 @@ def test_main_push_pypi(monkeypatch, tmpdir, spec):
     assert req["posturl"] == "http://anotherserver"
     assert req["username"] == "test"
     assert req["password"] == "testp"
+
+    class args:
+        pypirc = str(p)
+        target = "pypi:notspecified"
+        pkgspec = spec
+        index = None
+
+    (out, err) = capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main(hub, args)
+    (out, err) = capsys.readouterr()
+    assert "Error while trying to read section 'notspecified'" in out
+    assert "KeyError" in out
 
 
 def test_fail_push(monkeypatch, tmpdir):

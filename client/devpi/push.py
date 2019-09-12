@@ -1,6 +1,8 @@
 import py
 from devpi_common.metadata import parse_requirement, splitbasename
 from . import pypirc
+import traceback
+
 
 class PyPIPush:
     def __init__(self, posturl, user, password):
@@ -12,9 +14,7 @@ class PyPIPush:
         req = dict(name=name, version=str(version), posturl=self.posturl,
                    username=self.user, password=self.password )
         index = hub.current.index
-        return hub.http_api("push", index, kvdict=req, fatal=True)
-
-        #assert r.status_code == 200, r.content
+        return hub.http_api("push", index, kvdict=req, fatal=False)
 
 
 class DevpiPush:
@@ -39,7 +39,11 @@ def parse_target(hub, args):
             hub.fatal("no pypirc file found at: %s" %(pypirc_path))
         hub.info("using pypirc", pypirc_path)
         auth = pypirc.Auth(pypirc_path)
-        posturl, (user, password) = auth.get_url_auth(posturl)
+        try:
+            posturl, (user, password) = auth.get_url_auth(posturl)
+        except KeyError as e:
+            hub.fatal("Error while trying to read section '%s': %s" % (
+                posturl, traceback.format_exception_only(e.__class__, e)))
         if posturl is None:
             posturl = "https://upload.pypi.org/legacy/"
             hub.info("using default pypi url %s" % posturl)
@@ -76,8 +80,12 @@ def main(hub, args):
             "Old style package specification is deprecated, "
             "use this form: your-pkg-name==your.version.specifier")
     r = pusher.execute(hub, name, version)
+    failed = r.status_code not in (200, 201)
     if r.type == "actionlog":
         for action in r["result"]:
-            red = int(action[0]) >= 400
+            red = int(action[0]) not in (200, 201, 410)
+            failed = failed or red
             for line in (" ".join(map(str, action))).split("\n"):
                 hub.line("   " + line, red=red)
+    if failed:
+        hub.fatal("Failure during upload")

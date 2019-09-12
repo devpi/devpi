@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import os
 import py
 import re
+import traceback
 from time import time
 try:
     from collections.abc import Iterator
@@ -780,10 +781,15 @@ class PyPIView:
             pypiauth = (username, password)
             # prepare metadata for submission
             metadata[":action"] = "submit"
-            metadata["metadata_version"] = "1.2"
+            metadata["metadata_version"] = "2.1"
             self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
-            r = session.post(posturl, data=metadata, auth=pypiauth)
+            try:
+                r = session.post(posturl, data=metadata, auth=pypiauth)
+            except Exception as e:
+                exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
+                results.append((-1, "exception on register:", exc_msg))
+                apireturn(502, result=results, type="actionlog")
             self.log.debug("register returned: %s", r.status_code)
             results.append((r.status_code, "register", name, version))
             ok_codes = (200, 201, 410)
@@ -801,21 +807,31 @@ class PyPIView:
                     content = entry.file_get_content()
                     self.log.info("sending %s to %s, metadata %s",
                              basename, posturl, file_metadata)
-                    r = session.post(posturl, data=file_metadata,
-                          auth=pypiauth,
-                          files={"content": (basename, content)})
-                    self.log.debug("send finished, status: %s", r.status_code)
-                    results.append((r.status_code, "upload", entry.relpath,
-                                    r.text))
+                    try:
+                        r = session.post(
+                            posturl, data=file_metadata, auth=pypiauth,
+                            files={"content": (basename, content)})
+                    except Exception as e:
+                        exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
+                        results.append((-1, "exception on release upload:", exc_msg))
+                    else:
+                        self.log.debug("send finished, status: %s", r.status_code)
+                        results.append((r.status_code, "upload", entry.relpath,
+                                        r.text))
                 if links["doczip"]:
                     doc_metadata = metadata.copy()
                     doc_metadata[":action"] = "doc_upload"
                     doczip = links["doczip"][0].entry.file_get_content()
-                    r = session.post(posturl, data=doc_metadata,
-                          auth=pypiauth,
-                          files={"content": (name + ".zip", doczip)})
-                    self.log.debug("send finished, status: %s", r.status_code)
-                    results.append((r.status_code, "docfile", name))
+                    try:
+                        r = session.post(
+                            posturl, data=doc_metadata, auth=pypiauth,
+                            files={"content": (name + ".zip", doczip)})
+                    except Exception as e:
+                        exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
+                        results.append((-1, "exception on documentation upload:", exc_msg))
+                    else:
+                        self.log.debug("send finished, status: %s", r.status_code)
+                        results.append((r.status_code, "docfile", name))
                 #
             if r.status_code in ok_codes:
                 apireturn(200, result=results, type="actionlog")
