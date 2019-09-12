@@ -192,9 +192,15 @@ def get_indexer_from_config(config):
 
 
 def get_indexer(xom):
+    # lookup cached value
+    indexer = getattr(xom, 'devpiweb_indexer', None)
+    if indexer is not None:
+        return indexer
     indexer = get_indexer_from_config(xom.config)
     if hasattr(indexer, 'runtime_setup'):
         indexer.runtime_setup(xom)
+    # cache the expensive setup
+    xom.devpiweb_indexer = indexer
     return indexer
 
 
