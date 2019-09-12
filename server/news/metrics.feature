@@ -1,0 +1,1 @@
+Metrics for the sqlite storage cache are exposed in the JSON output of the +status view.

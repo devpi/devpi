@@ -275,6 +275,25 @@ def devpiserver_storage_backend(settings):
         description="SQLite backend with files in DB for testing only")
 
 
+@hookimpl
+def devpiserver_metrics(request):
+    result = []
+    xom = request.registry["xom"]
+    storage = xom.keyfs._storage
+    if not isinstance(storage, BaseStorage):
+        return result
+    cache = getattr(storage, '_changelog_cache', None)
+    if cache is None:
+        return result
+    result.extend([
+        ('devpi_server_storage_cache_evictions', 'counter', cache.evictions),
+        ('devpi_server_storage_cache_hits', 'counter', cache.hits),
+        ('devpi_server_storage_cache_lookups', 'counter', cache.lookups),
+        ('devpi_server_storage_cache_misses', 'counter', cache.misses),
+        ('devpi_server_storage_cache_size', 'gauge', cache.size)])
+    return result
+
+
 class Writer:
     def __init__(self, storage, conn):
         self.conn = conn
