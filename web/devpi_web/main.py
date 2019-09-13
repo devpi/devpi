@@ -331,7 +331,7 @@ def devpiserver_on_changed_versiondata(stage, project, version, metadata):
         index_project(stage, metadata['name'])
 
 
-@devpiserver_hookimpl(optionalhook=True)
+@devpiserver_hookimpl
 def devpiserver_on_remove_file(stage, relpath):
     if relpath.endswith(".doc.zip"):
         project, version = (
