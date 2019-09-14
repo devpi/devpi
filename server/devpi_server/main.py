@@ -335,15 +335,15 @@ class XOM:
         except OSError:
             location = get_caller_location()
             threadlog.warn("OS error during httpget of %s at %s", url, location)
-            return FatalResponse(repr(sys.exc_info()[1]))
+            return FatalResponse(url, repr(sys.exc_info()[1]))
         except exceptions.ConnectionError:
             location = get_caller_location()
             threadlog.warn("Connection error during httpget of %s at %s", url, location)
-            return FatalResponse(repr(sys.exc_info()[1]))
+            return FatalResponse(url, repr(sys.exc_info()[1]))
         except self._httpsession.Errors:
             location = get_caller_location()
             threadlog.warn("HTTPError during httpget of %s at %s", url, location)
-            return FatalResponse(repr(sys.exc_info()[1]))
+            return FatalResponse(url, repr(sys.exc_info()[1]))
 
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
@@ -472,7 +472,8 @@ class XOM:
 class FatalResponse:
     status_code = -1
 
-    def __init__(self, reason):
+    def __init__(self, url, reason):
+        self.url = url
         self.reason = reason
 
     def __repr__(self):
