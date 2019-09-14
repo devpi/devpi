@@ -3,6 +3,7 @@ import re
 import py
 from pkg_resources import parse_version, Requirement
 from .types import CompareMixin
+from .types import cached_property
 from .validation import normalize_name
 
 
@@ -122,7 +123,10 @@ def splitext_archive(basename):
 class Version(CompareMixin):
     def __init__(self, versionstring):
         self.string = versionstring
-        self.cmpval = parse_version(versionstring)
+
+    @cached_property
+    def cmpval(self):
+        return parse_version(self.string)
 
     def __str__(self):
         return self.string
