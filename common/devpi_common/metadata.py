@@ -131,6 +131,9 @@ class Version(CompareMixin):
     def __str__(self):
         return self.string
 
+    def __repr__(self):
+        return "Version(%r)" % self.string
+
     def is_prerelease(self):
         if hasattr(self.cmpval, 'is_prerelease'):
             return self.cmpval.is_prerelease
