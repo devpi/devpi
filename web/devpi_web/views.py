@@ -78,12 +78,13 @@ class ContextWrapper(object):
                 "%s-%s is not registered" % (self.project, self.version))
 
 
-def get_doc_info(context, request):
+def get_doc_info(context, request, version=None, check_content=True):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
     name = context.project
-    version = context.version
+    if version is None:
+        version = context.version
     if version == 'latest':
         versions = context.versions
     elif version == 'stable':
@@ -107,7 +108,7 @@ def get_doc_info(context, request):
             raise HTTPNotFound("No stable documentation available.")
         raise HTTPNotFound("No documentation available.")
     doc_path = doc_path.join(relpath)
-    if not doc_path.check():
+    if check_content and not doc_path.check():
         raise HTTPNotFound("File %s not found in documentation." % relpath)
     return dict(
         doc_path=doc_path,
@@ -134,6 +135,24 @@ def doc_show(context, request):
     stage = context.stage
     name, version = context.project, context.version
     doc_info = get_doc_info(context, request)
+    version_links = []
+    latest_doc_info = get_doc_info(context, request, version='latest', check_content=False)
+    if latest_doc_info['doc_version'] != doc_info['doc_version']:
+        version_links.append(dict(
+            title="Latest documentation",
+            url=request.route_url(
+                "docviewroot", user=stage.user.name, index=stage.index,
+                project=name, version='latest', relpath="index.html")))
+    try:
+        stable_doc_info = get_doc_info(context, request, version='stable', check_content=False)
+        if stable_doc_info['doc_version'] != doc_info['doc_version'] and stable_doc_info['doc_version'] != latest_doc_info['doc_version']:
+            version_links.append(dict(
+                title="Stable documentation",
+                url=request.route_url(
+                    "docviewroot", user=stage.user.name, index=stage.index,
+                    project=name, version='stable', relpath="index.html")))
+    except (HTTPFound, HTTPNotFound):
+        pass
     return dict(
         title="%s-%s Documentation" % (name, version),
         base_url=request.route_url(
@@ -147,6 +166,7 @@ def doc_show(context, request):
             project=name, version=version,
             relpath=doc_info['relpath'], _query=request.query_string),
         version_mismatch=doc_info['version_mismatch'],
+        version_links=version_links,
         doc_version=doc_info['doc_version'])
 
 

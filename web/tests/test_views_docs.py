@@ -187,8 +187,9 @@ def test_docs_stable(mapp, testapp):
     # navigation shows stable registered version
     navigation_links = r.html.select("#navigation a")
     assert navigation_links[4].text == '2.6'
-    # still no warning
-    assert r.html.select('.infonote') == []
+    # showing latest available version
+    assert [x.text.strip() for x in r.html.select('.infonote')] == [
+        "Latest documentation"]
     # and the content is also still from stable docs
     r = testapp.xget(200, iframe.attrs['src'])
     assert r.text == "<html><body>2.6</body></html>"
@@ -202,7 +203,8 @@ def test_docs_stable(mapp, testapp):
     assert navigation_links[4].text == '2.7'
     # there is a warning
     assert [x.text.strip() for x in r.html.select('.infonote')] == [
-        "The latest available documentation (version 2.6) isn't for the latest available package version."]
+        "The latest available documentation (version 2.6) isn't for the latest available package version.",
+        "Latest documentation"]
     # and the content is from older stable upload
     r = testapp.xget(200, iframe.attrs['src'])
     assert r.text == "<html><body>2.6</body></html>"

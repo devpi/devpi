@@ -7,9 +7,14 @@
     </head>
     <body>
         <metal:search use-macro="request.macros['navigation']">
-            <div metal:fill-slot="endofheader" class="infonote" tal:condition="version_mismatch">
-                The latest available documentation (version ${doc_version}) isn't for the latest available package version.
-            </div>
+            <tal:endofheader metal:fill-slot="endofheader">
+                <div class="infonote" tal:condition="version_mismatch">
+                    The latest available documentation (version ${doc_version}) isn't for the latest available package version.
+                </div>
+                <div class="infonote" tal:condition="version_links">
+                    <tal:link repeat="link version_links"><a tal:attributes="class link.get('css_class')" href="${link.url}">${link.title}</a><tal:sep condition="not repeat.link.end"> | </tal:sep></tal:link>
+                </div>
+            </tal:endofheader>
         </metal:search>
         <div class="iframe">
             <iframe
