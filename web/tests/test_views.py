@@ -532,6 +532,43 @@ def test_version_view_description_errors(mapp, testapp):
     assert "Unexpected section title" in description.text
 
 
+def test_version_view_latest_stable(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "3.0b1"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.1b2"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.0"})
+    r = testapp.get(api.index + '/pkg1/2.0', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'Stable version available' not in "".join(x.text for x in links)
+    link = links[-1]
+    assert link.text == 'Newer version available'
+    assert link.attrs['href'] == api.index + '/pkg1/2.6'
+    r = testapp.get(api.index + '/pkg1/2.1b2', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'Newer version available' not in "".join(x.text for x in links)
+    link = links[-1]
+    assert link.text == 'Stable version available'
+    assert link.attrs['href'] == api.index + '/pkg1/2.6'
+    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'version available' not in "".join(x.text for x in links)
+    r = testapp.get(api.index + '/pkg1/3.0b1', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'Newer version available' not in "".join(x.text for x in links)
+    link = links[-1]
+    assert link.text == 'Stable version available'
+    assert link.attrs['href'] == api.index + '/pkg1/2.6'
+
+
 def test_complex_name(mapp, testapp):
     from devpi_common import __version__
     import pkg_resources

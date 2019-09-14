@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import unicode_literals
 from defusedxml.xmlrpc import DefusedExpatParser
+from devpi_common.metadata import Version
 from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.validation import normalize_name
@@ -43,18 +44,27 @@ class ContextWrapper(object):
         return getattr(self.context, name)
 
     @reify
+    def _versions(self):
+        return get_sorted_versions(
+            self.stage.list_versions_perstage(self.project),
+            stable=False)
+
+    @reify
     def versions(self):
-        versions = self.stage.list_versions(self.project)
+        versions = self._versions
         if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.project)
-        return get_sorted_versions(versions)
+        return versions
+
+    @reify
+    def _stable_versions(self):
+        return get_sorted_versions(self._versions, stable=True)
 
     @reify
     def stable_versions(self):
-        versions = self.stage.list_versions(self.project)
-        if not versions:
+        if not self._versions:
             raise HTTPNotFound("The project %s does not exist." % self.project)
-        versions = get_sorted_versions(versions, stable=True)
+        versions = self._stable_versions
         if not versions:
             raise HTTPNotFound("The project %s has no stable release." % self.project)
         return versions
@@ -583,6 +593,23 @@ def version_get(context, request):
             nav_links.append(dict(
                 title="%s page" % base.ixconfig.get("title", "Mirror"),
                 url=mirror_web_url_fmt.format(name=name)))
+    cmp_version = Version(version)
+    if context._stable_versions:
+        stable_version = Version(context._stable_versions[0])
+        url = request.route_url(
+            "/{user}/{index}/{project}/{version}",
+            user=context.username, index=context.index,
+            project=context.project, version=stable_version)
+        if cmp_version.is_prerelease():
+            nav_links.append(dict(
+                title="Stable version available",
+                css_class="warning",
+                url=url))
+        elif stable_version != cmp_version:
+            nav_links.append(dict(
+                title="Newer version available",
+                css_class="severe",
+                url=url))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
