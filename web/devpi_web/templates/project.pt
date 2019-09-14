@@ -14,6 +14,11 @@
             no releases from <strong>${blocked_by_mirror_whitelist}</strong> are included.
         </p>
 
+        <p tal:condition="latest_version">Latest version on stage is: <a href="${latest_url}">${latest_version}</a></p>
+
+        <p tal:define="summary latest_version_data.get('summary')"
+           tal:condition="summary">${summary}</p>
+
         <table class="versions" tal:condition="versions">
             <thead>
                 <tr>

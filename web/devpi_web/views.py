@@ -544,9 +544,17 @@ def project_get(context, request):
         whitelist_info = dict(
             has_mirror_base=context.stage.has_mirror_base(context.project),
             blocked_by_mirror_whitelist=None)
+    stage = context.stage
+    latest_version = stage.get_latest_version_perstage(context.project)
+    latest_verdata = stage.get_versiondata_perstage(context.project, latest_version)
     return dict(
         title="%s/: %s versions" % (context.stage.name, context.project),
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
+        latest_version=latest_version,
+        latest_url=request.route_url(
+            "/{user}/{index}/{project}/{version}",
+            user=user, index=index, project=name, version='latest'),
+        latest_version_data=latest_verdata,
         versions=versions)
 
 
