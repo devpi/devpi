@@ -278,6 +278,7 @@ class ReplicaThread:
         serial = self.xom.keyfs.get_next_serial()
         result = self.fetch_multi(serial)
         if not result:
+            serial = self.xom.keyfs.get_next_serial()
             # BBB remove with 6.0.0
             result = self.fetch_single(serial)
         if not result:
