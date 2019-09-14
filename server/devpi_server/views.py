@@ -267,7 +267,7 @@ class StatusView:
             "serverdir": str(config.serverdir),
             "uuid": self.xom.config.nodeinfo["uuid"],
             "versioninfo":
-                    dict(self.request.registry["devpi_version_info"]),
+                dict(self.request.registry["devpi_version_info"]),
             "server-code": os.path.dirname(devpi_server.__file__),
             "host": config.args.host,
             "port": config.args.port,
@@ -279,12 +279,22 @@ class StatusView:
                 self.xom.keyfs.notifier.get_event_serial_timestamp(),
             "event-serial-in-sync-at":
                 self.xom.keyfs.notifier.event_serial_in_sync_at,
+            "metrics": [],
         }
-        master_url = config.args.master_url
-        if master_url:
+        seen = set()
+        for results in config.hook.devpiserver_metrics(request=self.request):
+            for metric in results:
+                name = metric[0]
+                if name in seen:
+                    raise RuntimeError(
+                        "A plugin returned a metric with the name '%s' which "
+                        "is already used." % name)
+                seen.add(name)
+                status["metrics"].append(metric)
+        if self.xom.is_replica():
             from .replica import ReplicationErrors
             status["role"] = "REPLICA"
-            status["master-url"] = master_url
+            status["master-url"] = config.args.master_url
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
             status["master-serial"] = self.xom.replica_thread.get_master_serial()
             status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()
