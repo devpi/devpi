@@ -48,9 +48,16 @@ def get_write_file_ensure_dir(path):
         return open(path, "wb")
     except IOError:
         dirname = os.path.dirname(path)
-        if os.path.exists(dirname):
-            raise
-        os.makedirs(dirname)
+        if not os.path.exists(dirname):
+            try:
+                os.makedirs(dirname)
+            except IOError:
+                # ignore any errors
+                # one reason for an error is a race condition where another
+                # thread tries to create the file
+                # any important issues will be caught when we try to open
+                # the file
+                pass
         return open(path, "wb")
 
 
