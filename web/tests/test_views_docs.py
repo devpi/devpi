@@ -52,6 +52,9 @@ def test_docs_view(mapp, testapp):
     r = testapp.xget(404, api.index + "/pkg1/2.6/+d/foo.html")
     content, = r.html.select('#content')
     assert 'File foo.html not found in documentation.' in compareable_text(content.text)
+    r = testapp.xget(200, api.index + "/pkg1/2.6/+d/index.html?foo=bar")
+    (iframe,) = r.html.select('iframe')
+    assert iframe.attrs['src'].endswith("index.html?foo=bar")
 
 
 @pytest.mark.with_notifier

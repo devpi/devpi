@@ -144,7 +144,8 @@ def doc_show(context, request):
             project=name, version=version, relpath=''),
         url=request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
-            project=name, version=version, relpath=doc_info['relpath']),
+            project=name, version=version,
+            relpath=doc_info['relpath'], _query=request.query_string),
         version_mismatch=doc_info['version_mismatch'],
         doc_version=doc_info['doc_version'])
 
