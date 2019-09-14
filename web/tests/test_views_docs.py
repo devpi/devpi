@@ -106,7 +106,7 @@ def test_docs_latest(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
     # navigation shows latest registered version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.6'
+    assert navigation_links[4].text == '2.6'
     # there is no warning
     assert r.html.select('.infonote') == []
     # and the content matches
@@ -119,7 +119,7 @@ def test_docs_latest(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
     # navigation shows latest registered version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.7'
+    assert navigation_links[4].text == '2.7'
     # there is a warning
     assert [x.text.strip() for x in r.html.select('.infonote')] == [
         "The latest available documentation (version 2.6) isn't for the latest available package version."]
@@ -135,7 +135,7 @@ def test_docs_latest(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
     # navigation shows latest registered version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.7'
+    assert navigation_links[4].text == '2.7'
     # there is no warning anymore
     assert r.html.select('.infonote') == []
     # and the content is from newest docs
@@ -155,7 +155,7 @@ def test_docs_stable(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows stable registered version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.6'
+    assert navigation_links[4].text == '2.6'
     # there is no warning
     assert r.html.select('.infonote') == []
     # and the content matches
@@ -168,7 +168,7 @@ def test_docs_stable(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows stable registered version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.6'
+    assert navigation_links[4].text == '2.6'
     # there is no warning
     assert r.html.select('.infonote') == []
     # and the content is also from stable docs
@@ -183,7 +183,7 @@ def test_docs_stable(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows stable registered version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.6'
+    assert navigation_links[4].text == '2.6'
     # still no warning
     assert r.html.select('.infonote') == []
     # and the content is also still from stable docs
@@ -196,7 +196,7 @@ def test_docs_stable(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows latest registered stable version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.7'
+    assert navigation_links[4].text == '2.7'
     # there is a warning
     assert [x.text.strip() for x in r.html.select('.infonote')] == [
         "The latest available documentation (version 2.6) isn't for the latest available package version."]
@@ -212,7 +212,7 @@ def test_docs_stable(mapp, testapp):
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows latest registered stable version
     navigation_links = r.html.select("#navigation a")
-    assert navigation_links[3].text == '2.7'
+    assert navigation_links[4].text == '2.7'
     # no warning anymore
     assert r.html.select('.infonote') == []
     # the content is now latest stable docs

@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+    <head>
+        <title>devpi</title>
+        <metal:head use-macro="request.macros['head']" />
+    </head>
+    <body>
+        <metal:search use-macro="request.macros['navigation']" />
+        <div id="content">
+            <div class="user_index_list">
+                <dl>
+                    <dt>
+                        ${user.user_name} <span tal:condition="user.user_title">${user.user_title}</span>
+                    </dt>
+                    <dd class="user_description" tal:condition="user.user_description">
+                        ${user.user_description}
+                    </dd>
+                    <dd tal:condition="user.indexes">
+                        <ul>
+                            <li tal:repeat="index user.indexes">
+                                <a tal:attributes="title index.index_description" href="${index.url}">
+                                    ${user.user_name}/${index.index_name} <span tal:condition="index.index_title">${index.index_title}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        <metal:footer use-macro="request.macros['footer']" />
+    </body>
+</html>

@@ -11,7 +11,9 @@
         <div class="user_index_list">
         <dl tal:repeat="user users">
             <dt>
-                ${user.user_name} <span tal:condition="user.user_title">${user.user_title}</span>
+                <a href="${user.user_url}">
+                    ${user.user_name} <span tal:condition="user.user_title">${user.user_title}</span>
+                </a>
             </dt>
             <dd class="user_description" tal:condition="user.user_description">
                 ${user.user_description}

@@ -322,6 +322,31 @@ def get_docs_info(request, stage, linkstore):
                 project=name, version=ver, relpath="index.html"))
 
 
+def get_user_info(context, request, user):
+    username = user['username']
+    indexes = []
+    for index in sorted(user.get('indexes', [])):
+        stagename = "%s/%s" % (username, index)
+        stage = context.model.getstage(stagename)
+        indexes.append(dict(
+            _ixconfig=stage.ixconfig,
+            title=stagename,
+            index_name=index,
+            index_title=stage.ixconfig.get('title', None),
+            index_description=stage.ixconfig.get('description', None),
+            url=request.stage_url(stagename)))
+    return dict(
+        _user=user,
+        title=username,
+        user_name=username,
+        user_title=user.get('title', None),
+        user_description=user.get('description', None),
+        user_email=user.get('email', None),
+        user_url=request.route_url(
+            "/{user}", user=username),
+        indexes=indexes)
+
+
 @view_config(
     route_name='root',
     renderer='templates/root.pt')
@@ -331,27 +356,16 @@ def root(context, request):
         key=itemgetter('username'))
     users = []
     for user in rawusers:
-        username = user['username']
-        indexes = []
-        for index in sorted(user.get('indexes', [])):
-            stagename = "%s/%s" % (username, index)
-            stage = context.model.getstage(stagename)
-            indexes.append(dict(
-                _ixconfig=stage.ixconfig,
-                title=stagename,
-                index_name=index,
-                index_title=stage.ixconfig.get('title', None),
-                index_description=stage.ixconfig.get('description', None),
-                url=request.stage_url(stagename)))
-        users.append(dict(
-            _user=user,
-            title=username,
-            user_name=username,
-            user_title=user.get('title', None),
-            user_description=user.get('description', None),
-            user_email=user.get('email', None),
-            indexes=indexes))
+        users.append(get_user_info(context, request, user))
     return dict(users=users)
+
+
+@view_config(
+    route_name="/{user}", accept="text/html", request_method="GET",
+    renderer="templates/user.pt")
+def user_get(context, request):
+    user = context.user.get()
+    return dict(user=get_user_info(context, request, user))
 
 
 @view_config(

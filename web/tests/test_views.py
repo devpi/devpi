@@ -21,6 +21,7 @@ def test_root_view(testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root", "http://localhost/root"),
         ("root/pypi PyPI", "http://localhost/root/pypi")]
 
 
@@ -30,8 +31,35 @@ def test_root_view_with_index(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root", "http://localhost/root"),
         ("root/pypi PyPI", "http://localhost/root/pypi"),
+        (api.user, "http://localhost/%s" % api.user),
         (api.stagename, "http://localhost/%s" % api.stagename)]
+
+
+def test_user_view_root_pypi(testapp):
+    r = testapp.get('/root', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.select('#content a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("root/pypi PyPI", "http://localhost/root/pypi")]
+
+
+def test_user_view(mapp, testapp):
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    r = testapp.get("/%s" % api.user, headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.select('#content a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("%s/dev" % api.user, "http://localhost/%s/dev" % api.user)]
+
+
+def test_user_not_found(testapp):
+    r = testapp.get("/blubber", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert "no user" in compareable_text(content.text)
+    assert "blubber" in compareable_text(content.text)
 
 
 def test_index_view_root_pypi(testapp):
@@ -150,7 +178,7 @@ def test_title_description(mapp, testapp):
     (userdescription,) = content.select('.user_index_list dd.user_description')
     assert compareable_text(userdescription.text) == "userdescription"
     links = content.select('a')
-    assert [x.attrs.get('title') for x in links] == [None, 'indexdescription']
+    assert [x.attrs.get('title') for x in links] == [None, None, None, 'indexdescription']
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     (content,) = r.html.select('#content')
     (indextitle,) = content.select('.index_title')

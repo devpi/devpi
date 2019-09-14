@@ -58,13 +58,17 @@ def navigation_info(request):
     result = dict(path=path)
     if context.matchdict and 'user' in context.matchdict:
         user = context.username
+        path.append(dict(
+            url=request.route_url(
+                "/{user}", user=user),
+            title="%s" % user))
     else:
         return result
     if 'index' in context.matchdict:
         index = context.index
         path.append(dict(
             url=request.stage_url(user, index),
-            title="%s/%s" % (user, index)))
+            title="%s" % index))
     else:
         return result
     if 'project' in context.matchdict:
