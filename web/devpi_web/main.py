@@ -43,10 +43,10 @@ def navigation_version(context):
     version = context.version
     if version == 'latest':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.project)
+        version = stage.get_latest_version_perstage(context.project)
     elif version == 'stable':
         stage = context.model.getstage(context.username, context.index)
-        version = stage.get_latest_version(context.project, stable=True)
+        version = stage.get_latest_version_perstage(context.project, stable=True)
     return version
 
 

@@ -536,10 +536,15 @@ def project_get(context, request):
 def version_get(context, request):
     """ Show version for the precise stage, ignores inheritance. """
     context = ContextWrapper(context)
-    name, version = context.verified_project, context.version
+    name = context.verified_project
     stage = context.stage
+    version = context.version
+    if version == 'latest' and context._versions:
+        version = context._versions[0]
+    elif version == 'stable' and context._stable_versions:
+        version = context._stable_versions[0]
     try:
-        verdata = context.get_versiondata(perstage=True)
+        verdata = context.get_versiondata(version=version, perstage=True)
     except stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
@@ -599,7 +604,7 @@ def version_get(context, request):
         url = request.route_url(
             "/{user}/{index}/{project}/{version}",
             user=context.username, index=context.index,
-            project=context.project, version=stable_version)
+            project=context.project, version='stable')
         if cmp_version.is_prerelease():
             nav_links.append(dict(
                 title="Stable version available",

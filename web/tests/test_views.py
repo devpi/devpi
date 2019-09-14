@@ -551,13 +551,13 @@ def test_version_view_latest_stable(mapp, testapp):
     assert 'Stable version available' not in "".join(x.text for x in links)
     link = links[-1]
     assert link.text == 'Newer version available'
-    assert link.attrs['href'] == api.index + '/pkg1/2.6'
+    assert link.attrs['href'] == api.index + '/pkg1/stable'
     r = testapp.get(api.index + '/pkg1/2.1b2', headers=dict(accept="text/html"))
     links = r.html.select('.projectnavigation a')
     assert 'Newer version available' not in "".join(x.text for x in links)
     link = links[-1]
     assert link.text == 'Stable version available'
-    assert link.attrs['href'] == api.index + '/pkg1/2.6'
+    assert link.attrs['href'] == api.index + '/pkg1/stable'
     r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     links = r.html.select('.projectnavigation a')
     assert 'version available' not in "".join(x.text for x in links)
@@ -566,7 +566,19 @@ def test_version_view_latest_stable(mapp, testapp):
     assert 'Newer version available' not in "".join(x.text for x in links)
     link = links[-1]
     assert link.text == 'Stable version available'
-    assert link.attrs['href'] == api.index + '/pkg1/2.6'
+    assert link.attrs['href'] == api.index + '/pkg1/stable'
+    # test stable url
+    r = testapp.get(api.index + '/pkg1/stable', headers=dict(accept="text/html"))
+    assert 'pkg1-2.6 metadata and description' in r.text
+    links = r.html.select('#navigation a')
+    assert links[4].text == '2.6'
+    assert links[4].attrs['href'] == api.index + '/pkg1/2.6'
+    # test latest url
+    r = testapp.get(api.index + '/pkg1/latest', headers=dict(accept="text/html"))
+    assert 'pkg1-3.0b1 metadata and description' in r.text
+    links = r.html.select('#navigation a')
+    assert links[4].text == '3.0b1'
+    assert links[4].attrs['href'] == api.index + '/pkg1/3.0b1'
 
 
 def test_complex_name(mapp, testapp):
