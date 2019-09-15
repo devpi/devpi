@@ -15,7 +15,7 @@
         <p id="summary" tal:condition="summary" tal:content="summary" />
 
         <table class="projectinfos">
-            <tr tal:repeat="info infos" class="${info[0]}">
+            <tr tal:repeat="info infos" class="${info[0]}${' is_list' if info[0] in metadata_list_fields else ''}">
                 <td class="key">${info[0]}</td>
                 <td class="value" tal:content="structure info[1]"></td>
             </tr>

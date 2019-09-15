@@ -650,6 +650,9 @@ def version_get(context, request):
         summary=verdata.get("summary"),
         nav_links=nav_links,
         infos=infos,
+        metadata_list_fields=frozenset(
+            py.xml.escape(x)
+            for x in getattr(stage, 'metadata_list_fields', ())),
         files=files,
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
         show_toxresults=show_toxresults,
