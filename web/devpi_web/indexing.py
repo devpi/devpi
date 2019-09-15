@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from devpi_common.types import ensure_unicode
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.validation import normalize_name
+from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import Docs
 import attr
 
@@ -15,6 +16,7 @@ def is_project_cached(stage, project):
 
 def preprocess_project(project):
     stage = project.stage
+    pm = get_pluginmanager(stage.xom.config)
     name = normalize_name(project.name)
     try:
         user = stage.user.name
@@ -24,7 +26,10 @@ def preprocess_project(project):
     user = ensure_unicode(user)
     index = ensure_unicode(index)
     if not is_project_cached(stage, name):
-        return dict(name=name, user=user, index=index)
+        result = dict(name=name, user=user, index=index)
+        pm.hook.devpiweb_modify_preprocess_project_result(
+            project=project, result=result)
+        return result
     stage.offline = True
     setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
@@ -50,6 +55,8 @@ def preprocess_project(project):
             value = result[key]
             if value == 'UNKNOWN' or not value:
                 del result[key]
+    pm.hook.devpiweb_modify_preprocess_project_result(
+        project=project, result=result)
     return result
 
 
