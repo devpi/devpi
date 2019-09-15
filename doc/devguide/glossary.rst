@@ -33,18 +33,3 @@ Glossary devpi-server
 
       The WSGI server that devpi-server runs inside. 
       See http://waitress.readthedocs.org/
-      
-
-   BackgroundServer
-
-      Controls the ``--start/--stop/--status`` functionality for 
-      running a devpi-server instance in the background.
-
-      Defined in :mod:`devpi_server.bgserver`. See :class:`devpi_server.bgserver.BackgroundServer`.
-
-   XProcess
-
-      Implements background process control primitives 
-      (vendored from pytest-xprocess).
-      Defined in :mod:`devpi_server.vendor.xprocess`. 
-      See :class:`devpi_server.vendor.xprocess.XProcess`

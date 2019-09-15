@@ -157,25 +157,6 @@ def _main(pluginmanager, argv=None):
     if args.init:
         init_default_indexes(xom)
 
-    if args.start or args.stop or args.log or args.status:
-        xprocdir = config.serverdir.join(".xproc")
-        from devpi_server.bgserver import BackgroundServer
-        tw = py.io.TerminalWriter()
-        bgserver = BackgroundServer(tw, xprocdir)
-        if args.start:
-            return bgserver.start(args, argv[1:])
-        elif args.stop:
-            return bgserver.stop()
-        elif args.log:
-            return bgserver.log()
-        elif args.status:
-            if bgserver.info.isrunning():
-                bgserver.line("server is running with pid %s" %
-                              bgserver.info.pid)
-            else:
-                bgserver.line("no server is running")
-            return
-
     if args.passwd:
         from devpi_server.model import run_passwd
         import warnings

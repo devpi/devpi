@@ -514,8 +514,6 @@ devpi command reference (server)
                         [--root-passwd ROOT_PASSWD]
                         [--root-passwd-hash ROOT_PASSWD_HASH] [--import PATH]
                         [--skip-import-type TYPE] [--no-events] [--export PATH]
-                        [--gen-config] [--secretfile path] [--requests-only]
-                        [--restrict-modify SPEC] [--start] [--stop] [--status]
                         [--log] [--theme THEME]
                         [--documentation-path DOCUMENTATION_PATH]
                         [--indexer-backend NAME]
@@ -588,7 +586,7 @@ devpi command reference (server)
                             structure from inside +files. [None]
       --hard-links          use hard links during export, import or with
                             --replica-file-search-path instead of copying or
-                            downloading files. All limitations for hard links on
+      --version             show devpi_version (6.0.0) [False]
                             your OS apply. USE AT YOUR OWN RISK [False]
       --replica-cert pem_file
                             when running as a replica, use the given .pem file as
@@ -678,12 +676,6 @@ devpi command reference (server)
                             specified users/groups can create and modify users and
                             indices. You have to add root explicitely if wanted.
                             [None]
-    
-    background server (DEPRECATED, see --gen-config to use a process manager from your OS):
-      --start               start the background devpi-server [False]
-      --stop                stop the background devpi-server [False]
-      --status              show status of background devpi-server [False]
-      --log                 show logfile content of background server [False]
     
     devpi-web theme options:
       --theme THEME         folder with template and resource overwrites for the
