@@ -14,11 +14,11 @@ def main(hub, args):
     r = hub.http_api("post", hub.current.login, input, quiet=False)
     hub.current.set_auth(user, r.result["password"])
     hours = r.result["expiration"] / (60*60.0)
-    hub.info("logged in %r at %r, credentials valid for %.2f hours" %
-             (user, hub.current.index, hours))
-    #else:
-    #    hub.error("server refused %r login, code=%s" %(user, r.status_code))
-    #    return 1
+    msg = "logged in %r" % user
+    if hub.current.index:
+        msg = "%s at %r" % (msg, hub.current.index)
+    msg = "%s, credentials valid for %.2f hours" % (msg, hours)
+    hub.info(msg)
 
 
 @hookimpl(trylast=True)
