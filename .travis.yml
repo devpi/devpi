@@ -1,19 +1,9 @@
 dist: xenial
 language: python
-sudo: false
-python:
-  - "2.7"
-  - "3.4"
-  - "3.7"
-  - "nightly"
-  - "pypy2.7-7.1.1"
-  - "pypy3.5-7.0"
+os: linux
 env:
   global:
     - DEVPI_INDEX="devpi-travis/${TRAVIS_REPO_SLUG/\//_}_${TRAVIS_BRANCH/\//_}"
-  matrix:
-    - PROJECT=common
-    - PROJECT=client
 install: travis_retry pip install tox tox-travis devpi-client
 script:
   - export DEVPI_INDEX_URL="https://pypi.org/simple/"
@@ -59,62 +49,62 @@ jobs:
 
     #########################
     #
+    # common
+    #
+    #########################
+
+    - stage: test
+      python: "2.7"
+      env: PROJECT=common
+
+    - stage: test
+      python: "pypy2.7-7.1.1"
+      env: PROJECT=common
+
+    - stage: test
+      python: "3.4"
+      env: PROJECT=common
+
+    - stage: test
+      python: "3.7"
+      env: PROJECT=common
+
+    - stage: test
+      python: "nightly"
+      env: PROJECT=common
+
+    - stage: test
+      python: "pypy3.5-7.0"
+      env: PROJECT=common
+
+    #########################
+    #
     # server
     #
     #########################
-    - stage: test
-      python: "2.7"
-      env: PROJECT=server
-      addons:
-        apt:
-          packages:
-            - nginx
 
     - stage: test
       python: "3.4"
       env: PROJECT=server
-      addons:
-        apt:
-          packages:
-            - nginx
 
     - stage: test
       python: "3.7"
       env: PROJECT=server
-      addons:
-        apt:
-          packages:
-            - nginx
 
     - stage: test
       python: "nightly"
       env: PROJECT=server
-      addons:
-        apt:
-          packages:
-            - nginx
-
-    - stage: test
-      python: "pypy2.7-7.1.1"
-      env: PROJECT=server
-      addons:
-        apt:
-          packages:
-            - nginx
 
     - stage: test
       python: "pypy3.5-7.0"
       env: PROJECT=server
-      addons:
-        apt:
-          packages:
-            - nginx
 
     #########################
     #
     # web
     #
     #########################
+
     - stage: test
       python: "3.4"
       env: PROJECT=web
@@ -130,6 +120,36 @@ jobs:
     - stage: test
       python: "pypy3.5-7.0"
       env: PROJECT=web
+
+    #########################
+    #
+    # client
+    #
+    #########################
+
+    - stage: test
+      python: "2.7"
+      env: PROJECT=client
+
+    - stage: test
+      python: "pypy2.7-7.1.1"
+      env: PROJECT=client
+
+    - stage: test
+      python: "3.4"
+      env: PROJECT=client
+
+    - stage: test
+      python: "3.7"
+      env: PROJECT=client
+
+    - stage: test
+      python: "nightly"
+      env: PROJECT=client
+
+    - stage: test
+      python: "pypy3.5-7.0"
+      env: PROJECT=client
 
     #########################
     #

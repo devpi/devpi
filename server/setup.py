@@ -66,14 +66,16 @@ if __name__ == "__main__":
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python",
+        "Programming Language :: Python :: 3 :: Only",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         "Programming Language :: Python :: Implementation :: PyPy",
       ] + [
             ("Programming Language :: Python :: %s" % x)
-            for x in "2.7 3.4 3.5 3.6 3.7".split()],
+            for x in "3.4 3.5 3.6 3.7".split()],
       install_requires=install_requires,
       extras_require=extras_require,
+      python_requires='>=3.4',
       entry_points={
         'console_scripts': [
             "devpi-export = devpi_server.importexport:export",

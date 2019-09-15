@@ -6,7 +6,6 @@ from .config import parseoptions, get_pluginmanager
 from .filestore import FileEntry
 from .log import configure_cli_logging
 from .main import Fatal
-from .main import check_python_version
 from .main import xom_from_config
 import py
 import sys
@@ -15,7 +14,6 @@ import time
 
 def fsck():
     """ devpi-fsck command line entry point. """
-    check_python_version()
     pluginmanager = get_pluginmanager()
     try:
         parser = MyArgumentParser(
