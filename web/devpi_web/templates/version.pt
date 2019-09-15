@@ -10,7 +10,7 @@
         <h1>${title}</h1>
 
         <p class="projectnavigation" tal:condition="nav_links">
-            <tal:link repeat="link nav_links"><a tal:attributes="class link.get('css_class')" href="${link.url}">${link.title}</a><tal:sep condition="not repeat.link.end"> | </tal:sep></tal:link>
+            <span tal:repeat="link nav_links"><a tal:attributes="class link.get('css_class')" href="${link.url}">${link.title}</a></span>
         </p>
         <p id="summary" tal:condition="summary" tal:content="summary" />
 

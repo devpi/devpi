@@ -40,6 +40,10 @@ form, #content, #navigation, .searchresults {
     padding: 0.25em 0 0.5em 0;
 }
 
+#navigation > span + span::before {
+    content: "»";
+}
+
 #serverstatus {
     padding: 1em;
     margin: 1em;
@@ -472,6 +476,10 @@ a.failed:after {
 
 .toxresult.closed h2:after {
     content: "+";
+}
+
+.projectnavigation span + span::before {
+    content: " | ";
 }
 
 .projectnavigation a {
