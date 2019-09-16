@@ -4,7 +4,7 @@ server {
     gzip             on;
     gzip_min_length  2000;
     gzip_proxied     any;
-    gzip_types       text/html application/json; 
+    gzip_types       application/json; 
 
     proxy_read_timeout 60s;
     client_max_body_size 64M;
@@ -34,7 +34,7 @@ server {
     }
     location @proxy_to_app {
         proxy_pass http://localhost:%(port)s;
-        proxy_set_header X-outside-url $scheme://$host:$server_port;
+        proxy_set_header X-outside-url $scheme://$http_host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 } 
