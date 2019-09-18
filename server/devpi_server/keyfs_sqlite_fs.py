@@ -7,8 +7,10 @@ from .readonly import ReadonlyView
 from .readonly import get_mutable_deepcopy
 from .fileutil import get_write_file_ensure_dir, rename, loads
 from hashlib import sha256
+import errno
 import os
 import re
+import sys
 import threading
 import time
 
@@ -24,7 +26,14 @@ class DirtyFile(object):
         if isinstance(content, BytesForHardlink):
             dirname = os.path.dirname(self.tmppath)
             if not os.path.exists(dirname):
-                os.makedirs(dirname)
+                try:
+                    os.makedirs(dirname)
+                except IOError as e:
+                    # ignore file exists errors
+                    # one reason for that error is a race condition where
+                    # another thread tries to create the same folder
+                    if e.errno != errno.EEXIST:
+                        raise
             os.link(content.devpi_srcpath, self.tmppath)
         else:
             with get_write_file_ensure_dir(self.tmppath) as f:

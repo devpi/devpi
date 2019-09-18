@@ -1,3 +1,4 @@
+import errno
 import os.path
 import sys
 from execnet.gateway_base import Unserializer, _Serializer
@@ -51,13 +52,12 @@ def get_write_file_ensure_dir(path):
         if not os.path.exists(dirname):
             try:
                 os.makedirs(dirname)
-            except IOError:
-                # ignore any errors
-                # one reason for an error is a race condition where another
-                # thread tries to create the file
-                # any important issues will be caught when we try to open
-                # the file
-                pass
+            except IOError as e:
+                # ignore file exists errors
+                # one reason for that error is a race condition where
+                # another thread tries to create the same folder
+                if e.errno != errno.EEXIST:
+                    raise
         return open(path, "wb")
 
 
