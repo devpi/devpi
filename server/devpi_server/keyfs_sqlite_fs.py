@@ -22,6 +22,10 @@ class DirtyFile(object):
         key = "%s%i%i" % (
             path, os.getpid(), threading.current_thread().ident)
         digest = sha256(key.encode('utf-8')).hexdigest()
+        if sys.platform == 'win32':
+            # on windows we have to shorten the digest, otherwise we reach
+            # the 260 chars file path limit too quickly
+            digest = digest[:8]
         self.tmppath = '%s-%s-tmp' % (path, digest)
         if isinstance(content, BytesForHardlink):
             dirname = os.path.dirname(self.tmppath)
@@ -252,7 +256,7 @@ def write_dirty_files(dirty_files):
     return pending_renames
 
 
-tmp_file_matcher = re.compile(r"(.*?)(-[0-9a-fA-F]{64})?(-tmp)$")
+tmp_file_matcher = re.compile(r"(.*?)(-[0-9a-fA-F]{8,64})?(-tmp)$")
 
 
 def tmpsuffix_for_path(path):
