@@ -11,17 +11,19 @@ import re
 import contextlib
 import py
 from . import mythread
+from .fileutil import loads
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import get_mutable_deepcopy, ensure_deeply_readonly, \
                       is_deeply_readonly
 from .fileutil import read_int_from_file, write_int_to_file
-
+import attr
 import time
 
 from devpi_common.types import cached_property
 
 
 notset = object()
+
 
 
 class TxNotificationThread:
@@ -392,6 +394,15 @@ class TypedKey:
         return self.keyfs.tx.delete(self)
 
 
+@attr.s(slots=True)
+class RelpathInfo(object):
+    relpath = attr.ib(type=str)
+    keyname = attr.ib(type=str)
+    serial = attr.ib(type=int)
+    back_serial = attr.ib(type=int)
+    value = attr.ib()
+
+
 class Transaction(object):
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
@@ -406,6 +417,22 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
         self.doomed = False
+
+    def iter_relpaths_at(self, typedkeys, at_serial):
+        keynames = frozenset(k.name for k in typedkeys)
+        seen = set()
+        for serial in range(at_serial, -1, -1):
+            raw_entry = self.conn.get_raw_changelog_entry(serial)
+            changes = loads(raw_entry)[0]
+            for relpath, (keyname, back_serial, val) in changes.items():
+                if keyname not in keynames:
+                    continue
+                if relpath not in seen:
+                    seen.add(relpath)
+                    yield RelpathInfo(
+                        relpath=relpath, keyname=keyname,
+                        serial=serial, back_serial=back_serial,
+                        value=val)
 
     def iter_serial_and_value_backwards(self, relpath, last_serial):
         while last_serial >= 0:
