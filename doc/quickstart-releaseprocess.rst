@@ -40,7 +40,7 @@ where we can upload and test packages:
 
 So let's first initialize devpi-server::
 
-    $ devpi-server --init
+    $ devpi-init
     2018-01-17 15:56:39,613 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:56:39,614 INFO  NOCTX generated uuid: db98115731f645508266ff1ee177ff8d
     2018-01-17 15:56:39,615 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo

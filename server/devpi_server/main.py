@@ -33,6 +33,8 @@ def check_compatible_version(config):
     args = config.args
     if getattr(args, 'export', None):
         return
+    if not config.serverdir.exists():
+        return
     state_version = get_state_version(config)
     if server_version != state_version:
         state_ver = tuple(state_version.split("."))
@@ -95,11 +97,19 @@ def xom_from_config(config):
         fatal(
             "No sqlite storage found in serverdir."
             " Or you need to run with --storage to specify the storage type,"
-            " or you first need to run with --init or --import"
+            " or you first need to run devpi-init or devpi-import"
             " in order to create the sqlite database."
         )
 
     return XOM(config)
+
+
+def init_default_indexes(xom):
+    # we deliberately call get_current_serial first to establish a connection
+    # to the backend and in case of sqlite create the database
+    if xom.keyfs.get_current_serial() == -1 and not xom.is_replica():
+        with xom.keyfs.transaction(write=True):
+            set_default_indexes(xom.model)
 
 
 def _main(pluginmanager, argv=None):
@@ -125,11 +135,15 @@ def _main(pluginmanager, argv=None):
     configure_logging(config.args)
 
     if args.init:
+        import warnings
+        warnings.warn(
+            "DEPRECATION: the --init option is deprecated, use the "
+            "devpi-init command instead")
         if config.path_nodeinfo.exists():
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
     elif not args.import_:
         if not config.path_nodeinfo.exists():
-            fatal("The path '%s' contains no devpi-server data, use --init to initialize." % config.serverdir)
+            fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
 
     if args.init or args.import_:
         sdir = config.serverdir
@@ -138,11 +152,7 @@ def _main(pluginmanager, argv=None):
 
     xom = xom_from_config(config)
 
-    # we deliberately call get_current_serial first to establish a connection
-    # to the backend and in case of sqlite create the database
-    if xom.keyfs.get_current_serial() == -1 and not xom.is_replica():
-        with xom.keyfs.transaction(write=True):
-            set_default_indexes(xom.model)
+    init_default_indexes(xom)
 
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")

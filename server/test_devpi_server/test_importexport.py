@@ -84,14 +84,21 @@ def test_export_empty_serverdir(tmpdir, capfd, monkeypatch):
     assert ("The path '%s' contains no devpi-server data" % empty) in err
 
 
-def test_export_import(tmpdir, capfd, monkeypatch):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_export_import(tmpdir, capfd, monkeypatch, use_option):
+    from devpi_server.init import init
     from devpi_server.main import main
     monkeypatch.setattr("devpi_server.main.configure_logging", lambda a: None)
     clean = tmpdir.join("clean").ensure(dir=True)
-    ret = main([
-        "devpi-server",
-        "--serverdir", clean.strpath,
-        "--init"])
+    if use_option:
+        ret = main(argv=[
+            "devpi-server",
+            "--init",
+            "--serverdir", clean.strpath])
+    else:
+        ret = init(argv=[
+            "devpi-init",
+            "--serverdir", clean.strpath])
     assert ret == 0
     export = tmpdir.join("export")
     ret = main([
@@ -112,15 +119,23 @@ def test_export_import(tmpdir, capfd, monkeypatch):
     assert err == ''
 
 
-def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch, use_option):
+    from devpi_server.init import init
     from devpi_server.main import main
     monkeypatch.setattr("devpi_server.main.configure_logging", lambda a: None)
     clean = tmpdir.join("clean").ensure(dir=True)
-    ret = main([
-        "devpi-server",
-        "--serverdir", clean.strpath,
-        "--no-root-pypi",
-        "--init"])
+    if use_option:
+        ret = main(argv=[
+            "devpi-server",
+            "--init",
+            "--serverdir", clean.strpath,
+            "--no-root-pypi"])
+    else:
+        ret = init(argv=[
+            "devpi-init",
+            "--serverdir", clean.strpath,
+            "--no-root-pypi"])
     assert ret == 0
     export = tmpdir.join("export")
     ret = main([

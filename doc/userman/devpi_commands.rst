@@ -670,6 +670,49 @@ devpi command reference (server)
       --indexer-backend NAME
                             the indexer backend to use [whoosh]
 
+
+::
+
+    $ devpi-init -h
+    usage: devpi-init [-h] [-c CONFIGFILE]
+                      [--role {master,replica,standalone,auto}]
+                      [--master-url MASTER_URL] [--serverdir DIR] [--storage NAME]
+                      [--keyfs-cache-size NUM] [--no-root-pypi]
+                      [--root-passwd ROOT_PASSWD]
+                      [--root-passwd-hash ROOT_PASSWD_HASH]
+    
+    Initialize new devpi-server instance.
+    
+    optional arguments:
+      -h, --help            Show this help message and exit.
+      -c CONFIGFILE, --configfile CONFIGFILE
+                            Config file to use. [None]
+      --role {master,replica,standalone,auto}
+                            set role of this instance. The default 'auto' sets
+                            'standalone' by default and 'replica' if the --master-
+                            url option is used. To enable the replication protocol
+                            you have to explicitly set the 'master' role. [auto]
+      --master-url MASTER_URL
+                            run as a replica of the specified master server [None]
+      --serverdir DIR       directory for server data. [~/.devpi/server]
+      --storage NAME        the storage backend to use. "pg8000": Postgresql
+                            backend, "sqlite": SQLite backend with files on the
+                            filesystem, "sqlite_db_files": SQLite backend with
+                            files in DB for testing only [None]
+      --keyfs-cache-size NUM
+                            size of keyfs cache. If your devpi-server installation
+                            gets a lot of writes, then increasing this might
+                            improve performance. Each entry uses 1kb of memory on
+                            average. So by default about 10MB are used. [10000]
+      --no-root-pypi        don't create root/pypi on server initialization.
+                            [False]
+      --root-passwd ROOT_PASSWD
+                            initial password for the root user. This option has no
+                            effect if the user 'root' already exist. []
+      --root-passwd-hash ROOT_PASSWD_HASH
+                            initial password hash for the root user. This option
+                            has no effect if the user 'root' already exist. [None]
+
 ::
 
     $ devpi-passwd -h

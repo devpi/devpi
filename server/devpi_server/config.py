@@ -213,7 +213,8 @@ def add_init_options(parser, pluginmanager, standalone=True):
     if not standalone:
         parser.addoption(
             "--init", action="store_true",
-            help="initialize devpi-server state in an empty directory "
+            help="(DEPRECATED, use devpi-init command) initialize "
+                 "devpi-server state in an empty directory "
                  "(also see --serverdir)")
 
     parser.addoption(

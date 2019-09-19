@@ -100,7 +100,9 @@ def test_requests_only(makexom):
 
 
 @wsgi_run_throws
-def test_run_commands_called(tmpdir):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_run_commands_called(tmpdir, use_option):
+    from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
@@ -110,9 +112,14 @@ def test_run_commands_called(tmpdir):
             return 1
     pm = get_pluginmanager()
     pm.register(Plugin())
-    result = _main(
-        argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
-        pluginmanager=pm)
+    if use_option:
+        result = _main(
+            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
+            pluginmanager=pm)
+    else:
+        result = init(
+            argv=["devpi-init", "--serverdir", str(tmpdir)],
+            pluginmanager=pm)
     result = _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
         pluginmanager=pm)
@@ -122,7 +129,9 @@ def test_run_commands_called(tmpdir):
 
 
 @wsgi_run_throws
-def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir, use_option):
+    from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
 
     class Plugin:
@@ -131,9 +140,14 @@ def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir):
             return 1
     pm = get_pluginmanager()
     pm.register(Plugin())
-    _main(
-        argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
-        pluginmanager=pm)
+    if use_option:
+        _main(
+            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
+            pluginmanager=pm)
+    else:
+        init(
+            argv=["devpi-init", "--serverdir", str(tmpdir)],
+            pluginmanager=pm)
     _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
         pluginmanager=pm)
@@ -143,11 +157,13 @@ def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir):
             argv=["devpi-server", "--serverdir", str(tmpdir)],
             pluginmanager=pm
         )
-    assert "you first need to run with --init or --import" in str(excinfo.value)
+    assert "you first need to run devpi-init or devpi-import" in str(excinfo.value)
 
 
 @wsgi_run_throws
-def test_main_starts_server_if_run_commands_returns_none(tmpdir):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_main_starts_server_if_run_commands_returns_none(tmpdir, use_option):
+    from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
     l = []
     class Plugin:
@@ -156,9 +172,14 @@ def test_main_starts_server_if_run_commands_returns_none(tmpdir):
             l.append(xom)
     pm = get_pluginmanager()
     pm.register(Plugin())
-    _main(
-        argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
-        pluginmanager=pm)
+    if use_option:
+        _main(
+            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
+            pluginmanager=pm)
+    else:
+        init(
+            argv=["devpi-init", "--serverdir", str(tmpdir)],
+            pluginmanager=pm)
     with pytest.raises(ZeroDivisionError):
         _main(
             argv=["devpi-server", "--serverdir", str(tmpdir)],
@@ -264,38 +285,50 @@ def test_no_root_pypi_option(makexom):
 
 def test_no_init_empty_directory(call_devpi_in_dir, tmpdir):
     assert not len(os.listdir(tmpdir.strpath))
-    result = call_devpi_in_dir(tmpdir, [])
+    result = call_devpi_in_dir(tmpdir, ['devpi-server'])
     assert not len(os.listdir(tmpdir.strpath))
     result.stderr.fnmatch_lines("*contains no devpi-server data*")
 
 
-def test_init_empty_directory(call_devpi_in_dir, monkeypatch, tmpdir):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_init_empty_directory(call_devpi_in_dir, monkeypatch, tmpdir, use_option):
     monkeypatch.setattr("devpi_server.config.Config.init_nodeinfo", lambda x: 0/0)
     assert not len(os.listdir(tmpdir.strpath))
     with pytest.raises(ZeroDivisionError):
-        call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+        if use_option:
+            call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+        else:
+            call_devpi_in_dir(tmpdir, ["devpi-init"])
 
 
 def test_no_init_no_server_directory(call_devpi_in_dir, tmpdir):
     tmpdir.ensure("foo")
     assert os.listdir(tmpdir.strpath) == ["foo"]
-    result = call_devpi_in_dir(tmpdir, [])
+    result = call_devpi_in_dir(tmpdir, ["devpi-server"])
     assert os.listdir(tmpdir.strpath) == ["foo"]
     result.stderr.fnmatch_lines("*contains no devpi-server data*")
 
 
-def test_init_no_server_directory(call_devpi_in_dir, monkeypatch, tmpdir):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_init_no_server_directory(call_devpi_in_dir, monkeypatch, tmpdir, use_option):
     monkeypatch.setattr("devpi_server.config.Config.init_nodeinfo", lambda x: 0/0)
     tmpdir.ensure("foo")
     assert os.listdir(tmpdir.strpath) == ["foo"]
     with pytest.raises(ZeroDivisionError):
-        call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+        if use_option:
+            call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+        else:
+            call_devpi_in_dir(tmpdir, ["devpi-init"])
 
 
-def test_init_server_directory(call_devpi_in_dir, tmpdir):
+@pytest.mark.parametrize("use_option", (False, True))
+def test_init_server_directory(call_devpi_in_dir, tmpdir, use_option):
     tmpdir.ensure(".nodeinfo")
     assert os.listdir(tmpdir.strpath) == [".nodeinfo"]
-    result = call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+    if use_option:
+        result = call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
+    else:
+        result = call_devpi_in_dir(tmpdir, ["devpi-init"])
     assert os.listdir(tmpdir.strpath) == [".nodeinfo"]
     result.stderr.fnmatch_lines("*already contains devpi-server data*")
 
