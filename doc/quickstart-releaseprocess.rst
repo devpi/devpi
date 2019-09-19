@@ -22,6 +22,9 @@ can just install the latter only.
 initializing a basic server and index
 +++++++++++++++++++++++++++++++++++++
 
+..
+    $ rm -rf ~/.devpi/server
+
 We need to perform a couple of steps to get an index
 where we can upload and test packages:
 
@@ -35,9 +38,9 @@ where we can upload and test packages:
 
 - create an index and directly use it.
 
-So let's first start a background server::
+So let's first initialize devpi-server::
 
-    $ devpi-server --start --init
+    $ devpi-server --init
     2018-01-17 15:56:39,613 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:56:39,614 INFO  NOCTX generated uuid: db98115731f645508266ff1ee177ff8d
     2018-01-17 15:56:39,615 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
@@ -47,11 +50,27 @@ So let's first start a background server::
     2018-01-17 15:56:39,624 INFO  [Wtx-1] created root user
     2018-01-17 15:56:39,624 INFO  [Wtx-1] created root/pypi index
     2018-01-17 15:56:39,627 INFO  [Wtx-1] fswriter0: committed: keys: 'root/.config','.config'
-    starting background devpi-server at http://localhost:3141
-    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/devpi/devpi/bin/devpi-server
-    process 'devpi-server' started pid=70352
-    devpi-server process startup detected
-    logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
+
+To start ``devpi-server`` in the background we use supervisor as an example.
+First we create the config file for it::
+
+    $ devpi-server --gen-config
+    It is highly recommended to use a configuration file for devpi-server, see --configfile option.
+    wrote gen-config/crontab
+    wrote gen-config/net.devpi.plist
+    wrote gen-config/launchd-macos.txt
+    wrote gen-config/nginx-devpi.conf
+    wrote gen-config/supervisor-devpi.conf
+    wrote gen-config/devpi.service
+    wrote gen-config/windows-service.txt
+
+Then we start supervisord using a config which includes the generated file,
+see :ref:`quickstart-server` for more details::
+
+    $ supervisord -c supervisor.conf
+
+..
+    $ sleep 3
 
 Then we point the devpi client to it::
 
@@ -405,12 +424,10 @@ because it inherits all releases from its ``testuser/staging`` base::
     http://localhost:3141/testuser/staging/+f/b63/6936b6b92f900/example-1.0.tar.gz
     trubel.local darwin  python     3.4.6 tests passed
 
-::
+Now shutdown supervisord which was started at the beginning of this tutorial::
 
-    $ devpi-server --stop
-    2018-01-17 15:57:12,847 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:57:12,849 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=70352
+    $ supervisorctl -c supervisor.conf shutdown
+    Shut down
 
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++

@@ -11,11 +11,6 @@ instance, controlling it with supervisor_ on a UNIX-like system or
 launchd_ on Mac OS X and (optionally) serving it through nginx_ on a
 UNIX-like system. It also shows how to create a first user and index.
 
-Note that the :doc:`the pypi-mirroring quickstart
-<quickstart-pypimirror>` already discusses the ``devpi-server
---start|--log|--stop`` background-server control options which you might
-use to integrate with existing ``init.d`` or similar infrastructure.
-
 .. warning::
 
     If you intend to expose your server to the internet, you should read
@@ -73,7 +68,7 @@ Using environment variables for devpi-server configuration
 
 Environment variables can now be used for configuration.
 
-The command line option name needs to be changed to uppercase, prefixed with DEVPISERVER_ and dashes replaced by underscores.
+The command line option name needs to be changed to uppercase, prefixed with DEVPISERVER\_ and dashes replaced by underscores.
 For example ``--restrict-modify`` becomes ``DEVPISERVER_RESTRICT_MODIFY``.
 
 
@@ -269,10 +264,6 @@ system for more information on launchd.
 Installing devpi server and client
 ---------------------------------------------
 
-.. 
-    $ devpi-server --stop
-    fatal: The path '/tmp/home/.devpi/server' contains no devpi-server data, use --init to initialize.
-
 ..
     $ rm -rf ~/.devpi/server
 
@@ -280,9 +271,11 @@ When started afresh, ``devpi-server`` will not contain any users
 or indexes except for the root user and the ``root/pypi`` index
 (see :ref:`using root/pypi index <install_first>`) which represents
 and caches https://pypi.org packages.  Let's start a server
-for the purposes of this tutorial in the background::
+for the purposes of this tutorial in the background.
 
-    $ devpi-server --port 4040 --start --init
+First initialize it::
+
+    $ devpi-server --init
     2018-01-17 15:57:22,625 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:57:22,626 INFO  NOCTX generated uuid: 7b58c6d02fd64fee98b928220b7685ce
     2018-01-17 15:57:22,627 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
@@ -292,15 +285,43 @@ for the purposes of this tutorial in the background::
     2018-01-17 15:57:22,637 INFO  [Wtx-1] created root user
     2018-01-17 15:57:22,637 INFO  [Wtx-1] created root/pypi index
     2018-01-17 15:57:22,639 INFO  [Wtx-1] fswriter0: committed: keys: '.config','root/.config'
-    starting background devpi-server at http://localhost:4040
-    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/devpi/devpi/bin/devpi-server --port 4040
-    process 'devpi-server' started pid=70523
-    devpi-server process startup detected
-    logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
 
-The ``--start`` option will run a server in the background which
-you can further control with the "background server options", see 
-output of ``devpi-server -h`` at the end.
+Next we create configuration files for various process managers.
+Note that we set the port we want to use::
+
+    $ devpi-server --gen-config --port 4040
+    It is highly recommended to use a configuration file for devpi-server, see --configfile option.
+    wrote gen-config/crontab
+    wrote gen-config/net.devpi.plist
+    wrote gen-config/launchd-macos.txt
+    wrote gen-config/nginx-devpi.conf
+    wrote gen-config/supervisor-devpi.conf
+    wrote gen-config/devpi.service
+    wrote gen-config/windows-service.txt
+
+Now for this tutorial we use supervisor_ to run the server.
+For that we first need to create a supervisor.conf which includes the
+generated configuration. For this tutorial it looks like this:
+
+.. code-block:: ini
+
+    [supervisord]
+
+    [unix_http_server]
+    file=%(here)s/supervisor.sock
+
+    [supervisorctl]
+    serverurl=unix://%(here)s/supervisor.sock
+
+    [rpcinterface:supervisor]
+    supervisor.rpcinterface_factory=supervisor.rpcinterface:make_main_rpcinterface
+
+    [include]
+    files = %(here)s/gen-config/supervisor-devpi.conf
+
+Now we can start supervisor which will manage our server::
+
+    $ supervisord -c supervisor.conf
 
 The server will listen on ``http://localhost:4040`` and also serve
 the devpi web interface if you have ``devpi-web`` installed.
@@ -437,9 +458,7 @@ as described in the :ref:`release process quickstart <quickstart_release_steps>`
 Stopping the server
 ++++++++++++++++++++++++++++++++++++++++++
 
-Let's not forget to stop our background tutorial server::
+Let's not forget to stop our background tutorial server by shutting down supervisor::
 
-    $ devpi-server --stop
-    2018-01-17 15:57:39,371 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:57:39,373 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=70523
+    $ supervisorctl -c supervisor.conf shutdown
+    Shut down

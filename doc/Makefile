@@ -38,7 +38,7 @@ chapter = commands
         epub latex latexpdf text man changes linkcheck doctest gettext install \
         quickstart-releaseprocess quickstart-pypimirror quickstart-server regen \
         prepare-quickstart\
-        regen.server-fresh regen.server-restart regen.server-clean\
+        regen.server-fresh regen.server-clean\
         regen.uman-all regen.uman
 
 help:
@@ -215,27 +215,29 @@ regen.sample_undo:
 	-git checkout userman/pysober
 
 regen.server-fresh: regen.server-clean
-	devpi-server --start --serverdir=$(TESTHOME)/.devpi/server --init
+	rm -rf $(TESTHOME)/.devpi/server
+	devpi-server --serverdir=$(TESTHOME)/.devpi/server --init
+	supervisord -c supervisor.conf
 
-regen.server-restart:
-	-devpi-server --stop --serverdir=$(TESTHOME)/.devpi/server
-	devpi-server --start --serverdir=$(TESTHOME)/.devpi/server
+regen.server-stop:
+	@echo stopping supervisord
+	-supervisorctl -c supervisor.conf shutdown
 
 regen.server-clean: regen.sample_undo
-	@echo stopping server
-	-devpi-server --stop --serverdir=$(TESTHOME)/.devpi/server
+	@echo stopping supervisord
+	-supervisorctl -c supervisor.conf shutdown
 	@echo deleting $(TESTHOME)/.devpi state
 	-rm -rf $(TESTHOME)/.devpi
 	@echo deleting pysober/dist
 	-rm -rf userman/pysober/dist
 	git checkout userman/pysober
 
-    
-
 regen.uman-all : regen.server-fresh $(USER_MAN_CHAPTERS)
 	git checkout userman/pysober
 	rm -rf userman/pysober/dist
+	@echo stopping supervisord
+	-supervisorctl -c supervisor.conf shutdown
 
-regen.uman: regen.server-restart $(chapter)
+regen.uman: $(chapter)
 
 

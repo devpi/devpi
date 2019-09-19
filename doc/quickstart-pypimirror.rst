@@ -27,12 +27,15 @@ Show version::
     manage working with uploads, tests and multiple indexes.
 
 
-start background devpi-server process
-++++++++++++++++++++++++++++++++++++++++++++++
+Initialize devpi-server
++++++++++++++++++++++++
 
-To start ``devpi-server`` in the background issue::
+..
+    $ rm -rf ~/.devpi/server
 
-    $ devpi-server --start --init
+To initialize ``devpi-server`` issue::
+
+    $ devpi-server --init
     2018-01-17 15:40:11,375 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:40:11,375 INFO  NOCTX generated uuid: cf25cfb22d2b4487a9ab4c1e527e5679
     2018-01-17 15:40:11,376 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
@@ -42,11 +45,31 @@ To start ``devpi-server`` in the background issue::
     2018-01-17 15:40:11,392 INFO  [Wtx-1] created root user
     2018-01-17 15:40:11,392 INFO  [Wtx-1] created root/pypi index
     2018-01-17 15:40:11,395 INFO  [Wtx-1] fswriter0: committed: keys: 'root/.config','.config'
-    starting background devpi-server at http://localhost:3141
-    /tmp/home/.devpi/server/.xproc/devpi-server$ /home/devpi/devpi/bin/devpi-server
-    process 'devpi-server' started pid=69748
-    devpi-server process startup detected
-    logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
+
+
+start background devpi-server process
+++++++++++++++++++++++++++++++++++++++++++++++
+
+To start ``devpi-server`` in the background we use supervisor as an example.
+First we create the config file for it::
+
+    $ devpi-server --gen-config
+    It is highly recommended to use a configuration file for devpi-server, see --configfile option.
+    wrote gen-config/crontab
+    wrote gen-config/net.devpi.plist
+    wrote gen-config/launchd-macos.txt
+    wrote gen-config/nginx-devpi.conf
+    wrote gen-config/supervisor-devpi.conf
+    wrote gen-config/devpi.service
+    wrote gen-config/windows-service.txt
+
+Then we start supervisord using a config which includes the generated file,
+see :ref:`quickstart-server` for more details::
+
+    $ supervisord -c supervisor.conf
+
+..
+    $ sleep 3
 
 You now have a server listening on ``http://localhost:3141``.
 
@@ -119,12 +142,10 @@ install the plugin which we can safely do while the server is running::
       Could not find a version that satisfies the requirement repoze.lru>=0.6 (from devpi-server>=3.0.0.dev2->devpi-web) (from versions: )
     No matching distribution found for repoze.lru>=0.6 (from devpi-server>=3.0.0.dev2->devpi-web)
 
-We now need to stop the server::
+We now need to stop the server, we do that using supervisorctl::
 
-    $ devpi-server --stop
-    2018-01-17 15:40:51,938 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:40:51,939 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=69748
+    $ supervisorctl -c supervisor.conf stop devpi-server
+    devpi-server: stopped
 
 and then recreate the search index::
 
@@ -139,14 +160,8 @@ and then recreate the search index::
 
 and then start the server again::
 
-    $ devpi-server --start
-    2018-01-17 15:56:26,708 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:56:26,709 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    starting background devpi-server at http://localhost:3141
-    /tmp/home/.devpi/server/.xproc/devpi-server$ /tmp/docenv/bin/devpi-server
-    process 'devpi-server' started pid=70304
-    devpi-server process startup detected
-    logfile is at /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
+    $ supervisorctl -c supervisor.conf start devpi-server
+    devpi-server: started
 
 We can now use search with pip::
 
@@ -200,50 +215,13 @@ the ``$HOME/.pydistutils.cfg`` file::
     index_url = http://localhost:3141/root/pypi/+simple/
 
 
-Checking and stopping the background server
-++++++++++++++++++++++++++++++++++++++++++++
-
-At any time you can check the background server status with::
-
-    $ devpi-server --status
-    2018-01-17 15:56:29,687 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:56:29,688 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    server is running with pid 70304
-
-Or stop it::
-
-    $ devpi-server --stop
-    2018-01-17 15:56:30,493 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:56:30,495 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    killed server pid=70304
-
-Finally, you can also look at the logfile of the background server
-(also after it has been stopped)::
-
-    $ devpi-server --log
-    2018-01-17 15:56:31,322 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:56:31,323 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    last lines of devpi-server log
-    2018-01-17 15:56:27,454 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:56:27,580 INFO  NOCTX Found plugin devpi-web-3.2.2 (/private/tmp/docenv/lib/python3.4/site-packages).
-    2018-01-17 15:56:27,580 INFO  NOCTX Found plugin devpi-server-4.4.0 (/private/tmp/docenv/lib/python3.4/site-packages).
-    2018-01-17 15:56:27,580 INFO  NOCTX Found plugin devpi-server-4.4.0 (/private/tmp/docenv/lib/python3.4/site-packages).
-    2018-01-17 15:56:27,580 INFO  NOCTX Found plugin devpi-server-4.4.0 (/private/tmp/docenv/lib/python3.4/site-packages).
-    2018-01-17 15:56:27,580 INFO  NOCTX Found plugin devpi-server-4.4.0 (/private/tmp/docenv/lib/python3.4/site-packages).
-    2018-01-17 15:56:27,682 INFO  NOCTX devpi-server version: 4.4.0
-    2018-01-17 15:56:27,683 INFO  NOCTX serverdir: /tmp/home/.devpi/server
-    2018-01-17 15:56:27,683 INFO  NOCTX uuid: cf25cfb22d2b4487a9ab4c1e527e5679
-    2018-01-17 15:56:27,683 INFO  NOCTX serving at url: http://localhost:3141 (might be http://[localhost]:3141 for IPv6)
-    2018-01-17 15:56:27,683 INFO  NOCTX using 50 threads
-    2018-01-17 15:56:27,683 INFO  NOCTX bug tracker: https://github.com/devpi/devpi/issues
-    2018-01-17 15:56:27,683 INFO  NOCTX IRC: #devpi on irc.freenode.net
-    2018-01-17 15:56:27,683 INFO  NOCTX Hit Ctrl-C to quit.
-    2018-01-17 15:56:27,874 INFO  [req0] GET /
-    2018-01-17 15:56:28,662 INFO  [req1] POST /root/pypi/
-    logfile at: /tmp/home/.devpi/server/.xproc/devpi-server/xprocess.log
-
 running devpi-server permanently
 +++++++++++++++++++++++++++++++++
 
 If you want to configure a permanent devpi-server install,
 you can go to :ref:`quickstart-server` to learn more.
+
+Now shutdown supervisord which was started at the beginning of this tutorial::
+
+    $ supervisorctl -c supervisor.conf shutdown
+    Shut down
