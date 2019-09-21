@@ -670,6 +670,88 @@ devpi command reference (server)
       --indexer-backend NAME
                             the indexer backend to use [whoosh]
 
+::
+
+    $ devpi-export -h
+    usage: devpi-export [-h] [-c CONFIGFILE] [--serverdir DIR] [--storage NAME]
+                        [--keyfs-cache-size NUM] [--hard-links]
+                        directory
+    
+    Export the data of a devpi-server instance.
+    
+    positional arguments:
+      directory
+    
+    optional arguments:
+      -h, --help            Show this help message and exit.
+      -c CONFIGFILE, --configfile CONFIGFILE
+                            Config file to use. [None]
+      --serverdir DIR       directory for server data. [~/.devpi/server]
+      --storage NAME        the storage backend to use. "pg8000": Postgresql
+                            backend, "sqlite": SQLite backend with files on the
+                            filesystem, "sqlite_db_files": SQLite backend with
+                            files in DB for testing only [None]
+      --keyfs-cache-size NUM
+                            size of keyfs cache. If your devpi-server installation
+                            gets a lot of writes, then increasing this might
+                            improve performance. Each entry uses 1kb of memory on
+                            average. So by default about 10MB are used. [10000]
+      --hard-links          use hard links during export, import or with
+                            --replica-file-search-path instead of copying or
+                            downloading files. All limitations for hard links on
+                            your OS apply. USE AT YOUR OWN RISK [False]
+
+::
+
+    $ devpi-import -h
+    usage: devpi-import [-h] [-c CONFIGFILE] [--serverdir DIR] [--storage NAME]
+                        [--keyfs-cache-size NUM] [--no-root-pypi]
+                        [--root-passwd ROOT_PASSWD]
+                        [--root-passwd-hash ROOT_PASSWD_HASH]
+                        [--skip-import-type TYPE] [--no-events] [--hard-links]
+                        directory
+    
+    Import previously exported data into a new devpi-server instance.
+    
+    positional arguments:
+      directory
+    
+    optional arguments:
+      -h, --help            Show this help message and exit.
+      -c CONFIGFILE, --configfile CONFIGFILE
+                            Config file to use. [None]
+      --serverdir DIR       directory for server data. [~/.devpi/server]
+      --storage NAME        the storage backend to use. "pg8000": Postgresql
+                            backend, "sqlite": SQLite backend with files on the
+                            filesystem, "sqlite_db_files": SQLite backend with
+                            files in DB for testing only [None]
+      --keyfs-cache-size NUM
+                            size of keyfs cache. If your devpi-server installation
+                            gets a lot of writes, then increasing this might
+                            improve performance. Each entry uses 1kb of memory on
+                            average. So by default about 10MB are used. [10000]
+      --no-root-pypi        don't create root/pypi on server initialization.
+                            [False]
+      --root-passwd ROOT_PASSWD
+                            initial password for the root user. This option has no
+                            effect if the user 'root' already exist. []
+      --root-passwd-hash ROOT_PASSWD_HASH
+                            initial password hash for the root user. This option
+                            has no effect if the user 'root' already exist. [None]
+      --skip-import-type TYPE
+                            skip the given index type during import. Used when the
+                            corresponding plugin isn't installed anymore. [None]
+      --no-events           no events will be run during import, instead they
+                            arepostponed to run on server start. This allows much
+                            faster start of the server after import, when devpi-
+                            web is used. When you start the server after the
+                            import, the search index and documentation will
+                            gradually update until the server has caught up with
+                            all events. [False]
+      --hard-links          use hard links during export, import or with
+                            --replica-file-search-path instead of copying or
+                            downloading files. All limitations for hard links on
+                            your OS apply. USE AT YOUR OWN RISK [False]
 
 ::
 

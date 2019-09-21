@@ -923,10 +923,12 @@ def server_directory():
 @pytest.fixture(scope="module")
 def call_devpi_in_dir():
     # let xproc find the correct executable instead of py.test
+    devpiimport = str(py.path.local.sysfind("devpi-import"))
     devpiinit = str(py.path.local.sysfind("devpi-init"))
     devpiserver = str(py.path.local.sysfind("devpi-server"))
 
     def devpi(server_dir, args):
+        from devpi_server.importexport import import_
         from devpi_server.init import init
         from devpi_server.main import main
         from _pytest.monkeypatch import MonkeyPatch
@@ -936,7 +938,10 @@ def call_devpi_in_dir():
         cap = py.io.StdCaptureFD()
         cap.startall()
         now = time.time()
-        if args[0] == 'devpi-init':
+        if args[0] == 'devpi-import':
+            m.setattr("sys.argv", [devpiimport])
+            entry_point = import_
+        elif args[0] == 'devpi-init':
             m.setattr("sys.argv", [devpiinit])
             entry_point = init
         elif args[0] == 'devpi-server':

@@ -237,7 +237,8 @@ def add_export_options(parser, pluginmanager, standalone=True):
     if not standalone:
         parser.addoption(
             "--export", type=str, metavar="PATH",
-            help="export devpi-server database state into PATH. "
+            help="(DEPRECATED, use devpi-passwd command) export "
+                 "devpi-server database state into PATH. "
                  "This will export all users, indices, release files "
                  "(except for mirrors), test results and documentation.")
 
@@ -247,7 +248,8 @@ def add_import_options(parser, pluginmanager, standalone=True):
         parser.addoption(
             "--import", type=str, metavar="PATH",
             dest="import_",
-            help="import devpi-server database from PATH where PATH "
+            help="(DEPRECATED, use devpi-import command) import "
+                 "devpi-server database from PATH where PATH "
                  "is a directory which was created by a "
                  "'devpi-server --export PATH' operation, "
                  "using the same or an earlier devpi-server version. "
@@ -454,7 +456,12 @@ def parseoptions(pluginmanager, argv, parser=None):
     if parser is None:
         parser = get_parser(pluginmanager)
     try_argcomplete(parser)
+    # suppress any errors
+    org_error = parser.error
+    parser.error = lambda m: None
     args = parser.parse_args(argv[1:])
+    # restore error method
+    parser.error = org_error
     config_file = None
     if args.configfile:
         config_file = args.configfile
@@ -471,10 +478,10 @@ def parseoptions(pluginmanager, argv, parser=None):
         config_options=config_options,
         environ=os.environ)
     parser.post_process_actions(defaultget=defaultget)
-    args = parser.parse_args(argv[1:])
     if args.help is True:
         parser.print_help()
         parser.exit()
+    args = parser.parse_args(argv[1:])
     config = Config(args, pluginmanager=pluginmanager)
     return config
 
@@ -607,8 +614,20 @@ class Config:
         self._master_url = value
 
     @property
+    def mirror_cache_expiry(self):
+        return getattr(self.args, 'mirror_cache_expiry', DEFAULT_MIRROR_CACHE_EXPIRY)
+
+    @property
+    def offline_mode(self):
+        return getattr(self.args, 'offline_mode', False)
+
+    @property
     def requests_only(self):
         return getattr(self.args, 'requests_only', False)
+
+    @property
+    def request_timeout(self):
+        return getattr(self.args, 'request_timeout', DEFAULT_REQUEST_TIMEOUT)
 
     @property
     def restrict_modify(self):

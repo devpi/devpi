@@ -30,9 +30,6 @@ DATABASE_VERSION = "4"
 
 
 def check_compatible_version(config):
-    args = config.args
-    if getattr(args, 'export', None):
-        return
     if not config.serverdir.exists():
         return
     state_version = get_state_version(config)
@@ -41,8 +38,8 @@ def check_compatible_version(config):
         if state_ver[0] != DATABASE_VERSION:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created at database version %s.\n"
-                  "Use --export from older version, then --import with newer "
-                  "version."
+                  "Use devpi-export (or --export) from older version, then "
+                  "devpi-import with newer version."
                   % (server_version, config.serverdir, state_ver[0]))
 
 
@@ -56,7 +53,7 @@ def get_state_version(config):
     return versionfile.read()
 
 
-def set_state_version(config, version):
+def set_state_version(config, version=DATABASE_VERSION):
     versionfile = config.serverdir.join(".serverversion")
     versionfile.dirpath().ensure(dir=1)
     versionfile.write(version)
@@ -279,11 +276,19 @@ class XOM:
         args = xom.config.args
         if args.export:
             from devpi_server.importexport import do_export
+            import warnings
+            warnings.warn(
+                "DEPRECATION: the --export option is deprecated, use the "
+                "devpi-export command instead")
             #xom.thread_pool.start_one(xom.keyfs.notifier)
             return do_export(args.export, xom)
 
         if args.import_:
             from devpi_server.importexport import do_import
+            import warnings
+            warnings.warn(
+                "DEPRECATION: the --import option is deprecated, use the "
+                "devpi-import command instead")
             # we need to start the keyfs notifier so that import
             # can wait on completion of events
             if args.wait_for_events:

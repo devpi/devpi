@@ -94,8 +94,8 @@ class PyPIStage(BaseStage):
             xom, username, index, ixconfig, customizer_cls)
         self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
         self.xom = xom
-        self.offline = self.xom.config.args.offline_mode
-        self.timeout = xom.config.args.request_timeout
+        self.offline = self.xom.config.offline_mode
+        self.timeout = xom.config.request_timeout
         # list of locally mirrored projects
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         # used to log about stale projects only once
@@ -104,7 +104,7 @@ class PyPIStage(BaseStage):
     @property
     def cache_expiry(self):
         return self.ixconfig.get(
-            'mirror_cache_expiry', self.xom.config.args.mirror_cache_expiry)
+            'mirror_cache_expiry', self.xom.config.mirror_cache_expiry)
 
     @property
     def mirror_url(self):

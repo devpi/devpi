@@ -66,6 +66,8 @@ if __name__ == "__main__":
       extras_require=extras_require,
       entry_points = {
         'console_scripts': [
+            "devpi-export = devpi_server.importexport:export",
+            "devpi-import = devpi_server.importexport:import_",
             "devpi-init = devpi_server.init:init",
             "devpi-passwd = devpi_server.passwd:passwd",
             "devpi-server = devpi_server.main:main"],

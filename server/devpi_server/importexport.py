@@ -12,8 +12,23 @@ from devpi_common.types import parse_hash_spec
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
 from devpi_server.model import get_stage_customizer_classes
+from .config import MyArgumentParser
+from .config import add_configfile_option
+from .config import add_hard_links_option
+from .config import add_help_option
+from .config import add_import_options
+from .config import add_init_options
+from .config import add_storage_options
+from .config import parseoptions, get_pluginmanager
 from .fileutil import BytesForHardlink
+from .log import configure_cli_logging
+from .main import DATABASE_VERSION
+from .main import Fatal
+from .main import check_python_version
 from .main import fatal
+from .main import init_default_indexes
+from .main import set_state_version
+from .main import xom_from_config
 from .readonly import get_mutable_deepcopy, ReadonlyView
 
 
@@ -48,6 +63,39 @@ def do_export(path, xom):
         dumper.dump_all(path)
     return 0
 
+
+def export(pluginmanager=None, argv=None):
+    """ devpi-export command line entry point. """
+    if argv is None:
+        argv = sys.argv
+    else:
+        # for tests
+        argv = [str(x) for x in argv]
+    check_python_version()
+    if pluginmanager is None:
+        pluginmanager = get_pluginmanager()
+    try:
+        parser = MyArgumentParser(
+            description="Export the data of a devpi-server instance.",
+            add_help=False)
+        add_help_option(parser, pluginmanager)
+        add_configfile_option(parser, pluginmanager)
+        add_storage_options(parser, pluginmanager)
+        add_hard_links_option(parser, pluginmanager)
+        parser.add_argument("directory")
+        config = parseoptions(pluginmanager, argv, parser=parser)
+        configure_cli_logging(config.args)
+        if not config.path_nodeinfo.exists():
+            fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
+        xom = xom_from_config(config)
+        do_export(config.args.directory, xom)
+        return 0
+    except Fatal as e:
+        tw = py.io.TerminalWriter(sys.stderr)
+        tw.line("fatal: %s" % e.args[0], red=True)
+        return 1
+
+
 def do_import(path, xom):
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     path = py.path.local(path)
@@ -71,6 +119,49 @@ def do_import(path, xom):
             "search index and documentation will gradually update until all "
             "events have been processed.")
     return 0
+
+
+def import_(pluginmanager=None, argv=None):
+    """ devpi-import command line entry point. """
+    if argv is None:
+        argv = sys.argv
+    else:
+        # for tests
+        argv = [str(x) for x in argv]
+    check_python_version()
+    if pluginmanager is None:
+        pluginmanager = get_pluginmanager()
+    try:
+        parser = MyArgumentParser(
+            description="Import previously exported data into a new devpi-server instance.",
+            add_help=False)
+        add_help_option(parser, pluginmanager)
+        add_configfile_option(parser, pluginmanager)
+        add_storage_options(parser, pluginmanager)
+        add_init_options(parser, pluginmanager)
+        add_import_options(parser, pluginmanager)
+        add_hard_links_option(parser, pluginmanager)
+        parser.add_argument("directory")
+        config = parseoptions(pluginmanager, argv, parser=parser)
+        # BBB set import_ flag on args until the option is removed and the
+        # code adjusted
+        config.args.import_ = True
+        configure_cli_logging(config.args)
+        if config.path_nodeinfo.exists():
+            fatal("The path '%s' already contains devpi-server data." % config.serverdir)
+        sdir = config.serverdir
+        if not (sdir.exists() and len(sdir.listdir()) >= 2):
+            set_state_version(config, DATABASE_VERSION)
+        xom = xom_from_config(config)
+        if config.args.wait_for_events:
+            xom.thread_pool.start_one(xom.keyfs.notifier)
+        init_default_indexes(xom)
+        do_import(config.args.directory, xom)
+        return 0
+    except Fatal as e:
+        tw = py.io.TerminalWriter(sys.stderr)
+        tw.line("fatal: %s" % e.args[0], red=True)
+        return 1
 
 
 class Exporter:
