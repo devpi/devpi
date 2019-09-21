@@ -21,7 +21,7 @@ script:
   - test "${DEVPI_TRAVIS_PASSWD}" != "" && export DEVPI_INDEX_URL="https://m.devpi.net/${DEVPI_INDEX}/+simple/" || true
   - echo "${DEVPI_INDEX_URL}"
   - cd $PROJECT
-  - travis_retry tox -i "${DEVPI_INDEX_URL}" --pre
+  - travis_retry tox -i "${DEVPI_INDEX_URL}" --pre -- -v
 stages:
   - name: create packages
     if: type IN (push, api, cron)
