@@ -303,7 +303,9 @@ def httpget(pypiurls):
                 def __init__(xself, url):
                     fakeresponse = self.url2response.get(url)
                     if fakeresponse is None:
-                        fakeresponse = dict(status_code = 404)
+                        fakeresponse = dict(
+                            status_code=404,
+                            reason="Not Found")
                     xself.__dict__.update(fakeresponse)
                     if "url" not in fakeresponse:
                         xself.url = url

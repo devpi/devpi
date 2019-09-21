@@ -471,6 +471,65 @@ class TestUseExistingFiles:
         # check the number of links of the file
         assert existing_path.stat().nlink == 2
 
+    def test_use_existing_files_bad_data(self, caplog, httpget, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+        # this will be the folder to find existing files in the replica
+        existing_base = tmpdir.join('existing').ensure_dir()
+        # prepare data on master
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        # get the path of the release
+        (path,) = mapp.get_release_paths('hello')
+        httpget.mockresponse("http://localhost" + path, content=content1)
+        # create the file
+        existing_path = existing_base.join(path)
+        existing_path.dirpath().ensure_dir()
+        existing_path.write_binary(b"bad_data")
+        # create the replica with the path to existing files
+        replica_xom = make_replica_xom(options=[
+            '--replica-file-search-path', existing_base.strpath])
+        # now sync the replica, if the file is not found there will be an error
+        # because httpget is mocked
+        replay(xom, replica_xom)
+        assert len(caplog.getrecords('checking existing file')) == 1
+        assert len(caplog.getrecords('sha256 mismatch, got ec7d057f450dc963f15978af98b9cdda64aca6751c677e45d4a358fe103dc05b')) == 1
+        with replica_xom.keyfs.transaction(write=False):
+            entry = replica_xom.filestore.get_file_entry(path[1:])
+            assert entry.file_get_content() == content1
+
+    @pytest.mark.storage_with_filesystem
+    @pytest.mark.skipif(not hasattr(os, 'link'),
+                        reason="OS doesn't support hard links")
+    def test_hardlink_bad_data(self, caplog, httpget, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+        # this will be the folder to find existing files in the replica
+        existing_base = tmpdir.join('existing').ensure_dir()
+        # prepare data on master
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        # get the path of the release
+        (path,) = mapp.get_release_paths('hello')
+        httpget.mockresponse("http://localhost" + path, content=content1)
+        # create the file
+        existing_path = existing_base.join(path)
+        existing_path.dirpath().ensure_dir()
+        existing_path.write_binary(b"bad_data")
+        assert existing_path.stat().nlink == 1
+        # create the replica with the path to existing files and using hard links
+        replica_xom = make_replica_xom(options=[
+            '--replica-file-search-path', existing_base.strpath,
+            '--hard-links'])
+        # now sync the replica, if the file is not found there will be an error
+        # because httpget is mocked
+        replay(xom, replica_xom)
+        assert len(caplog.getrecords('checking existing file')) == 1
+        assert len(caplog.getrecords('sha256 mismatch, got ec7d057f450dc963f15978af98b9cdda64aca6751c677e45d4a358fe103dc05b')) == 1
+        # check the number of links of the file
+        assert existing_path.stat().nlink == 1
+        with replica_xom.keyfs.transaction(write=False):
+            entry = replica_xom.filestore.get_file_entry(path[1:])
+            assert entry.file_get_content() == content1
+
 
 class TestFileReplication:
     @pytest.fixture
