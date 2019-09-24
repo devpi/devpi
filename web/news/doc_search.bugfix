@@ -1,0 +1,1 @@
+Pass query string on to documentation iframe, this fixes Sphinx search among other things.

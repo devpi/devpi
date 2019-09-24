@@ -1,0 +1,1 @@
+version.pt, common.js: all list like metadata is now collapsed to ~3 lines instead of only classifiers.

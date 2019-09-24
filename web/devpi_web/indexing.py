@@ -25,9 +25,7 @@ def preprocess_project(stage, name_input):
     index = ensure_unicode(index)
     if not is_project_cached(stage, name):
         return dict(name=name, user=user, index=index)
-    setuptools_metadata = frozenset((
-        'author', 'author_email', 'classifiers', 'description', 'download_url',
-        'home_page', 'keywords', 'license', 'platform', 'summary'))
+    setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
     result = dict(name=name)
     for i, version in enumerate(versions):

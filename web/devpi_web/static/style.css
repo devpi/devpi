@@ -40,6 +40,10 @@ form, #content, #navigation, .searchresults {
     padding: 0.25em 0 0.5em 0;
 }
 
+#navigation > span + span::before {
+    content: "»";
+}
+
 #serverstatus {
     padding: 1em;
     margin: 1em;
@@ -473,6 +477,37 @@ a.failed:after {
 .toxresult.closed h2:after {
     content: "+";
 }
+
+.projectnavigation span + span::before {
+    content: " | ";
+}
+
+.projectnavigation a {
+    display: inline-block;
+}
+
+.projectnavigation .warning:before,
+.projectnavigation .severe:before {
+    content: " ⚠️ ";
+}
+
+.projectnavigation .warning,
+.projectnavigation .severe {
+    padding: 2px 4px;
+    margin: -2px;
+    border-radius: 3px;
+}
+
+.projectnavigation .severe {
+    background-color: #bf4545;
+    color: white;
+}
+
+.projectnavigation .warning {
+    background-color: #bfa047;
+    color: white;
+}
+
 
 table.projectinfos .opened .value:after,
 table.projectinfos .closed .value:after,

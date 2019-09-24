@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import unicode_literals
 from defusedxml.xmlrpc import DefusedExpatParser
+from devpi_common.metadata import Version
 from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.validation import normalize_name
@@ -43,18 +44,27 @@ class ContextWrapper(object):
         return getattr(self.context, name)
 
     @reify
+    def _versions(self):
+        return get_sorted_versions(
+            self.stage.list_versions_perstage(self.project),
+            stable=False)
+
+    @reify
     def versions(self):
-        versions = self.stage.list_versions(self.project)
+        versions = self._versions
         if not versions:
             raise HTTPNotFound("The project %s does not exist." % self.project)
-        return get_sorted_versions(versions)
+        return versions
+
+    @reify
+    def _stable_versions(self):
+        return get_sorted_versions(self._versions, stable=True)
 
     @reify
     def stable_versions(self):
-        versions = self.stage.list_versions(self.project)
-        if not versions:
+        if not self._versions:
             raise HTTPNotFound("The project %s does not exist." % self.project)
-        versions = get_sorted_versions(versions, stable=True)
+        versions = self._stable_versions
         if not versions:
             raise HTTPNotFound("The project %s has no stable release." % self.project)
         return versions
@@ -68,12 +78,13 @@ class ContextWrapper(object):
                 "%s-%s is not registered" % (self.project, self.version))
 
 
-def get_doc_info(context, request):
+def get_doc_info(context, request, version=None, check_content=True):
     relpath = request.matchdict['relpath']
     if not relpath:
         raise HTTPFound(location="index.html")
     name = context.project
-    version = context.version
+    if version is None:
+        version = context.version
     if version == 'latest':
         versions = context.versions
     elif version == 'stable':
@@ -97,7 +108,7 @@ def get_doc_info(context, request):
             raise HTTPNotFound("No stable documentation available.")
         raise HTTPNotFound("No documentation available.")
     doc_path = doc_path.join(relpath)
-    if not doc_path.check():
+    if check_content and not doc_path.check():
         raise HTTPNotFound("File %s not found in documentation." % relpath)
     return dict(
         doc_path=doc_path,
@@ -124,6 +135,24 @@ def doc_show(context, request):
     stage = context.stage
     name, version = context.project, context.version
     doc_info = get_doc_info(context, request)
+    version_links = []
+    latest_doc_info = get_doc_info(context, request, version='latest', check_content=False)
+    if latest_doc_info['doc_version'] != doc_info['doc_version']:
+        version_links.append(dict(
+            title="Latest documentation",
+            url=request.route_url(
+                "docviewroot", user=stage.user.name, index=stage.index,
+                project=name, version='latest', relpath="index.html")))
+    try:
+        stable_doc_info = get_doc_info(context, request, version='stable', check_content=False)
+        if stable_doc_info['doc_version'] != doc_info['doc_version'] and stable_doc_info['doc_version'] != latest_doc_info['doc_version']:
+            version_links.append(dict(
+                title="Stable documentation",
+                url=request.route_url(
+                    "docviewroot", user=stage.user.name, index=stage.index,
+                    project=name, version='stable', relpath="index.html")))
+    except (HTTPFound, HTTPNotFound):
+        pass
     return dict(
         title="%s-%s Documentation" % (name, version),
         base_url=request.route_url(
@@ -134,8 +163,10 @@ def doc_show(context, request):
             project=name, version=version, relpath=''),
         url=request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
-            project=name, version=version, relpath=doc_info['relpath']),
+            project=name, version=version,
+            relpath=doc_info['relpath'], _query=request.query_string),
         version_mismatch=doc_info['version_mismatch'],
+        version_links=version_links,
         doc_version=doc_info['doc_version'])
 
 
@@ -322,6 +353,31 @@ def get_docs_info(request, stage, linkstore):
                 project=name, version=ver, relpath="index.html"))
 
 
+def get_user_info(context, request, user):
+    username = user['username']
+    indexes = []
+    for index in sorted(user.get('indexes', [])):
+        stagename = "%s/%s" % (username, index)
+        stage = context.model.getstage(stagename)
+        indexes.append(dict(
+            _ixconfig=stage.ixconfig,
+            title=stagename,
+            index_name=index,
+            index_title=stage.ixconfig.get('title', None),
+            index_description=stage.ixconfig.get('description', None),
+            url=request.stage_url(stagename)))
+    return dict(
+        _user=user,
+        title=username,
+        user_name=username,
+        user_title=user.get('title', None),
+        user_description=user.get('description', None),
+        user_email=user.get('email', None),
+        user_url=request.route_url(
+            "/{user}", user=username),
+        indexes=indexes)
+
+
 @view_config(
     route_name='root',
     renderer='templates/root.pt')
@@ -331,27 +387,16 @@ def root(context, request):
         key=itemgetter('username'))
     users = []
     for user in rawusers:
-        username = user['username']
-        indexes = []
-        for index in sorted(user.get('indexes', [])):
-            stagename = "%s/%s" % (username, index)
-            stage = context.model.getstage(stagename)
-            indexes.append(dict(
-                _ixconfig=stage.ixconfig,
-                title=stagename,
-                index_name=index,
-                index_title=stage.ixconfig.get('title', None),
-                index_description=stage.ixconfig.get('description', None),
-                url=request.stage_url(stagename)))
-        users.append(dict(
-            _user=user,
-            title=username,
-            user_name=username,
-            user_title=user.get('title', None),
-            user_description=user.get('description', None),
-            user_email=user.get('email', None),
-            indexes=indexes))
+        users.append(get_user_info(context, request, user))
     return dict(users=users)
+
+
+@view_config(
+    route_name="/{user}", accept="text/html", request_method="GET",
+    renderer="templates/user.pt")
+def user_get(context, request):
+    user = context.user.get()
+    return dict(user=get_user_info(context, request, user))
 
 
 @view_config(
@@ -499,9 +544,17 @@ def project_get(context, request):
         whitelist_info = dict(
             has_mirror_base=context.stage.has_mirror_base(context.project),
             blocked_by_mirror_whitelist=None)
+    stage = context.stage
+    latest_version = stage.get_latest_version_perstage(context.project)
+    latest_verdata = stage.get_versiondata_perstage(context.project, latest_version)
     return dict(
         title="%s/: %s versions" % (context.stage.name, context.project),
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
+        latest_version=latest_version,
+        latest_url=request.route_url(
+            "/{user}/{index}/{project}/{version}",
+            user=user, index=index, project=name, version='latest'),
+        latest_version_data=latest_verdata,
         versions=versions)
 
 
@@ -512,10 +565,15 @@ def project_get(context, request):
 def version_get(context, request):
     """ Show version for the precise stage, ignores inheritance. """
     context = ContextWrapper(context)
-    name, version = context.verified_project, context.version
+    name = context.verified_project
     stage = context.stage
+    version = context.version
+    if version == 'latest' and context._versions:
+        version = context._versions[0]
+    elif version == 'stable' and context._stable_versions:
+        version = context._stable_versions[0]
     try:
-        verdata = context.get_versiondata(perstage=True)
+        verdata = context.get_versiondata(version=version, perstage=True)
     except stage.UpstreamError as e:
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
@@ -569,12 +627,32 @@ def version_get(context, request):
             nav_links.append(dict(
                 title="%s page" % base.ixconfig.get("title", "Mirror"),
                 url=mirror_web_url_fmt.format(name=name)))
+    cmp_version = Version(version)
+    if context._stable_versions:
+        stable_version = Version(context._stable_versions[0])
+        url = request.route_url(
+            "/{user}/{index}/{project}/{version}",
+            user=context.username, index=context.index,
+            project=context.project, version='stable')
+        if cmp_version.is_prerelease():
+            nav_links.append(dict(
+                title="Stable version available",
+                css_class="warning",
+                url=url))
+        elif stable_version != cmp_version:
+            nav_links.append(dict(
+                title="Newer version available",
+                css_class="severe",
+                url=url))
     return dict(
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
         summary=verdata.get("summary"),
         nav_links=nav_links,
         infos=infos,
+        metadata_list_fields=frozenset(
+            py.xml.escape(x)
+            for x in getattr(stage, 'metadata_list_fields', ())),
         files=files,
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
         show_toxresults=show_toxresults,

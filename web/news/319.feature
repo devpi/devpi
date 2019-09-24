@@ -1,0 +1,1 @@
+project.pt: implement #319 - add link to latest version and summary of latest version to project view

@@ -78,7 +78,6 @@
         <metal:search use-macro="request.macros['search']" />
         <div id="navigation">
             <span tal:repeat="part request.navigation_info.path">
-                <tal:separator condition="not repeat.part.start">»</tal:separator>
                 <a href="${part.url}">${part.title}</a>
             </span>
             <metal:statusbadge use-macro="request.macros['statusbadge']" />

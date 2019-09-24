@@ -1,0 +1,1 @@
+implement #346: add support for 'latest' and 'stable' versions for project version URLs

@@ -21,6 +21,7 @@ def test_root_view(testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root", "http://localhost/root"),
         ("root/pypi PyPI", "http://localhost/root/pypi")]
 
 
@@ -30,8 +31,35 @@ def test_root_view_with_index(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("root", "http://localhost/root"),
         ("root/pypi PyPI", "http://localhost/root/pypi"),
+        (api.user, "http://localhost/%s" % api.user),
         (api.stagename, "http://localhost/%s" % api.stagename)]
+
+
+def test_user_view_root_pypi(testapp):
+    r = testapp.get('/root', headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.select('#content a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("root/pypi PyPI", "http://localhost/root/pypi")]
+
+
+def test_user_view(mapp, testapp):
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    r = testapp.get("/%s" % api.user, headers=dict(accept="text/html"))
+    assert r.status_code == 200
+    links = r.html.select('#content a')
+    assert [(l.text.strip(), l.attrs['href']) for l in links] == [
+        ("%s/dev" % api.user, "http://localhost/%s/dev" % api.user)]
+
+
+def test_user_not_found(testapp):
+    r = testapp.get("/blubber", headers=dict(accept="text/html"))
+    assert r.status_code == 404
+    content, = r.html.select('#content')
+    assert "no user" in compareable_text(content.text)
+    assert "blubber" in compareable_text(content.text)
 
 
 def test_index_view_root_pypi(testapp):
@@ -150,7 +178,7 @@ def test_title_description(mapp, testapp):
     (userdescription,) = content.select('.user_index_list dd.user_description')
     assert compareable_text(userdescription.text) == "userdescription"
     links = content.select('a')
-    assert [x.attrs.get('title') for x in links] == [None, 'indexdescription']
+    assert [x.attrs.get('title') for x in links] == [None, None, None, 'indexdescription']
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     (content,) = r.html.select('#content')
     (indextitle,) = content.select('.index_title')
@@ -171,6 +199,7 @@ def test_project_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("2.7", "http://localhost/%s/pkg-name/latest" % api.stagename),
         (api.stagename, "http://localhost/%s" % api.stagename),
         ("2.7", "http://localhost/%s/pkg-name/2.7" % api.stagename),
         (api.stagename, "http://localhost/%s" % api.stagename),
@@ -186,6 +215,7 @@ def test_project_projectname_redirect(mapp, testapp):
     r = testapp.xget(200, api.index + '/pkg_hello', headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("1.0", "http://localhost/%s/pkg-hello/latest" % api.stagename),
         (api.stagename, "http://localhost/%s" % api.stagename),
         ("1.0", "http://localhost/%s/pkg-hello/1.0" % api.stagename)]
 
@@ -224,6 +254,7 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("2.7", "http://localhost/root/pypi/pkg1/latest"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
         ("root/pypi", "http://localhost/root/pypi"),
@@ -250,6 +281,7 @@ def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage)
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("2.7", "http://localhost/root/pypi/pkg1/latest"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
         ("root/pypi", "http://localhost/root/pypi"),
@@ -272,6 +304,7 @@ def test_project_view_root_and_docs(mapp, testapp, pypistage):
     r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("2.6", "http://localhost/user1/dev/pkg1/latest"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
         ("root/pypi", "http://localhost/root/pypi"),
@@ -504,6 +537,55 @@ def test_version_view_description_errors(mapp, testapp):
     assert "Unexpected section title" in description.text
 
 
+def test_version_view_latest_stable(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "3.0b1"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.6"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.1b2"})
+    mapp.set_versiondata({
+        "name": "pkg1",
+        "version": "2.0"})
+    r = testapp.get(api.index + '/pkg1/2.0', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'Stable version available' not in "".join(x.text for x in links)
+    link = links[-1]
+    assert link.text == 'Newer version available'
+    assert link.attrs['href'] == api.index + '/pkg1/stable'
+    r = testapp.get(api.index + '/pkg1/2.1b2', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'Newer version available' not in "".join(x.text for x in links)
+    link = links[-1]
+    assert link.text == 'Stable version available'
+    assert link.attrs['href'] == api.index + '/pkg1/stable'
+    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'version available' not in "".join(x.text for x in links)
+    r = testapp.get(api.index + '/pkg1/3.0b1', headers=dict(accept="text/html"))
+    links = r.html.select('.projectnavigation a')
+    assert 'Newer version available' not in "".join(x.text for x in links)
+    link = links[-1]
+    assert link.text == 'Stable version available'
+    assert link.attrs['href'] == api.index + '/pkg1/stable'
+    # test stable url
+    r = testapp.get(api.index + '/pkg1/stable', headers=dict(accept="text/html"))
+    assert 'pkg1-2.6 metadata and description' in r.text
+    links = r.html.select('#navigation a')
+    assert links[4].text == '2.6'
+    assert links[4].attrs['href'] == api.index + '/pkg1/2.6'
+    # test latest url
+    r = testapp.get(api.index + '/pkg1/latest', headers=dict(accept="text/html"))
+    assert 'pkg1-3.0b1 metadata and description' in r.text
+    links = r.html.select('#navigation a')
+    assert links[4].text == '3.0b1'
+    assert links[4].attrs['href'] == api.index + '/pkg1/3.0b1'
+
+
 def test_complex_name(mapp, testapp):
     from devpi_common import __version__
     import pkg_resources
@@ -525,6 +607,7 @@ def test_complex_name(mapp, testapp):
         200, api.index + '/%s' % pkgname, headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ('0.9', 'http://localhost/user1/dev/%s/latest' % pkgname),
         ('user1/dev', 'http://localhost/user1/dev'),
         ('0.9', 'http://localhost/user1/dev/%s/0.9' % pkgname)]
 
