@@ -560,12 +560,17 @@ class Config:
 
     def _determine_storage(self):
         if self.args.storage:
-            name, sep, setting_str = self.args.storage.partition(':')
-            settings = {}
-            if setting_str:
-                for item in setting_str.split(','):
-                    key, value = item.split('=', 1)
-                    settings[key] = value
+            if isinstance(self.args.storage, dict):
+                # a yaml config may return a dict
+                settings = dict(self.args.storage)
+                name = settings.pop('name')
+            else:
+                name, sep, setting_str = self.args.storage.partition(':')
+                settings = {}
+                if setting_str:
+                    for item in setting_str.split(','):
+                        key, value = item.split('=', 1)
+                        settings[key] = value
         else:
             name = "sqlite"
             settings = {}
