@@ -1,13 +1,13 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
-from devpi_web import hookspecs
+from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_server.log import threadlog
 from devpi_server.main import fatal
 from pkg_resources import resource_filename
-from pluggy import PluginManager, HookimplMarker
+from pluggy import HookimplMarker
 from pyramid.renderers import get_renderer
 from pyramid_chameleon.renderer import ChameleonRendererLookup
 import os
@@ -128,17 +128,6 @@ class ThemeChameleonRendererLookup(ChameleonRendererLookup):
             if os.path.exists(theme_file):
                 info.name = theme_file
         return ChameleonRendererLookup.__call__(self, info)
-
-
-def get_pluginmanager(config, load_entry_points=True):
-    pm = PluginManager("devpiweb")
-    # support old plugins, but emit deprecation warnings
-    pm._implprefix = "devpiweb_"
-    pm.add_hookspecs(hookspecs)
-    if load_entry_points:
-        pm.load_setuptools_entrypoints("devpi_web")
-    pm.check_pending()
-    return pm
 
 
 def includeme(config):
