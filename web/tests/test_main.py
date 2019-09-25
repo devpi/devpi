@@ -1,4 +1,10 @@
+from devpi_server import __version__ as devpi_server_version
+from pkg_resources import parse_version
 import pytest
+import textwrap
+
+
+devpi_server_version = parse_version(devpi_server_version)
 
 
 def test_importable():
@@ -86,3 +92,77 @@ def test_index_projects_arg(monkeypatch, tmpdir):
     assert result == 0
     assert calls == ['delete_index', 'update_projects']
     (xom1, xom2) = xom_container
+
+
+def make_config(args):
+    from devpi_server.config import parseoptions, get_pluginmanager
+    return parseoptions(get_pluginmanager(), args)
+
+
+class TestConfig:
+    @pytest.fixture(params=(True, False))
+    def make_yaml_config(self, request, tmpdir):
+        def make_yaml_config(content):
+            yaml = tmpdir.join('devpi.yaml')
+            if request.param is True:
+                content = "---\n" + content
+            yaml.write(content)
+            return yaml.strpath
+
+        return make_yaml_config
+
+    def test_indexer_backend_options(self):
+        from devpi_web import main
+        from pluggy import HookimplMarker
+        hookimpl = HookimplMarker("devpiweb")
+
+        class Index(object):
+            def __init__(self, config, settings):
+                self.settings = settings
+
+        class Plugin:
+            @hookimpl
+            def devpiweb_indexer_backend(self):
+                return dict(
+                    indexer=Index,
+                    name="foo",
+                    description="Foo backend")
+        options = ("--indexer-backend", "foo:bar=ham")
+        config = make_config(("devpi-server",) + options)
+        assert config.args.indexer_backend == "foo:bar=ham"
+        plugin = Plugin()
+        main.get_pluginmanager(config).register(plugin)
+        indexer = main.get_indexer(config)
+        assert isinstance(indexer, Index)
+        assert indexer.settings == {"bar": "ham"}
+
+    @pytest.mark.skipif(devpi_server_version < parse_version("4.7dev"), reason="Needs config file support")
+    def test_indexer_backend_yaml_options(self, make_yaml_config):
+        from devpi_web import main
+        from pluggy import HookimplMarker
+        hookimpl = HookimplMarker("devpiweb")
+
+        class Index(object):
+            def __init__(self, config, settings):
+                self.settings = settings
+
+        class Plugin:
+            @hookimpl
+            def devpiweb_indexer_backend(self):
+                return dict(
+                    indexer=Index,
+                    name="foo",
+                    description="Foo backend")
+        yaml_path = make_yaml_config(textwrap.dedent("""\
+            devpi-server:
+              indexer-backend:
+                name: foo
+                bar: ham"""))
+        options = ("-c", yaml_path)
+        config = make_config(("devpi-server",) + options)
+        assert isinstance(config.args.indexer_backend, dict)
+        plugin = Plugin()
+        main.get_pluginmanager(config).register(plugin)
+        indexer = main.get_indexer(config)
+        assert isinstance(indexer, Index)
+        assert indexer.settings == {"bar": "ham"}

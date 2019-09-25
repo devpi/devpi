@@ -25,6 +25,9 @@ server {
     }
     # try serving docs directly
     location ~ /\+doc/ {
+        # if the --documentation-path option of devpi-web is used,
+        # then the root must be set accordingly here
+        root %(serverdir)s;
         try_files $uri @proxy_to_app;
     }
     location / {

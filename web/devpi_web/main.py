@@ -1,13 +1,13 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
-from devpi_web import hookspecs
+from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
 from devpi_web.indexing import iter_projects, preprocess_project
 from devpi_server.log import threadlog
 from devpi_server.main import fatal
 from pkg_resources import resource_filename
-from pluggy import PluginManager, HookimplMarker
+from pluggy import HookimplMarker
 from pyramid.renderers import get_renderer
 from pyramid_chameleon.renderer import ChameleonRendererLookup
 import os
@@ -130,17 +130,6 @@ class ThemeChameleonRendererLookup(ChameleonRendererLookup):
         return ChameleonRendererLookup.__call__(self, info)
 
 
-def get_pluginmanager(config, load_entry_points=True):
-    pm = PluginManager("devpiweb")
-    # support old plugins, but emit deprecation warnings
-    pm._implprefix = "devpiweb_"
-    pm.add_hookspecs(hookspecs)
-    if load_entry_points:
-        pm.load_setuptools_entrypoints("devpi_web")
-    pm.check_pending()
-    return pm
-
-
 def includeme(config):
     from devpi_web import __version__
     from pyramid_chameleon.interfaces import IChameleonLookup
@@ -187,12 +176,17 @@ def get_indexer(config):
     indexers = {
         x['name']: x
         for x in pm.hook.devpiweb_indexer_backend()}
-    (name, sep, setting_str) = config.args.indexer_backend.partition(':')
-    settings = {}
-    if setting_str:
-        for item in setting_str.split(','):
-            (key, value) = item.split('=', 1)
-            settings[key] = value
+    if isinstance(config.args.indexer_backend, dict):
+        # a yaml config may return a dict
+        settings = dict(config.args.indexer_backend)
+        name = settings.pop('name')
+    else:
+        (name, sep, setting_str) = config.args.indexer_backend.partition(':')
+        settings = {}
+        if setting_str:
+            for item in setting_str.split(','):
+                (key, value) = item.split('=', 1)
+                settings[key] = value
     return indexers[name]['indexer'](config=config, settings=settings)
 
 
@@ -234,14 +228,16 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 
 @devpiserver_hookimpl
 def devpiserver_add_parser_options(parser):
-    web = None
-    for action in parser._actions:
-        if '--host' in action.option_strings:
-            web = action.container
-    web.addoption(
+    theme = parser.addgroup("devpi-web theme options")
+    theme.addoption(
         "--theme", action="store",
         help="folder with template and resource overwrites for the web interface")
-    indexing = parser.addgroup("search indexing")
+    doczip = parser.addgroup("devpi-web doczip options")
+    doczip.addoption(
+        "--documentation-path", action="store",
+        help="path for unzipped documentation. "
+             "By default the --serverdir is used.")
+    indexing = parser.addgroup("devpi-web search indexing")
     indexing.addoption(
         "--recreate-search-index", action="store_true",
         help="Recreate search index for all projects and their documentation. "
@@ -275,6 +271,9 @@ def devpiserver_stage_created(stage):
 
 @devpiserver_hookimpl
 def devpiserver_cmdline_run(xom):
+    docs_path = xom.config.args.documentation_path
+    if docs_path is not None and not os.path.isabs(docs_path):
+        fatal("The path for unzipped documentation must be absolute.")
     if xom.config.args.recreate_search_index:
         if not xom.config.args.offline_mode:
             fatal("The --recreate-search-index option requires the --offline option.")

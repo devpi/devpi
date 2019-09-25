@@ -291,3 +291,27 @@ class TestConfigFile:
             make_config(["devpi-server", "-c", yaml_path])
         (out, err) = capsys.readouterr()
         assert "argument --port: invalid int value: 'foo'" in err
+
+    @pytest.mark.no_storage_option
+    def test_storage_backend_options(self, makexom, make_yaml_config):
+        class Plugin:
+            @hookimpl
+            def devpiserver_storage_backend(self, settings):
+                from devpi_server import keyfs_sqlite_fs
+                self.settings = settings
+                return dict(
+                    storage=keyfs_sqlite_fs.Storage,
+                    name="foo",
+                    description="Foo backend")
+        yaml_path = make_yaml_config(textwrap.dedent("""\
+            devpi-server:
+              storage:
+                name: foo
+                bar: ham"""))
+        options = ("-c", yaml_path)
+        config = make_config(("devpi-server",) + options)
+        assert isinstance(config.args.storage, dict)
+        plugin = Plugin()
+        xom = makexom(plugins=(plugin,), opts=options)
+        assert xom.config.storage_info["name"] == "foo"
+        assert plugin.settings == {"bar": "ham"}
