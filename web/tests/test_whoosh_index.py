@@ -104,3 +104,14 @@ def test_search_after_register(mapp, testapp):
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
         ("pkg1-2.7", "http://localhost/%s/pkg1/2.7" % api.stagename),
         ("Description", "http://localhost/%s/pkg1/2.7#description" % api.stagename)]
+
+
+def test_indexer_relative_path():
+    from devpi_server.config import parseoptions, get_pluginmanager
+    from devpi_server.main import Fatal
+    from devpi_web.main import get_indexer
+    options = ("--indexer-backend", "whoosh:path=ham")
+    config = parseoptions(get_pluginmanager(), ("devpi-server",) + options)
+    with pytest.raises(Fatal) as e:
+        get_indexer(config)
+    assert "must be absolute" in "%s" % e.value

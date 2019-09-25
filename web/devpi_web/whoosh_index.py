@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from collections import defaultdict
 from devpi_common.types import cached_property
 from devpi_server.log import threadlog as log
+from devpi_server.main import fatal
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_web.indexing import is_project_cached
 from functools import partial
@@ -19,6 +20,8 @@ from whoosh.searching import ResultsPage
 from whoosh.util.text import rcompile
 from whoosh.writing import CLEAR
 import itertools
+import os
+import py
 import shutil
 
 
@@ -189,8 +192,15 @@ class Index(object):
     SearchUnavailableException = SearchUnavailableException
 
     def __init__(self, config, settings):
-        index_path = config.serverdir.join('.indices')
+        if 'path' not in settings:
+            index_path = config.serverdir.join('.indices')
+        else:
+            index_path = settings['path']
+            if not os.path.isabs(index_path):
+                fatal("The path for Whoosh index files must be absolute.")
+            index_path = py.path.local(index_path)
         index_path.ensure_dir()
+        log.info("Using %s for Whoosh index files." % index_path)
         self.index_path = index_path.strpath
 
     def ix(self, name):
