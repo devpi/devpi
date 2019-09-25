@@ -176,12 +176,17 @@ def get_indexer(config):
     indexers = {
         x['name']: x
         for x in pm.hook.devpiweb_indexer_backend()}
-    (name, sep, setting_str) = config.args.indexer_backend.partition(':')
-    settings = {}
-    if setting_str:
-        for item in setting_str.split(','):
-            (key, value) = item.split('=', 1)
-            settings[key] = value
+    if isinstance(config.args.indexer_backend, dict):
+        # a yaml config may return a dict
+        settings = dict(config.args.indexer_backend)
+        name = settings.pop('name')
+    else:
+        (name, sep, setting_str) = config.args.indexer_backend.partition(':')
+        settings = {}
+        if setting_str:
+            for item in setting_str.split(','):
+                (key, value) = item.split('=', 1)
+                settings[key] = value
     return indexers[name]['indexer'](config=config, settings=settings)
 
 
