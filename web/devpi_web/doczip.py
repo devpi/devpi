@@ -10,13 +10,18 @@ from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
 import json
 import os
+import py
 import shutil
 
 
 def get_unpack_path(stage, name, version):
-    # XXX this should rather be in some devpi-web managed directory area
-    return stage.keyfs.basedir.join(stage.user.name, stage.index,
-                                    normalize_name(name), version, "+doc")
+    path = stage.xom.config.args.documentation_path
+    if path is None:
+        path = stage.keyfs.basedir
+    else:
+        path = py.path.local(path)
+    return path.join(
+        stage.user.name, stage.index, normalize_name(name), version, "+doc")
 
 
 def unpack_docs(stage, name, version, entry):
@@ -118,13 +123,7 @@ class Docs(DictMixin):
 
 
 def remove_docs(stage, project, version):
-    directory = str(stage.keyfs.basedir.join(
-        stage.user.name,
-        stage.index,
-        project,
-        version,
-        "+doc"
-    ))
+    directory = get_unpack_path(stage, project, version).strpath
     if not os.path.isdir(directory):
         threadlog.debug("ignoring lost unpacked docs: %s" % directory)
     else:

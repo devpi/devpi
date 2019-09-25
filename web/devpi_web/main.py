@@ -232,6 +232,11 @@ def devpiserver_add_parser_options(parser):
     theme.addoption(
         "--theme", action="store",
         help="folder with template and resource overwrites for the web interface")
+    doczip = parser.addgroup("devpi-web doczip options")
+    doczip.addoption(
+        "--documentation-path", action="store",
+        help="path for unzipped documentation. "
+             "By default the --serverdir is used.")
     indexing = parser.addgroup("devpi-web search indexing")
     indexing.addoption(
         "--recreate-search-index", action="store_true",
@@ -266,6 +271,9 @@ def devpiserver_stage_created(stage):
 
 @devpiserver_hookimpl
 def devpiserver_cmdline_run(xom):
+    docs_path = xom.config.args.documentation_path
+    if docs_path is not None and not os.path.isabs(docs_path):
+        fatal("The path for unzipped documentation must be absolute.")
     if xom.config.args.recreate_search_index:
         if not xom.config.args.offline_mode:
             fatal("The --recreate-search-index option requires the --offline option.")
