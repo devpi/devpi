@@ -228,14 +228,11 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 
 @devpiserver_hookimpl
 def devpiserver_add_parser_options(parser):
-    web = None
-    for action in parser._actions:
-        if '--host' in action.option_strings:
-            web = action.container
-    web.addoption(
+    theme = parser.addgroup("devpi-web theme options")
+    theme.addoption(
         "--theme", action="store",
         help="folder with template and resource overwrites for the web interface")
-    indexing = parser.addgroup("search indexing")
+    indexing = parser.addgroup("devpi-web search indexing")
     indexing.addoption(
         "--recreate-search-index", action="store_true",
         help="Recreate search index for all projects and their documentation. "
