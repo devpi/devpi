@@ -67,7 +67,7 @@ First we create the config file for it::
 Then we start supervisord using a config which includes the generated file,
 see :ref:`quickstart-server` for more details::
 
-    $ supervisord -c supervisor.conf
+    $ supervisord -c gen-config/supervisord.conf
 
 ..
     $ sleep 3
@@ -426,7 +426,7 @@ because it inherits all releases from its ``testuser/staging`` base::
 
 Now shutdown supervisord which was started at the beginning of this tutorial::
 
-    $ supervisorctl -c supervisor.conf shutdown
+    $ supervisorctl -c gen-config/supervisord.conf shutdown
     Shut down
 
 running devpi-server permanently

@@ -66,7 +66,7 @@ First we create the config file for it::
 Then we start supervisord using a config which includes the generated file,
 see :ref:`quickstart-server` for more details::
 
-    $ supervisord -c supervisor.conf
+    $ supervisord -c gen-config/supervisord.conf
 
 ..
     $ sleep 3
@@ -144,7 +144,7 @@ install the plugin which we can safely do while the server is running::
 
 We now need to stop the server, we do that using supervisorctl::
 
-    $ supervisorctl -c supervisor.conf stop devpi-server
+    $ supervisorctl -c gen-config/supervisord.conf stop devpi-server
     devpi-server: stopped
 
 and then recreate the search index::
@@ -160,7 +160,7 @@ and then recreate the search index::
 
 and then start the server again::
 
-    $ supervisorctl -c supervisor.conf start devpi-server
+    $ supervisorctl -c gen-config/supervisord.conf start devpi-server
     devpi-server: started
 
 We can now use search with pip::
@@ -223,5 +223,5 @@ you can go to :ref:`quickstart-server` to learn more.
 
 Now shutdown supervisord which was started at the beginning of this tutorial::
 
-    $ supervisorctl -c supervisor.conf shutdown
+    $ supervisorctl -c gen-config/supervisord.conf shutdown
     Shut down

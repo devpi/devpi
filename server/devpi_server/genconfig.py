@@ -28,12 +28,16 @@ def gen_supervisor(tw, config, argv, writer):
     devpibin = py.path.local(sys.argv[0])
     assert devpibin.exists()
     content = render(
-            tw, "supervisord.conf",
+            tw, "supervisor-devpi.conf",
             server_args=subprocess.list2cmdline(argv),
             user=getpass.getuser(),
             devpibin=devpibin,
     )
     writer("supervisor-devpi.conf", content)
+    content = render(
+            tw, "supervisord.conf",
+    )
+    writer("supervisord.conf", content)
 
 
 def gen_cron(tw, config, argv, writer):

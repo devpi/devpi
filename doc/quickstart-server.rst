@@ -321,7 +321,7 @@ generated configuration. For this tutorial it looks like this:
 
 Now we can start supervisor which will manage our server::
 
-    $ supervisord -c supervisor.conf
+    $ supervisord -c gen-config/supervisord.conf
 
 The server will listen on ``http://localhost:4040`` and also serve
 the devpi web interface if you have ``devpi-web`` installed.
@@ -460,5 +460,5 @@ Stopping the server
 
 Let's not forget to stop our background tutorial server by shutting down supervisor::
 
-    $ supervisorctl -c supervisor.conf shutdown
+    $ supervisorctl -c gen-config/supervisord.conf shutdown
     Shut down

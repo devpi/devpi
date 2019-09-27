@@ -1,8 +1,13 @@
+[supervisord]
 
-[program:devpi-server]
-command={devpibin} {server_args}
-user = {user}
-priority = 999
-startsecs = 5
-redirect_stderr = True
-autostart = True
+[unix_http_server]
+file=/tmp/devpi-supervisor.sock
+
+[supervisorctl]
+serverurl=unix:///tmp/devpi-supervisor.sock
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory=supervisor.rpcinterface:make_main_rpcinterface
+
+[include]
+files = %(here)s/supervisor-devpi.conf
