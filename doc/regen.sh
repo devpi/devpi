@@ -17,4 +17,4 @@ echo $PATH
 pip install -q py
 echo devpi-server: `which devpi-server` $*
 
-python regendoc.py $*
+regendoc $*

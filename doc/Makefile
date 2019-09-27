@@ -209,7 +209,7 @@ quickstart-server:
 
 $(USER_MAN_CHAPTERS):
 	@echo Regenerating $@
-	USER=testuser python regendoc.py --update userman/devpi_$@.rst
+	USER=testuser sh regen.sh --update userman/devpi_$@.rst
 
 regen.sample_undo:
 	-git checkout userman/pysober
