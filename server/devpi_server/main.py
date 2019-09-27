@@ -30,8 +30,7 @@ DATABASE_VERSION = "4"
 
 
 def check_compatible_version(config):
-    args = config.args
-    if args.export:
+    if not config.serverdir.exists():
         return
     state_version = get_state_version(config)
     if server_version != state_version:
@@ -39,8 +38,8 @@ def check_compatible_version(config):
         if state_ver[0] != DATABASE_VERSION:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created at database version %s.\n"
-                  "Use --export from older version, then --import with newer "
-                  "version."
+                  "Use devpi-export (or --export) from older version, then "
+                  "devpi-import with newer version."
                   % (server_version, config.serverdir, state_ver[0]))
 
 
@@ -54,7 +53,7 @@ def get_state_version(config):
     return versionfile.read()
 
 
-def set_state_version(config, version):
+def set_state_version(config, version=DATABASE_VERSION):
     versionfile = config.serverdir.join(".serverversion")
     versionfile.dirpath().ensure(dir=1)
     versionfile.write(version)
@@ -84,6 +83,32 @@ def main(argv=None):
         tw.line("fatal: %s" %  e.args[0], red=True)
         return 1
 
+
+def xom_from_config(config):
+    check_compatible_version(config)
+
+    # read/create node UUID and role of this server
+    config.init_nodeinfo()
+
+    if config.sqlite_file_needed_but_missing():
+        fatal(
+            "No sqlite storage found in serverdir."
+            " Or you need to run with --storage to specify the storage type,"
+            " or you first need to run devpi-init or devpi-import"
+            " in order to create the sqlite database."
+        )
+
+    return XOM(config)
+
+
+def init_default_indexes(xom):
+    # we deliberately call get_current_serial first to establish a connection
+    # to the backend and in case of sqlite create the database
+    if xom.keyfs.get_current_serial() == -1 and not xom.is_replica():
+        with xom.keyfs.transaction(write=True):
+            set_default_indexes(xom.model)
+
+
 def _main(pluginmanager, argv=None):
     # During parsing of options logging should not be used
 
@@ -103,39 +128,28 @@ def _main(pluginmanager, argv=None):
         from devpi_server.genconfig import genconfig
         return genconfig(config, argv[1:])
 
+    # now we can configure logging
     configure_logging(config.args)
 
     if args.init:
+        import warnings
+        warnings.warn(
+            "DEPRECATION: the --init option is deprecated, use the "
+            "devpi-init command instead")
         if config.path_nodeinfo.exists():
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
     elif not args.import_:
         if not config.path_nodeinfo.exists():
-            fatal("The path '%s' contains no devpi-server data, use --init to initialize." % config.serverdir)
+            fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
 
     if args.init or args.import_:
         sdir = config.serverdir
         if not (sdir.exists() and len(sdir.listdir()) >= 2):
             set_state_version(config, DATABASE_VERSION)
-    else:
-        check_compatible_version(config)
 
-    # read/create node UUID and role of this server
-    config.init_nodeinfo()
+    xom = xom_from_config(config)
 
-    if config.sqlite_file_needed_but_missing():
-        fatal(
-            "No sqlite storage found in serverdir."
-            " Or you need to run with --storage to specify the storage type,"
-            " or you first need to run with --init or --import"
-            " in order to create the sqlite database."
-        )
-
-    xom = XOM(config)
-    # we deliberately call get_current_serial first to establish a connection
-    # to the backend and in case of sqlite create the database
-    if xom.keyfs.get_current_serial() == -1 and not xom.is_replica():
-        with xom.keyfs.transaction(write=True):
-            set_default_indexes(xom.model)
+    init_default_indexes(xom)
 
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")
@@ -158,6 +172,10 @@ def _main(pluginmanager, argv=None):
 
     if args.passwd:
         from devpi_server.model import run_passwd
+        import warnings
+        warnings.warn(
+            "DEPRECATION: the --passwd option is deprecated, use the "
+            "devpi-passwd command instead")
         with xom.keyfs.transaction(write=True):
             return run_passwd(xom.model, config.args.passwd)
 
@@ -258,11 +276,19 @@ class XOM:
         args = xom.config.args
         if args.export:
             from devpi_server.importexport import do_export
+            import warnings
+            warnings.warn(
+                "DEPRECATION: the --export option is deprecated, use the "
+                "devpi-export command instead")
             #xom.thread_pool.start_one(xom.keyfs.notifier)
             return do_export(args.export, xom)
 
         if args.import_:
             from devpi_server.importexport import do_import
+            import warnings
+            warnings.warn(
+                "DEPRECATION: the --import option is deprecated, use the "
+                "devpi-import command instead")
             # we need to start the keyfs notifier so that import
             # can wait on completion of events
             if args.wait_for_events:
@@ -308,7 +334,7 @@ class XOM:
         except Exception:
             threadlog.exception("Error while trying to initialize storage")
             fatal("Couldn't initialize storage")
-        if not self.config.args.requests_only:
+        if not self.config.requests_only:
             self.thread_pool.register(keyfs.notifier)
         return keyfs
 
@@ -462,7 +488,7 @@ class XOM:
             # the replica thread replays keyfs changes
             # and project-specific changes are discovered
             # and replayed through the PypiProjectChange event
-            if not self.config.args.requests_only:
+            if not self.config.requests_only:
                 self.thread_pool.register(self.replica_thread)
         return OutsideURLMiddleware(app, self)
 

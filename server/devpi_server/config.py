@@ -23,6 +23,10 @@ log = threadlog
 hookimpl = HookimplMarker("devpiserver")
 
 
+DEFAULT_MIRROR_CACHE_EXPIRY = 1800
+DEFAULT_REQUEST_TIMEOUT = 5
+
+
 def get_pluginmanager(load_entrypoints=True):
     pm = PluginManager("devpiserver")
     # support old plugins, but emit deprecation warnings
@@ -35,207 +39,321 @@ def get_pluginmanager(load_entrypoints=True):
     return pm
 
 
-def addoptions(parser, pluginmanager):
+def add_help_option(parser, pluginmanager):
     parser.addoption(
         "-h", "--help",
         action='store_true', default='==SUPPRESS==',
         help="Show this help message and exit.")
+
+
+def add_configfile_option(parser, pluginmanager):
     parser.addoption(
         "-c", "--configfile",
         type=str, default=None,
         help="Config file to use.")
-    web = parser.addgroup("web serving options")
-    web.addoption("--host",  type=str,
-            default="localhost",
-            help="domain/ip address to listen on.  Use --host=0.0.0.0 if "
-                 "you want to accept connections from anywhere.")
 
-    web.addoption("--port",  type=int,
-            default=3141,
-            help="port to listen for http requests.")
 
-    web.addoption("--threads",  type=int,
-            default=50,
-            help="number of threads to start for serving clients.")
+def add_role_option(parser, pluginmanager):
+    parser.addoption(
+        "--role", action="store", dest="role", default="auto",
+        choices=["master", "replica", "standalone", "auto"],
+        help="set role of this instance. The default 'auto' sets "
+             "'standalone' by default and 'replica' if the --master-url "
+             "option is used. To enable the replication protocol you have "
+             "to explicitly set the 'master' role.")
 
-    web.addoption("--max-request-body-size",  type=int,
-            default=1073741824,
-            help="maximum number of bytes in request body. "
-                 "This controls the max size of package that can be uploaded.")
 
-    web.addoption("--outside-url",  type=str, dest="outside_url",
-            metavar="URL",
-            default=None,
-            help="the outside URL where this server will be reachable. "
-                 "Set this if you proxy devpi-server through a web server "
-                 "and the web server does not set or you want to override "
-                 "the custom X-outside-url header.")
+def add_master_url_option(parser, pluginmanager):
+    parser.addoption(
+        "--master-url", action="store", dest="master_url",
+        help="run as a replica of the specified master server",
+        default=None)
 
-    web.addoption("--absolute-urls", action="store_true",
-            help="use absolute URLs everywhere. "
-                 "This will become the default at some point.")
 
-    web.addoption("--debug", action="store_true",
-            help="run wsgi application with debug logging")
+def add_hard_links_option(parser, pluginmanager):
+    parser.addoption(
+        "--hard-links", action="store_true",
+        help="use hard links during export, import or with "
+             " --replica-file-search-path instead of copying "
+             "or downloading files. "
+             "All limitations for hard links on your OS apply. "
+             "USE AT YOUR OWN RISK")
 
-    web.addoption("--profile-requests", type=int, metavar="NUM", default=0,
-            help="profile NUM requests and print out cumulative stats. "
-                 "After print profiling is restarted. "
-                 "By default no profiling is performed.")
 
-    web.addoption("--logger-cfg", action="store", dest="logger_cfg",
-            help="path to .json or .yaml logger configuration file. ",
-            default=None)
+def add_logging_options(parser, pluginmanager):
+    parser.addoption(
+        "--debug", action="store_true",
+        help="run wsgi application with debug logging")
 
-    mirror = parser.addgroup("mirroring options")
-    mirror.addoption("--mirror-cache-expiry", type=float, metavar="SECS",
-            default=1800,
-            help="(experimental) time after which projects in mirror indexes "
-                 "are checked for new releases.")
+    parser.addoption(
+        "--logger-cfg", action="store", dest="logger_cfg",
+        help="path to .json or .yaml logger configuration file. ",
+        default=None)
 
-    mirror.addoption("--replica-max-retries", type=int, metavar="NUM",
-            default=0,
-            help="Number of retry attempts for replica connection failures "
-                 "(such as aborted connections to pypi).")
 
-    mirror.addoption("--request-timeout", type=int, metavar="NUM",
-            default=5,
-            help="Number of seconds before request being terminated "
-                 "(such as connections to pypi, etc.).")
+def add_web_options(parser, pluginmanager):
+    parser.addoption(
+        "--host", type=str,
+        default="localhost",
+        help="domain/ip address to listen on.  Use --host=0.0.0.0 if "
+             "you want to accept connections from anywhere.")
 
-    mirror.addoption("--offline-mode", action="store_true",
-            help="(experimental) prevents connections to any upstream server "
-                 "(e.g. pypi) and only serves locally cached files through the "
-                 "simple index used by pip.")
+    parser.addoption(
+        "--port", type=int,
+        default=3141,
+        help="port to listen for http requests.")
 
-    mirror.addoption("--no-root-pypi", action="store_true",
-            help="don't create root/pypi on server initialization.")
+    parser.addoption(
+        "--threads", type=int,
+        default=50,
+        help="number of threads to start for serving clients.")
 
-    mirror.addoption("--replica-file-search-path", metavar="PATH",
-            help="path to existing files to try before downloading "
-                 "from master. These could be from a previous "
-                 "replication attempt or downloaded separately. "
-                 "Expects the structure from inside +files.")
+    parser.addoption(
+        "--max-request-body-size", type=int,
+        default=1073741824,
+        help="maximum number of bytes in request body. "
+             "This controls the max size of package that can be uploaded.")
 
-    deploy = parser.addgroup("deployment and data options")
+    parser.addoption(
+        "--outside-url", type=str, dest="outside_url",
+        metavar="URL",
+        default=None,
+        help="the outside URL where this server will be reachable. "
+             "Set this if you proxy devpi-server through a web server "
+             "and the web server does not set or you want to override "
+             "the custom X-outside-url header.")
 
-    deploy.addoption("--version", action="store_true",
-            help="show devpi_version (%s)" % devpi_server.__version__)
+    parser.addoption(
+        "--absolute-urls", action="store_true",
+        help="use absolute URLs everywhere. "
+             "This will become the default at some point.")
 
-    deploy.addoption("--role", action="store", dest="role", default="auto",
-            choices=["master", "replica", "standalone", "auto"],
-            help="set role of this instance. The default 'auto' sets "
-                 "'standalone' by default and 'replica' if the --master-url "
-                 "option is used. To enable the replication protocol you have "
-                 "to explicitly set the 'master' role.")
+    parser.addoption(
+        "--profile-requests", type=int, metavar="NUM", default=0,
+        help="profile NUM requests and print out cumulative stats. "
+             "After print profiling is restarted. "
+             "By default no profiling is performed.")
 
-    deploy.addoption("--master-url", action="store", dest="master_url",
-            help="run as a replica of the specified master server",
-            default=None)
 
-    deploy.addoption("--replica-cert", action="store", dest="replica_cert",
-            metavar="pem_file",
-            help="when running as a replica, use the given .pem file as the "
-                 "SSL client certificate to authenticate to the server "
-                 "(EXPERIMENTAL)",
-            default=None)
+def add_mirror_options(parser, pluginmanager):
+    parser.addoption(
+        "--mirror-cache-expiry", type=float, metavar="SECS",
+        default=DEFAULT_MIRROR_CACHE_EXPIRY,
+        help="(experimental) time after which projects in mirror indexes "
+             "are checked for new releases.")
 
-    deploy.addoption("--gen-config", dest="genconfig", action="store_true",
-            help="generate example config files for "
-                 "nginx/supervisor/crontab/systemd/launchd/windows-service, "
-                 "taking other passed options into account "
-                 "(e.g. port, host, etc.)"
-    )
 
-    deploy.addoption("--secretfile", type=str, metavar="path",
-            help="file containing the server side secret used for user "
-                 "validation. If not specified, a random secret is "
-                 "generated on each start up. ")
+def add_replica_options(parser, pluginmanager):
+    add_master_url_option(parser, pluginmanager)
 
-    deploy.addoption("--requests-only", action="store_true",
-            help="only start as a worker which handles read/write web requests "
-                 "but does not run an event processing or replication thread.")
+    parser.addoption(
+        "--replica-max-retries", type=int, metavar="NUM",
+        default=0,
+        help="Number of retry attempts for replica connection failures "
+             "(such as aborted connections to pypi).")
 
-    deploy.addoption("--passwd", action="store", metavar="USER",
-            help="set password for user USER (interactive)")
+    parser.addoption(
+        "--replica-file-search-path", metavar="PATH",
+        help="path to existing files to try before downloading "
+             "from master. These could be from a previous "
+             "replication attempt or downloaded separately. "
+             "Expects the structure from inside +files.")
 
-    deploy.addoption("--serverdir", type=str, metavar="DIR", action="store",
-            default='~/.devpi/server',
-            help="directory for server data.")
+    add_hard_links_option(parser, pluginmanager)
 
-    deploy.addoption("--init", action="store_true",
-            help="initialize devpi-server state in an empty directory "
-                 "(also see --serverdir)")
+    parser.addoption(
+        "--replica-cert", action="store", dest="replica_cert",
+        metavar="pem_file",
+        help="when running as a replica, use the given .pem file as the "
+             "SSL client certificate to authenticate to the server "
+             "(EXPERIMENTAL)",
+        default=None)
 
-    deploy.addoption("--restrict-modify", type=str, metavar="SPEC",
-            action="store", default=None,
-            help="specify which users/groups may create other users and their "
-                 "indices. Multiple users and groups are separated by commas. "
-                 "Groups need to be prefixed with a colon like this: ':group'. "
-                 "By default anonymous users can create users and "
-                 "then create indices themself, but not modify other users "
-                 "and their indices. The root user can do anything. When this "
-                 "option is set, only the specified users/groups can create "
-                 "and modify users and indices. You have to add root "
-                 "explicitely if wanted.")
 
-    deploy.addoption("--keyfs-cache-size", type=int, metavar="NUM",
-            action="store", default=10000,
-            help="size of keyfs cache. If your devpi-server installation "
-                 "gets a lot of writes, then increasing this might "
-                 "improve performance. Each entry uses 1kb of memory on "
-                 "average. So by default about 10MB are used.")
 
-    deploy.addoption("--root-passwd", type=str, default="",
-            help="initial password for the root user. This option has no "
-                 "effect if the user 'root' already exist.")
+def add_request_options(parser, pluginmanager):
+    parser.addoption(
+        "--request-timeout", type=int, metavar="NUM",
+        default=DEFAULT_REQUEST_TIMEOUT,
+        help="Number of seconds before request being terminated "
+             "(such as connections to pypi, etc.).")
 
-    deploy.addoption("--root-passwd-hash", type=str, default=None,
-            help="initial password hash for the root user. "
-                 "This option has no effect if the user 'root' already "
-                 "exist.")
+    parser.addoption(
+        "--offline-mode", action="store_true",
+        help="(experimental) prevents connections to any upstream server "
+             "(e.g. pypi) and only serves locally cached files through the "
+             "simple index used by pip.")
+
+
+def add_storage_options(parser, pluginmanager):
+    parser.addoption(
+        "--serverdir", type=str, metavar="DIR", action="store",
+        default='~/.devpi/server',
+        help="directory for server data.")
 
     backends = sorted(
         pluginmanager.hook.devpiserver_storage_backend(settings=None),
         key=itemgetter("name"))
-    deploy.addoption("--storage", type=str, metavar="NAME",
-            action="store",
-            help="the storage backend to use.\n" + ", ".join(
-                 '"%s": %s' % (x['name'], x['description']) for x in backends))
+    parser.addoption(
+        "--storage", type=str, metavar="NAME",
+        action="store",
+        help="the storage backend to use.\n" + ", ".join(
+             '"%s": %s' % (x['name'], x['description']) for x in backends))
 
-    expimp = parser.addgroup("serverstate export / import options")
-    expimp.addoption("--export", type=str, metavar="PATH",
-            help="export devpi-server database state into PATH. "
+    parser.addoption(
+        "--keyfs-cache-size", type=int, metavar="NUM",
+        action="store", default=10000,
+        help="size of keyfs cache. If your devpi-server installation "
+             "gets a lot of writes, then increasing this might "
+             "improve performance. Each entry uses 1kb of memory on "
+             "average. So by default about 10MB are used.")
+
+
+def add_init_options(parser, pluginmanager, standalone=True):
+    if not standalone:
+        parser.addoption(
+            "--init", action="store_true",
+            help="(DEPRECATED, use devpi-init command) initialize "
+                 "devpi-server state in an empty directory "
+                 "(also see --serverdir)")
+
+    parser.addoption(
+        "--no-root-pypi", action="store_true",
+        help="don't create root/pypi on server initialization.")
+
+    parser.addoption(
+        "--root-passwd", type=str, default="",
+        help="initial password for the root user. This option has no "
+             "effect if the user 'root' already exist.")
+
+    parser.addoption(
+        "--root-passwd-hash", type=str, default=None,
+        help="initial password hash for the root user. "
+             "This option has no effect if the user 'root' already "
+             "exist.")
+
+
+def add_export_options(parser, pluginmanager, standalone=True):
+    if not standalone:
+        parser.addoption(
+            "--export", type=str, metavar="PATH",
+            help="(DEPRECATED, use devpi-passwd command) export "
+                 "devpi-server database state into PATH. "
                  "This will export all users, indices, release files "
                  "(except for mirrors), test results and documentation.")
 
-    expimp.addoption("--hard-links", action="store_true",
-            help="use hard links during export, import or with "
-                 " --replica-file-search-path instead of copying "
-                 "or downloading files. "
-                 "All limitations for hard links on your OS apply. "
-                 "USE AT YOUR OWN RISK"
-    )
-    expimp.addoption("--import", type=str, metavar="PATH",
+
+def add_import_options(parser, pluginmanager, standalone=True):
+    if not standalone:
+        parser.addoption(
+            "--import", type=str, metavar="PATH",
             dest="import_",
-            help="import devpi-server database from PATH where PATH "
+            help="(DEPRECATED, use devpi-import command) import "
+                 "devpi-server database from PATH where PATH "
                  "is a directory which was created by a "
                  "'devpi-server --export PATH' operation, "
                  "using the same or an earlier devpi-server version. "
                  "Note that you can only import into a fresh server "
                  "state directory (positional argument to devpi-server).")
-    expimp.addoption("--skip-import-type", action="append", metavar="TYPE",
-            help="skip the given index type during import. "
-                 "Used when the corresponding plugin isn't installed anymore.")
 
-    expimp.addoption("--no-events", action="store_false",
-            default=True, dest="wait_for_events",
-            help="no events will be run during import, instead they are"
-                 "postponed to run on server start. This allows much faster "
-                 "start of the server after import, when devpi-web is used. "
-                 "When you start the server after the import, the search "
-                 "index and documentation will gradually update until the "
-                 "server has caught up with all events.")
+    parser.addoption(
+        "--skip-import-type", action="append", metavar="TYPE",
+        help="skip the given index type during import. "
+             "Used when the corresponding plugin isn't installed anymore.")
+
+    parser.addoption(
+        "--no-events", action="store_false",
+        default=True, dest="wait_for_events",
+        help="no events will be run during import, instead they are"
+             "postponed to run on server start. This allows much faster "
+             "start of the server after import, when devpi-web is used. "
+             "When you start the server after the import, the search "
+             "index and documentation will gradually update until the "
+             "server has caught up with all events.")
+
+
+def add_deploy_options(parser, pluginmanager):
+    parser.addoption(
+        "--gen-config", dest="genconfig", action="store_true",
+        help="generate example config files for "
+             "nginx/supervisor/crontab/systemd/launchd/windows-service, "
+             "taking other passed options into account "
+             "(e.g. port, host, etc.)")
+
+    parser.addoption(
+        "--secretfile", type=str, metavar="path",
+        help="file containing the server side secret used for user "
+             "validation. If not specified, a random secret is "
+             "generated on each start up. ")
+
+    parser.addoption(
+        "--requests-only", action="store_true",
+        help="only start as a worker which handles read/write web requests "
+             "but does not run an event processing or replication thread.")
+
+
+def add_permission_options(parser, pluginmanager):
+    parser.addoption(
+        "--restrict-modify", type=str, metavar="SPEC",
+        action="store", default=None,
+        help="specify which users/groups may create other users and their "
+             "indices. Multiple users and groups are separated by commas. "
+             "Groups need to be prefixed with a colon like this: ':group'. "
+             "By default anonymous users can create users and "
+             "then create indices themself, but not modify other users "
+             "and their indices. The root user can do anything. When this "
+             "option is set, only the specified users/groups can create "
+             "and modify users and indices. You have to add root "
+             "explicitely if wanted.")
+
+
+def addoptions(parser, pluginmanager):
+    add_help_option(parser, pluginmanager)
+    add_configfile_option(parser, pluginmanager)
+    add_role_option(parser, pluginmanager)
+
+    parser.addoption(
+        "--version", action="store_true",
+        help="show devpi_version (%s)" % devpi_server.__version__)
+
+    parser.addoption(
+        "--passwd", action="store", metavar="USER",
+        help="(DEPRECATED, use devpi-passwd command) set password for "
+             "user USER (interactive)")
+
+    add_logging_options(
+        parser.addgroup("logging options"),
+        pluginmanager)
+    add_web_options(
+        parser.addgroup("web serving options"),
+        pluginmanager)
+    add_mirror_options(
+        parser.addgroup("mirroring options"),
+        pluginmanager)
+    add_replica_options(
+        parser.addgroup("replica options"),
+        pluginmanager)
+    add_request_options(
+        parser.addgroup("request options"),
+        pluginmanager)
+    add_storage_options(
+        parser.addgroup("storage options"),
+        pluginmanager)
+    add_init_options(
+        parser.addgroup("initialization options"),
+        pluginmanager, standalone=False)
+    add_import_options(
+        parser.addgroup("serverstate import options"),
+        pluginmanager, standalone=False)
+    add_export_options(
+        parser.addgroup("serverstate export options"),
+        pluginmanager, standalone=False)
+    add_deploy_options(
+        parser.addgroup("deployment options"),
+        pluginmanager)
+    add_permission_options(
+        parser.addgroup("permission options"),
+        pluginmanager)
 
     bg = parser.addgroup(
         "background server (DEPRECATED, see --gen-config to use a process "
@@ -318,6 +436,8 @@ def load_config_file(config_file):
 
 
 def default_getter(name, config_options, environ):
+    if name is None:
+        return
     if name == "serverdir":
         if "DEVPI_SERVERDIR" in environ:
             log.warn(
@@ -332,10 +452,16 @@ def default_getter(name, config_options, environ):
     return config_options[name]
 
 
-def parseoptions(pluginmanager, argv):
-    parser = get_parser(pluginmanager)
+def parseoptions(pluginmanager, argv, parser=None):
+    if parser is None:
+        parser = get_parser(pluginmanager)
     try_argcomplete(parser)
+    # suppress any errors
+    org_error = parser.error
+    parser.error = lambda m: None
     args = parser.parse_args(argv[1:])
+    # restore error method
+    parser.error = org_error
     config_file = None
     if args.configfile:
         config_file = args.configfile
@@ -352,10 +478,10 @@ def parseoptions(pluginmanager, argv):
         config_options=config_options,
         environ=os.environ)
     parser.post_process_actions(defaultget=defaultget)
-    args = parser.parse_args(argv[1:])
     if args.help is True:
         parser.print_help()
         parser.exit()
+    args = parser.parse_args(argv[1:])
     config = Config(args, pluginmanager=pluginmanager)
     return config
 
@@ -476,7 +602,7 @@ class Config:
         if hasattr(self, '_master_url'):
             return self._master_url
         master_url = None
-        if self.args.master_url:
+        if getattr(self.args, 'master_url', None):
             master_url = URL(self.args.master_url)
         elif self.nodeinfo.get("masterurl"):
             master_url = URL(self.nodeinfo["masterurl"])
@@ -486,6 +612,22 @@ class Config:
     @master_url.setter
     def master_url(self, value):
         self._master_url = value
+
+    @property
+    def mirror_cache_expiry(self):
+        return getattr(self.args, 'mirror_cache_expiry', DEFAULT_MIRROR_CACHE_EXPIRY)
+
+    @property
+    def offline_mode(self):
+        return getattr(self.args, 'offline_mode', False)
+
+    @property
+    def requests_only(self):
+        return getattr(self.args, 'requests_only', False)
+
+    @property
+    def request_timeout(self):
+        return getattr(self.args, 'request_timeout', DEFAULT_REQUEST_TIMEOUT)
 
     @property
     def restrict_modify(self):
@@ -527,13 +669,14 @@ class Config:
         self.nodeinfo["role"] = new_role
 
     def _determine_role(self):
+        role = getattr(self.args, "role", "auto")
         old_role = self.nodeinfo.get("role")
-        if self.args.role == "auto" and not old_role:
+        if role == "auto" and not old_role:
             self._init_role()
-        elif self.args.role == "auto":
+        elif role == "auto":
             self._automatic_role(old_role)
-        elif old_role != self.args.role:
-            self._change_role(old_role, self.args.role)
+        elif old_role != role:
+            self._change_role(old_role, role)
         assert self.nodeinfo["role"]
         if self.nodeinfo["role"] == "replica":
             assert self.master_url
@@ -582,8 +725,8 @@ class Config:
 
     def sqlite_file_needed_but_missing(self):
         return (
-            not self.args.init
-            and not self.args.import_
+            not getattr(self.args, 'init', None)
+            and not getattr(self.args, 'import_', None)
             and self.storage_info['name'] == 'sqlite'
             and not self.serverdir.join(".sqlite").exists()
         )

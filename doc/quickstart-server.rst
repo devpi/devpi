@@ -275,7 +275,7 @@ for the purposes of this tutorial in the background.
 
 First initialize it::
 
-    $ devpi-server --init
+    $ devpi-init
     2018-01-17 15:57:22,625 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:57:22,626 INFO  NOCTX generated uuid: 7b58c6d02fd64fee98b928220b7685ce
     2018-01-17 15:57:22,627 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo

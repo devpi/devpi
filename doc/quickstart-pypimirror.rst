@@ -35,7 +35,7 @@ Initialize devpi-server
 
 To initialize ``devpi-server`` issue::
 
-    $ devpi-server --init
+    $ devpi-init
     2018-01-17 15:40:11,375 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
     2018-01-17 15:40:11,375 INFO  NOCTX generated uuid: cf25cfb22d2b4487a9ab4c1e527e5679
     2018-01-17 15:40:11,376 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo

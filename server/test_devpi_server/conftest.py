@@ -923,20 +923,32 @@ def server_directory():
 @pytest.fixture(scope="module")
 def call_devpi_in_dir():
     # let xproc find the correct executable instead of py.test
+    devpiimport = str(py.path.local.sysfind("devpi-import"))
+    devpiinit = str(py.path.local.sysfind("devpi-init"))
     devpiserver = str(py.path.local.sysfind("devpi-server"))
 
     def devpi(server_dir, args):
+        from devpi_server.importexport import import_
+        from devpi_server.init import init
         from devpi_server.main import main
         from _pytest.monkeypatch import MonkeyPatch
         from _pytest.pytester import RunResult
         m = MonkeyPatch()
         m.setenv("DEVPISERVER_SERVERDIR", getattr(server_dir, 'strpath', server_dir))
-        m.setattr("sys.argv", [devpiserver])
         cap = py.io.StdCaptureFD()
         cap.startall()
         now = time.time()
+        if args[0] == 'devpi-import':
+            m.setattr("sys.argv", [devpiimport])
+            entry_point = import_
+        elif args[0] == 'devpi-init':
+            m.setattr("sys.argv", [devpiinit])
+            entry_point = init
+        elif args[0] == 'devpi-server':
+            m.setattr("sys.argv", [devpiserver])
+            entry_point = main
         try:
-            main(args)
+            entry_point(argv=args)
         finally:
             m.undo()
             out, err = cap.reset()
@@ -963,12 +975,13 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir, server_direct
     port = get_open_port(host)
     args = [
         "devpi-server",
-        "--serverdir", master_serverdir.strpath,
-        "--secretfile", secretfile.strpath,
         "--role", "master",
+        "--secretfile", secretfile.strpath,
         "--host", host,
         "--port", str(port),
         "--requests-only"]
+    storage_args = [
+        "--serverdir", master_serverdir.strpath]
     if storage_info["name"] != "sqlite":
         storage_option = "--storage=%s" % storage_info["name"]
         _get_test_storage_options = getattr(
@@ -976,11 +989,11 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir, server_direct
         if _get_test_storage_options:
             storage_options = _get_test_storage_options(master_serverdir)
             storage_option = storage_option + storage_options
-        args.append(storage_option)
+        storage_args.append(storage_option)
     if not master_serverdir.join('.nodeinfo').exists():
         subprocess.check_call(
-            args + ["--init"])
-    p = subprocess.Popen(args)
+            ["devpi-init"] + storage_args)
+    p = subprocess.Popen(args + storage_args)
     try:
         wait_for_port(host, port)
         yield (host, port)
@@ -1000,10 +1013,9 @@ def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serv
     port = get_open_port(host)
     args = [
         "devpi-server",
-        "--serverdir", replica_serverdir.strpath,
-        "--role", "replica",
-        "--host", host, "--port", str(port),
-        "--master-url", "http://%s:%s" % master_host_port]
+        "--host", host, "--port", str(port)]
+    storage_args = [
+        "--serverdir", replica_serverdir.strpath]
     if storage_info["name"] != "sqlite":
         storage_option = "--storage=%s" % storage_info["name"]
         _get_test_storage_options = getattr(
@@ -1011,11 +1023,13 @@ def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serv
         if _get_test_storage_options:
             storage_options = _get_test_storage_options(replica_serverdir)
             storage_option = storage_option + storage_options
-        args.append(storage_option)
+        storage_args.append(storage_option)
     if not replica_serverdir.join('.nodeinfo').exists():
-        subprocess.check_call(
-            args + ["--init"])
-    p = subprocess.Popen(args)
+        subprocess.check_call([
+            "devpi-init",
+            "--role", "replica",
+            "--master-url", "http://%s:%s" % master_host_port] + storage_args)
+    p = subprocess.Popen(args + storage_args)
     try:
         wait_for_port(host, port)
         yield (host, port)
@@ -1055,7 +1069,7 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
     try:
         args = ["devpi-server", "--gen-config", "--host", host, "--port", str(port)]
         if not server_directory.join('.nodeinfo').exists():
-            args.append("--init")
+            call_devpi_in_dir(server_directory.strpath, ["devpi-init"])
         call_devpi_in_dir(
             server_directory.strpath,
             args)
