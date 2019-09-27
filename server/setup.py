@@ -67,6 +67,7 @@ if __name__ == "__main__":
       entry_points = {
         'console_scripts': [
             "devpi-export = devpi_server.importexport:export",
+            "devpi-fsck = devpi_server.fsck:fsck",
             "devpi-import = devpi_server.importexport:import_",
             "devpi-init = devpi_server.init:init",
             "devpi-passwd = devpi_server.passwd:passwd",

@@ -4,7 +4,6 @@ for all indexes.
 
 """
 from __future__ import unicode_literals
-from io import BytesIO
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
@@ -21,7 +20,6 @@ if sys.version_info >= (3, 0):
 else:
     from urllib import unquote
 
-log = threadlog
 _nodefault = object()
 
 def get_default_hash_spec(content):
@@ -43,11 +41,8 @@ def unicode_if_bytes(val):
 class FileStore:
     attachment_encoding = "utf-8"
 
-    def __init__(self, xom):
-        self.xom = xom
-        self.keyfs = xom.keyfs
-        self.rel_storedir = "+files"
-        self.storedir = self.keyfs.basedir.join(self.rel_storedir)
+    def __init__(self, keyfs):
+        self.keyfs = keyfs
 
     def maplink(self, link, user, index, project):
         parts = link.torelpath().split("/")
@@ -68,7 +63,7 @@ class FileStore:
                 user=user, index=index,
                 dirname=unquote(dirname),
                 basename=basename)
-        entry = FileEntry(self.xom, key, readonly=False)
+        entry = FileEntry(key, readonly=False)
         entry.url = link.geturl_nofragment().url
         # verify checksum if the entry is fresh, a file exists
         # and the link specifies a checksum.  It's a situation
@@ -109,7 +104,7 @@ class FileStore:
         return self.get_file_entry_from_key(key, readonly=readonly)
 
     def get_file_entry_from_key(self, key, meta=_nodefault, readonly=True):
-        return FileEntry(self.xom, key, meta=meta, readonly=readonly)
+        return FileEntry(key, meta=meta, readonly=readonly)
 
     def store(self, user, index, basename, file_content, dir_hash_spec=None):
         if dir_hash_spec is None:
@@ -117,7 +112,7 @@ class FileStore:
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
         key = self.keyfs.STAGEFILE(user=user, index=index,
                    hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
-        entry = FileEntry(self.xom, key, readonly=False)
+        entry = FileEntry(key, readonly=False)
         entry.file_set_content(file_content)
         return entry
 
@@ -153,15 +148,12 @@ class FileEntry(object):
     project = metaprop("project")
     version = metaprop("version")
 
-    def __init__(self, xom, key, meta=_nodefault, readonly=True):
-        self.xom = xom
+    def __init__(self, key, meta=_nodefault, readonly=True):
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
         self.readonly = readonly
-        self._storepath = "/".join((
-            self.xom.filestore.rel_storedir,
-            str(self.relpath)))
+        self._storepath = "/".join(("+files", str(self.relpath)))
         if meta is not _nodefault:
             self.meta = meta or {}
 
@@ -220,7 +212,6 @@ class FileEntry(object):
             if last_modified is None:
                 last_modified = unicode_if_bytes(format_date_time(None))
             self.last_modified = last_modified
-        #else we are called from replica thread and just write outside
         if hash_spec:
             err = get_checksum_error(content, hash_spec)
             if err:
@@ -234,11 +225,6 @@ class FileEntry(object):
         # end up only committing file content without any keys
         # changed which will not replay correctly at a replica.
         self.key.set(self.meta)
-        stage = self.xom.model.getstage(
-            self.key.params['user'],
-            self.key.params['index'])
-        if self.project:
-            stage.add_project_name(self.project)
 
     def gethttpheaders(self):
         assert self.file_exists()
@@ -267,137 +253,8 @@ class FileEntry(object):
         self.meta = {}
         self.file_delete()
 
-    def _headers_from_response(self, r):
-        headers = {
-            str("X-Accel-Buffering"): str("no"),  # disable buffering in nginx
-            str("content-type"): r.headers.get(
-                "content-type", (str("application/octet-stream"), None))[0]}
-        if "last-modified" in r.headers:
-            headers[str("last-modified")] = r.headers["last-modified"]
-        if "content-length" in r.headers:
-            headers[str("content-length")] = str(r.headers["content-length"])
-        return headers
-
     def has_existing_metadata(self):
         return self.hash_spec and self.last_modified
-
-    def iter_cache_remote_file(self):
-        # we get and cache the file and some http headers from remote
-        r = self.xom.httpget(self.url, allow_redirects=True)
-        if r.status_code != 200:
-            msg = "error %s getting %s" % (r.status_code, self.url)
-            threadlog.error(msg)
-            raise self.BadGateway(msg, code=r.status_code, url=self.url)
-        log.info("reading remote: %s, target %s", r.url, self.relpath)
-        content_size = r.headers.get("content-length")
-        err = None
-
-        yield self._headers_from_response(r)
-
-        content = BytesIO()
-        while 1:
-            data = r.raw.read(10240)
-            if not data:
-                break
-            content.write(data)
-            yield data
-
-        content = content.getvalue()
-
-        filesize = len(content)
-        if content_size and int(content_size) != filesize:
-            err = ValueError(
-                      "%s: got %s bytes of %r from remote, expected %s" % (
-                      self.relpath, filesize, r.url, content_size))
-        if not err:
-            err = self.check_checksum(content)
-
-        if err is not None:
-            log.error(str(err))
-            raise err
-
-        try:
-            # when pushing from a mirror to an index, we are still in a
-            # transaction
-            tx = self.tx
-        except AttributeError:
-            # when streaming we won't be in a transaction anymore, so we need
-            # to open a new one below
-            tx = None
-        if not self.has_existing_metadata():
-            if tx is not None:
-                self.file_set_content(content, r.headers.get("last-modified", None))
-            else:
-                with self.key.keyfs.transaction(write=True):
-                    self.file_set_content(content, r.headers.get("last-modified", None))
-        else:
-            # the file was downloaded before but locally removed, so put
-            # it back in place without creating a new serial
-            # we need a direct write connection to use the io_file_* methods
-            with self.key.keyfs._storage.get_connection(write=True) as conn:
-                conn.io_file_set(self._storepath, content)
-                log.debug("put missing file back into place: %s", self._storepath)
-                conn.commit_files_without_increasing_serial()
-
-    def iter_remote_file_replica(self):
-        from .replica import H_REPLICA_FILEREPL, ReplicationErrors
-        replication_errors = ReplicationErrors(self.xom.config.serverdir)
-        # construct master URL with param
-        url = self.xom.config.master_url.joinpath(self.relpath).url
-        if not self.url:
-            threadlog.warn("missing private file: %s" % self.relpath)
-        else:
-            threadlog.info("replica doesn't have file: %s", self.relpath)
-        r = self.xom.httpget(
-            url, allow_redirects=True,
-            extra_headers={H_REPLICA_FILEREPL: str("YES")})
-        if r.status_code != 200:
-            msg = "%s: received %s from master" % (url, r.status_code)
-            if not self.url:
-                threadlog.error(msg)
-                raise self.BadGateway(msg)
-            # try to get from original location
-            r = self.xom.httpget(self.url, allow_redirects=True)
-            if r.status_code != 200:
-                msg = "%s\n%s: received %s" % (msg, self.url, r.status_code)
-                threadlog.error(msg)
-                raise self.BadGateway(msg)
-
-        yield self._headers_from_response(r)
-
-        content = BytesIO()
-        while 1:
-            data = r.raw.read(10240)
-            if not data:
-                break
-            content.write(data)
-            yield data
-
-        content = content.getvalue()
-
-        err = self.check_checksum(content)
-        if err:
-            # the file we got is different, so we fail
-            raise self.BadGateway(str(err))
-
-        try:
-            # there is no code path that still has a transaction at this point,
-            # but we handle that case just to be safe
-            tx = self.tx
-        except AttributeError:
-            # when streaming we won't be in a transaction anymore, so we need
-            # to open a new one below
-            tx = None
-        if tx is not None and tx.write:
-            self.tx.conn.io_file_set(self._storepath, content)
-        else:
-            # we need a direct write connection to use the io_file_* methods
-            with self.key.keyfs._storage.get_connection(write=True) as conn:
-                conn.io_file_set(self._storepath, content)
-                log.debug("put missing file back into place: %s", self._storepath)
-                conn.commit_files_without_increasing_serial()
-        # in case there were errors before, we can now remove them
-        replication_errors.remove(self)
 
 
 def get_checksum_error(content, hash_spec):

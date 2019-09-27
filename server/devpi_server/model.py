@@ -1474,7 +1474,7 @@ class EventSubscribers:
             stage = self.xom.model.getstage(user, index)
             if stage is not None and stage.ixconfig["type"] == "mirror":
                 return  # we don't trigger on file changes of pypi mirror
-            entry = FileEntry(self.xom, ev.typedkey, meta=ev.value)
+            entry = FileEntry(ev.typedkey, meta=ev.value)
             if not entry.project or not entry.version:
                 # the entry was deleted
                 self.xom.config.hook.devpiserver_on_remove_file(

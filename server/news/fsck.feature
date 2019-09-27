@@ -1,0 +1,1 @@
+Add devpi-fsck command which compares the hash of files with the hash in the database.

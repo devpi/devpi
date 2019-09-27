@@ -13,6 +13,7 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
+from io import BytesIO
 from pluggy import HookimplMarker
 from pyramid.compat import escape
 from pyramid.compat import urlparse
@@ -1123,7 +1124,7 @@ class PyPIView:
                 app_iter = iter_fetch_remote_file(self.xom, entry)
                 headers = next(app_iter)
                 return Response(app_iter=app_iter, headers=headers)
-        except entry.BadGateway as e:
+        except BadGateway as e:
             if e.code == 404:
                 return apireturn(404, e.args[0])
             return apireturn(502, e.args[0])
@@ -1286,16 +1287,161 @@ def should_fetch_remote_file(entry, headers):
     return should_fetch
 
 
+def _headers_from_response(r):
+    headers = {
+        str("X-Accel-Buffering"): str("no"),  # disable buffering in nginx
+        str("content-type"): r.headers.get(
+            "content-type", (str("application/octet-stream"), None))[0]}
+    if "last-modified" in r.headers:
+        headers[str("last-modified")] = r.headers["last-modified"]
+    if "content-length" in r.headers:
+        headers[str("content-length")] = str(r.headers["content-length"])
+    return headers
+
+
+def iter_cache_remote_file(xom, entry):
+    # we get and cache the file and some http headers from remote
+    r = xom.httpget(entry.url, allow_redirects=True)
+    if r.status_code != 200:
+        msg = "error %s getting %s" % (r.status_code, entry.url)
+        threadlog.error(msg)
+        raise BadGateway(msg, code=r.status_code, url=entry.url)
+    threadlog.info("reading remote: %s, target %s", r.url, entry.relpath)
+    content_size = r.headers.get("content-length")
+    err = None
+
+    yield _headers_from_response(r)
+
+    content = BytesIO()
+    while 1:
+        data = r.raw.read(10240)
+        if not data:
+            break
+        content.write(data)
+        yield data
+
+    content = content.getvalue()
+
+    filesize = len(content)
+    if content_size and int(content_size) != filesize:
+        err = ValueError(
+            "%s: got %s bytes of %r from remote, expected %s" % (
+                entry.relpath, filesize, r.url, content_size))
+    if not err:
+        err = entry.check_checksum(content)
+
+    if err is not None:
+        threadlog.error(str(err))
+        raise err
+
+    try:
+        # when pushing from a mirror to an index, we are still in a
+        # transaction
+        tx = entry.tx
+    except AttributeError:
+        # when streaming we won't be in a transaction anymore, so we need
+        # to open a new one below
+        tx = None
+
+    def set_content():
+        entry.file_set_content(content, r.headers.get("last-modified", None))
+        if entry.project:
+            stage = xom.model.getstage(
+                entry.key.params['user'],
+                entry.key.params['index'])
+            # for mirror indexes this makes sure the project is in the database
+            # as soon as a file was fetched
+            stage.add_project_name(entry.project)
+
+    if not entry.has_existing_metadata():
+        if tx is not None:
+            set_content()
+        else:
+            with xom.keyfs.transaction(write=True):
+                set_content()
+    else:
+        # the file was downloaded before but locally removed, so put
+        # it back in place without creating a new serial
+        # we need a direct write connection to use the io_file_* methods
+        with xom.keyfs._storage.get_connection(write=True) as conn:
+            conn.io_file_set(entry._storepath, content)
+            threadlog.debug(
+                "put missing file back into place: %s", entry._storepath)
+            conn.commit_files_without_increasing_serial()
+
+
+def iter_remote_file_replica(xom, entry):
+    from .replica import H_REPLICA_FILEREPL, ReplicationErrors
+    replication_errors = ReplicationErrors(xom.config.serverdir)
+    # construct master URL with param
+    url = xom.config.master_url.joinpath(entry.relpath).url
+    if not entry.url:
+        threadlog.warn("missing private file: %s" % entry.relpath)
+    else:
+        threadlog.info("replica doesn't have file: %s", entry.relpath)
+    r = xom.httpget(
+        url, allow_redirects=True,
+        extra_headers={H_REPLICA_FILEREPL: str("YES")})
+    if r.status_code != 200:
+        msg = "%s: received %s from master" % (url, r.status_code)
+        if not entry.url:
+            threadlog.error(msg)
+            raise BadGateway(msg)
+        # try to get from original location
+        r = xom.httpget(entry.url, allow_redirects=True)
+        if r.status_code != 200:
+            msg = "%s\n%s: received %s" % (msg, entry.url, r.status_code)
+            threadlog.error(msg)
+            raise BadGateway(msg)
+
+    yield _headers_from_response(r)
+
+    content = BytesIO()
+    while 1:
+        data = r.raw.read(10240)
+        if not data:
+            break
+        content.write(data)
+        yield data
+
+    content = content.getvalue()
+
+    err = entry.check_checksum(content)
+    if err:
+        # the file we got is different, so we fail
+        raise BadGateway(str(err))
+
+    try:
+        # there is no code path that still has a transaction at this point,
+        # but we handle that case just to be safe
+        tx = entry.tx
+    except AttributeError:
+        # when streaming we won't be in a transaction anymore, so we need
+        # to open a new one below
+        tx = None
+    if tx is not None and tx.write:
+        entry.tx.conn.io_file_set(entry._storepath, content)
+    else:
+        # we need a direct write connection to use the io_file_* methods
+        with xom.keyfs._storage.get_connection(write=True) as conn:
+            conn.io_file_set(entry._storepath, content)
+            threadlog.debug(
+                "put missing file back into place: %s", entry._storepath)
+            conn.commit_files_without_increasing_serial()
+    # in case there were errors before, we can now remove them
+    replication_errors.remove(entry)
+
+
 def iter_fetch_remote_file(xom, entry):
     filestore = xom.filestore
     keyfs = xom.keyfs
     if not xom.is_replica():
         keyfs.restart_as_write_transaction()
         entry = filestore.get_file_entry(entry.relpath, readonly=False)
-        for part in entry.iter_cache_remote_file():
+        for part in iter_cache_remote_file(xom, entry):
             yield part
     else:
-        for part in entry.iter_remote_file_replica():
+        for part in iter_remote_file_replica(xom, entry):
             yield part
 
 
