@@ -1,11 +1,16 @@
 #! /usr/bin/env python
 
-import os, re
+import os
+import re
 import io
+import sys
 from setuptools import setup, find_packages
 
 
 def get_changelog():
+    if 'bdist_rpm' in sys.argv:
+        # exclude changelog when building rpm
+        return ""
     with io.open(os.path.join(here, 'CHANGELOG'), encoding="utf-8") as f:
         text = f.read()
     header_matches = list(re.finditer('^=+$', text, re.MULTILINE))

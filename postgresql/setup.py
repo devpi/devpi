@@ -2,9 +2,13 @@ from setuptools import setup
 import io
 import os
 import re
+import sys
 
 
 def get_changelog():
+    if 'bdist_rpm' in sys.argv:
+        # exclude changelog when building rpm
+        return ""
     here = os.path.abspath(".")
     with io.open(os.path.join(here, 'CHANGELOG'), encoding="utf-8") as f:
         text = f.read()
