@@ -36,7 +36,7 @@
             <tal:masterurl condition="info.master_url">
                 <tr>
                     <th>Master URL</th>
-                    <td>${info.master_url}</td>
+                    <td><a href="${info.master_url}">${info.master_url}</a></td>
                 </tr>
                 <tr>
                     <th>Master UUID</th>
