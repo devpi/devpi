@@ -122,7 +122,10 @@ def doc_serve(context, request):
     """ Serves the raw documentation files. """
     context = ContextWrapper(context)
     doc_info = get_doc_info(context, request)
-    return FileResponse(str(doc_info['doc_path']))
+    response = FileResponse(str(doc_info['doc_path']))
+    if context.version in ('latest', 'stable'):
+        response.cache_expires()
+    return response
 
 
 @view_config(
