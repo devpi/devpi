@@ -295,7 +295,7 @@ class StatusView:
         if self.xom.is_replica():
             from .replica import ReplicationErrors
             status["role"] = "REPLICA"
-            status["master-url"] = config.args.master_url
+            status["master-url"] = config.master_url.url
             status["master-uuid"] = config.nodeinfo.get("master-uuid")
             status["master-serial"] = self.xom.replica_thread.get_master_serial()
             status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()

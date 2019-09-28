@@ -542,7 +542,7 @@ class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
 
-class Config:
+class Config(object):
     def __init__(self, args, pluginmanager):
         self.args = args
         self.pluginmanager = pluginmanager
@@ -606,11 +606,19 @@ class Config:
             master_url = URL(self.args.master_url)
         elif self.nodeinfo.get("masterurl"):
             master_url = URL(self.nodeinfo["masterurl"])
-        self._master_url = master_url
-        return master_url
+        self.master_url = master_url
+        return self.master_url
 
     @master_url.setter
     def master_url(self, value):
+        auth = (None, None)
+        if value is not None:
+            auth = (value.username, value.password)
+            netloc = value.hostname
+            if value.port:
+                netloc = "%s:%s" % (netloc, value.port)
+            value = value.replace(netloc=netloc)
+        self.master_auth = auth
         self._master_url = value
 
     @property

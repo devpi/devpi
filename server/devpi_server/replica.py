@@ -159,6 +159,7 @@ class ReplicaThread:
 
     def __init__(self, xom):
         self.xom = xom
+        self.master_auth = xom.config.master_auth
         self.master_url = xom.config.master_url
         self._master_serial = None
         self._master_serial_timestamp = None
@@ -169,6 +170,7 @@ class ReplicaThread:
         self.update_from_master_at = None
         # set whenever the master serial and current replication serial match
         self.replica_in_sync_at = None
+        self.session = self.xom.new_http_session("replica")
 
     def get_master_serial(self):
         return self._master_serial
@@ -200,11 +202,14 @@ class ReplicaThread:
         assert uuid != master_uuid
         try:
             self.master_contacted_at = time.time()
-            r = self.session.get(url, headers={
-                H_REPLICA_UUID: uuid,
-                H_EXPECTED_MASTER_ID: master_uuid,
-                H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-            }, timeout=self.REPLICA_REQUEST_TIMEOUT)
+            r = self.session.get(
+                url,
+                auth=self.master_auth,
+                headers={
+                    H_REPLICA_UUID: uuid,
+                    H_EXPECTED_MASTER_ID: master_uuid,
+                    H_REPLICA_OUTSIDE_URL: config.args.outside_url},
+                timeout=self.REPLICA_REQUEST_TIMEOUT)
             remote_serial = int(r.headers["X-DEVPI-SERIAL"])
         except Exception as e:
             log.error("error fetching %s: %s", url, str(e))
@@ -289,7 +294,6 @@ class ReplicaThread:
         # within a devpi replica server this thread is the only writer
         self.started_at = time.time()
         self.log = thread_push_log("[REP]")
-        self.session = self.xom.new_http_session("replica")
         keyfs = self.xom.keyfs
         errors = ReplicationErrors(self.xom.config.serverdir)
         for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
