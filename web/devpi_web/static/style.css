@@ -445,12 +445,23 @@ a.failed:after,
     font-weight: bold;
 }
 
+a.unknown:after,
+.toxresult.unknown h2:before {
+    content: "⚠︎";
+    color: #fde2b2;
+    font-weight: bold;
+}
+
 a.passed:after {
     content: " ✔";
 }
 
 a.failed:after {
     content: " !";
+}
+
+a.unknown:after {
+    content: " ⚠︎";
 }
 
 .toxresult .command.passed h3:first-child:before {

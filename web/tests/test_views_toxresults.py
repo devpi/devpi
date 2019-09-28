@@ -1,3 +1,4 @@
+import hashlib
 import json
 import pytest
 import re
@@ -93,3 +94,124 @@ def test_testdata_missing(mapp, testapp, tox_result_data):
         toxresult_link.entry.file_delete()
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     assert '.toxresult' not in r.unicode_body
+
+
+def test_toxresults_state():
+    from devpi_web.views import get_toxresults_info
+    from devpi_web.views import get_toxresults_state
+
+    class LinkStore(list):
+        def get_links(self, rel, for_entrypath):
+            return self[for_entrypath]
+
+    class Link(object):
+        def __init__(self, testenvs):
+            self.testenvs = testenvs
+            self.basename = "pytest-1.7.zip.toxresult"
+
+        @property
+        def entry(self):
+            return self
+
+        def file_get_content(self):
+            result = {
+                "reportversion": "1",
+                "toxversion": "1.6",
+                "platform": "linux2",
+                "host": "foo",
+                "installpkg": {
+                    "basename": "pytest-1.7.zip",
+                    "md5": hashlib.md5(b"123").hexdigest(),
+                    "sha256": hashlib.sha256(b"123").hexdigest(),
+                },
+                "testenvs": self.testenvs}
+            return json.dumps(result).encode('utf-8')
+
+    linkstore = LinkStore([[Link({})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) is None
+
+    linkstore = LinkStore([[Link({"py27": {}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'unknown'
+
+    linkstore = LinkStore([[Link({"py27": {"test": []}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'unknown'
+
+    linkstore = LinkStore([[Link({"py27": {"test": [{"command": ["python"]}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) is None
+
+    linkstore = LinkStore([[Link({"py27": {
+        "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'passed'
+
+    linkstore = LinkStore([[Link({"py27": {
+        "test": [{"command": ["python"], "retcode": 1, "output": "NOTOK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'failed'
+
+    linkstore = LinkStore([[Link({"py27": {
+        "setup": [],
+        "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'passed'
+
+    linkstore = LinkStore([[Link({"py27": {
+        "setup": [],
+        "test": [{"command": ["python"], "retcode": 1, "output": "NOTOK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'failed'
+
+    linkstore = LinkStore([[Link({"py27": {
+        "setup": [{"command": ["python"], "retcode": 0, "output": "OK"}],
+        "test": []}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'unknown'
+
+    linkstore = LinkStore([[
+        Link({"py34": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]}}),
+        Link({"py27": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'passed'
+
+    linkstore = LinkStore([[
+        Link({"py34": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]}}),
+        Link({"py27": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 1, "output": "NOTOK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'failed'
+
+    linkstore = LinkStore([[
+        Link({"py34": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]}}),
+        Link({"py27": {
+            "setup": [{"command": ["python"], "retcode": 0, "output": "OK"}],
+            "test": []}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'unknown'
+
+    linkstore = LinkStore([[Link({
+        "py34": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]},
+        "py27": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'passed'
+
+    linkstore = LinkStore([[Link({
+        "py34": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]},
+        "py27": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 1, "output": "NOTOK"}]}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'failed'
+
+    linkstore = LinkStore([[Link({
+        "py34": {
+            "setup": [],
+            "test": [{"command": ["python"], "retcode": 0, "output": "OK"}]},
+        "py27": {
+            "setup": [{"command": ["python"], "retcode": 0, "output": "OK"}],
+            "test": []}})]])
+    assert get_toxresults_state(get_toxresults_info(linkstore, 0)) == 'unknown'
