@@ -42,5 +42,8 @@ if __name__ == "__main__":
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",
-        ],
+        "Programming Language :: Python :: Implementation :: PyPy",
+      ] + [
+          ("Programming Language :: Python :: %s" % x)
+          for x in "2.7 3.4 3.5 3.6 3.7".split()],
       )
