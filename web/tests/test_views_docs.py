@@ -20,7 +20,14 @@ def test_docs_raw_view(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
     r = testapp.xget(302, api.index + "/pkg1/2.6/+doc/")
-    testapp.xget(200, r.location)
+    r = testapp.xget(200, r.location)
+    assert r.cache_control.no_cache is None
+    r = testapp.xget(302, api.index + "/pkg1/latest/+doc/")
+    r = testapp.xget(200, r.location)
+    assert r.cache_control.no_cache
+    r = testapp.xget(302, api.index + "/pkg1/stable/+doc/")
+    r = testapp.xget(200, r.location)
+    assert r.cache_control.no_cache
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+doc/index.html")
     content, = r.html.select('#content')
     assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
