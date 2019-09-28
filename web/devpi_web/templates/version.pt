@@ -59,7 +59,7 @@
                     <td class="toxresults" tal:condition="show_toxresults">
                         <tal:toxresults condition="file.get('toxresults')">
                             <div tal:repeat="toxresult file.get('toxresults')">
-                                <a href="${make_toxresult_url(basename=file.basename, toxresult=toxresult.basename)}#${toxresult._key}" tal:attributes="class 'failed' if toxresult.failed else 'passed'">
+                                <a href="${make_toxresult_url(basename=file.basename, toxresult=toxresult.basename)}#${toxresult._key}" tal:attributes="class toxresult.status">
                                     ${toxresult.host} ${toxresult.platform} ${toxresult.envname} ${toxresult.get('pyversion')}
                                 </a>
                             </div>

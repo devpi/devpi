@@ -10,7 +10,7 @@
         <h1>${title}</h1>
 
         <div tal:repeat="toxresult toxresults"
-             tal:attributes="class 'toxresult ' + ('failed' if toxresult.failed else 'passed')">
+             tal:attributes="class 'toxresult %s' % toxresult.status">
             <h2 class="toxresult_title" id="${toxresult._key}">
                 ${toxresult.host} ${toxresult.platform} ${toxresult.envname} ${toxresult.get('pyversion')}
             </h2>

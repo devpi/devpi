@@ -305,6 +305,7 @@ def get_files_info(request, linkstore, show_toxresults=False):
             toxresults = get_toxresults_info(linkstore, link)
             if toxresults:
                 fileinfo['toxresults'] = toxresults
+                fileinfo['toxresults_state'] = get_toxresults_state(toxresults)
         files.append(fileinfo)
     return files
 
@@ -322,6 +323,11 @@ def get_toxresults_info(linkstore, for_link, newest=True):
             log.error("Couldn't parse test results %s." % toxlink)
             continue
         for toxenv in toxenvs:
+            status = 'unknown'
+            if not toxenv.setup['failed'] and not toxenv.test['failed'] and toxenv.test['commands']:
+                status = 'passed'
+            elif toxenv.setup['failed'] or toxenv.test['failed']:
+                status = 'failed'
             info = dict(
                 basename=toxlink.basename,
                 _key="-".join(toxenv.key),
@@ -330,11 +336,22 @@ def get_toxresults_info(linkstore, for_link, newest=True):
                 envname=toxenv.envname,
                 setup=toxenv.setup,
                 test=toxenv.test,
-                failed=toxenv.failed)
+                status=status)
             if toxenv.pyversion:
                 info["pyversion"] = toxenv.pyversion
             result.append(info)
     return result
+
+
+def get_toxresults_state(toxresults):
+    if not toxresults:
+        return
+    toxstates = set(x['status'] for x in toxresults)
+    if 'failed' in toxstates:
+        return 'failed'
+    if toxstates == set(['passed']):
+        return 'passed'
+    return 'unknown'
 
 
 def get_docs_info(request, stage, linkstore):

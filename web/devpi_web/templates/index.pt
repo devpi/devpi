@@ -31,10 +31,10 @@
                 <td>
                     <tal:files condition="package.files" repeat="file package.files">
                         <tal:file define="toxresults file.get('toxresults', []);
-                                          failed None if not toxresults else any(x['failed'] for x in toxresults)">
+                                          toxresults_state file.get('toxresults_state', None)">
                             <a href="${file.url}">${file.title}</a>
-                            <tal:tests condition="failed is not None">
-                                (<a href="${package.make_toxresults_url(basename=file.basename)}" tal:attributes="class 'failed' if failed else 'passed'">tests</a>)
+                            <tal:tests condition="toxresults_state is not None">
+                                (<a href="${package.make_toxresults_url(basename=file.basename)}" class="${toxresults_state}">tests</a>)
                             </tal:tests>
                             <br tal:condition="not repeat.file.end" />
                         </tal:file>
