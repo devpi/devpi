@@ -104,6 +104,10 @@ def add_web_options(parser, pluginmanager):
         help="port to listen for http requests.")
 
     parser.addoption(
+        "--unix-socket", type=str,
+        help="path to unix socket to bind to.")
+
+    parser.addoption(
         "--threads", type=int,
         default=50,
         help="number of threads to start for serving clients.")

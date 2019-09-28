@@ -194,8 +194,19 @@ def wsgi_run(xom, app):
     from waitress import serve
     host = xom.config.args.host
     port = xom.config.args.port
-    threads = xom.config.args.threads
-    max_body = xom.config.args.max_request_body_size
+    unix_socket = xom.config.args.unix_socket
+    kwargs = dict(
+        threads=xom.config.args.threads,
+        max_request_body_size=xom.config.args.max_request_body_size)
+    if unix_socket is not None:
+        kwargs['unix_socket'] = unix_socket
+        if host == 'localhost':
+            host = None
+        if port == 3141:
+            port = None
+    if host or port:
+        kwargs['host'] = host
+        kwargs['port'] = port
     log = xom.log
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
@@ -203,7 +214,7 @@ def wsgi_run(xom, app):
     hostaddr = "http://%s:%s" % (host, port)
     hostaddr6 = "http://[%s]:%s" % (host, port)
     log.info("serving at url: %s (might be %s for IPv6)", hostaddr, hostaddr6)
-    log.info("using %s threads", threads)
+    log.info("using %s threads", kwargs['threads'])
     log.info("bug tracker: https://github.com/devpi/devpi/issues")
     log.info("IRC: #devpi on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:
@@ -211,7 +222,7 @@ def wsgi_run(xom, app):
         app = make_eval_exception(app, {})
     try:
         log.info("Hit Ctrl-C to quit.")
-        serve(app, host=host, port=port, threads=threads, max_request_body_size=max_body)
+        serve(app, **kwargs)
     except KeyboardInterrupt:
         pass
     return 0

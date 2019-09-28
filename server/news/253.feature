@@ -1,0 +1,1 @@
+fix #253: add ``--unix-socket`` option to listen on a unix socket. When this is used the ``--host`` and ``--port`` options are forbidden.
