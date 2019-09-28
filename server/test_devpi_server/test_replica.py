@@ -877,3 +877,28 @@ def test_auth_status_master_down(maketestapp, replica_xom, mock):
     assert len(calls) == 1
     assert calls[0][0][1].url == 'http://localhost/+api'
     assert r.json['result']['authstatus'] == ['fail', '', []]
+
+
+def test_master_url_auth(makexom, monkeypatch):
+    from devpi_server.mythread import Shutdown
+    replica_xom = makexom(opts=["--master=http://foo:pass@localhost"])
+    assert replica_xom.config.master_auth == ("foo", "pass")
+    assert replica_xom.config.master_url.url == "http://localhost"
+    replica_xom.create_app()
+
+    results = []
+
+    def get(*args, **kwargs):
+        results.append((args, kwargs))
+        replica_xom.thread_pool.shutdown()
+
+    monkeypatch.setattr(replica_xom.replica_thread.session, "get", get)
+    with pytest.raises(Shutdown):
+        replica_xom.replica_thread.thread_run()
+    assert results[0][1]['auth'] == ("foo", "pass")
+
+
+def test_master_url_auth_with_port(makexom):
+    replica_xom = makexom(opts=["--master=http://foo:pass@localhost:3140"])
+    assert replica_xom.config.master_auth == ("foo", "pass")
+    assert replica_xom.config.master_url.url == "http://localhost:3140"
