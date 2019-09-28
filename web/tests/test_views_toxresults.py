@@ -36,14 +36,13 @@ def test_testdata(mapp, testapp, tox_result_data):
     assert "No setup performed" in content
     assert "everything fine" in content
     r = testapp.xget(200, links[1].attrs['href'])
-    rows = [
+    (row,) = [
         tuple(
             compareable_text(t.text) if len(t.text.split()) < 2 else " ".join(t.text.split())
             for t in x.findAll('td'))
         for x in r.html.select('tbody tr')]
-    assert rows == [
-        ("pkg1-2.6.tgz.toxresult0", "foo", "linux2", "py27",
-         "", "No setup performed Tests")]
+    assert row[0].startswith("pkg1-2.6.tgz.toxresult")
+    assert row[1:] == ("foo", "linux2", "py27", "", "No setup performed Tests")
 
 
 @pytest.mark.with_notifier

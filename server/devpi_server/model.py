@@ -15,7 +15,7 @@ try:
     from itertools import zip_longest
 except ImportError:
     from itertools import izip_longest as zip_longest
-from time import gmtime
+from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl
 from .filestore import FileEntry
@@ -1304,7 +1304,9 @@ class LinkStore:
         assert len(links) == 1, "need exactly one reference, got %s" %(links,)
         base_entry = links[0].entry
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
-        filename = "%s.%s%d" %(base_entry.basename, rel, len(other_reflinks))
+        timestamp = strftime("%Y%m%d%H%M%S", gmtime())
+        filename = "%s.%s-%s-%d" % (
+            base_entry.basename, rel, timestamp, len(other_reflinks))
         entry = self._create_file_entry(filename, file_content,
                                         ref_hash_spec=base_entry.hash_spec)
         return self._add_link_to_file_entry(rel, entry, for_entrypath=for_entrypath)
