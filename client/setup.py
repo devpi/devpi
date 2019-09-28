@@ -47,6 +47,7 @@ if __name__ == "__main__":
       url="https://github.com/devpi/devpi",
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
+      license="MIT",
       classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Web Environment",
