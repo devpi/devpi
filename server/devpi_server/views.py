@@ -296,7 +296,7 @@ class StatusView:
             from .replica import ReplicationErrors
             status["role"] = "REPLICA"
             status["master-url"] = config.master_url.url
-            status["master-uuid"] = config.nodeinfo.get("master-uuid")
+            status["master-uuid"] = config.get_master_uuid()
             status["master-serial"] = self.xom.replica_thread.get_master_serial()
             status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()
             status["replica-started-at"] = self.xom.replica_thread.started_at
