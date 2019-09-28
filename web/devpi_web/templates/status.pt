@@ -27,7 +27,7 @@
             </tr>
             <tr>
                 <th>Outside URL</th>
-                <td>${info.outside_url}</td>
+                <td><a tal:omit-tag="not info.outside_url" href="${info.outside_url}">${info.outside_url}</a></td>
             </tr>
             <tr>
                 <th>Role</th>
@@ -94,7 +94,7 @@
                             </tr>
                             <tr>
                                 <th>Outside URL</th>
-                                <td>${replica.outside_url}</td>
+                                <td><a tal:omit-tag="not replica.outside_url" href="${replica.outside_url}">${replica.outside_url}</a></td>
                             </tr>
                             <tr>
                                 <th>Serial</th>
