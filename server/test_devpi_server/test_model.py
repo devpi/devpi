@@ -652,7 +652,7 @@ class TestStage:
         tox_links = list(linkstore.get_links(rel="toxresult"))
         assert len(tox_links) == 1
         tentry = tox_links[0].entry
-        assert tentry.basename == "pkg1-1.0.tar.gz.toxresult0"
+        assert tentry.basename.startswith("pkg1-1.0.tar.gz.toxresult-")
         # check that tentry is in the same dir than entry
         assert tentry.relpath.startswith(entry.relpath)
 
