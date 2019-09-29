@@ -1,0 +1,1 @@
+Fix #567: the ``pip search`` view is no longer proxied to the master.

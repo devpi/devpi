@@ -1018,7 +1018,7 @@ class SearchView:
 
     @view_config(
         route_name="/{user}/{index}/", request_method="POST",
-        content_type="text/xml")
+        content_type="text/xml", is_mutating=False)
     def xmlrpc_search(self):
         try:
             query = self.query_from_xmlrpc(self.request.body)
