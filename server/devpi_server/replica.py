@@ -13,7 +13,7 @@ from webob.headers import EnvironHeaders, ResponseHeaders
 from . import mythread
 from .fileutil import BytesForHardlink, dumps, loads, rename
 from .log import thread_push_log, threadlog
-from .views import is_mutating_http_method, H_MASTER_UUID, make_uuid_headers
+from .views import H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
 
 H_REPLICA_UUID = str("X-DEVPI-REPLICA-UUID")
@@ -341,17 +341,6 @@ class SimpleLinksChanged:
                     cache_projectnames.add(project)
 
 
-def tween_replica_proxy(handler, registry):
-    xom = registry["xom"]
-    def handle_replica_proxy(request):
-        assert not hasattr(xom.keyfs, "tx"), "no tx should be ongoing"
-        if is_mutating_http_method(request.method):
-            return proxy_write_to_master(xom, request)
-        else:
-            return handler(request)
-    return handle_replica_proxy
-
-
 hop_by_hop = frozenset((
     'connection',
     'keep-alive',
@@ -427,6 +416,13 @@ def proxy_write_to_master(xom, request):
     return Response(status="%s %s" %(r.status_code, r.reason),
                     body=body,
                     headers=headers)
+
+
+def proxy_view_to_master(context, request):
+    xom = request.registry["xom"]
+    tx = getattr(xom.keyfs, "tx", None)
+    assert getattr(tx, "write", False) is False, "there should be no write transaction"
+    return proxy_write_to_master(xom, request)
 
 
 class ReplicationErrors:

@@ -12,10 +12,9 @@ from devpi_server.replica import FileReplicationError
 from devpi_server.replica import ImportFileReplica
 from devpi_server.replica import MasterChangelogRequest
 from devpi_server.replica import ReplicaThread
-from devpi_server.replica import tween_replica_proxy
+from devpi_server.replica import proxy_view_to_master
 from devpi_server.views import iter_remote_file_replica
 from pyramid.httpexceptions import HTTPNotFound
-from pyramid.response import Response
 
 
 pytestmark = [pytest.mark.notransaction]
@@ -317,16 +316,7 @@ def test_clean_response_headers(mock):
     assert 'EGG' in headers
 
 
-class TestTweenReplica:
-    def test_nowrite(self, xom, blank_request):
-        l = []
-        def wrapped_handler(request):
-            l.append(xom.keyfs.get_current_serial())
-            return Response("")
-        handler = tween_replica_proxy(wrapped_handler, {"xom": xom})
-        handler(blank_request())
-        assert l == [xom.keyfs.get_current_serial()]
-
+class TestProxyViewToMaster:
     def test_write_proxies(self, makexom, blank_request, reqmock, monkeypatch):
         xom = makexom(["--master", "http://localhost"])
         reqmock.mock("http://localhost/blankpath",
@@ -334,8 +324,9 @@ class TestTweenReplica:
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
-        handler = tween_replica_proxy(None, {"xom": xom})
-        response = handler(blank_request(method="PUT"))
+        request = blank_request(method="PUT")
+        request.registry = dict(xom=xom)
+        response = proxy_view_to_master(None, request)
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert l == [10]
 
@@ -346,8 +337,9 @@ class TestTweenReplica:
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
-        handler = tween_replica_proxy(None, {"xom": xom})
-        response = handler(blank_request(method="PUT"))
+        request = blank_request(method="PUT")
+        request.registry = dict(xom=xom)
+        response = proxy_view_to_master(None, request)
         assert response.status == "200 GOOD"
 
     def test_write_proxies_redirect(self, makexom, blank_request, reqmock, monkeypatch):
@@ -360,11 +352,11 @@ class TestTweenReplica:
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
-        handler = tween_replica_proxy(None, {"xom": xom})
         # normally the app is wrapped by OutsideURLMiddleware, since this is
         # not the case here, we have to set the host explicitly
-        response = handler(
-            blank_request(method="PUT", headers=dict(host='my.domain')))
+        request = blank_request(method="PUT", headers=dict(host='my.domain'))
+        request.registry = dict(xom=xom)
+        response = proxy_view_to_master(None, request)
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert response.headers.get("location") == "http://my.domain/hello"
         assert l == [10]
@@ -379,8 +371,9 @@ class TestTweenReplica:
                         "X-DEVPI-SERIAL": "0"})
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: x)
-        handler = tween_replica_proxy(None, {"xom": xom})
-        response = handler(blank_request(method="PUT"))
+        request = blank_request(method="PUT")
+        request.registry = dict(xom=xom)
+        response = proxy_view_to_master(None, request)
         assert 'connection' not in response.headers
         assert 'foo' not in response.headers
         assert 'keep-alive' not in response.headers
