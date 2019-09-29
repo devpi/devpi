@@ -386,6 +386,26 @@ class XOM:
             threadlog.warn("HTTPError during httpget of %s at %s", url, location)
             return FatalResponse(url, repr(sys.exc_info()[1]))
 
+    def view_deriver(self, view, info):
+        if self.is_replica():
+            if info.options.get('is_mutating', True):
+                from .model import ensure_list
+                from .replica import proxy_view_to_master
+                from .views import is_mutating_http_method
+                request_methods = info.options['request_method']
+                if request_methods is None:
+                    request_methods = []
+                for request_method in ensure_list(request_methods):
+                    if is_mutating_http_method(request_method):
+                        # we got a view which uses a mutating method and isn't
+                        # marked to be excluded, so we replace the view with
+                        # one that proxies to the master, because a replica
+                        # must not modify its database except via the
+                        # replication protocol
+                        return proxy_view_to_master
+        return view
+    view_deriver.options = ('is_mutating',)
+
     def create_app(self):
         from devpi_server.view_auth import DevpiAuthenticationPolicy
         from devpi_server.views import ContentTypePredicate
@@ -394,6 +414,7 @@ class XOM:
         from pkg_resources import get_distribution
         from pyramid.authorization import ACLAuthorizationPolicy
         from pyramid.config import Configurator
+        from pyramid.viewderivers import INGRESS
         log = self.log
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator(root_factory='devpi_server.view_auth.RootFactory')
@@ -430,6 +451,7 @@ class XOM:
                 config=self.config,
                 pyramid_config=pyramid_config)
 
+        pyramid_config.add_view_deriver(self.view_deriver, under=INGRESS)
         pyramid_config.add_view_predicate('content_type', ContentTypePredicate)
 
         pyramid_config.add_route("/+changelog/{serial}",
@@ -466,12 +488,6 @@ class XOM:
 
         # register tweens for logging, transaction and replication
         pyramid_config.add_tween("devpi_server.views.tween_request_logging")
-        if self.is_replica():
-            pyramid_config.add_tween(
-                "devpi_server.replica.tween_replica_proxy",
-                over="devpi_server.views.tween_keyfs_transaction",
-                under="devpi_server.views.tween_request_logging",
-            )
         pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
             under="devpi_server.views.tween_request_logging"
         )

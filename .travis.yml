@@ -40,7 +40,8 @@ jobs:
         - devpi index -c "${DEVPI_INDEX}" bases=root/pypi
         - devpi use "${DEVPI_INDEX}"
         - devpi push --index root/pypi devpi-server==4.0.0 "${DEVPI_INDEX}"
-        - devpi push --index root/pypi devpi-server==4.2.1 "${DEVPI_INDEX}"
+# BBB,XXX uncomment when devpi-server 5.2.0 is released
+#        - devpi push --index root/pypi devpi-server==5.2.0 "${DEVPI_INDEX}"
         - cd ${TRAVIS_BUILD_DIR}/common
         - yes | towncrier
         - devpi upload
