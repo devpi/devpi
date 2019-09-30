@@ -829,6 +829,8 @@ class BaseStage(object):
                     private_hit = True
 
             try:
+                if not stage.has_project_perstage(project):
+                    continue
                 res = getattr(stage, opname)(**kw)
                 private_hit = private_hit or res
                 yield stage, res
