@@ -957,6 +957,134 @@ class TestStage:
         with xom.keyfs.transaction(write=False):
             assert stage.get_last_change_serial_perstage() == serial_before_new_stage
 
+    @pytest.mark.notransaction
+    def test_get_last_project_change_serial_perstage(self, xom):
+        with xom.keyfs.transaction(write=True) as tx:
+            user = xom.model.create_user("hello", password="123")
+            stage = user.create_stage(index="world", type="stage")
+        # get_last_project_change_serial_perstage only works with
+        # commited transactions
+        with xom.keyfs.transaction() as tx:
+            first_serial = tx.at_serial
+            assert stage.list_projects_perstage() == set()
+            assert stage.get_last_project_change_serial_perstage('pkg') == -1
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == first_serial
+            stage.add_project_name('pkg')
+            assert stage.list_projects_perstage() == {'pkg'}
+        with xom.keyfs.transaction() as tx:
+            # the addition of the project name updated the db
+            assert tx.at_serial == (first_serial + 1)
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 1)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 1)
+            with stage.key_projects.update() as projects:
+                projects.remove('pkg')
+            assert stage.list_projects_perstage() == set()
+        with xom.keyfs.transaction() as tx:
+            # the deletion of the project name updated the db
+            assert tx.at_serial == (first_serial + 2)
+            # and we can't know when it happened, checking all changes in the
+            # project name set would be too expensive
+            assert stage.get_last_project_change_serial_perstage('pkg') == -1
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 2)
+            stage.set_versiondata(udict(name='pkg', version='1.0'))
+            assert stage.list_projects_perstage() == {'pkg'}
+            assert stage.list_versions_perstage('pkg') == {'1.0'}
+        with xom.keyfs.transaction() as tx:
+            # the addition of the version updated the db
+            assert tx.at_serial == (first_serial + 3)
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 3)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 3)
+            stage.set_versiondata(udict(name='other', version='1.1'))
+            assert stage.list_projects_perstage() == {'other', 'pkg'}
+            assert stage.list_versions_perstage('other') == {'1.1'}
+        with xom.keyfs.transaction() as tx:
+            # the addition of the version in another project updated the db
+            assert tx.at_serial == (first_serial + 4)
+            # but the checked project didn't change
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 3)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 4)
+            stage.set_versiondata(udict(name='pkg', version='2.0'))
+            assert stage.list_projects_perstage() == {'other', 'pkg'}
+            assert stage.list_versions_perstage('pkg') == {'1.0', '2.0'}
+        with xom.keyfs.transaction() as tx:
+            # the addition of a second version updated the db
+            assert tx.at_serial == (first_serial + 5)
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 5)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 5)
+            stage.del_versiondata('pkg', '2.0')
+            assert stage.list_projects_perstage() == {'other', 'pkg'}
+            assert stage.list_versions_perstage('pkg') == {'1.0'}
+        with xom.keyfs.transaction() as tx:
+            # the deletion of the version updated the db
+            assert tx.at_serial == (first_serial + 6)
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 6)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 6)
+            link = stage.store_releasefile('pkg', '1.0', 'pkg-1.0.zip', b'123')
+        with xom.keyfs.transaction() as tx:
+            # the upload of the release updated the db
+            assert tx.at_serial == (first_serial + 7)
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 7)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 7)
+            other_link = stage.store_releasefile('other', '1.1', 'other-1.1.zip', b'123')
+        with xom.keyfs.transaction() as tx:
+            # the upload of the other release updated the db
+            assert tx.at_serial == (first_serial + 8)
+            # but the checked project didn't change
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 7)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 8)
+            # delete only the release without removing the version
+            stage.del_entry(link.entry, cleanup=False)
+        with xom.keyfs.transaction() as tx:
+            # the deletion of the release updated the db
+            assert tx.at_serial == (first_serial + 9)
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 9)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 9)
+            # delete only the release without removing the version
+            stage.del_entry(other_link.entry, cleanup=False)
+        with xom.keyfs.transaction() as tx:
+            # the deletion of the other release updated the db
+            assert tx.at_serial == (first_serial + 10)
+            # but the checked project didn't change
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 9)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 10)
+            stage.del_project('other')
+        with xom.keyfs.transaction() as tx:
+            # the deletion of the other project updated the db
+            assert tx.at_serial == (first_serial + 11)
+            # but the checked project didn't change
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 9)
+        with xom.keyfs.transaction(write=True) as tx:
+            # no change in db yet
+            assert tx.at_serial == (first_serial + 11)
+            stage.del_project('pkg')
+        with xom.keyfs.transaction() as tx:
+            # the deletion of the project updated the db
+            assert tx.at_serial == (first_serial + 12)
+            # and this time we can know when it was deleted
+            assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 12)
+
 
 class TestLinkStore:
     @pytest.fixture

@@ -510,6 +510,19 @@ class PyPIStage(BaseStage):
         except self.UpstreamNotFoundError:
             return []
 
+    def get_last_project_change_serial_perstage(self, project, at_serial=None):
+        tx = self.keyfs.tx
+        if at_serial is None:
+            at_serial = tx.at_serial
+        info = tx.get_last_serial_and_value_at(
+            self.key_projsimplelinks(project),
+            at_serial, raise_on_error=False)
+        if info is None:
+            # never existed
+            return -1
+        (last_serial, links) = info
+        return last_serial
+
     def get_versiondata_perstage(self, project, version, readonly=True):
         project = normalize_name(project)
         verdata = {}

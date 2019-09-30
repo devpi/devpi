@@ -643,3 +643,41 @@ def test_redownload_locally_removed_release(mapp, simpypi):
         assert tx.conn.io_file_exists(file_relpath)
     # the serial should not have increased
     assert serial == mapp.xom.keyfs.get_current_serial()
+
+
+@pytest.mark.notransaction
+def test_get_last_project_change_serial_perstage(xom, pypistage):
+    # get_last_project_change_serial_perstage only works with
+    # commited transactions
+    with xom.keyfs.transaction() as tx:
+        first_serial = tx.at_serial
+        assert pypistage.list_projects_perstage() == set()
+    with xom.keyfs.transaction() as tx:
+        # the list_projects_perstage call above triggered a MIRRORNAMESINIT update
+        assert tx.at_serial == (first_serial + 1)
+        assert pypistage.get_last_project_change_serial_perstage('pkg') == -1
+        with pytest.raises(pypistage.UpstreamNotFoundError):
+            pypistage.get_simplelinks_perstage('pkg')
+    with xom.keyfs.transaction() as tx:
+        # no change in db yet
+        assert tx.at_serial == (first_serial + 1)
+        assert pypistage.get_last_project_change_serial_perstage('pkg') == -1
+        pypistage.mock_simple("pkg", pkgver="pkg-1.0.zip")
+        (link,) = pypistage.get_simplelinks_perstage('pkg')
+        assert link[0] == 'pkg-1.0.zip'
+    with xom.keyfs.transaction() as tx:
+        # the new project has been updated in the db
+        assert tx.at_serial == (first_serial + 2)
+        assert pypistage.get_last_project_change_serial_perstage('pkg') == (first_serial + 2)
+    with xom.keyfs.transaction() as tx:
+        # no change in db yet
+        assert tx.at_serial == (first_serial + 2)
+        pypistage.mock_simple("other", pkgver="other-1.0.zip")
+        (link,) = pypistage.get_simplelinks_perstage('other')
+        assert link[0] == 'other-1.0.zip'
+    with xom.keyfs.transaction() as tx:
+        # the new project has been updated in the db
+        assert tx.at_serial == (first_serial + 3)
+        assert pypistage.get_last_project_change_serial_perstage('other') == (first_serial + 3)
+        # but the previous project is at the same serial
+        assert pypistage.get_last_project_change_serial_perstage('pkg') == (first_serial + 2)

@@ -447,9 +447,14 @@ class Transaction(object):
         # the key didn't exist at that point in time
         return
 
-    def get_last_serial_and_value_at(self, typedkey, at_serial):
+    def get_last_serial_and_value_at(self, typedkey, at_serial, raise_on_error=True):
         relpath = typedkey.relpath
-        (keyname, last_serial) = self.conn.db_read_typedkey(relpath)
+        try:
+            (keyname, last_serial) = self.conn.db_read_typedkey(relpath)
+        except KeyError:
+            if raise_on_error:
+                raise
+            return None
         serials_and_values = self.iter_serial_and_value_backwards(
             relpath, last_serial)
         try:
@@ -458,15 +463,16 @@ class Transaction(object):
                 if last_serial > at_serial:
                     (last_serial, val) = next(serials_and_values)
                     continue
-                if val is not None:
+                if val is not None or not raise_on_error:
                     return (last_serial, val)
                 raise KeyError(relpath)  # was deleted
         except StopIteration:
             pass
 
-        # we could not find any change below at_serial which means
-        # the key didn't exist at that point in time
-        raise KeyError(relpath)
+        if raise_on_error:
+            # we could not find any change below at_serial which means
+            # the key didn't exist at that point in time
+            raise KeyError(relpath)
 
     def get_value_at(self, typedkey, at_serial):
         (last_serial, val) = self.get_last_serial_and_value_at(typedkey, at_serial)
