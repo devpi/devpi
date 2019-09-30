@@ -315,7 +315,7 @@ class TestExtPYPIDB:
         pypistage.mock_simple("pytest", text="", pypiserial=9)
         assert len(pypistage.get_releaselinks("pytest")) == 1
         recs = caplog.getrecords(".*serving cached links.*")
-        assert len(recs) == 1
+        assert len(recs) >= 1
 
     def test_get_releaselinks_cache_no_fresh_write(self, pypistage):
         pypistage.mock_simple("pytest", text='''
@@ -360,7 +360,7 @@ class TestExtPYPIDB:
         links2 = pypistage.get_releaselinks("pytest")
         assert links2[0].linkdict == links[0].linkdict and len(links2) == 1
         recs = caplog.getrecords("serving stale.*pytest.*")
-        assert len(recs) == 1
+        assert len(recs) >= 1
 
     def test_pypi_mirror_redirect_to_canonical_issue139(self, pypistage):
         # GET https://pypi.org/simple/Hello_World

@@ -508,6 +508,15 @@ class TestStage:
         with pytest.raises(InvalidIndexconfig):
             stage.modify(pypi_whitelist=setting, mirror_whitelist=setting)
 
+    def test_package_not_in_mirror_whitelist_all(self, monkeypatch, pypistage, stage):
+        stage.modify(mirror_whitelist="*", bases=(pypistage.name,))
+        register_and_store(stage, "some_xyz-1.0.zip", b"123")
+        # provoke error if called
+        monkeypatch.setattr(
+            "devpi_server.extpypi.PyPIStage.list_versions_perstage",
+            lambda self, project: 0 / 0)
+        assert stage.list_versions('some_xyz') == {'1.0'}
+
     def test_store_and_delete_project(self, stage):
         register_and_store(stage, "some_xyz-1.0.zip", b"123")
         assert stage.get_versiondata_perstage("Some_xyz", "1.0")
