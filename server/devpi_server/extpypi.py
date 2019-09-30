@@ -115,10 +115,15 @@ class PyPIStage(BaseStage):
             url = URL(self.ixconfig['mirror_url'])
             return url.asdir().url
 
+    @property
+    def use_external_url(self):
+        return self.ixconfig.get('mirror_use_external_urls', False)
+
     def get_possible_indexconfig_keys(self):
         return tuple(dict(self.get_default_config_items())) + (
             "custom_data", "description",
             "mirror_url", "mirror_cache_expiry",
+            "mirror_use_external_urls",
             "mirror_web_url_fmt", "title")
 
     def get_default_config_items(self):
@@ -139,6 +144,8 @@ class PyPIStage(BaseStage):
                 raise self.InvalidIndexconfig([
                     "'mirror_cache_expiry' option must be an integer"])
             return value
+        if key == "mirror_use_external_urls":
+            return ensure_boolean(value)
         if key in ("custom_data", "description", "mirror_web_url_fmt", "title"):
             return value
 

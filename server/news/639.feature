@@ -1,0 +1,1 @@
+Add new option ``mirror_use_external_urls`` for mirrors which when ``true`` redirects to the original release URL when the release isn't locally cached yet. No new releases are stored locally from that point on. The metadata is still stored in the database.

@@ -577,7 +577,8 @@ class Mapp(MappMixin):
                                   expect_errors=True)
         assert r.status_code == code
         if code in (200,201):
-            assert r.json["result"]["type"] == indexconfig.get("type", "stage")
+            if isinstance(indexconfig, dict):
+                assert r.json["result"]["type"] == indexconfig.get("type", "stage")
             return r.json["result"]
         if code in (400,):
             return r.json["message"]
