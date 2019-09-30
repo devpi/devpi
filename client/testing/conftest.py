@@ -204,17 +204,22 @@ def _liveserver(clientdir, server_executable, server_version):
     port = get_open_port(host)
     try:
         args = [
-            server_executable, "--serverdir", str(clientdir), "--debug",
-            "--host", host, "--port", str(port)]
-        if server_version >= pkg_resources.parse_version('4.2.0.dev'):
-            subprocess.check_call(args + ['--init'])
+            "--serverdir", str(clientdir)]
+        if server_version >= pkg_resources.parse_version('5.2.0.dev'):
+            init_executable = server_executable.replace(
+                "devpi-server", "devpi-init")
+            subprocess.check_call([init_executable] + args)
+        elif server_version >= pkg_resources.parse_version('4.2.0.dev'):
+            subprocess.check_call([server_executable] + args + [
+                '--debug', '--init'])
     except subprocess.CalledProcessError as e:
         # this won't output anything on Windows
         print(
             getattr(e, 'output', "Can't get process output on Windows"),
             file=sys.stderr)
         raise
-    p = subprocess.Popen(args)
+    p = subprocess.Popen([server_executable] + args + [
+        "--debug", "--host", host, "--port", str(port)])
     wait_for_port(host, port)
     return (p, URL("http://%s:%s" % (host, port)))
 

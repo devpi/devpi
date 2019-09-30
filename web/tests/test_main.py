@@ -48,6 +48,7 @@ def test_devpi_stage_created(monkeypatch, pypistage, mock):
 
 def test_index_projects_arg(monkeypatch, tmpdir):
     from devpi_web.null_index import Index as NullIndex
+    import devpi_server.init
     import devpi_server.main
     XOM = devpi_server.main.XOM
     xom_container = []
@@ -79,10 +80,8 @@ def test_index_projects_arg(monkeypatch, tmpdir):
         NullIndex, "update_projects",
         lambda s, x, clear=True: calls.append("update_projects"))
 
-    result = devpi_server.main.main([
-        "devpi-server", "--serverdir", str(tmpdir),
-        "--indexer-backend", "null",
-        "--init"])
+    result = devpi_server.init.init(argv=[
+        "devpi-init", "--serverdir", str(tmpdir)])
     assert calls == []
     assert not result
     result = devpi_server.main.main([
