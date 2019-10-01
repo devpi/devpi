@@ -17,6 +17,7 @@ def test_index_patch(testapp):
         'acl_upload': ['foo'],
         'bases': [],
         'mirror_whitelist': [],
+        'mirror_whitelist_inheritance': 'intersection',
         'projects': [],
         'type': 'stage',
         'volatile': True}
