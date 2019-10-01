@@ -1133,7 +1133,7 @@ class PrivateStage(BaseStage):
         if entry is not None:
             return entry.file_get_content()
 
-    def get_last_change_serial(self, at_serial=None):
+    def get_last_change_serial_perstage(self, at_serial=None):
         tx = self.keyfs.tx
         if at_serial is None:
             at_serial = tx.at_serial
@@ -1180,6 +1180,15 @@ class PrivateStage(BaseStage):
             last_serial = user_serial
             break
         return last_serial
+
+    # BBB old name for backward compatibility, remove with 6.0.0
+    def get_last_change_serial(self, at_serial=None):
+        import warnings
+        warnings.warn(
+            "The get_last_change_serial method is deprecated, "
+            "use get_last_change_serial_perstage instead",
+            DeprecationWarning)
+        return self.get_last_change_serial_perstage(at_serial=at_serial)
 
 
 class StageCustomizer(BaseStageCustomizer):

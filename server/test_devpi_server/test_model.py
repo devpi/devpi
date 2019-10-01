@@ -862,7 +862,7 @@ class TestStage:
         assert stage.get_versiondata("This", "1.0")
 
     @pytest.mark.notransaction
-    def test_get_last_change_serial(self, xom):
+    def test_get_last_change_serial_perstage(self, xom):
         current_serial = xom.keyfs.get_current_serial()
         model = xom.model
         with xom.keyfs.transaction(write=True):
@@ -873,12 +873,12 @@ class TestStage:
             stage = user.create_stage(**udict(
                 index="world", bases=(), type="stage", volatile=True))
             with pytest.raises(KeyError) as e:
-                stage.get_last_change_serial()
+                stage.get_last_change_serial_perstage()
             assert 'not commited yet' in str(e.value)
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.transaction(write=False):
-            assert stage.get_last_change_serial() == current_serial
+            assert stage.get_last_change_serial_perstage() == current_serial
         actions = [
             ('set_versiondata', udict(name="pkg", version="1.0")),
             ('store_releasefile', "pkg", "1.0", "pkg-1.0.zip", b""),
@@ -890,11 +890,11 @@ class TestStage:
             with xom.keyfs.transaction(write=True):
                 getattr(stage, action[0])(*action[1:])
                 # inside the transaction there is no change yet
-                assert stage.get_last_change_serial() == current_serial
+                assert stage.get_last_change_serial_perstage() == current_serial
             assert current_serial == xom.keyfs.get_current_serial() - 1
             current_serial = xom.keyfs.get_current_serial()
             with xom.keyfs.transaction(write=False):
-                assert stage.get_last_change_serial() == current_serial
+                assert stage.get_last_change_serial_perstage() == current_serial
         # create a toxresult
         with xom.keyfs.transaction(write=True):
             (link,) = stage.get_releaselinks_perstage('hello')
@@ -902,7 +902,7 @@ class TestStage:
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.transaction(write=False):
-            assert stage.get_last_change_serial() == current_serial
+            assert stage.get_last_change_serial_perstage() == current_serial
         # create another stage and run the same actions
         serial_before_new_stage = xom.keyfs.get_current_serial()
         with xom.keyfs.transaction(write=True):
@@ -914,14 +914,14 @@ class TestStage:
             with xom.keyfs.transaction(write=True):
                 getattr(stage2, action[0])(*action[1:])
                 # inside the transaction there is no change yet
-                assert stage2.get_last_change_serial() == current_serial
+                assert stage2.get_last_change_serial_perstage() == current_serial
             assert current_serial == xom.keyfs.get_current_serial() - 1
             current_serial = xom.keyfs.get_current_serial()
             with xom.keyfs.transaction(write=False):
-                assert stage2.get_last_change_serial() == current_serial
+                assert stage2.get_last_change_serial_perstage() == current_serial
         # the other stage should not have changed
         with xom.keyfs.transaction(write=False):
-            assert stage.get_last_change_serial() == serial_before_new_stage
+            assert stage.get_last_change_serial_perstage() == serial_before_new_stage
         # now we test deletions
         with xom.keyfs.transaction(write=False):
             (link,) = stage2.get_releaselinks_perstage('hello')
@@ -934,28 +934,28 @@ class TestStage:
             with xom.keyfs.transaction(write=True):
                 getattr(stage2, action[0])(*action[1:])
                 # inside the transaction there is no change yet
-                assert stage2.get_last_change_serial() == current_serial
+                assert stage2.get_last_change_serial_perstage() == current_serial
             assert current_serial == xom.keyfs.get_current_serial() - 1
             current_serial = xom.keyfs.get_current_serial()
             with xom.keyfs.transaction(write=False):
-                assert stage2.get_last_change_serial() == current_serial
+                assert stage2.get_last_change_serial_perstage() == current_serial
         # the other stage still should not have changed
         with xom.keyfs.transaction(write=False):
-            assert stage.get_last_change_serial() == serial_before_new_stage
+            assert stage.get_last_change_serial_perstage() == serial_before_new_stage
         # modifying the stage also should not affect the other one
         with xom.keyfs.transaction(write=True):
             stage2.modify(volatile=False)
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.transaction(write=False):
-            assert stage.get_last_change_serial() == serial_before_new_stage
+            assert stage.get_last_change_serial_perstage() == serial_before_new_stage
         # deleting the stage should not affect the other one either
         with xom.keyfs.transaction(write=True):
             stage2.delete()
             del stage2
         assert current_serial == xom.keyfs.get_current_serial() - 1
         with xom.keyfs.transaction(write=False):
-            assert stage.get_last_change_serial() == serial_before_new_stage
+            assert stage.get_last_change_serial_perstage() == serial_before_new_stage
 
 
 class TestLinkStore:
