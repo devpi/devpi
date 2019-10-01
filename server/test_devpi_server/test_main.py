@@ -190,8 +190,10 @@ def test_main_starts_server_if_run_commands_returns_none(tmpdir, use_option):
 
 def test_version_info(xom):
     app = xom.create_app()
+    while not hasattr(app, 'registry'):
+        app = app.app
     counts = {}
-    for name, version in app.app.registry['devpi_version_info']:
+    for name, version in app.registry['devpi_version_info']:
         counts[name] = counts.get(name, 0) + 1
     assert counts['devpi-server'] == 1
 
