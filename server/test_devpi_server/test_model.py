@@ -450,7 +450,9 @@ class TestStage:
     def test_project_whitelist_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
-        stage.modify(bases=(stage_dev2.name,))
+        stage.modify(
+            mirror_whitelist_inheritance="union",
+            bases=(stage_dev2.name,))
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.1.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
@@ -492,7 +494,9 @@ class TestStage:
     def test_project_whitelist_all_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
-        stage.modify(bases=(stage_dev2.name,))
+        stage.modify(
+            mirror_whitelist_inheritance="union",
+            bases=(stage_dev2.name,))
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.1.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
@@ -585,6 +589,42 @@ class TestStage:
             "devpi_server.extpypi.PyPIStage.list_versions_perstage",
             lambda self, project: 0 / 0)
         assert stage.list_versions('some_xyz') == {'1.0'}
+
+    def test_whitelist_intersection(self, pypistage, stage, user):
+        pypistage.mock_simple(
+            "someproject", "<a href='someproject-1.1.zip' /a>")
+        stage.modify(mirror_whitelist="*", bases=(pypistage.name,))
+        stage2 = user.create_stage(index='inheriting', bases=(stage.name,))
+        assert stage2.ixconfig['mirror_whitelist'] == []
+        register_and_store(stage2, 'someproject-1.0.zip')
+        assert stage2.list_versions('someproject') == {'1.0'}
+
+    @pytest.mark.notransaction
+    def test_mirror_whitelist_inheritance_bbb(self, xom):
+        keyfs = xom.keyfs
+        model = xom.model
+        with keyfs.transaction(write=True):
+            user = model.create_user("hello", password="123")
+            config = udict(index="world", bases=(), type="stage", volatile=True)
+            stage = user.create_stage(**config)
+            assert stage.ixconfig["mirror_whitelist_inheritance"] == "intersection"
+            assert stage.get_whitelist_inheritance() == "intersection"
+            with user.key.update() as userconfig:
+                # here we remove the value to simulate an old stage
+                del userconfig['indexes']['world']['mirror_whitelist_inheritance']
+        with keyfs.transaction(write=False):
+            stage = xom.model.getstage("hello/world")
+            assert 'mirror_whitelist_inheritance' not in stage.ixconfig
+            assert stage.get_whitelist_inheritance() == "union"
+        with keyfs.transaction(write=True):
+            stage = xom.model.getstage("hello/world")
+            # now modify an unrelated setting
+            stage.modify(bases=("root/pypi",))
+        with keyfs.transaction(write=False):
+            stage = xom.model.getstage("hello/world")
+            # mirror_whitelist_inheritance should still be missing
+            assert 'mirror_whitelist_inheritance' not in stage.ixconfig
+            assert stage.get_whitelist_inheritance() == "union"
 
     def test_store_and_delete_project(self, stage):
         register_and_store(stage, "some_xyz-1.0.zip", b"123")
@@ -1416,10 +1456,5 @@ def test_get_indexconfig_values(xom, input, expected):
         with pytest.raises(expected):
             stage.get_indexconfig_from_kwargs(**input)
     else:
-        expected.setdefault("acl_upload", ["user"])
-        expected.setdefault("acl_toxresult_upload", [":ANONYMOUS:"])
-        expected.setdefault("bases", ())
-        expected.setdefault("mirror_whitelist", [])
-        expected.setdefault("volatile", True)
         result = stage.get_indexconfig_from_kwargs(**input)
         assert result == expected
