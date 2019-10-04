@@ -28,6 +28,7 @@ if __name__ == "__main__":
 
     install_requires = ["py>=1.4.23",
                         "appdirs",
+                        "attrs",
                         "devpi_common<4,>=3.3.0",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
