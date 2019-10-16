@@ -83,21 +83,19 @@ The command line options have the highest priority and overwrite all of the abov
 generating example config files for supervisor/nginx/cron/launchd
 -----------------------------------------------------------------
 
-Use ``devpi-server --gen-config`` to write out several example config files 
+Use ``devpi-gen-config`` to write out several example config files
 into the ``gen-config`` directory (relative to where you invoke it
 from).  The files come with some defaults to integrate with your own
-permanent hosting infrastructure.  When ``--gen-config``
-is present no server is started and no network request is performed
-because the sole purpose is to help you get started with properly
-running and deploying a devpi-server in your company or on your laptop.
+permanent hosting infrastructure.
 
 If you have improvements or additions to the example configs please
-share them with a 
-`Merge/Pull Request on the configuration template files <https://github.com/devpi/devpi/src/15fd2b5b41f28ab3d980b093882945c5cbfde3cc/server/devpi_server/cfg/?at=default>`_ and `--gen-config implemenation <https://github.com/devpi/devpi/src/15fd2b5b41f28ab3d980b093882945c5cbfde3cc/server/devpi_server/genconfig.py?at=default>`_ along with a little doc section.
+share them with a
+`Merge/Pull Request on the configuration template files <https://github.com/devpi/devpi/tree/master/server/devpi_server/cfg>`_ and
+`devpi-gen-config implemenation <https://github.com/devpi/devpi/blob/master/server/devpi_server/genconfig.py>`_ along with a little doc section.
 
 Here is an example run::
 
-    $ devpi-server --port 4040 --serverdir ~/mydevpiserver --gen-config
+    $ devpi-gen-config --port 4040 --serverdir ~/mydevpiserver
     It is highly recommended to use a configuration file for devpi-server, see --configfile option.
     wrote gen-config/crontab
     wrote gen-config/net.devpi.plist
@@ -289,7 +287,7 @@ First initialize it::
 Next we create configuration files for various process managers.
 Note that we set the port we want to use::
 
-    $ devpi-server --gen-config --port 4040
+    $ devpi-gen-config --port 4040
     It is highly recommended to use a configuration file for devpi-server, see --configfile option.
     wrote gen-config/crontab
     wrote gen-config/net.devpi.plist

@@ -126,7 +126,11 @@ def _main(pluginmanager, argv=None):
 
     if args.genconfig:
         from devpi_server.genconfig import genconfig
-        return genconfig(config, argv[1:])
+        import warnings
+        warnings.warn(
+            "DEPRECATION: the --gen-config option is deprecated, use the "
+            "devpi-gen-config command instead")
+        return genconfig(config, argv)
 
     # now we can configure logging
     configure_logging(config.args)

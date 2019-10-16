@@ -54,7 +54,7 @@ So let's first initialize devpi-server::
 To start ``devpi-server`` in the background we use supervisor as an example.
 First we create the config file for it::
 
-    $ devpi-server --gen-config
+    $ devpi-gen-config
     It is highly recommended to use a configuration file for devpi-server, see --configfile option.
     wrote gen-config/crontab
     wrote gen-config/net.devpi.plist

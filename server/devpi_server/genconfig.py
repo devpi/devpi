@@ -6,7 +6,7 @@ from collections import OrderedDict
 from devpi_common.url import URL
 
 from devpi_server.config import (
-    render, parseoptions, get_pluginmanager
+    render, parseoptions, get_parser, get_pluginmanager
 )
 
 try:
@@ -23,9 +23,13 @@ except ImportError:
         from plistlib import writePlistToString as write_plist_to_bytes
 
 
+def get_devpibin():
+    return py.path.local(sys.argv[0].replace("devpi-gen-config", "devpi-server"))
+
+
 def gen_supervisor(tw, config, argv, writer):
     import getpass
-    devpibin = py.path.local(sys.argv[0])
+    devpibin = get_devpibin()
     assert devpibin.exists()
     content = render(
             tw, "supervisor-devpi.conf",
@@ -68,7 +72,7 @@ def gen_nginx(tw, config, argv, writer):
 
 
 def gen_launchd(tw, config, argv, writer):
-    devpibin = py.path.local(sys.argv[0])
+    devpibin = get_devpibin()
     plist_content = write_plist_to_bytes(OrderedDict([
         ("Label", "net.devpi"),
         ("ProgramArguments", [str(devpibin)] + argv),
@@ -82,7 +86,7 @@ def gen_launchd(tw, config, argv, writer):
 
 def gen_systemd(tw, config, argv, writer):
     import getpass
-    devpibin = py.path.local(sys.argv[0])
+    devpibin = get_devpibin()
     assert devpibin.exists()
     content = render(
         tw, "devpi.service",
@@ -94,7 +98,7 @@ def gen_systemd(tw, config, argv, writer):
 
 
 def gen_windows_service(tw, config, argv, writer):
-    devpibin = py.path.local(sys.argv[0])
+    devpibin = get_devpibin()
     assert devpibin.exists()
     content = render(
         tw, "windows-service.txt",
@@ -103,7 +107,20 @@ def gen_windows_service(tw, config, argv, writer):
     writer("windows-service.txt", content)
 
 
-def genconfig(config, argv):
+def genconfig(config=None, argv=None):
+    pluginmanager = get_pluginmanager()
+
+    if argv is None:
+        argv = sys.argv
+        argv = [str(x) for x in argv]
+
+    if config is None:
+        parser = get_parser(pluginmanager)
+        parser.description = (
+            "Write configuration files for various process managers and "
+            "webservers. Takes same arguments as devpi-server.")
+        config = parseoptions(pluginmanager, argv, parser=parser)
+
     tw = py.io.TerminalWriter()
     tw.cwd = py.path.local()
 
@@ -116,7 +133,7 @@ def genconfig(config, argv):
     destdir = tw.cwd.ensure("gen-config", dir=1)
 
     new_argv = []
-    argv_iter = iter(argv)
+    argv_iter = iter(argv[1:])
     for arg in argv_iter:
         if arg == "--gen-config":
             continue
@@ -137,7 +154,7 @@ def genconfig(config, argv):
                 py.path.local(config.args.configfile).strpath])
             continue
         new_argv.append(arg)
-    new_args = parseoptions(get_pluginmanager(), ["devpi-server"] + new_argv)
+    new_args = parseoptions(pluginmanager, ["devpi-server"] + new_argv)
     cfg_types = [
         "cron",
         "launchd",

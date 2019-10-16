@@ -190,7 +190,7 @@ doctest:
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
 
-regen: quickstart-pypimirror quickstart-releaseprocess quickstart-server
+regen: quickstart-pypimirror quickstart-releaseprocess quickstart-server regen.uman-all
 	rm -rf TARGETDIR
 
 quickstart-pypimirror:
@@ -216,16 +216,17 @@ regen.sample_undo:
 
 regen.server-fresh: regen.server-clean
 	rm -rf $(TESTHOME)/.devpi/server
-	devpi-server --serverdir=$(TESTHOME)/.devpi/server --init
-	supervisord -c supervisor.conf
+	devpi-init --serverdir=$(TESTHOME)/.devpi/server
+	devpi-gen-config --serverdir=$(TESTHOME)/.devpi/server
+	supervisord -c gen-config/supervisord.conf
 
 regen.server-stop:
 	@echo stopping supervisord
-	-supervisorctl -c supervisor.conf shutdown
+	-supervisorctl -c gen-config/supervisord.conf shutdown
 
 regen.server-clean: regen.sample_undo
 	@echo stopping supervisord
-	-supervisorctl -c supervisor.conf shutdown
+	-supervisorctl -c gen-config/supervisord.conf shutdown
 	@echo deleting $(TESTHOME)/.devpi state
 	-rm -rf $(TESTHOME)/.devpi
 	@echo deleting pysober/dist
@@ -236,7 +237,7 @@ regen.uman-all : regen.server-fresh $(USER_MAN_CHAPTERS)
 	git checkout userman/pysober
 	rm -rf userman/pysober/dist
 	@echo stopping supervisord
-	-supervisorctl -c supervisor.conf shutdown
+	-supervisorctl -c gen-config/supervisord.conf shutdown
 
 regen.uman: $(chapter)
 

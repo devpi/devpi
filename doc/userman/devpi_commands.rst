@@ -653,7 +653,7 @@ devpi command reference (server)
                             gradually update until the server has caught up with
                             all events. [False]
     
-    background server (DEPRECATED, see --gen-config to use a process manager from your OS):
+    background server (DEPRECATED, see devpi-gen-config to use a process manager from your OS):
       --start               start the background devpi-server [False]
       --stop                stop the background devpi-server [False]
       --status              show status of background devpi-server [False]

@@ -924,11 +924,13 @@ def server_directory():
 @pytest.fixture(scope="module")
 def call_devpi_in_dir():
     # let xproc find the correct executable instead of py.test
+    devpigenconfig = str(py.path.local.sysfind("devpi-gen-config"))
     devpiimport = str(py.path.local.sysfind("devpi-import"))
     devpiinit = str(py.path.local.sysfind("devpi-init"))
     devpiserver = str(py.path.local.sysfind("devpi-server"))
 
     def devpi(server_dir, args):
+        from devpi_server.genconfig import genconfig
         from devpi_server.importexport import import_
         from devpi_server.init import init
         from devpi_server.main import main
@@ -939,7 +941,10 @@ def call_devpi_in_dir():
         cap = py.io.StdCaptureFD()
         cap.startall()
         now = time.time()
-        if args[0] == 'devpi-import':
+        if args[0] == 'devpi-gen-config':
+            m.setattr("sys.argv", [devpigenconfig])
+            entry_point = genconfig
+        elif args[0] == 'devpi-import':
             m.setattr("sys.argv", [devpiimport])
             entry_point = import_
         elif args[0] == 'devpi-init':
@@ -1068,7 +1073,7 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
 
     orig_dir = server_directory.chdir()
     try:
-        args = ["devpi-server", "--gen-config", "--host", host, "--port", str(port)]
+        args = ["devpi-gen-config", "--host", host, "--port", str(port)]
         if not server_directory.join('.nodeinfo').exists():
             call_devpi_in_dir(server_directory.strpath, ["devpi-init"])
         call_devpi_in_dir(

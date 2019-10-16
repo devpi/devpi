@@ -279,7 +279,8 @@ def add_import_options(parser, pluginmanager, standalone=True):
 def add_deploy_options(parser, pluginmanager):
     parser.addoption(
         "--gen-config", dest="genconfig", action="store_true",
-        help="generate example config files for "
+        help="(DEPRECATED, use devpi-gen-config command) "
+             "generate example config files for "
              "nginx/supervisor/crontab/systemd/launchd/windows-service, "
              "taking other passed options into account "
              "(e.g. port, host, etc.)")
