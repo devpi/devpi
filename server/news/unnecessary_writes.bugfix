@@ -1,1 +1,0 @@
-Unnecessary database writes where the final value didn't change are now prevented.

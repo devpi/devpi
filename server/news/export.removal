@@ -1,1 +1,0 @@
-The ``--export`` option is deprecated, use the new ``devpi-export`` command instead.

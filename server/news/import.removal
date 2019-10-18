@@ -1,1 +1,0 @@
-The ``--import`` option is deprecated, use the new ``devpi-import`` command instead.

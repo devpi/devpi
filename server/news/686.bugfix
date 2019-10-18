@@ -1,1 +1,0 @@
-fix #686: prevent name clashes for toxresults by including the timestamp in the filename.

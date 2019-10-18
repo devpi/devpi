@@ -1,1 +1,0 @@
-fix #545: provide proper error message when there is an exception during push to an external repository.

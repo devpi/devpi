@@ -2,6 +2,65 @@
 
 .. towncrier release notes start
 
+5.2.0 (2019-10-18)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- The ``--export`` option is deprecated, use the new ``devpi-export`` command instead.
+
+- The ``--gen-config`` option is deprecated, use the new ``devpi-gen-config`` command instead.
+
+- The ``--import`` option is deprecated, use the new ``devpi-import`` command instead.
+
+- The ``--init`` option is deprecated, use the new ``devpi-init`` command instead.
+
+- The ``--passwd`` option is deprecated, use the new ``devpi-passwd`` command instead.
+
+
+Features
+--------
+
+- fix #253: add ``--unix-socket`` option to listen on a unix socket. When this is used the ``--host`` and ``--port`` options are forbidden.
+
+- Add new option ``mirror_use_external_urls`` for mirrors which when ``true`` redirects to the original release URL when the release isn't locally cached yet. No new releases are stored locally from that point on. The metadata is still stored in the database.
+
+- Add devpi-fsck command which compares the hash of files with the hash in the database.
+
+- Metrics for the sqlite storage cache are exposed in the JSON output of the +status view.
+
+- Storage options can now be specified as a dict in yaml config files.
+
+
+Bug Fixes
+---------
+
+- fix #403: extract auth credentials from ``--master-url`` to prevent them from leaking in logs and ``+status``.
+
+- fix #545: provide proper error message when there is an exception during push to an external repository.
+
+- fix #686: prevent name clashes for toxresults by including the timestamp in the filename.
+
+- fix #722: prevent bogus "failed to check mirror whitelist" warnings.
+
+- Fix possible race condition when writing files.
+
+- Fix possible assertion error if importing multiple changes in a replica fails in the middle and fetching a single change set is tried as fallback.
+
+- For plugins the ``offline`` attribute of mirror stage instances now works independently of the ``--offline-mode`` command line option. This only applies to ``_perstage`` methods.
+
+- Files created in a transaction are written directly to temporary files instead of being kept in memory until commit.
+
+- Unnecessary database writes where the final value didn't change are now prevented.
+
+
+Other Changes
+-------------
+
+- The timeout when fetching the list of remote projects for a mirror index is set to a minimum of 30s by default and to 60s when running as replica. Other fetches of mirrors still use the timeout specified via ``--request-timeout``.
+
+
 5.1.0 (2019-08-05)
 ==================
 

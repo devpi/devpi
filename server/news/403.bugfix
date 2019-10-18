@@ -1,1 +1,0 @@
-fix #403: extract auth credentials from ``--master-url`` to prevent them from leaking in logs and ``+status``.

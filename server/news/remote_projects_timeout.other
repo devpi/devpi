@@ -1,1 +1,0 @@
-The timeout when fetching the list of remote projects for a mirror index is set to a minimum of 30s by default and to 60s when running as replica. Other fetches of mirrors still use the timeout specified via ``--request-timeout``.

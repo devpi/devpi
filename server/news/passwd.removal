@@ -1,1 +1,0 @@
-The ``--passwd`` option is deprecated, use the new ``devpi-passwd`` command instead.
