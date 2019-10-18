@@ -449,7 +449,7 @@ def setup_thread(xom):
         shared_data = IndexingSharedData()
         indexer_thread = IndexerThread(xom, shared_data)
         xom.whoosh_indexer_thread = indexer_thread
-        if not xom.config.args.requests_only:
+        if not getattr(xom.config.args, 'requests_only', None):
             xom.thread_pool.register(xom.whoosh_indexer_thread)
             xom.thread_pool.register(InitialQueueThread(xom, shared_data))
     return indexer_thread
@@ -484,10 +484,6 @@ class Index(object):
             return create_in(self.index_path, schema, indexname=name)
         ix = open_dir(self.index_path, indexname=name)
         update_schema(ix, schema)
-        if ix.schema != schema:
-            log.warn("\n".join([
-                "The search index schema on disk differs from the current code schema.",
-                "You need to run devpi-server with the --recreate-search-index option to recreate the index."]))
         return ix
 
     def delete_index(self):

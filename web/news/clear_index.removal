@@ -1,0 +1,1 @@
+The ``--recreate-search-index`` option was replaced with the ``devpi-clear-search-index`` command.

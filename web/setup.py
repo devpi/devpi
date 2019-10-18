@@ -45,6 +45,8 @@ setup(
             "Programming Language :: Python :: %s" % x
             for x in "3.4 3.5 3.6 3.7".split()],
     entry_points={
+        'console_scripts': [
+            "devpi-clear-search-index = devpi_web.clear_index:clear_index"],
         'devpi_server': [
             "devpi-web = devpi_web.main",
             "devpi-web-whoosh = devpi_web.whoosh_index"],

@@ -821,3 +821,7 @@ devpi command reference (server)
                             gets a lot of writes, then increasing this might
                             improve performance. Each entry uses 1kb of memory on
                             average. So by default about 10MB are used. [10000]
+
+::
+
+    $ devpi-web-clear-index -h

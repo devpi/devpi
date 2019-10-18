@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
+from devpi_web.config import add_indexer_backend_option
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
 from devpi_web.indexing import ProjectIndexingInfo
@@ -253,16 +254,7 @@ def devpiserver_add_parser_options(parser):
         help="path for unzipped documentation. "
              "By default the --serverdir is used.")
     indexing = parser.addgroup("devpi-web search indexing")
-    indexing.addoption(
-        "--recreate-search-index", action="store_true",
-        help="Recreate search index for all projects and their documentation. "
-             "This is only needed if there where indexing related errors in a "
-             "devpi-web release and you want to upgrade only devpi-web "
-             "without a full devpi-server import/export.")
-    indexing.addoption(
-        "--indexer-backend", type=str, metavar="NAME", default="whoosh",
-        action="store",
-        help="the indexer backend to use")
+    add_indexer_backend_option(indexing)
 
 
 @devpiserver_hookimpl
@@ -290,12 +282,6 @@ def devpiserver_cmdline_run(xom):
     docs_path = xom.config.args.documentation_path
     if docs_path is not None and not os.path.isabs(docs_path):
         fatal("The path for unzipped documentation must be absolute.")
-    if xom.config.args.recreate_search_index:
-        ix = get_indexer(xom)
-        ix.delete_index()
-        threadlog.info("Index deleted, start devpi-server normally to let it rebuild automatically.")
-        # only exit when indexing explicitly
-        return 0
     # allow devpi-server to run
     return None
 
