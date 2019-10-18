@@ -54,7 +54,7 @@ setup(
         'Whoosh<3',
         'beautifulsoup4>=4.3.2',
         'defusedxml',
-        'devpi-server>=5.2dev',
+        'devpi-server>=5.2.0',
         'devpi-common>=3.2.0',
         'docutils>=0.11',
         'pygments>=1.6',
