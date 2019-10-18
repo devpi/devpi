@@ -22,3 +22,9 @@ def devpiweb_indexer_backend():
         "name" - name for selection from command line
         "description" - a short description for the commandline help
     """
+
+
+@hookspec
+def devpiweb_modify_preprocess_project_result(project, result):
+    """ allows to modify the ``result`` dictionary used for indexing.
+    """

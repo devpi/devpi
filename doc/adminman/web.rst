@@ -19,12 +19,6 @@ on most urls.
 Usage and installation
 -------------------------------------------
 
-``devpi-web`` needs to be installed alongside ``devpi-server`` before
-the server is started the first time because it needs to follow all 
-server state changes from the beginning.  If you already did start
-devpi-server before you installed devpi-web you will need to export your
-data and import in a new installation with devpi-web installed.
-
 You can install the web interface with::
 
     pip install devpi-web

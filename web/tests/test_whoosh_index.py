@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from devpi_web.indexing import ProjectIndexingInfo
 import pytest
 
 
@@ -80,11 +81,15 @@ def test_ngramfilter(input, expected):
 
 @pytest.mark.with_notifier
 def test_search_after_register(mapp, testapp):
+    from devpi_web.main import get_indexer
+    indexer_thread = get_indexer(mapp.xom).indexer_thread
+    mapp.xom.thread_pool.start_one(indexer_thread)
     api = mapp.create_and_use()
     mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
         "description": "foo"}, waithooks=True)
+    indexer_thread.wait()
     r = testapp.get('/+search?query=foo', expect_errors=False)
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
@@ -94,6 +99,7 @@ def test_search_after_register(mapp, testapp):
         "name": "pkg1",
         "version": "2.7",
         "description": "foo"}, waithooks=True)
+    indexer_thread.wait()
     r = testapp.get('/+search?query=foo', expect_errors=False)
     links = r.html.select('.searchresults a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
@@ -109,9 +115,227 @@ def test_search_after_register(mapp, testapp):
 def test_indexer_relative_path():
     from devpi_server.config import parseoptions, get_pluginmanager
     from devpi_server.main import Fatal
-    from devpi_web.main import get_indexer
+    from devpi_web.main import get_indexer_from_config
     options = ("--indexer-backend", "whoosh:path=ham")
     config = parseoptions(get_pluginmanager(), ("devpi-server",) + options)
     with pytest.raises(Fatal) as e:
-        get_indexer(config)
+        get_indexer_from_config(config)
     assert "must be absolute" in "%s" % e.value
+
+
+class FakeStage(object):
+    def __init__(self, index_type):
+        self.ixconfig = dict(type=index_type)
+        self.name = index_type
+
+    def get_last_project_change_serial_perstage(self, project, at_serial=None):
+        return self.serial
+
+
+class TestIndexingSharedData:
+    @pytest.fixture
+    def shared_data(self):
+        from devpi_web.whoosh_index import IndexingSharedData
+        return IndexingSharedData()
+
+    def test_mirror_priority(self, shared_data):
+        mirror = FakeStage('mirror')
+        stage = FakeStage('stage')
+        mirror_prj = ProjectIndexingInfo(stage=mirror, name='mirror_prj')
+        stage_prj = ProjectIndexingInfo(stage=stage, name='stage_prj')
+        result = []
+
+        def handler(is_from_mirror, serial, indexname, names):
+            (name,) = names
+            result.append(name)
+        # Regardless of the serial or add order, the stage should come first
+        cases = [
+            ((mirror_prj, 0), (stage_prj, 0)),
+            ((mirror_prj, 1), (stage_prj, 0)),
+            ((mirror_prj, 0), (stage_prj, 1)),
+            ((stage_prj, 0), (mirror_prj, 0)),
+            ((stage_prj, 1), (mirror_prj, 0)),
+            ((stage_prj, 0), (mirror_prj, 1))]
+        for (prj1, serial1), (prj2, serial2) in cases:
+            shared_data.add(prj1, serial1)
+            shared_data.add(prj2, serial2)
+            assert shared_data.queue.qsize() == 2
+            shared_data.process_next(handler)
+            shared_data.process_next(handler)
+            assert shared_data.queue.qsize() == 0
+            assert result == ['stage_prj', 'mirror_prj']
+            result.clear()
+
+    @pytest.mark.parametrize("index_type", ["mirror", "stage"])
+    def test_serial_priority(self, index_type, shared_data):
+        stage = FakeStage(index_type)
+        prj = ProjectIndexingInfo(stage=stage, name='prj')
+        result = []
+
+        def handler(is_from_mirror, serial, indexname, names):
+            result.append(serial)
+
+        # Later serials come first
+        shared_data.add(prj, 1)
+        shared_data.add(prj, 100)
+        shared_data.add(prj, 10)
+        assert shared_data.queue.qsize() == 3
+        shared_data.process_next(handler)
+        shared_data.process_next(handler)
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 0
+        assert result == [100, 10, 1]
+
+    def test_error_queued(self, shared_data):
+        stage = FakeStage('stage')
+        prj = ProjectIndexingInfo(stage=stage, name='prj')
+
+        next_ts_result = []
+        handler_result = []
+        orig_next_ts = shared_data.next_ts
+
+        def next_ts(delay):
+            next_ts_result.append(delay)
+            return orig_next_ts(delay)
+        shared_data.next_ts = next_ts
+
+        def handler(is_from_mirror, serial, indexname, names):
+            (name,) = names
+            handler_result.append(name)
+            raise ValueError
+
+        # No waiting on empty queues
+        shared_data.QUEUE_TIMEOUT = 0
+        shared_data.add(prj, 0)
+        assert shared_data.queue.qsize() == 1
+        assert shared_data.error_queue.qsize() == 0
+        assert next_ts_result == []
+        assert handler_result == []
+        # An exception puts the info into the error queue
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 0
+        assert shared_data.error_queue.qsize() == 1
+        assert next_ts_result == [11]
+        assert handler_result == ['prj']
+        # Calling again doesn't change anything,
+        # because there is a delay on errors
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 0
+        assert shared_data.error_queue.qsize() == 1
+        assert next_ts_result == [11]
+        assert handler_result == ['prj']
+        # When removing the delay check, the handler is called again and the
+        # info re-queued with a longer delay
+        shared_data.is_in_future = lambda ts: False
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 0
+        assert shared_data.error_queue.qsize() == 1
+        assert next_ts_result == [11, 11 * shared_data.ERROR_QUEUE_DELAY_MULTIPLIER]
+        assert handler_result == ['prj', 'prj']
+        while 1:
+            # The delay is increased until reaching a maximum
+            shared_data.process_next(handler)
+            delay = next_ts_result[-1]
+            if delay >= shared_data.ERROR_QUEUE_MAX_DELAY:
+                break
+        # then it will stay there
+        shared_data.process_next(handler)
+        delay = next_ts_result[-1]
+        assert delay == shared_data.ERROR_QUEUE_MAX_DELAY
+        # The number of retries should be reasonable.
+        # Needs adjustment in case the ERROR_QUEUE_DELAY_MULTIPLIER
+        # or ERROR_QUEUE_MAX_DELAY is changed
+        assert len(next_ts_result) == 17
+        assert len(handler_result) == 17
+
+    def test_extend_differing_stage(self, shared_data):
+        mirror = FakeStage('mirror')
+        stage = FakeStage('stage')
+        mirror_prj = ProjectIndexingInfo(stage=mirror, name='mirror_prj')
+        stage_prj = ProjectIndexingInfo(stage=stage, name='stage_prj')
+        with pytest.raises(ValueError) as e:
+            shared_data.extend([mirror_prj, stage_prj], 0)
+        assert "Project isn't from same index" in "%s" % e.value
+
+    def test_extend_max_names(self, shared_data):
+        shared_data.QUEUE_MAX_NAMES = 3
+        mirror = FakeStage('mirror')
+        prjs = []
+        for i in range(10):
+            prjs.append(ProjectIndexingInfo(stage=mirror, name='prj%d' % i))
+
+        result = []
+
+        def handler(is_from_mirror, serial, indexname, names):
+            result.append(names)
+
+        shared_data.extend(prjs, 0)
+        assert shared_data.queue.qsize() == 4
+
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 3
+        assert result == [
+            ['prj0', 'prj1', 'prj2']]
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 2
+        assert result == [
+            ['prj0', 'prj1', 'prj2'],
+            ['prj3', 'prj4', 'prj5']]
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 1
+        assert result == [
+            ['prj0', 'prj1', 'prj2'],
+            ['prj3', 'prj4', 'prj5'],
+            ['prj6', 'prj7', 'prj8']]
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 0
+        assert result == [
+            ['prj0', 'prj1', 'prj2'],
+            ['prj3', 'prj4', 'prj5'],
+            ['prj6', 'prj7', 'prj8'],
+            ['prj9']]
+        assert shared_data.error_queue.qsize() == 0
+
+    def test_queue_projects_max_names(self, shared_data):
+        shared_data.QUEUE_MAX_NAMES = 3
+        mirror = FakeStage('mirror')
+        mirror.serial = 0
+        prjs = []
+        for i in range(10):
+            prjs.append(ProjectIndexingInfo(stage=mirror, name='prj%d' % i))
+
+        result = []
+
+        def handler(is_from_mirror, serial, indexname, names):
+            result.append(names)
+
+        class FakeSearcher:
+            def document(self, path):
+                return None
+
+        shared_data.queue_projects(prjs, 0, FakeSearcher())
+        assert shared_data.queue.qsize() == 4
+
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 3
+        assert result == [
+            ['prj0', 'prj1', 'prj2']]
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 2
+        assert result == [
+            ['prj0', 'prj1', 'prj2'],
+            ['prj3', 'prj4', 'prj5']]
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 1
+        assert result == [
+            ['prj0', 'prj1', 'prj2'],
+            ['prj3', 'prj4', 'prj5'],
+            ['prj6', 'prj7', 'prj8']]
+        shared_data.process_next(handler)
+        assert shared_data.queue.qsize() == 0
+        assert result == [
+            ['prj0', 'prj1', 'prj2'],
+            ['prj3', 'prj4', 'prj5'],
+            ['prj6', 'prj7', 'prj8'],
+            ['prj9']]
+        assert shared_data.error_queue.qsize() == 0

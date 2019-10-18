@@ -1,0 +1,1 @@
+The ``--recreate-search-index`` option now just removes the whole index. Upon server restart the index is rebuilt automatically in the background.

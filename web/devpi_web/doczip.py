@@ -123,6 +123,9 @@ class Docs(DictMixin):
 
 
 def remove_docs(stage, project, version):
+    if stage is None:
+        # the stage was removed
+        return
     directory = get_unpack_path(stage, project, version).strpath
     if not os.path.isdir(directory):
         threadlog.debug("ignoring lost unpacked docs: %s" % directory)

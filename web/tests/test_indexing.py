@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from devpi_common.archive import zip_dict
 from devpi_web.doczip import get_unpack_path
+from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import preprocess_project
 import pytest
 
@@ -16,7 +17,7 @@ def test_inheritance(xom):
 
     with xom.keyfs.transaction():
         stage = xom.model.getstage(dev.name)
-        preprocess_project(stage, "proj")
+        preprocess_project(ProjectIndexingInfo(stage=stage, name="proj"))
 
 
 @pytest.mark.with_notifier

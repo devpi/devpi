@@ -1,9 +1,10 @@
 from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
+from devpi_web.config import add_indexer_backend_option
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
-from devpi_web.indexing import iter_projects, preprocess_project
+from devpi_web.indexing import ProjectIndexingInfo
 from devpi_server.log import threadlog
 from devpi_server.main import fatal
 from pkg_resources import resource_filename
@@ -171,7 +172,7 @@ def includeme(config):
     config.scan()
 
 
-def get_indexer(config):
+def get_indexer_from_config(config):
     pm = get_pluginmanager(config)
     indexers = {
         x['name']: x
@@ -187,7 +188,21 @@ def get_indexer(config):
             for item in setting_str.split(','):
                 (key, value) = item.split('=', 1)
                 settings[key] = value
-    return indexers[name]['indexer'](config=config, settings=settings)
+    indexer = indexers[name]['indexer'](config=config, settings=settings)
+    return indexer
+
+
+def get_indexer(xom):
+    # lookup cached value
+    indexer = getattr(xom, 'devpiweb_indexer', None)
+    if indexer is not None:
+        return indexer
+    indexer = get_indexer_from_config(xom.config)
+    if hasattr(indexer, 'runtime_setup'):
+        indexer.runtime_setup(xom)
+    # cache the expensive setup
+    xom.devpiweb_indexer = indexer
+    return indexer
 
 
 @devpiserver_hookimpl
@@ -210,7 +225,8 @@ def devpiserver_pyramid_configure(config, pyramid_config):
     # for registrations of static views etc
     pyramid_config.include('devpi_web.main')
     pyramid_config.registry['devpiweb-pluginmanager'] = get_pluginmanager(config)
-    pyramid_config.registry['search_index'] = get_indexer(config)
+    xom = pyramid_config.registry['xom']
+    pyramid_config.registry['search_index'] = get_indexer(xom)
 
     # monkeypatch mimetypes.guess_type on because pyramid-1.5.1/webob
     # choke on mimtypes.guess_type on windows with python2.7
@@ -238,27 +254,19 @@ def devpiserver_add_parser_options(parser):
         help="path for unzipped documentation. "
              "By default the --serverdir is used.")
     indexing = parser.addgroup("devpi-web search indexing")
-    indexing.addoption(
-        "--recreate-search-index", action="store_true",
-        help="Recreate search index for all projects and their documentation. "
-             "This is only needed if there where indexing related errors in a "
-             "devpi-web release and you want to upgrade only devpi-web "
-             "without a full devpi-server import/export. Requires "
-             "--offline option.")
-    indexing.addoption(
-        "--indexer-backend", type=str, metavar="NAME", default="whoosh",
-        action="store",
-        help="the indexer backend to use")
+    add_indexer_backend_option(indexing)
 
 
 @devpiserver_hookimpl
 def devpiserver_mirror_initialnames(stage, projectnames):
-    ix = get_indexer(stage.xom.config)
+    ix = get_indexer(stage.xom)
     threadlog.info(
         "indexing '%s' mirror with %s projects",
         stage.name,
         len(projectnames))
-    ix.update_projects(preprocess_project(stage, name) for name in projectnames)
+    ix.update_projects(
+        ProjectIndexingInfo(stage=stage, name=name)
+        for name in projectnames)
     threadlog.info("finished mirror indexing operation")
 
 
@@ -274,15 +282,6 @@ def devpiserver_cmdline_run(xom):
     docs_path = xom.config.args.documentation_path
     if docs_path is not None and not os.path.isabs(docs_path):
         fatal("The path for unzipped documentation must be absolute.")
-    if xom.config.args.recreate_search_index:
-        if not xom.config.args.offline_mode:
-            fatal("The --recreate-search-index option requires the --offline option.")
-        ix = get_indexer(xom.config)
-        ix.delete_index()
-        indexer = get_indexer(xom.config)
-        indexer.update_projects(iter_projects(xom), clear=True)
-        # only exit when indexing explicitly
-        return 0
     # allow devpi-server to run
     return None
 
@@ -290,15 +289,15 @@ def devpiserver_cmdline_run(xom):
 def delete_project(stage, name):
     if stage is None:
         return
-    ix = get_indexer(stage.xom.config)
-    ix.delete_projects([preprocess_project(stage, name)])
+    ix = get_indexer(stage.xom)
+    ix.delete_projects([ProjectIndexingInfo(stage=stage, name=name)])
 
 
 def index_project(stage, name):
     if stage is None:
         return
-    ix = get_indexer(stage.xom.config)
-    ix.update_projects([preprocess_project(stage, name)])
+    ix = get_indexer(stage.xom)
+    ix.update_projects([ProjectIndexingInfo(stage=stage, name=name)])
 
 
 @devpiserver_hookimpl

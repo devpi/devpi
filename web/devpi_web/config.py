@@ -17,3 +17,10 @@ def get_pluginmanager(config, load_entry_points=True):
     # cache the expensive setup
     config.devpiweb_pluginmanager = pm
     return pm
+
+
+def add_indexer_backend_option(parser, pluginmanager=None):
+    parser.addoption(
+        "--indexer-backend", type=str, metavar="NAME", default="whoosh",
+        action="store",
+        help="the indexer backend to use")

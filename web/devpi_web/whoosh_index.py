@@ -1,11 +1,17 @@
 from __future__ import unicode_literals
 from collections import defaultdict
 from devpi_common.types import cached_property
+from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
+from devpi_server.log import thread_push_log
 from devpi_server.main import fatal
 from devpi_server.readonly import get_mutable_deepcopy
+from devpi_server import mythread
+from devpi_web.indexing import iter_projects
+from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
-from functools import partial
+from devpi_web.indexing import preprocess_project
+from devpi_web.main import get_indexer
 from pluggy import HookimplMarker
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
@@ -18,14 +24,15 @@ from whoosh.qparser import QueryParser
 from whoosh.qparser import plugins
 from whoosh.searching import ResultsPage
 from whoosh.util.text import rcompile
-from whoosh.writing import CLEAR
 import itertools
 import os
 import py
 import shutil
+import time
 
 
 hookimpl = HookimplMarker("devpiweb")
+devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
 try:
@@ -188,6 +195,266 @@ class SearchUnavailableException(Exception):
     pass
 
 
+def update_schema(ix, schema):
+    if ix.schema == schema:
+        return
+    existing_names = set(ix.schema.names())
+    schema_names = set(schema.names())
+    removed_names = existing_names - schema_names
+    added_names = schema_names - existing_names
+    if not (removed_names or added_names):
+        return
+    writer = ix.writer()
+    for name in removed_names:
+        writer.remove_field(name)
+    for name in added_names:
+        writer.add_field(name, schema[name])
+    log.warn(
+        "The search index schema has changed. "
+        "The update can take a while depending on the size of your index.")
+    if removed_names:
+        writer.commit(optimize=True)
+    else:
+        writer.commit()
+
+
+class IndexingSharedData(object):
+    QUEUE_MAX_NAMES = 2500
+    QUEUE_TIMEOUT = 1
+    ERROR_QUEUE_DELAY_MULTIPLIER = 1.5
+    ERROR_QUEUE_MAX_DELAY = 60 * 60
+
+    def __init__(self):
+        try:
+            from queue import Empty, PriorityQueue
+        except ImportError:
+            from Queue import Empty, PriorityQueue
+        self.Empty = Empty
+        self.queue = PriorityQueue()
+        self.error_queue = PriorityQueue()
+
+    def add(self, project, serial):
+        # note the negated serial for the PriorityQueue
+        self.queue.put((
+            project.is_from_mirror,
+            -serial,
+            project.indexname,
+            (project.name,)))
+
+    def next_ts(self, delay):
+        return time.time() + delay
+
+    def add_errored(self, is_from_mirror, serial, indexname, names, ts=None, delay=11):
+        if ts is None:
+            ts = self.next_ts(delay)
+        # this priority queue is ordered by time stamp
+        self.error_queue.put(
+            (ts, delay, is_from_mirror, serial, indexname, names))
+
+    def extend(self, projects, serial):
+        if not projects:
+            return
+        names = []
+        is_from_mirror = projects[0].is_from_mirror
+        indexname = projects[0].indexname
+        for project in projects:
+            differs = (
+                project.is_from_mirror != is_from_mirror
+                or project.indexname != indexname)
+            if differs:
+                raise ValueError("Project isn't from same index")
+        for project in projects:
+            names.append(project.name)
+            if len(names) >= self.QUEUE_MAX_NAMES:
+                self.queue.put((is_from_mirror, -serial, indexname, names))
+                names = []
+        if names:
+            # note the negated serial for the PriorityQueue
+            self.queue.put((is_from_mirror, -serial, indexname, names))
+
+    def queue_projects(self, projects, serial, searcher):
+        log.info("Queuing projects for index update")
+        queued_counter = itertools.count()
+        queued = next(queued_counter)
+        last_time = time.time()
+        mirror_projects = {}
+        processed = 0
+        for processed, project in enumerate(projects, start=1):
+            if time.time() - last_time > 5:
+                last_time = time.time()
+                log.info(
+                    "Processed a total of %s projects and queued %s so far. "
+                    "Currently in %s" % (processed, queued, project.indexname))
+            # we find the last serial the project was changed to avoid re-indexing
+            serial = project.stage.get_last_project_change_serial_perstage(
+                project.name, at_serial=serial)
+            if project.is_from_mirror:
+                # mirrors have no docs, so we can shortcut
+                path = '/%s/%s' % (project.indexname, project.name)
+                existing = searcher.document(path=path)
+                if existing:
+                    existing_serial = existing.get('serial', -1)
+                    if existing_serial >= serial:
+                        continue
+                key = (project.indexname, serial)
+                _projects = mirror_projects.setdefault(key, [])
+                _projects.append(project)
+                if len(_projects) >= self.QUEUE_MAX_NAMES:
+                    self.extend(_projects, serial)
+                    _projects.clear()
+            else:
+                self.add(project, serial)
+            queued = next(queued_counter)
+        for (indexname, serial), _projects in mirror_projects.items():
+            self.extend(_projects, serial)
+        log.info("Processed a total of %s projects and queued %s" % (processed, queued))
+
+    def is_in_future(self, ts):
+        return ts > time.time()
+
+    def process_next_errored(self, handler):
+        try:
+            # it seems like without the timeout this isn't triggered frequent
+            # enough, the thread was waiting a long time even though there
+            # were already/still items in the queue
+            info = self.error_queue.get(timeout=self.QUEUE_TIMEOUT)
+        except self.Empty:
+            return
+        (ts, delay, is_from_mirror, serial, indexname, names) = info
+        try:
+            if self.is_in_future(ts):
+                # not current yet, so re-add it
+                self.add_errored(
+                    is_from_mirror, serial, indexname, names,
+                    ts=ts, delay=delay)
+                return
+            handler(is_from_mirror, serial, indexname, names)
+        except Exception:
+            # another failure, re-add with longer delay
+            self.add_errored(
+                is_from_mirror, serial, indexname, names,
+                delay=min(
+                    delay * self.ERROR_QUEUE_DELAY_MULTIPLIER,
+                    self.ERROR_QUEUE_MAX_DELAY))
+        finally:
+            self.error_queue.task_done()
+
+    def process_next(self, handler):
+        try:
+            # it seems like without the timeout this isn't triggered frequent
+            # enough, the thread was waiting a long time even though there
+            # were already/still items in the queue
+            info = self.queue.get(timeout=self.QUEUE_TIMEOUT)
+        except self.Empty:
+            # when the regular queue is empty, we retry previously errored ones
+            return self.process_next_errored(handler)
+        (is_from_mirror, serial, indexname, names) = info
+        # negate again, because it was negated for the PriorityQueue
+        serial = -serial
+        try:
+            handler(is_from_mirror, serial, indexname, names)
+        except Exception:
+            self.add_errored(is_from_mirror, serial, indexname, names)
+        finally:
+            self.queue.task_done()
+
+    def wait(self):
+        self.queue.join()
+
+
+class IndexerThread(object):
+    def __init__(self, xom, shared_data):
+        self.xom = xom
+        self.shared_data = shared_data
+
+    def wait(self):
+        self.shared_data.wait()
+
+    def handler(self, is_from_mirror, serial, indexname, names):
+        log.debug(
+            "Got %s projects from %s at serial %s for indexing",
+            len(names), indexname, serial)
+        ix = get_indexer(self.xom)
+        counter = itertools.count()
+        main_keys = ix.project_ix.schema.names()
+        writer = ix.project_ix.writer()
+        searcher = ix.project_ix.searcher()
+        try:
+            with self.xom.keyfs.transaction(write=False) as tx:
+                stage = self.xom.model.getstage(indexname)
+                if stage is not None:
+                    for name in names:
+                        data = preprocess_project(
+                            ProjectIndexingInfo(stage=stage, name=name))
+                        # because we use the current transaction, we also
+                        # use the current serial for indexing
+                        ix._update_project(
+                            data, tx.at_serial, counter, main_keys, writer,
+                            searcher=searcher)
+            count = next(counter)
+        except Exception:
+            writer.cancel()
+            # let the queue handle retries
+            raise
+        else:
+            log.debug("Committing %s new documents to search index." % count)
+            writer.commit()
+
+    def tick(self):
+        self.shared_data.process_next(self.handler)
+
+    def thread_run(self):
+        thread_push_log("[IDX]")
+        last_time = time.time()
+        event_serial = None
+        serial = -1
+        while 1:
+            try:
+                if time.time() - last_time > 5:
+                    last_time = time.time()
+                    size = self.shared_data.queue.qsize()
+                    if size:
+                        log.info("Indexer queue size ~ %s" % size)
+                    event_serial = self.xom.keyfs.notifier.read_event_serial()
+                    serial = self.xom.keyfs.get_current_serial()
+                if event_serial is not None and event_serial < serial:
+                    # be nice to everything else
+                    self.thread.sleep(1.0)
+                self.tick()
+            except mythread.Shutdown:
+                raise
+            except Exception:
+                log.exception(
+                    "Unhandled exception in indexer thread.")
+                self.thread.sleep(1.0)
+
+
+class InitialQueueThread(object):
+    def __init__(self, xom, shared_data):
+        self.xom = xom
+        self.shared_data = shared_data
+
+    def thread_run(self):
+        thread_push_log("[IDXQ]")
+        with self.xom.keyfs.transaction(write=False) as tx:
+            indexer = get_indexer(self.xom)
+            searcher = indexer.project_ix.searcher()
+            self.shared_data.queue_projects(
+                iter_projects(self.xom), tx.at_serial, searcher)
+
+
+def setup_thread(xom):
+    indexer_thread = getattr(xom, 'whoosh_indexer_thread', None)
+    if indexer_thread is None:
+        shared_data = IndexingSharedData()
+        indexer_thread = IndexerThread(xom, shared_data)
+        xom.whoosh_indexer_thread = indexer_thread
+        if not getattr(xom.config.args, 'requests_only', None):
+            xom.thread_pool.register(xom.whoosh_indexer_thread)
+            xom.thread_pool.register(InitialQueueThread(xom, shared_data))
+    return indexer_thread
+
+
 class Index(object):
     SearchUnavailableException = SearchUnavailableException
 
@@ -202,16 +469,21 @@ class Index(object):
         index_path.ensure_dir()
         log.info("Using %s for Whoosh index files." % index_path)
         self.index_path = index_path.strpath
+        self.indexer_thread = None
+        self.shared_data = None
+        self.xom = None
+
+    def runtime_setup(self, xom):
+        self.xom = xom
+        self.indexer_thread = setup_thread(xom)
+        self.shared_data = self.indexer_thread.shared_data
 
     def ix(self, name):
         schema = getattr(self, '%s_schema' % name)
         if not exists_in(self.index_path, indexname=name):
             return create_in(self.index_path, schema, indexname=name)
         ix = open_dir(self.index_path, indexname=name)
-        if ix.schema != schema:
-            log.warn("\n".join([
-                "The search index schema on disk differs from the current code schema.",
-                "You need to run devpi-server with the --recreate-search-index option to recreate the index."]))
+        update_schema(ix, schema)
         return ix
 
     def delete_index(self):
@@ -233,6 +505,7 @@ class Index(object):
             name=fields.ID(stored=True),
             user=fields.ID(stored=True),
             index=fields.ID(stored=True),
+            serial=fields.NUMERIC(stored=True),
             classifiers=fields.KEYWORD(commas=True, scorable=True),
             keywords=fields.KEYWORD(stored=True, commas=False, scorable=True),
             version=fields.STORED(),
@@ -246,97 +519,87 @@ class Index(object):
         counter = itertools.count()
         count = next(counter)
         writer = self.project_ix.writer()
-        main_keys = self.project_ix.schema.names()
+        searcher = self.project_ix.searcher()
         for project in projects:
-            data = dict((u(x), project[x]) for x in main_keys if x in project)
-            data['path'] = u"/{user}/{index}/{name}".format(**data)
+            path = u"/%s/%s" % (project.indexname, project.name)
             count = next(counter)
-            writer.delete_by_term('path', data['path'])
+            writer.delete_by_term('path', path, searcher=searcher)
         log.debug("Committing %s deletions to search index." % count)
         writer.commit()
         log.info("Finished committing %s deletions to search index." % count)
 
-    def _add_document(self, writer, **kw):
-        try:
-            writer.add_document(**kw)
-        except:
-            log.exception("Exception while trying to add the following data to the search index:\n%r" % kw)
-            raise
+    def _update_project(self, project, serial, counter, main_keys, writer, searcher):
+        def add_document(**kw):
+            try:
+                writer.add_document(**kw)
+            except Exception:
+                log.exception("Exception while trying to add the following data to the search index:\n%r" % kw)
+                raise
 
-    def _update_projects(self, writer, projects, clear=False):
-        add_document = partial(self._add_document, writer)
-        counter = itertools.count()
-        count = next(counter)
-        proj_counter = itertools.count()
-        main_keys = self.project_ix.schema.names()
         text_keys = (
             ('author', 0.5),
             ('author_email', 0.5),
             ('description', 1.5),
             ('summary', 1.75),
             ('keywords', 1.75))
-        for project in projects:
-            proj_count = next(proj_counter)
-            if proj_count % 1000 == 0:
-                log.info("Processed %s projects", proj_count)
-            data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
-            data['path'] = u"/{user}/{index}/{name}".format(**data)
-            if not clear:
-                # because we use hierarchical documents, we have to delete
-                # everything we got for this path and index it again
-                writer.delete_by_term('path', data['path'])
-            data['type'] = "project"
-            data['text'] = "%s %s" % (data['name'], project_name(data['name']))
-            with writer.group():
-                add_document(**data)
-                count = next(counter)
-                for key, boost in text_keys:
-                    if key not in project:
-                        continue
-                    add_document(**{
-                        "path": data['path'],
-                        "type": key,
-                        "text": project[key],
-                        "_text_boost": boost})
-                    count = next(counter)
-                if '+doczip' not in project:
+        data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
+        data['path'] = u"/{user}/{index}/{name}".format(
+            user=data['user'], index=data['index'],
+            name=normalize_name(data['name']))
+        existing = searcher.document(path=data['path'])
+        if existing is not None:
+            needs_reindex = False
+            if ('+doczip' in project) != ('doc_version' in existing):
+                needs_reindex = True
+            existing_serial = existing.get('serial', -1)
+            if existing_serial < serial:
+                needs_reindex = True
+            if not needs_reindex:
+                return
+        # because we use hierarchical documents, we have to delete
+        # everything we got for this path and index it again
+        writer.delete_by_term('path', data['path'], searcher=searcher)
+        data['serial'] = serial
+        data['type'] = "project"
+        data['text'] = "%s %s" % (data['name'], project_name(data['name']))
+        with writer.group():
+            add_document(**data)
+            next(counter)
+            for key, boost in text_keys:
+                if key not in project:
                     continue
-                if not project['+doczip'].exists():
-                    log.error("documentation zip file is missing %s", data['path'])
+                add_document(**{
+                    "path": data['path'],
+                    "type": key,
+                    "text": project[key],
+                    "_text_boost": boost})
+                next(counter)
+            if '+doczip' not in project:
+                return
+            if not project['+doczip'].exists():
+                log.error("documentation zip file is missing %s", data['path'])
+                return
+            for page in project['+doczip'].values():
+                if page is None:
                     continue
-                for page in project['+doczip'].values():
-                    if page is None:
-                        continue
-                    add_document(**{
-                        "path": data['path'],
-                        "type": "title",
-                        "text": page['title'],
-                        "text_path": page['path'],
-                        "text_title": page['title']})
-                    count = next(counter)
-                    add_document(**{
-                        "path": data['path'],
-                        "type": "page",
-                        "text": page['text'],
-                        "text_path": page['path'],
-                        "text_title": page['title']})
-                    count = next(counter)
-        return count
+                add_document(**{
+                    "path": data['path'],
+                    "type": "title",
+                    "text": page['title'],
+                    "text_path": page['path'],
+                    "text_title": page['title']})
+                next(counter)
+                add_document(**{
+                    "path": data['path'],
+                    "type": "page",
+                    "text": page['text'],
+                    "text_path": page['path'],
+                    "text_title": page['title']})
+                next(counter)
 
     def update_projects(self, projects, clear=False):
-        writer = self.project_ix.writer()
-        try:
-            count = self._update_projects(writer, projects, clear=clear)
-        except:
-            log.exception("Aborted write to search index after exception.")
-            writer.cancel()
-        else:
-            log.info("Committing %s new documents to search index." % count)
-            if clear:
-                writer.commit(mergetype=CLEAR)
-            else:
-                writer.commit()
-            log.info("Finished committing %s documents to search index." % count)
+        self.shared_data.queue_projects(
+            projects, self.xom.keyfs.tx.at_serial, self.project_ix.searcher())
 
     def _process_results(self, raw, page=1):
         items = []
@@ -584,3 +847,15 @@ def devpiweb_indexer_backend():
         indexer=Index,
         name="whoosh",
         description="Whoosh indexer backend")
+
+
+@devpiserver_hookimpl(optionalhook=True)
+def devpiserver_metrics(request):
+    indexer = request.registry.get('search_index')
+    shared_data = getattr(indexer, 'shared_data', None)
+    result = []
+    if isinstance(shared_data, IndexingSharedData):
+        result.extend([
+            ('devpi_web_whoosh_index_queue_size', 'gauge', shared_data.queue.qsize()),
+            ('devpi_web_whoosh_index_error_queue_size', 'gauge', shared_data.error_queue.qsize())])
+    return result

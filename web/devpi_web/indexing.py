@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 from devpi_common.types import ensure_unicode
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.validation import normalize_name
-from devpi_server.log import threadlog as log
+from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import Docs
-import time
+import attr
 
 
 def is_project_cached(stage, project):
@@ -14,8 +14,10 @@ def is_project_cached(stage, project):
     return True
 
 
-def preprocess_project(stage, name_input):
-    name = normalize_name(name_input)
+def preprocess_project(project):
+    stage = project.stage
+    pm = get_pluginmanager(stage.xom.config)
+    name = normalize_name(project.name)
     try:
         user = stage.user.name
         index = stage.index
@@ -24,7 +26,11 @@ def preprocess_project(stage, name_input):
     user = ensure_unicode(user)
     index = ensure_unicode(index)
     if not is_project_cached(stage, name):
-        return dict(name=name, user=user, index=index)
+        result = dict(name=name, user=user, index=index)
+        pm.hook.devpiweb_modify_preprocess_project_result(
+            project=project, result=result)
+        return result
+    stage.offline = True
     setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
     result = dict(name=name)
@@ -34,8 +40,10 @@ def preprocess_project(stage, name_input):
             result.update(verdata)
         links = stage.get_linkstore_perstage(name, version).get_links(rel="doczip")
         if links:
-            result['doc_version'] = version
-            result['+doczip'] = Docs(stage, name, version)
+            docs = Docs(stage, name, version)
+            if docs.exists():
+                result['doc_version'] = version
+                result['+doczip'] = docs
             break
         else:
             assert '+doczip' not in result
@@ -47,11 +55,26 @@ def preprocess_project(stage, name_input):
             value = result[key]
             if value == 'UNKNOWN' or not value:
                 del result[key]
+    pm.hook.devpiweb_modify_preprocess_project_result(
+        project=project, result=result)
     return result
 
 
+@attr.s(slots=True)
+class ProjectIndexingInfo(object):
+    stage = attr.ib()
+    name = attr.ib(type=str)
+
+    @property
+    def indexname(self):
+        return self.stage.name
+
+    @property
+    def is_from_mirror(self):
+        return self.stage.ixconfig['type'] == 'mirror'
+
+
 def iter_projects(xom):
-    timestamp = time.time()
     for user in xom.model.get_userlist():
         username = ensure_unicode(user.name)
         user_info = user.get(user)
@@ -60,12 +83,9 @@ def iter_projects(xom):
             stage = xom.model.getstage(username, index)
             if stage is None:  # this is async, so the stage may be gone
                 continue
-            log.info("Search-Indexing %s:", stage.name)
             names = stage.list_projects_perstage()
-            for count, name in enumerate(names, start=1):
+            for name in names:
                 name = ensure_unicode(name)
-                current_time = time.time()
-                if current_time - timestamp > 3:
-                    log.debug("currently search-indexed %s", count)
-                    timestamp = current_time
-                yield preprocess_project(stage, name)
+                yield ProjectIndexingInfo(
+                    stage=stage,
+                    name=name)

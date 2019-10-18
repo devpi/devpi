@@ -45,8 +45,11 @@ setup(
             "Programming Language :: Python :: %s" % x
             for x in "3.4 3.5 3.6 3.7".split()],
     entry_points={
+        'console_scripts': [
+            "devpi-clear-search-index = devpi_web.clear_index:clear_index"],
         'devpi_server': [
-            "devpi-web = devpi_web.main"],
+            "devpi-web = devpi_web.main",
+            "devpi-web-whoosh = devpi_web.whoosh_index"],
         'devpi_web': [
             "devpi-web-null = devpi_web.null_index",
             "devpi-web-whoosh = devpi_web.whoosh_index"]},
@@ -54,7 +57,7 @@ setup(
         'Whoosh<3',
         'beautifulsoup4>=4.3.2',
         'defusedxml',
-        'devpi-server>=5.2dev',
+        'devpi-server>=5.2.0',
         'devpi-common>=3.2.0',
         'docutils>=0.11',
         'pygments>=1.6',

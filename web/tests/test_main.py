@@ -46,10 +46,11 @@ def test_devpi_stage_created(monkeypatch, pypistage, mock):
     assert list_projects_perstage.called
 
 
-def test_index_projects_arg(monkeypatch, tmpdir):
+def test_clear_index_cmd(monkeypatch, tmpdir):
     from devpi_web.null_index import Index as NullIndex
     import devpi_server.init
     import devpi_server.main
+    import devpi_web.clear_index
     XOM = devpi_server.main.XOM
     xom_container = []
 
@@ -84,12 +85,10 @@ def test_index_projects_arg(monkeypatch, tmpdir):
         "devpi-init", "--serverdir", str(tmpdir)])
     assert calls == []
     assert not result
-    result = devpi_server.main.main([
-        "devpi-server", "--serverdir", str(tmpdir),
-        "--indexer-backend", "null",
-        "--recreate-search-index", "--offline"])
-    assert result == 0
-    assert calls == ['delete_index', 'update_projects']
+    devpi_web.clear_index.clear_index(argv=[
+        "devpi-clear-search-index", "--serverdir", str(tmpdir),
+        "--indexer-backend", "null"])
+    assert calls == ['delete_index']
     (xom1, xom2) = xom_container
 
 
@@ -131,7 +130,7 @@ class TestConfig:
         assert config.args.indexer_backend == "foo:bar=ham"
         plugin = Plugin()
         main.get_pluginmanager(config).register(plugin)
-        indexer = main.get_indexer(config)
+        indexer = main.get_indexer_from_config(config)
         assert isinstance(indexer, Index)
         assert indexer.settings == {"bar": "ham"}
 
@@ -162,6 +161,6 @@ class TestConfig:
         assert isinstance(config.args.indexer_backend, dict)
         plugin = Plugin()
         main.get_pluginmanager(config).register(plugin)
-        indexer = main.get_indexer(config)
+        indexer = main.get_indexer_from_config(config)
         assert isinstance(indexer, Index)
         assert indexer.settings == {"bar": "ham"}

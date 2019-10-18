@@ -1,7 +1,25 @@
 # -*- coding: utf-8 -*-
 from devpi_common.archive import zip_dict
+from devpi_web.indexing import ProjectIndexingInfo
+from devpi_web.main import get_indexer
 import pytest
 import re
+
+
+@pytest.fixture
+def makexom(request, makexom):
+    orig_makexom = makexom
+
+    def makexom(*args, **kw):
+        xom = orig_makexom(*args, **kw)
+        if request.node.get_closest_marker("with_indexer"):
+            from devpi_web.main import get_indexer
+            indexer = get_indexer(xom)
+            indexer.runtime_setup(xom)
+            xom.thread_pool.start_one(indexer.indexer_thread)
+        return xom
+
+    return makexom
 
 
 def compareable_text(text):
@@ -24,6 +42,7 @@ def test_search_no_results(testapp):
     assert compareable_text(content.text) == 'Your search blubber did not match anything.'
 
 
+@pytest.mark.with_indexer
 @pytest.mark.with_notifier
 def test_search_docs(mapp, testapp):
     api = mapp.create_and_use()
@@ -41,6 +60,8 @@ def test_search_docs(mapp, testapp):
             "</html>"])})
     mapp.upload_doc("pkg-hello-2.6.doc.zip", content, "pkg_hello", "2.6", code=200,
                     waithooks=True)
+    indexer_thread = get_indexer(mapp.xom).indexer_thread
+    indexer_thread.wait()
     r = testapp.get('/+search?query=bar')
     assert r.status_code == 200
     highlight = r.html.select('.searchresults dd dd')
@@ -77,6 +98,7 @@ def test_search_deleted_package(mapp, testapp):
     assert content == 'Your search pkg did not match anything.'
 
 
+@pytest.mark.with_indexer
 @pytest.mark.with_notifier
 def test_search_deleted_version(mapp, testapp):
     mapp.create_and_use()
@@ -89,6 +111,8 @@ def test_search_deleted_version(mapp, testapp):
         "version": "2.7",
         "description": "bar"})
     mapp.delete_project("pkg1/2.7", waithooks=True)
+    indexer_thread = get_indexer(mapp.xom).indexer_thread
+    indexer_thread.wait()
     r = testapp.xget(200, '/+search?query=bar%20OR%20foo')
     search_results = r.html.select('.searchresults > dl')
     assert len(search_results) == 1
@@ -119,25 +143,26 @@ def test_search_deleted_all_versions(mapp, testapp):
     assert content == 'Your search pkg did not match anything.'
 
 
+@pytest.mark.with_indexer
 def test_search_root_pypi(mapp, testapp, pypistage):
-    from devpi_web.main import get_indexer
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
     pypistage.mock_simple("pkg2", '')
-    indexer = get_indexer(mapp.xom.config)
-    indexer.update_projects([
-        dict(name=u'pkg1', user=u'root', index=u'pypi'),
-        dict(name=u'pkg2', user=u'root', index=u'pypi')], clear=True)
+    indexer = get_indexer(mapp.xom)
+    with mapp.xom.keyfs.transaction(write=False):
+        stage = mapp.xom.model.getstage(pypistage.name)
+        indexer.update_projects([
+            ProjectIndexingInfo(stage=stage, name=u'pkg1'),
+            ProjectIndexingInfo(stage=stage, name=u'pkg2')], clear=True)
+    indexer.indexer_thread.wait()
     r = testapp.xget(200, '/+search?query=pkg')
-    search_results = r.html.select('.searchresults > dl > dt')
+    search_results = r.html.select('.searchresults > dl > dt a')
     assert len(search_results) == 2
-    links = search_results[0].findAll('a')
-    assert sorted((compareable_text(l.text), l.attrs['href']) for l in links) == [
-        ("pkg1", "http://localhost/root/pypi/pkg1")]
-    links = search_results[1].findAll('a')
-    assert sorted((compareable_text(l.text), l.attrs['href']) for l in links) == [
+    assert sorted((compareable_text(l.text), l.attrs['href']) for l in search_results) == [
+        ("pkg1", "http://localhost/root/pypi/pkg1"),
         ("pkg2", "http://localhost/root/pypi/pkg2")]
 
 
+@pytest.mark.with_indexer
 @pytest.mark.with_notifier
 def test_indexing_doc_with_missing_title(mapp, testapp):
     mapp.create_and_use()
@@ -145,6 +170,8 @@ def test_indexing_doc_with_missing_title(mapp, testapp):
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
+    indexer_thread = get_indexer(mapp.xom).indexer_thread
+    indexer_thread.wait()
     r = testapp.xget(200, '/+search?query=Foo')
     search_results = r.html.select('.searchresults > dl > dt')
     assert len(search_results) == 1
@@ -153,6 +180,7 @@ def test_indexing_doc_with_missing_title(mapp, testapp):
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6")]
 
 
+@pytest.mark.with_indexer
 @pytest.mark.with_notifier
 def test_indexing_doc_with_unicode(mapp, testapp):
     mapp.create_and_use()
@@ -160,6 +188,8 @@ def test_indexing_doc_with_unicode(mapp, testapp):
     content = zip_dict({"index.html": u'<html><meta charset="utf-8"><body>Föö</body></html>'.encode('utf-8')})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
+    indexer_thread = get_indexer(mapp.xom).indexer_thread
+    indexer_thread.wait()
     r = testapp.xget(200, '/+search?query=F%C3%B6%C3%B6')
     search_results = r.html.select('.searchresults > dl > dt')
     assert len(search_results) == 1
@@ -243,25 +273,28 @@ def get_xmlrpc_data(body):
     return (unmarshaller.close(), unmarshaller.getmethodname())
 
 
+@pytest.mark.with_indexer
 @pytest.mark.with_notifier
 def test_pip_search(mapp, pypistage, testapp):
-    from devpi_web.main import get_indexer
     from operator import itemgetter
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig=dict(bases=[pypistage.name]))
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
     pypistage.mock_simple("pkg2", '')
     # we need to set dummy data, so we can use waithooks
     mapp.set_versiondata({"name": "pkg2", "version": "2.7"}, waithooks=True)
     # now we can access the indexer directly without causing locking issues
-    indexer = get_indexer(mapp.xom.config)
-    indexer.update_projects([
-        dict(name=u'pkg1', user=u'root', index=u'pypi'),
-        dict(name=u'pkg2', user=u'root', index=u'pypi')], clear=True)
+    indexer = get_indexer(mapp.xom)
+    with mapp.xom.keyfs.transaction(write=False):
+        stage = mapp.xom.model.getstage(pypistage.name)
+        indexer.update_projects([
+            ProjectIndexingInfo(stage=stage, name=u'pkg1'),
+            ProjectIndexingInfo(stage=stage, name=u'pkg2')], clear=True)
     mapp.set_versiondata({
         "name": "pkg2",
         "version": "2.7",
         "summary": "foo",
         "description": "bar"}, waithooks=True)
+    indexer.indexer_thread.wait()
     headers = {'Content-Type': 'text/xml'}
     body = b"""<?xml version='1.0'?>
         <methodCall>
