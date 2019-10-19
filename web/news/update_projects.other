@@ -1,1 +1,0 @@
-The interface of ``update_projects`` for search indexers has changed. The list of projects is now a list of ``ProjectIndexingInfo`` objects instead of ``dict``. To get the dictionary as before, call ``preprocess_project`` on the object.

@@ -2,6 +2,75 @@
 
 .. towncrier release notes start
 
+4.0.0 (2019-10-19)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- The ``--recreate-search-index`` option was replaced with the ``devpi-clear-search-index`` command.
+
+- Dropped support for Python 2.7.
+
+
+Features
+--------
+
+- project.pt: implement #319 - add link to latest version and summary of latest version to project view
+
+- doc.pt: implement #339: when viewing older documentation, show link to latest and stable documentation.
+
+- implement #346: add support for 'latest' and 'stable' versions for project version URLs
+
+- version.pt, style.css: implement #347 - show navigation link when newer version is available
+
+- status.pt: Fix #500 - the outside url in ``+status`` is now clickable.
+
+- Fix 564: set response headers to not cache anything for "latest" and "stable" documentation URLs.
+
+- index.pt, toxresult.pt, version.pt, style.css: Fix #632 - show warning symbol when no tests were run in tox results.
+
+- The search indexing is now performed in a separate thread. Indexing prioritizes private indexes, then projects downloaded from mirrors and lastly never downloaded projects from mirrors.
+
+- On server start a refresh run for the search index is started automatically. In addition to that the indexing is done in smaller batches, which allows resuming of indexing the large pypi project lists.
+
+- In many cases re-indexing is now avoided.
+
+- The master url in the ``+status`` view is now clickable.
+
+- Add new ``--documentation-path`` option to set the path where documentation is unzipped to.
+
+- version.pt, common.js: all list like metadata is now collapsed to ~3 lines instead of only classifiers.
+
+- The ``--recreate-search-index`` option now just removes the whole index. Upon server restart the index is rebuilt automatically in the background.
+
+- Indexing of mirrors will not trigger a refresh of the simple links for projects which have downloaded releases. This allows quicker indexing for new replicas and in case the search index is rebuilt using ``--recreate-search-index``.
+
+- root.pt: added new view for user
+
+- The path for Whoosh index files can now be specified as an option like this: ``--indexer-backend whoosh:path=/...``
+
+- Indexer backend options can now be specified as a dict in yaml config files.
+
+
+Bug Fixes
+---------
+
+- Fix #567: the ``pip search`` view is no longer proxied to the master.
+
+- Pass query string on to documentation iframe, this fixes Sphinx search among other things.
+
+
+Other Changes
+-------------
+
+- macros.pt, version.pt, style.css: moved separators to css.
+
+- The minimum supported version of devpi-server is now 5.2.0.
+
+- The interface of ``update_projects`` for search indexers has changed. The list of projects is now a list of ``ProjectIndexingInfo`` objects instead of ``dict``. To get the dictionary as before, call ``preprocess_project`` on the object.
+
+
 3.5.2 (2019-06-28)
 ==================
 

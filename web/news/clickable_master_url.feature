@@ -1,1 +1,0 @@
-The master url in the ``+status`` view is now clickable.

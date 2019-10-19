@@ -1,1 +1,0 @@
-In many cases re-indexing is now avoided.

@@ -1,1 +1,0 @@
-status.pt: Fix #500 - the outside url in ``+status`` is now clickable.

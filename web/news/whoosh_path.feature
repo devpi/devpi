@@ -1,1 +1,0 @@
-The path for Whoosh index files can now be specified as an option like this: ``--indexer-backend whoosh:path=/...``

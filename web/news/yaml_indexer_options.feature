@@ -1,1 +1,0 @@
-Indexer backend options can now be specified as a dict in yaml config files.

@@ -1,1 +1,0 @@
-root.pt: added new view for user

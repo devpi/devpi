@@ -1,1 +1,0 @@
-index.pt, toxresult.pt, version.pt, style.css: Fix #632 - show warning symbol when no tests were run in tox results.

@@ -1,1 +1,0 @@
-Fix 564: set response headers to not cache anything for "latest" and "stable" documentation URLs.
