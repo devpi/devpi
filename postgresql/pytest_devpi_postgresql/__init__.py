@@ -72,7 +72,8 @@ def devpipostgresql_postgresql():
                     conn.close()
                 except AttributeError:
                     pass
-            for db in Storage._dbs_created:
+            # use a copy of the set, as it might be changed in another thread
+            for db in set(Storage._dbs_created):
                 try:
                     subprocess.check_call([
                         'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
