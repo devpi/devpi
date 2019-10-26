@@ -204,6 +204,8 @@ def wsgi_run(xom, app):
         max_request_body_size=xom.config.args.max_request_body_size)
     if unix_socket is not None:
         kwargs['unix_socket'] = unix_socket
+        if xom.config.args.unix_socket_perms is not None:
+            kwargs['unix_socket_perms'] = xom.config.args.unix_socket_perms
         if host == 'localhost':
             host = None
         if port == 3141:
