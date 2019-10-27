@@ -108,6 +108,10 @@ def add_web_options(parser, pluginmanager):
         help="path to unix socket to bind to.")
 
     parser.addoption(
+        "--unix-socket-perms", type=str,
+        help="permissions for the unix socket if used, defaults to '600'.")
+
+    parser.addoption(
         "--threads", type=int,
         default=50,
         help="number of threads to start for serving clients.")
