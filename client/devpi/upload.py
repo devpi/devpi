@@ -414,6 +414,9 @@ class Exported:
             pre = [self.python, "setup.py"]
             cmd = pre + buildcommand
 
+            if format == "bdist_wheel":
+                cmd = cmd + ["--universal"]
+
             distdir = self.rootpath.join("dist")
             if self.rootpath != self.origrepo:
                 if distdir.exists():
