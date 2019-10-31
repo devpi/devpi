@@ -1,1 +1,0 @@
-fix #666: output nicer error message when section couldn't be found in pypirc.
