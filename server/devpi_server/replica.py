@@ -46,7 +46,7 @@ class MasterChangelogRequest:
                 "remote-ip": self.request.get_remote_ip(),
                 # the replica always polls its own serial+1
                 # and we want to show where the replica serial is at
-                "serial": int(serial)-1,
+                "serial": int(serial) - 1,
                 "in-request": True,
                 "last-request": time.time(),
                 "outside-url": headers.get(H_REPLICA_OUTSIDE_URL),
@@ -511,8 +511,9 @@ class ImportFileReplica:
         url = self.xom.config.master_url.joinpath(relpath).url
         # we perform the request with a special header so that
         # the master can avoid -getting "volatile" links
-        r = self.xom.httpget(url, allow_redirects=True, extra_headers=
-                             {H_REPLICA_FILEREPL: str("YES")})
+        r = self.xom.httpget(
+            url, allow_redirects=True,
+            extra_headers={H_REPLICA_FILEREPL: str("YES")})
         if r.status_code == 410:
             # master indicates Gone for files which were later deleted
             threadlog.warn("ignoring because of later deletion: %s",

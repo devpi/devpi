@@ -170,8 +170,7 @@ class TestFileStore:
         assert not entry.hash_spec and not entry.file_exists()
         filestore.keyfs.restart_as_write_transaction()
         headers={"content-length": "3",
-                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-        }
+                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT"}
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
         for part in iter_cache_remote_file(xom, entry):

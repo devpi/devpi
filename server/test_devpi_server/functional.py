@@ -201,7 +201,7 @@ class TestIndexThings:
     def test_create_index_and_config_gets(self, mapp):
         mapp.create_and_login_user("cuser2")
         mapp.create_index("dev")
-        res =  mapp.getjson("/cuser2/dev")
+        res = mapp.getjson("/cuser2/dev")
         assert res["type"] == "indexconfig"
         assert res["result"]["projects"] == []
 

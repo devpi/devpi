@@ -14,7 +14,7 @@ class AuthException(Exception):
 
 
 class Auth:
-    LOGIN_EXPIRATION = 60*60*10  # 10 hours
+    LOGIN_EXPIRATION = 60 * 60 * 10  # 10 hours
 
     class Expired(Exception):
         """ proxy authentication expired. """

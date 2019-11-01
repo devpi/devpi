@@ -51,6 +51,7 @@ class TimeoutQueue(BaseQueue):
     def get(self, timeout=2):
         return BaseQueue.get(self, timeout=timeout)
 
+
 log = threadlog
 
 @pytest.fixture(autouse=True)
@@ -829,7 +830,6 @@ class MyTestApp(TApp):
         r = self._gen_request("DELETE", *args, **kwargs)
         assert r.status_code == code
         return r
-
 
     def get_json(self, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})

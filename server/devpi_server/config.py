@@ -178,7 +178,6 @@ def add_replica_options(parser, pluginmanager):
         default=None)
 
 
-
 def add_request_options(parser, pluginmanager):
     parser.addoption(
         "--request-timeout", type=int, metavar="NUM",

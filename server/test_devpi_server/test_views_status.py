@@ -227,5 +227,3 @@ class TestStatusInfoPlugin:
         assert result == [dict(
             status='fatal',
             msg='No update from master for more than 5 minutes')]
-
-

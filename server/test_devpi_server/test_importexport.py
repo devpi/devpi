@@ -20,6 +20,7 @@ def make_export(tmpdir, xom):
     xom.config.init_nodeinfo()
     return do_export(tmpdir, xom)
 
+
 pytestmark = [pytest.mark.notransaction]
 
 
@@ -49,7 +50,7 @@ def test_has_users_or_stages(xom):
 def test_not_exists(tmpdir, xom):
     p = tmpdir.join("hello")
     with pytest.raises(Fatal):
-         do_import(p, xom)
+        do_import(p, xom)
 
 def test_import_wrong_dumpversion(tmpdir, xom):
     tmpdir.join("dataindex.json").write('{"dumpversion": "0"}')
@@ -727,7 +728,7 @@ class TestImportExport:
                   "username": "user1",
                   "pwsalt": "RMAM7ycp8aqw4vytBOBEKA==",
                   "pwhash": "d9f98f41f8cbdeb6a30a7b6c376d0ccdd76e862ad1fa508b79d4c2098cc9d69a"
-             }
+              }
           }
         }
         with open(impexp.exportdir.join('dataindex.json').strpath, 'w') as fp:

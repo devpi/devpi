@@ -321,7 +321,7 @@ def make_rel_renames(basedir, pending_renames):
     for source, dest in pending_renames:
         if source is not None:
             assert source.startswith(dest) and source.endswith("-tmp")
-            yield source[len(basedir)+1:]
+            yield source[len(basedir) + 1:]
         else:
             assert dest.startswith(basedir)
-            yield dest[len(basedir)+1:]
+            yield dest[len(basedir) + 1:]

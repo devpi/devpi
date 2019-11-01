@@ -59,7 +59,8 @@ class XProcessInfo:
         return do_xkill(self)
 
     def _isrunning_win32(self, pid):
-        import ctypes, ctypes.wintypes
+        import ctypes
+        import ctypes.wintypes
         kernel32 = ctypes.windll.kernel32
         handle = kernel32.OpenProcess(1, 0, pid)
         if handle == 0:
@@ -184,4 +185,3 @@ class XProcess:
             count -= 1
             if count < 0:
                 return False
-

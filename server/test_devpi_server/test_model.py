@@ -736,7 +736,7 @@ class TestStage:
 
     def test_releasedata_validation(self, stage):
         with pytest.raises(ValueError):
-             stage.set_versiondata(udict(name="hello_", version="1.0"))
+            stage.set_versiondata(udict(name="hello_", version="1.0"))
 
     def test_set_versiondata_take_existing_name_issue84(self, stage, caplog):
         import logging
@@ -1345,7 +1345,7 @@ def test_ensure_acl_list():
      dict(type="stage", volatile=False, bases=("root/pypi",),
           acl_upload=["hello"])),
 
-     ({"volatile": "False", "bases": ["root/pypi"], "acl_toxresult_upload": ["hello"]},
+    ({"volatile": "False", "bases": ["root/pypi"], "acl_toxresult_upload": ["hello"]},
      dict(type="stage", volatile=False, bases=("root/pypi",),
           acl_toxresult_upload=["hello"])),
 ])

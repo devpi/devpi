@@ -14,6 +14,7 @@ import os
 def ground_wsgi_run(monkeypatch):
     monkeypatch.setattr(mythread.ThreadPool, "live", lambda *args: 0 / 0)
 
+
 wsgi_run_throws = pytest.mark.usefixtures("ground_wsgi_run")
 
 

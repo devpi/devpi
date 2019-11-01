@@ -16,7 +16,7 @@ def devpiserver_get_credentials(request):
         return None
     try:
         authmeth, auth = authorization.split(' ', 1)
-    except ValueError: # not enough values to unpack
+    except ValueError:  # not enough values to unpack
         return None
     if authmeth.lower() != 'basic':
         return None

@@ -5,8 +5,9 @@ recursive cache of pypi.org packages.
 """
 from __future__ import unicode_literals
 import inspect
-import os, sys
+import os
 import py
+import sys
 
 from requests import Response, exceptions
 from devpi_common.types import cached_property
@@ -80,7 +81,7 @@ def main(argv=None):
         return _main(pluginmanager, argv=argv)
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("fatal: %s" %  e.args[0], red=True)
+        tw.line("fatal: %s" % e.args[0], red=True)
         return 1
 
 
@@ -494,9 +495,9 @@ class XOM:
 
         # register tweens for logging, transaction and replication
         pyramid_config.add_tween("devpi_server.views.tween_request_logging")
-        pyramid_config.add_tween("devpi_server.views.tween_keyfs_transaction",
-            under="devpi_server.views.tween_request_logging"
-        )
+        pyramid_config.add_tween(
+            "devpi_server.views.tween_keyfs_transaction",
+            under="devpi_server.views.tween_request_logging")
         if self.config.args.profile_requests:
             pyramid_config.add_tween("devpi_server.main.tween_request_profiling")
         pyramid_config.add_request_method(get_remote_ip)
@@ -591,6 +592,7 @@ def set_default_indexes(model):
         indexes["pypi"] = _pypi_ixconfig_default.copy()
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
+
 
 _pypi_ixconfig_default = {
     "type": "mirror", "volatile": False,

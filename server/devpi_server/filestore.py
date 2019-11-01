@@ -121,11 +121,13 @@ def metaprop(name):
     def fget(self):
         if self.meta is not None:
             return self.meta.get(name)
+
     def fset(self, val):
         val = unicode_if_bytes(val)
         if self.meta.get(name) != val:
             self.meta[name] = val
             self.key.set(self.meta)
+
     return property(fget, fset)
 
 
@@ -262,4 +264,4 @@ def get_checksum_error(content, hash_spec):
     hash_type = hash_spec.split("=")[0]
     digest = hash_algo(content).hexdigest()
     if digest != hash_value:
-       return "%s mismatch, got %s, expected %s" % (hash_type, digest, hash_value)
+        return "%s mismatch, got %s, expected %s" % (hash_type, digest, hash_value)

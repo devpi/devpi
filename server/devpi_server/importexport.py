@@ -166,6 +166,7 @@ def import_(pluginmanager=None, argv=None):
 
 class Exporter:
     DUMPVERSION = "2"
+
     def __init__(self, tw, xom):
         self.tw = tw
         self.xom = xom

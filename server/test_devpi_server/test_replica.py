@@ -347,8 +347,7 @@ class TestProxyViewToMaster:
                        "--outside-url=http://my.domain"])
         reqmock.mock("http://localhost/blankpath",
                      code=302, headers={"X-DEVPI-SERIAL": "10",
-                                        "location": "http://localhost/hello"}
-        )
+                                        "location": "http://localhost/hello"})
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -363,12 +362,13 @@ class TestProxyViewToMaster:
 
     def test_hop_headers(self, makexom, blank_request, reqmock, monkeypatch):
         xom = makexom(["--master", "http://localhost"])
-        reqmock.mock("http://localhost/blankpath",
-                     code=200, headers={
-                        "Connection": "Keep-Alive, Foo",
-                        "Foo": "abc",
-                        "Keep-Alive": "timeout=30",
-                        "X-DEVPI-SERIAL": "0"})
+        reqmock.mock(
+            "http://localhost/blankpath",
+            code=200, headers={
+                "Connection": "Keep-Alive, Foo",
+                "Foo": "abc",
+                "Keep-Alive": "timeout=30",
+                "X-DEVPI-SERIAL": "0"})
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: x)
         request = blank_request(method="PUT")
@@ -769,7 +769,7 @@ class TestFileReplication:
 
 
 def test_simplelinks_update_updates_projectname(httpget, monkeypatch,
-    pypistage, replica_pypistage, pypiurls, replica_xom, xom):
+        pypistage, replica_pypistage, pypiurls, replica_xom, xom):
 
     pypistage.mock_simple_projects([])
     pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")

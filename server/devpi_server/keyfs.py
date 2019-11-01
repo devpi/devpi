@@ -25,7 +25,6 @@ from devpi_common.types import cached_property
 notset = object()
 
 
-
 class TxNotificationThread:
     def __init__(self, keyfs):
         self.keyfs = keyfs
@@ -46,7 +45,6 @@ class TxNotificationThread:
             with self.cv_new_event_serial:
                 while serial > self.read_event_serial():
                     self.cv_new_event_serial.wait()
-
 
     def read_event_serial(self):
         # the disk serial is kept one higher because pre-2.1.2
@@ -297,11 +295,13 @@ class KeyFS(object):
 
 class PTypedKey:
     rex_braces = re.compile(r'\{(.+?)\}')
+
     def __init__(self, keyfs, key, type, name):
         self.keyfs = keyfs
         self.pattern = py.builtin._totext(key)
         self.type = type
         self.name = name
+
         def repl(match):
             name = match.group(1)
             return r'(?P<%s>[^\/]+)' % name

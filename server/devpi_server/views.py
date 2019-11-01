@@ -99,13 +99,14 @@ class HTTPResponse(HTTPSuccessful):
     body_template = None
     comment = None
     detail = None
+
     def __init__(self, **kw):
         Response.__init__(self, **kw)
         Exception.__init__(self)
 
 
 def apireturn(code, message=None, result=None, type=None):
-    d = dict() # status=code)
+    d = dict()
     if result is not None:
         assert type is not None
         d["result"] = result
@@ -206,8 +207,9 @@ def make_uuid_headers(nodeinfo):
 def tween_keyfs_transaction(handler, registry):
     keyfs = registry["xom"].keyfs
     is_replica = registry["xom"].is_replica()
+
     def request_tx_handler(request):
-        write  = is_mutating_http_method(request.method) and not is_replica
+        write = is_mutating_http_method(request.method) and not is_replica
         with keyfs.transaction(write=write) as tx:
             threadlog.debug("in-transaction %s", tx.at_serial)
             response = handler(request)
@@ -591,8 +593,7 @@ class PyPIView:
     def _simple_list_all(self, stage, stage_results):
         response = self.request.response
         response.content_type = "text/html ; charset=utf-8"
-        title =  "%s: simple list (including inherited indices)" %(
-                 stage.name)
+        title = "%s: simple list (including inherited indices)" % (stage.name)
         yield ("<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1>" %(
               title, title)).encode("utf-8")
         all_names = set()
@@ -772,7 +773,7 @@ class PyPIView:
             self.log.debug("targetindex %r, auth_user %r", targetindex,
                            auth_user)
             if not request.has_permission("pypi_submit", context=target_stage):
-               apireturn(401, message="user %r cannot upload to %r"
+                apireturn(401, message="user %r cannot upload to %r"
                                       %(auth_user, targetindex))
             self._set_versiondata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
@@ -895,7 +896,7 @@ class PyPIView:
                 dst=target_stage.name)
             yield (200, "store_doczip", name, version,
                    "->", target_stage.name)
-            break # we only can have one doczip for now
+            break  # we only can have one doczip for now
 
     @view_config(
         route_name="/{user}/{index}/", request_method="POST")

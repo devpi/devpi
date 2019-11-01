@@ -54,7 +54,7 @@ def gen_cron(tw, config, argv, writer):
 
 def gen_nginx(tw, config, argv, writer):
     outside_url = config.args.outside_url
-    if outside_url is None: # default
+    if outside_url is None:  # default
         outside_url = "http://localhost:80"
 
     parts = URL(outside_url).netloc.split(":")
@@ -64,8 +64,8 @@ def gen_nginx(tw, config, argv, writer):
 
     nginxconf = render(tw, "nginx-devpi.conf", format=1,
                        outside_url=outside_url,
-                       outside_host = outside_host,
-                       outside_port = outside_port,
+                       outside_host=outside_host,
+                       outside_port=outside_port,
                        port=config.args.port,
                        serverdir=config.serverdir)
     writer("nginx-devpi.conf", nginxconf)

@@ -108,7 +108,7 @@ class BackgroundServer:
             return
         with logpath.open("r") as f:
             try:
-                f.seek(-30*100, 2)
+                f.seek(-30 * 100, 2)
             except IOError:
                 pass
             self.line("last lines of devpi-server log", bold=True)

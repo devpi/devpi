@@ -1379,6 +1379,7 @@ class LinkStore:
                   for_entrypath=None):
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
+
         def fil(link):
             return (not rel or rel==link.rel) and \
                    (not basename or basename==link.basename) and \

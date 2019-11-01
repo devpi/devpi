@@ -87,6 +87,7 @@ class ThreadLog:
         finally:
             log("FIN: " + msg, *args)
 
+
 threadlog = ThreadLog()
 
 def thread_push_log(prefix):
@@ -115,6 +116,3 @@ def thread_current_log():
     if taglogger is None:
         taglogger = TagLogger(prefix="NOCTX")
     return taglogger
-
-
-
