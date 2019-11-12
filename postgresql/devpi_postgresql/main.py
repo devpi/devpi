@@ -11,6 +11,7 @@ import os
 import pg8000
 import py
 import time
+import ssl
 
 
 devpiserver_hookimpl = HookimplMarker("devpiserver")
@@ -173,6 +174,7 @@ class Storage:
     unix_sock = None
     user = "devpi"
     password = None
+    ssl_opts = None
 
     def __init__(self, basedir, notify_on_commit, cache_size, settings=None):
         if settings is None:
@@ -180,6 +182,19 @@ class Storage:
         for key in ("database", "host", "port", "unix_sock", "user", "password"):
             if key in settings:
                 setattr(self, key, settings[key])
+
+        if any(key in settings for key in ("ssl_cert_reqs", "ssl_ca_certs",
+                                           "ssl_certfile", "ssl_keyfile")):
+            self.ssl_opts = ssl_opts = {}
+            if "ssl_cert_reqs" in settings:
+                ssl_opts["cert_reqs"] = {
+                    "cert_optional": ssl.CERT_OPTIONAL,
+                    "cert_required": ssl.CERT_REQUIRED}.get(settings["ssl_cert_reqs"])
+
+            for key in ("ssl_ca_certs", "ssl_certfile", "ssl_keyfile"):
+                if key in settings:
+                    ssl_opts[key[4:]] = settings[key]
+
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
@@ -207,6 +222,7 @@ class Storage:
             port=int(self.port),
             unix_sock=self.unix_sock,
             password=self.password,
+            ssl=self.ssl_opts,
             timeout=60)
         sqlconn.text_factory = bytes
         conn = Connection(sqlconn, self)

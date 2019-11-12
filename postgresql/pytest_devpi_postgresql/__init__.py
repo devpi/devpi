@@ -1,6 +1,9 @@
 from contextlib import closing
 from devpi_postgresql import main
 from pluggy import HookimplMarker
+from certauth.certauth import CertificateAuthority
+import sys
+import os
 import getpass
 import py
 import pytest
@@ -33,8 +36,14 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--backend-postgresql-ssl", action="store_true",
+        help="make SSL connections to PostgreSQL")
+
+
 @pytest.yield_fixture(scope="session")
-def devpipostgresql_postgresql():
+def devpipostgresql_postgresql(request):
     tmpdir = py.path.local(
         tempfile.mkdtemp(prefix='test-', suffix='-devpi-postgresql'))
     try:
@@ -42,12 +51,42 @@ def devpipostgresql_postgresql():
         cap.startall()
         subprocess.check_call(['initdb', tmpdir.strpath])
         cap.reset()
-        with tmpdir.join('postgresql.conf').open('w+b') as f:
-            f.write(b"\n".join([
-                b"fsync = off",
-                b"full_page_writes = off",
-                b"synchronous_commit = off",
-                b"unix_socket_directories = '" + tmpdir.strpath.encode('ascii') + b"'"]))
+
+        postgresql_conf_lines = [
+            "fsync = off",
+            "full_page_writes = off",
+            "synchronous_commit = off",
+            "unix_socket_directories = '{}'".format(tmpdir.strpath)]
+
+        pg_ssl = request.config.option.backend_postgresql_ssl
+
+        if pg_ssl:
+            # Make certificate authority and server certificate
+            ca = CertificateAuthority('Test CA', tmpdir.join('ca.pem').strpath,
+                                      cert_cache=tmpdir.strpath)
+            server_cert = ca.cert_for_host('server')
+            if not sys.platform.startswith("win"):
+                # Postgres requires restrictive permissions on private key.
+                os.chmod(server_cert, 0o600)
+
+            postgresql_conf_lines.extend([
+                "ssl = on",
+                "ssl_cert_file = '{}'".format(server_cert),
+                "ssl_key_file = '{}'".format(server_cert),
+                "ssl_ca_file = 'ca.pem'"])
+
+            # Require SSL connections to be authenticated by client certificates.
+            with tmpdir.join('pg_hba.conf').open('w', encoding='ascii') as f:
+                f.write("\n".join([
+                    # "local" is for Unix domain socket connections only
+                    'local all all trust',
+                    # IPv4 local connections:
+                    'hostssl all all 127.0.0.1/32 cert',
+                    'host all all 127.0.0.1/32 trust']))
+
+        with tmpdir.join('postgresql.conf').open('w+', encoding='ascii') as f:
+            f.write("\n".join(postgresql_conf_lines))
+
         host = 'localhost'
         port = get_open_port(host)
         cap = py.io.StdCaptureFD()
@@ -62,7 +101,17 @@ def devpipostgresql_postgresql():
             subprocess.check_call([
                 'createdb', '-h', host, '-p', str(port), 'devpi'])
             cap.reset()
-            settings = dict(host=host, port=port, user=getpass.getuser())
+            user = getpass.getuser()
+
+            settings = dict(host=host, port=port, user=user)
+
+            if pg_ssl:
+                # Make client certificate for user and authenticate with it.
+                client_cert = ca.cert_for_host(user)
+                settings['ssl_cert_reqs'] = 'cert_required'
+                settings['ssl_ca_certs'] = tmpdir.join('ca.pem').strpath
+                settings['ssl_certfile'] = client_cert
+
             main.Storage(
                 tmpdir, notify_on_commit=False,
                 cache_size=10000, settings=settings)

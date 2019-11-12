@@ -14,4 +14,4 @@ for i in web server client common ; do
 done
 
 # install some deps for testing
-pip install -U PdbEditorSupport Sphinx pytest mock webtest pytest-cov pytest-flake8 pytest-pdb pytest-timeout beautifulsoup4 supervisor tox towncrier wheel
+pip install -U PdbEditorSupport Sphinx pytest mock webtest pytest-cov pytest-flake8 pytest-pdb pytest-timeout beautifulsoup4 supervisor tox towncrier wheel certauth
