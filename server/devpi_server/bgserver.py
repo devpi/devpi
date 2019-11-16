@@ -32,7 +32,7 @@ class BackgroundServer:
             "You should use a process manager of your OS, for example: "
             "systemd for Linux, Windows Services, launchd for macOS or "
             "http://supervisord.org/\n"
-            "Also see the devpi-gen-config option to create example "
+            "Also see the devpi-gen-config command to create example "
             "configuration files for such services.")
         self.tw = tw
         self._extlogfiles = {}
