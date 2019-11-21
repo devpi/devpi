@@ -17,7 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    5.0.0
+    5.2.0
 
 .. note::
 
@@ -36,16 +36,15 @@ Initialize devpi-server
 To initialize ``devpi-server`` issue::
 
     $ devpi-init
-    2018-01-17 15:40:11,375 INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:40:11,375 INFO  NOCTX generated uuid: cf25cfb22d2b4487a9ab4c1e527e5679
-    2018-01-17 15:40:11,376 INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
-    2018-01-17 15:40:11,384 INFO  NOCTX DB: Creating schema
-    2018-01-17 15:40:11,391 INFO  [Wtx-1] setting password for user 'root'
-    2018-01-17 15:40:11,392 INFO  [Wtx-1] created user 'root' with email None
-    2018-01-17 15:40:11,392 INFO  [Wtx-1] created root user
-    2018-01-17 15:40:11,392 INFO  [Wtx-1] created root/pypi index
-    2018-01-17 15:40:11,395 INFO  [Wtx-1] fswriter0: committed: keys: 'root/.config','.config'
-
+    INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
+    INFO  NOCTX generated uuid: cfd8cd68eb384f349935a210670415fb
+    INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
+    INFO  NOCTX DB: Creating schema
+    INFO  [Wtx-1] setting password for user 'root'
+    INFO  [Wtx-1] created user 'root' with email None
+    INFO  [Wtx-1] created root user
+    INFO  [Wtx-1] created root/pypi index
+    INFO  [Wtx-1] fswriter0: committed: keys: '.config','root/.config'
 
 start background devpi-server process
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -60,6 +59,7 @@ First we create the config file for it::
     wrote gen-config/launchd-macos.txt
     wrote gen-config/nginx-devpi.conf
     wrote gen-config/supervisor-devpi.conf
+    wrote gen-config/supervisord.conf
     wrote gen-config/devpi.service
     wrote gen-config/windows-service.txt
 
@@ -86,39 +86,28 @@ Let's install the ``simplejson`` package as a test from our cache::
     $ pip install -i http://localhost:3141/root/pypi/+simple/ simplejson
     Looking in indexes: http://localhost:3141/root/pypi/+simple/
     Collecting simplejson
-      Downloading http://localhost:3141/root/pypi/+f/870/bf6257465ce2e/simplejson-3.13.2.tar.gz (79kB)
-    Building wheels for collected packages: simplejson
-      Running setup.py bdist_wheel for simplejson: started
-      Running setup.py bdist_wheel for simplejson: finished with status 'done'
-      Stored in directory: /tmp/home/Library/Caches/pip/wheels/98/f9/e6/265acfaccc6c6da33438bb7aa510a7baa504df78438fde3f9e
-    Successfully built simplejson
+      Downloading http://localhost:3141/root/pypi/%2Bf/86a/fc5b5cbd42d70/simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl (74kB)
     Installing collected packages: simplejson
-    Successfully installed simplejson-3.13.2
+    Successfully installed simplejson-3.17.0
 
 Let's uninstall it::
 
     $ pip uninstall -y simplejson
-    Uninstalling simplejson-3.13.2:
-      Successfully uninstalled simplejson-3.13.2
+    Uninstalling simplejson-3.17.0:
+      Successfully uninstalled simplejson-3.17.0
 
 and then re-install it with ``easy_install``::
 
     $ easy_install -i http://localhost:3141/root/pypi/+simple/ simplejson
     Searching for simplejson
     Reading http://localhost:3141/root/pypi/+simple/simplejson/
-    Downloading http://localhost:3141/root/pypi/+f/870/bf6257465ce2e/simplejson-3.13.2.tar.gz#md5=870bf6257465ce2ee8cad14e2394f7eb
-    Best match: simplejson 3.13.2
-    Processing simplejson-3.13.2.tar.gz
-    Writing /tmp/easy_install-9p4zdv87/simplejson-3.13.2/setup.cfg
-    Running simplejson-3.13.2/setup.py -q bdist_egg --dist-dir /tmp/easy_install-9p4zdv87/simplejson-3.13.2/egg-dist-tmp-2hrrabuf
-    zip_safe flag not set; analyzing archive contents...
-    simplejson.__pycache__._speedups.cpython-34: module references __file__
-    simplejson.tests.__pycache__.__init__.cpython-34: module references __file__
-    creating /private/tmp/docenv/lib/python3.4/site-packages/simplejson-3.13.2-py3.4-macosx-10.12-x86_64.egg
-    Extracting simplejson-3.13.2-py3.4-macosx-10.12-x86_64.egg to /private/tmp/docenv/lib/python3.4/site-packages
-    Adding simplejson 3.13.2 to easy-install.pth file
+    Downloading http://localhost:3141/root/pypi/+f/86a/fc5b5cbd42d70/simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl#sha256=86afc5b5cbd42d706efd33f280fec7bd7e2772ef54e3f34cf6b30777cd19a614
+    Best match: simplejson 3.17.0
+    Processing simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl
+    Installing simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl to /private/tmp/docenv/lib/python3.6/site-packages
+    Adding simplejson 3.17.0 to easy-install.pth file
     
-    Installed /private/tmp/docenv/lib/python3.4/site-packages/simplejson-3.13.2-py3.4-macosx-10.12-x86_64.egg
+    Installed /private/tmp/docenv/lib/python3.6/site-packages/simplejson-3.17.0-py3.6-macosx-10.14-x86_64.egg
     Processing dependencies for simplejson
     Finished processing dependencies for simplejson
 

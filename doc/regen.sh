@@ -19,4 +19,6 @@ regendoc \
     --verbose \
     --normalize "/[ \t]+\n/\n/" \
     --normalize "@\\\$PYTHON_PREFIX@/home/devpi/devpi@" \
+    --normalize "@\\\$REGENDOC_TMPDIR@/home/devpi/devpi/doc@" \
+    --normalize "@\\\/private/home@/home@" \
     $*
