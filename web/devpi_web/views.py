@@ -729,8 +729,8 @@ def statusview(request):
     replication_errors = []
     for index, error in enumerate(status.get('replication-errors', {}).values()):
         replication_errors.append(error)
-        if index >= 10:
-            replication_errors.append(dict(message="More than 10 replication errors."))
+    if len(replication_errors) >= 10:
+        replication_errors.append(dict(message="More than 10 replication errors."))
     _polling_replicas = status.get('polling_replicas', {})
     polling_replicas = []
     for replica_uuid in sorted(_polling_replicas):
