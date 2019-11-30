@@ -376,7 +376,9 @@ def test_root_passwd_hash_option(makexom):
         assert not user.validate("foobar")
     # the password hash can be directly set from the command line
     xom = makexom(["--root-passwd-hash", "$argon2i$v=19$m=102400,t=2,p=8$j9G6V8o5B0Co9f4fQ6gVIg$WzcG2C5Bv0LwtzPWeBcz0g"])
-    with xom.keyfs.transaction(write=False):
+    # we allow writes, because the hash might be upgraded
+    # this happend after passlib 1.7.2 made argon2id the default
+    with xom.keyfs.transaction(write=True):
         user = xom.model.get_user('root')
         assert not user.validate("")
         assert user.validate("foobar")
