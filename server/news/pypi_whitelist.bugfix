@@ -1,0 +1,1 @@
+ignore obsolete pypi_whitelist index setting when sent by devpi-client.

@@ -495,18 +495,21 @@ class TestStage:
         ('foo,bar', ['foo', 'bar']),
         ('*', ['*'])])
     def test_whitelist_setting(self, pypistage, stage, setting, expected):
-        from devpi_server.model import InvalidIndexconfig
         stage.modify(mirror_whitelist=setting)
         ixconfig = stage.get()
         # BBB old devpi versions had pypi_whitelist, here we check that it's gone
         assert 'pypi_whitelist' not in ixconfig
         assert ixconfig['mirror_whitelist'] == expected
-        with pytest.raises(InvalidIndexconfig):
-            stage.modify(pypi_whitelist=setting)
-        with pytest.raises(InvalidIndexconfig):
-            stage.modify(pypi_whitelist=setting, mirror_whitelist=[])
-        with pytest.raises(InvalidIndexconfig):
-            stage.modify(pypi_whitelist=setting, mirror_whitelist=setting)
+
+    def test_legacy_pypi_whitelist(self, stage):
+        assert stage.ixconfig['volatile'] is True
+        # now we try to modify the index with the old pypi_whitelist setting
+        # which can still exist in dbs and will be sent by devpi-client
+        stage.modify(pypi_whitelist=[], volatile=False)
+        # if all went well, volatile should be changed
+        assert stage.ixconfig['volatile'] is False
+        # and pypi_whitelist ignored
+        assert 'pypi_whitelist' not in stage.ixconfig
 
     def test_package_not_in_mirror_whitelist_all(self, monkeypatch, pypistage, stage):
         stage.modify(mirror_whitelist="*", bases=(pypistage.name,))
