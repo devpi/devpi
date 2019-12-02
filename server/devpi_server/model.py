@@ -572,8 +572,13 @@ class BaseStage(object):
                 ixconfig.setdefault(key, kwargs.pop(key, value))
         # XXX backward compatibility for old exports where these could appear
         # on mirror indexes
-        for key in ("bases", "acl_upload", "mirror_whitelist"):
+        # and pypi_whitelist also still needs to be here for existing dbs
+        # which didn't have an export/import cycle
+        for key in ("bases", "acl_upload", "mirror_whitelist", "pypi_whitelist"):
             kwargs.pop(key, None)
+        # remove obsolete pypi_whitelist setting if it exists in original config
+        if "pypi_whitelist" in self.ixconfig:
+            kwargs["pypi_whitelist"] = RemoveValue
         for key, value in list(kwargs.items()):
             if value is RemoveValue:
                 ixconfig[key] = kwargs.pop(key)

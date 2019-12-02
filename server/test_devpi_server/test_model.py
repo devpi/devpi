@@ -495,18 +495,42 @@ class TestStage:
         ('foo,bar', ['foo', 'bar']),
         ('*', ['*'])])
     def test_whitelist_setting(self, pypistage, stage, setting, expected):
-        from devpi_server.model import InvalidIndexconfig
         stage.modify(mirror_whitelist=setting)
         ixconfig = stage.get()
         # BBB old devpi versions had pypi_whitelist, here we check that it's gone
         assert 'pypi_whitelist' not in ixconfig
         assert ixconfig['mirror_whitelist'] == expected
-        with pytest.raises(InvalidIndexconfig):
-            stage.modify(pypi_whitelist=setting)
-        with pytest.raises(InvalidIndexconfig):
-            stage.modify(pypi_whitelist=setting, mirror_whitelist=[])
-        with pytest.raises(InvalidIndexconfig):
-            stage.modify(pypi_whitelist=setting, mirror_whitelist=setting)
+
+    def test_legacy_pypi_whitelist(self, stage):
+        assert stage.ixconfig['volatile'] is True
+        # now we try to modify the index with the old pypi_whitelist setting
+        # which can still exist in dbs and will be sent by devpi-client
+        stage.modify(pypi_whitelist=[], volatile=False)
+        # if all went well, volatile should be changed
+        assert stage.ixconfig['volatile'] is False
+        # and pypi_whitelist ignored
+        assert 'pypi_whitelist' not in stage.ixconfig
+
+    @pytest.mark.notransaction
+    def test_legacy_pypi_whitelist_removed(self, xom):
+        with xom.keyfs.transaction(write=True):
+            user = xom.model.create_user("hello", password="123")
+            config = udict(index="world", bases=(), type="stage", volatile=True)
+            user.create_stage(**config)
+            with user.key.update() as userconfig:
+                # here we inject the legacy setting
+                userconfig['indexes']['world']['pypi_whitelist'] = []
+            del user
+        with xom.keyfs.transaction(write=True):
+            stage = xom.model.getstage('hello/world')
+            assert stage.ixconfig['volatile'] is True
+            assert 'pypi_whitelist' in stage.ixconfig
+            new_config = dict(stage.ixconfig)
+            new_config['volatile'] = False
+            # now we try to modify the index
+            stage.modify(**new_config)
+            assert stage.ixconfig['volatile'] is False
+            assert 'pypi_whitelist' not in stage.ixconfig
 
     def test_package_not_in_mirror_whitelist_all(self, monkeypatch, pypistage, stage):
         stage.modify(mirror_whitelist="*", bases=(pypistage.name,))
