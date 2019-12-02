@@ -1,1 +1,1 @@
-ignore obsolete pypi_whitelist index setting when sent by devpi-client.
+ignore obsolete pypi_whitelist index setting when sent by devpi-client and remove it when an index config is updated.
