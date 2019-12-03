@@ -26,14 +26,15 @@ if __name__ == "__main__":
     README = io.open(os.path.join(here, 'README.rst'), encoding='utf-8').read()
     CHANGELOG = get_changelog()
 
-    install_requires=["tox>=3.1.0",
-                      "devpi_common<4,>=3.4.0",
+    install_requires=["devpi_common<4,>=3.4.0",
                       "pkginfo>=1.4.2",
                       "check-manifest>=0.28",
                       "pluggy>=0.6.0,<1.0",
                       "py>=1.4.31"]
 
-    extras_require = {}
+    extras_require = {
+        "test": ["tox>=3.1.0"],
+    }
 
     setup(
       name="devpi-client",
@@ -41,7 +42,7 @@ if __name__ == "__main__":
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
       version='5.1.0',
-      packages=find_packages(),
+      packages=find_packages(exclude=["testing"]),
       install_requires=install_requires,
       extras_require=extras_require,
       url="https://github.com/devpi/devpi",
