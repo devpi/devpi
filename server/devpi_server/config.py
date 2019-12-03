@@ -24,6 +24,7 @@ hookimpl = HookimplMarker("devpiserver")
 
 
 DEFAULT_MIRROR_CACHE_EXPIRY = 1800
+DEFAULT_PROXY_TIMEOUT = 30
 DEFAULT_REQUEST_TIMEOUT = 5
 
 
@@ -176,6 +177,12 @@ def add_replica_options(parser, pluginmanager):
              "SSL client certificate to authenticate to the server "
              "(EXPERIMENTAL)",
         default=None)
+
+    parser.addoption(
+        "--proxy-timeout", type=int, metavar="NUM",
+        default=DEFAULT_PROXY_TIMEOUT,
+        help="Number of seconds to wait before proxied requests from "
+             "the replica to the master time out (login, uploads etc).")
 
 
 def add_request_options(parser, pluginmanager):

@@ -386,7 +386,8 @@ def proxy_request_to_master(xom, request, stream=False):
                                 data=request.body,
                                 headers=clean_request_headers(request),
                                 stream=stream,
-                                allow_redirects=False)
+                                allow_redirects=False,
+                                timeout=xom.config.args.proxy_timeout)
         except http.Errors as e:
             raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
 

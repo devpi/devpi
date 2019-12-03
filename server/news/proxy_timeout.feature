@@ -1,0 +1,1 @@
+proxy requests from the replica to the master will use number of seconds from the new ``--proxy-timeout`` option as their timeout value.
