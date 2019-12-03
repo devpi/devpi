@@ -2,6 +2,23 @@
 
 .. towncrier release notes start
 
+5.3.0 (2019-12-03)
+==================
+
+Features
+--------
+
+- fix #732: add ``--unix-socket-perms`` option to set Unix socket permissions when a Unix socket is in use, defaults to '600' if not specified, ignored if ``--unix-socket`` is not used.
+
+- proxy requests from the replica to the master will use number of seconds from the new ``--proxy-timeout`` option as their timeout value.
+
+
+Bug Fixes
+---------
+
+- ignore obsolete pypi_whitelist index setting when sent by devpi-client and remove it when an index config is updated.
+
+
 5.2.0 (2019-10-18)
 ==================
 
