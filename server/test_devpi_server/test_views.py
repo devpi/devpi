@@ -685,6 +685,17 @@ class TestSubmitValidation:
         assert data["projects"] == ["pkg5"]
         mapp.get_release_paths("Pkg5")
 
+    def test_upload_file_metadata(self, submit, mapp):
+        metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
+        # submit with description
+        submit.metadata(dict(metadata, description="Foo Pkg5"), code=200)
+        data = mapp.getjson("/%s/pkg5/1.0" % submit.stagename)["result"]
+        assert data["description"] == "Foo Pkg5"
+        # upload file without description
+        submit.file("pkg5-1.0.tgz", b"123", metadata, code=200)
+        data = mapp.getjson("/%s/pkg5/1.0" % submit.stagename)["result"]
+        assert data["description"] == "Foo Pkg5"
+
     def test_upload_with_removed_base(self, mapp, testapp):
         mapp.create_and_login_user("user1", "1")
         mapp.create_index("prod")
@@ -1805,6 +1816,23 @@ def test_upload_docs(mapp, testapp, proj):
     r = testapp.get(link.href)
     archive = Archive(py.io.BytesIO(r.body))
     assert 'index.html' in archive.namelist()
+
+
+@proj
+def test_upload_docs_metadata(mapp, testapp, proj):
+    api = mapp.create_and_use()
+    mapp.set_versiondata(dict(
+        name="Pkg1", version="2.6",
+        description="Foo Pkg1"))
+    result = mapp.getjson("%s/pkg1/2.6" % api.index)
+    assert result["result"]["description"] == "Foo Pkg1"
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200)
+    vv = get_view_version_links(testapp, api.index, "pkg1", "2.6", proj=proj)
+    link = vv.get_link(rel="doczip")
+    assert link.href.endswith("/pkg1-2.6.doc.zip")
+    result = mapp.getjson("%s/pkg1/2.6" % api.index)
+    assert result["result"]["description"] == "Foo Pkg1"
 
 
 def get_view_version_links(testapp, index, name, version, proj=False):

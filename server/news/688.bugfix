@@ -1,0 +1,1 @@
+fix #688: on file upload existing metadata is only updated, not replaced.
