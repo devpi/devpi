@@ -917,6 +917,7 @@ class PyPIView:
         except KeyError:
             abort_submit(request, 400, ":action field not found")
         if action == "submit":
+            # register always overwrites the metadata
             self._set_versiondata_form(stage, request.POST)
             return Response("")
         elif action in ("doc_upload", "file_upload"):
@@ -940,7 +941,7 @@ class PyPIView:
                             content.filename, version))
 
                 abort_if_invalid_filename(request, name, content.filename)
-                self._set_versiondata_form(stage, request.POST)
+                self._update_versiondata_form(stage, request.POST)
                 file_content = content.file.read()
                 try:
                     link = stage.store_releasefile(
@@ -966,7 +967,7 @@ class PyPIView:
                         "OK, but a trigger plugin failed: %s" % e, level="warn")
             else:
                 if "version" in request.POST:
-                    self._set_versiondata_form(stage, request.POST)
+                    self._update_versiondata_form(stage, request.POST)
                 doczip = content.file.read()
                 try:
                     link = stage.store_doczip(project, version, doczip)
@@ -990,10 +991,12 @@ class PyPIView:
             abort_submit(request, 400, "action %r not supported" % action)
         return Response("")
 
-    def _set_versiondata_form(self, stage, form):
+    def _get_versiondata_from_form(self, stage, form, skip_missing=False):
         metadata = {}
         for key in stage.metadata_keys:
-            if key.lower() in stage.metadata_list_fields:
+            if skip_missing and key not in form:
+                continue
+            elif key in stage.metadata_list_fields:
                 val = [ensure_unicode(item)
                         for item in form.getall(key) if item]
             else:
@@ -1002,7 +1005,26 @@ class PyPIView:
                     val = ""
                 assert py.builtin._istext(val), val
             metadata[key] = val
+        return metadata
 
+    def _update_versiondata_form(self, stage, form):
+        # first we only get metadata without any default values for
+        # missing keys
+        new_metadata = self._get_versiondata_from_form(
+            stage, form, skip_missing=True)
+        # now we have the name and version and look for existing metadata
+        metadata = stage.get_versiondata_perstage(
+            new_metadata["name"], new_metadata["version"], readonly=False)
+        if not metadata:
+            # there is no existing metadata, so we do a full register
+            # with default values for missing metadata
+            new_metadata = self._get_versiondata_from_form(stage, form)
+        # finally we update and set the metadata
+        metadata.update(new_metadata)
+        self._set_versiondata_dict(stage, metadata)
+
+    def _set_versiondata_form(self, stage, form):
+        metadata = self._get_versiondata_from_form(stage, form)
         self._set_versiondata_dict(stage, metadata)
 
     def _set_versiondata_dict(self, stage, metadata):
