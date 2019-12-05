@@ -5,7 +5,7 @@ import os
 import re
 import sys
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 def get_changelog():
@@ -31,7 +31,7 @@ if __name__ == "__main__":
       description="utilities jointly used by devpi-server and devpi-client",
       long_description="\n\n".join([README, CHANGELOG]),
       version='3.4.0',
-      packages=find_packages(),
+      packages=['devpi_common', 'devpi_common.vendor'],
       install_requires=["requests>=2.3.0", "py>=1.4.20"],
       url="https://github.com/devpi/devpi",
       maintainer="Holger Krekel",

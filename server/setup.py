@@ -4,7 +4,7 @@ import os
 import re
 import io
 import sys
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 def get_changelog():
@@ -51,7 +51,12 @@ if __name__ == "__main__":
       version='5.3.1',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
-      packages=find_packages(),
+      packages=[
+        'devpi_server',
+        'devpi_server.cfg',
+        'devpi_server.vendor',
+        'pytest_devpi_server',
+        'test_devpi_server'],
       include_package_data=True,
       zip_safe=False,
       license="MIT",

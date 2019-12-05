@@ -5,7 +5,7 @@ import os
 import re
 import sys
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 def get_changelog():
@@ -41,7 +41,7 @@ if __name__ == "__main__":
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
       version='5.1.0',
-      packages=find_packages(),
+      packages=['devpi'],
       install_requires=install_requires,
       extras_require=extras_require,
       url="https://github.com/devpi/devpi",
