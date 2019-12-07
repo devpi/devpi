@@ -12,6 +12,7 @@ import contextlib
 import py
 from . import mythread
 from .fileutil import loads
+from .interfaces import IStorageConnection2
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import get_mutable_deepcopy, ensure_deeply_readonly, \
                       is_deeply_readonly
@@ -141,7 +142,7 @@ class TxNotificationThread:
 
     def _execute_hooks(self, event_serial, log, raising=False):
         log.debug("calling hooks for tx%s", event_serial)
-        with self.keyfs._storage.get_connection() as conn:
+        with self.keyfs.get_connection() as conn:
             changes = conn.get_changes(event_serial)
             # we first check for missing files before we call subscribers
             for relpath, (keyname, back_serial, val) in changes.items():
@@ -229,12 +230,19 @@ class KeyFS(object):
             cache_size=cache_size)
         self._readonly = readonly
 
+    def get_connection(self, closing=True, write=False):
+        conn = IStorageConnection2(
+            self._storage.get_connection(closing=False, write=write))
+        if closing:
+            return contextlib.closing(conn)
+        return conn
+
     def finalize_init(self):
         self._storage.perform_crash_recovery()
 
     def import_changes(self, serial, changes):
         subscriber_task_infos = []
-        with self._storage.get_connection(write=True) as conn:
+        with self.get_connection(write=True) as conn:
             with conn.write_transaction() as fswriter:
                 next_serial = conn.last_changelog_serial + 1
                 assert next_serial == serial, (next_serial, serial)
@@ -292,7 +300,7 @@ class KeyFS(object):
             recheck = timeout
         with threadlog.around("debug", "waiting for tx-serial %s", serial):
             with self._cv_new_transaction:
-                with self._storage.get_connection() as conn:
+                with self.get_connection() as conn:
                     while serial > conn.db_read_last_changelog_serial():
                         if timeout is not None and time_spent >= timeout:
                             return False
@@ -304,7 +312,7 @@ class KeyFS(object):
         return self.get_current_serial() + 1
 
     def get_current_serial(self):
-        with self._storage.get_connection() as conn:
+        with self.get_connection() as conn:
             return conn.last_changelog_serial
 
     def get_last_commit_timestamp(self):
@@ -501,6 +509,37 @@ class RelpathInfo(object):
     value = attr.ib()
 
 
+def get_relpath_at(self, relpath, serial):
+    """ Fallback method for legacy storage connections. """
+    (keyname, last_serial) = self.db_read_typedkey(relpath)
+    serials_and_values = iter_serial_and_value_backwards(
+        self, relpath, last_serial)
+    try:
+        (last_serial, val) = next(serials_and_values)
+        while last_serial >= 0:
+            if last_serial > serial:
+                (last_serial, val) = next(serials_and_values)
+                continue
+            return (last_serial, val)
+    except StopIteration:
+        pass
+    raise KeyError(relpath)
+
+
+def iter_serial_and_value_backwards(conn, relpath, last_serial):
+    while last_serial >= 0:
+        tup = conn.get_changes(last_serial).get(relpath)
+        if tup is None:
+            raise RuntimeError("no transaction entry at %s" % (last_serial))
+        keyname, back_serial, val = tup
+        yield (last_serial, val)
+        last_serial = back_serial
+
+    # we could not find any change below at_serial which means
+    # the key didn't exist at that point in time
+    return
+
+
 class Transaction(object):
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
@@ -521,7 +560,7 @@ class Transaction(object):
 
     @cached_property
     def conn(self):
-        return self.keyfs._storage.get_connection(
+        return self.keyfs.get_connection(
             write=self.write, closing=False)
 
     def iter_relpaths_at(self, typedkeys, at_serial):
@@ -541,44 +580,19 @@ class Transaction(object):
                         value=val)
 
     def iter_serial_and_value_backwards(self, relpath, last_serial):
-        while last_serial >= 0:
-            tup = self.conn.get_changes(last_serial).get(relpath)
-            if tup is None:
-                raise RuntimeError("no transaction entry at %s" % (last_serial))
-            keyname, back_serial, val = tup
-            yield (last_serial, val)
-            last_serial = back_serial
-
-        # we could not find any change below at_serial which means
-        # the key didn't exist at that point in time
-        return
+        return iter_serial_and_value_backwards(self.conn, relpath, last_serial)
 
     def get_last_serial_and_value_at(self, typedkey, at_serial, raise_on_error=True):
         relpath = typedkey.relpath
         try:
-            (keyname, last_serial) = self.conn.db_read_typedkey(relpath)
+            (last_serial, val) = self.conn.get_relpath_at(relpath, at_serial)
         except KeyError:
-            if raise_on_error:
-                raise
-            return None
-        serials_and_values = self.iter_serial_and_value_backwards(
-            relpath, last_serial)
-        try:
-            (last_serial, val) = next(serials_and_values)
-            while last_serial >= 0:
-                if last_serial > at_serial:
-                    (last_serial, val) = next(serials_and_values)
-                    continue
-                if val is not None or not raise_on_error:
-                    return (last_serial, val)
-                raise KeyError(relpath)  # was deleted
-        except StopIteration:
-            pass
-
-        if raise_on_error:
-            # we could not find any change below at_serial which means
-            # the key didn't exist at that point in time
-            raise KeyError(relpath)
+            if not raise_on_error:
+                return None
+            raise
+        if val is None and raise_on_error:
+            raise KeyError(relpath)  # was deleted
+        return (last_serial, val)
 
     def get_value_at(self, typedkey, at_serial):
         (last_serial, val) = self.get_last_serial_and_value_at(typedkey, at_serial)
