@@ -1,5 +1,6 @@
 from .config import hookimpl
 from .fileutil import BytesForHardlink
+from .interfaces import IStorageConnection2
 from .keyfs_sqlite import BaseConnection
 from .keyfs_sqlite import BaseStorage
 from .log import threadlog, thread_push_log, thread_pop_log
@@ -7,6 +8,7 @@ from .readonly import ReadonlyView
 from .readonly import get_mutable_deepcopy
 from .fileutil import get_write_file_ensure_dir, rename, loads
 from hashlib import sha256
+from zope.interface import implementer
 import errno
 import os
 import re
@@ -44,6 +46,7 @@ class DirtyFile(object):
                 f.write(content)
 
 
+@implementer(IStorageConnection2)
 class Connection(BaseConnection):
     def rollback(self):
         BaseConnection.rollback(self)

@@ -1,15 +1,21 @@
 from devpi_common.types import cached_property
 from .config import hookimpl
 from .fileutil import dumps, loads
+from .interfaces import IStorageConnection2
+from .keyfs import get_relpath_at
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
 from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from repoze.lru import LRUCache
+from zope.interface import implementer
 import contextlib
 import os
 import py
 import sqlite3
 import time
+
+
+absent = object()
 
 
 class BaseConnection:
@@ -76,7 +82,19 @@ class BaseConnection:
             self._changelog_cache.put(serial, changes)
         return changes
 
+    def get_relpath_at(self, relpath, serial):
+        result = self._changelog_cache.get((serial, relpath), absent)
+        if result is absent:
+            changes = self._changelog_cache.get(serial, absent)
+            if changes is not absent and relpath in changes:
+                result = (serial, changes[relpath][2])
+        if result is absent:
+            result = get_relpath_at(self, relpath, serial)
+        self._changelog_cache.put((serial, relpath), result)
+        return result
 
+
+@implementer(IStorageConnection2)
 class Connection(BaseConnection):
     def io_file_os_path(self, path):
         return None

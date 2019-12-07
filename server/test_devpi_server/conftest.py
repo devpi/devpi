@@ -222,6 +222,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
         from devpi_server import replica
         from devpi_server import view_auth
         from devpi_server import views
+        from devpi_server.interfaces import verify_connection_interface
         plugins = [
             plugin[0] if isinstance(plugin, tuple) else plugin
             for plugin in plugins]
@@ -263,6 +264,9 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
                 monkeypatch.setattr(extpypi.PyPIStage, "_get_remote_projects",
                     lambda self: set())
             add_pypistage_mocks(monkeypatch, httpget)
+        # verify storage interface
+        with xom.keyfs.get_connection() as conn:
+            verify_connection_interface(conn)
         # initialize default indexes
         from devpi_server.main import init_default_indexes
         if not xom.config.args.master_url:
