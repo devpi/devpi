@@ -87,7 +87,8 @@ class BaseConnection:
         if result is absent:
             changes = self._changelog_cache.get(serial, absent)
             if changes is not absent and relpath in changes:
-                result = (serial, changes[relpath][2])
+                (keyname, back_serial, value) = changes[relpath]
+                result = (serial, back_serial, value)
         if result is absent:
             result = get_relpath_at(self, relpath, serial)
         self._changelog_cache.put((serial, relpath), result)

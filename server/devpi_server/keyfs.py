@@ -515,12 +515,12 @@ def get_relpath_at(self, relpath, serial):
     serials_and_values = iter_serial_and_value_backwards(
         self, relpath, last_serial)
     try:
-        (last_serial, val) = next(serials_and_values)
+        (last_serial, back_serial, val) = next(serials_and_values)
         while last_serial >= 0:
             if last_serial > serial:
-                (last_serial, val) = next(serials_and_values)
+                (last_serial, back_serial, val) = next(serials_and_values)
                 continue
-            return (last_serial, val)
+            return (last_serial, back_serial, val)
     except StopIteration:
         pass
     raise KeyError(relpath)
@@ -532,7 +532,7 @@ def iter_serial_and_value_backwards(conn, relpath, last_serial):
         if tup is None:
             raise RuntimeError("no transaction entry at %s" % (last_serial))
         keyname, back_serial, val = tup
-        yield (last_serial, val)
+        yield (last_serial, back_serial, val)
         last_serial = back_serial
 
     # we could not find any change below at_serial which means
@@ -580,12 +580,16 @@ class Transaction(object):
                         value=val)
 
     def iter_serial_and_value_backwards(self, relpath, last_serial):
-        return iter_serial_and_value_backwards(self.conn, relpath, last_serial)
+        while last_serial >= 0:
+            (last_serial, back_serial, val) = self.conn.get_relpath_at(
+                relpath, last_serial)
+            yield (last_serial, val)
+            last_serial = back_serial
 
     def get_last_serial_and_value_at(self, typedkey, at_serial, raise_on_error=True):
         relpath = typedkey.relpath
         try:
-            (last_serial, val) = self.conn.get_relpath_at(relpath, at_serial)
+            (last_serial, back_serial, val) = self.conn.get_relpath_at(relpath, at_serial)
         except KeyError:
             if not raise_on_error:
                 return None
