@@ -1,0 +1,1 @@
+Fix caching of Whoosh indexer, so memory is properly freed.
