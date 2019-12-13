@@ -205,6 +205,43 @@ class TestListRemove:
         with pytest.raises(ValueError):
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
 
+    def test_delete_version_range_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
+        import re
+        # upload 0.666 to dev index
+        initproj("dddttt-0.666", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        # remember username
+        out = out_devpi("use")
+        user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
+        devpi("index", "-c", "dev2", "bases=%s/dev" % user)
+        devpi("use", "dev2")
+        # upload 1.0 to dev2 index
+        initproj("dddttt-1.0", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        # upload 2.0 to dev2 index
+        initproj("dddttt-2.0", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+
+        out = out_devpi("list", "dddttt", "--all")
+        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-1.0.zip")
+        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
+        out = out_devpi("remove", "dddttt<2.0", code=200)
+        out = out_devpi("list", "dddttt", "--all")
+        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        with pytest.raises(ValueError):
+            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-1.0.zip")
+        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
+
     def test_delete_project_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
         devpi("index", "bases=root/pypi", "mirror_whitelist=*")
         initproj("dddttt-0.666", {"doc": {
