@@ -384,7 +384,7 @@ class IndexerThread(object):
             len(names), indexname, serial)
         ix = get_indexer(self.xom)
         counter = itertools.count()
-        project_ix = ix.project_ix
+        project_ix = ix.get_project_ix()
         main_keys = project_ix.schema.names()
         writer = project_ix.writer()
         searcher = project_ix.searcher()
@@ -447,7 +447,7 @@ class InitialQueueThread(object):
         thread_push_log("[IDXQ]")
         with self.xom.keyfs.transaction(write=False) as tx:
             indexer = get_indexer(self.xom)
-            searcher = indexer.project_ix.searcher()
+            searcher = indexer.get_project_ix().searcher()
             self.shared_data.queue_projects(
                 iter_projects(self.xom), tx.at_serial, searcher)
 
@@ -499,12 +499,12 @@ class Index(object):
         shutil.rmtree(self.index_path)
 
     def needs_reindex(self):
-        if self.project_ix.is_empty():
+        project_ix = self.get_project_ix()
+        if project_ix.is_empty():
             return True
-        return self.project_ix.schema != self.project_schema
+        return project_ix.schema != self.project_schema
 
-    @property
-    def project_ix(self):
+    def get_project_ix(self):
         return self.ix('project')
 
     @property
@@ -527,7 +527,7 @@ class Index(object):
     def delete_projects(self, projects):
         counter = itertools.count()
         count = next(counter)
-        project_ix = self.project_ix
+        project_ix = self.get_project_ix()
         writer = project_ix.writer()
         searcher = project_ix.searcher()
         for project in projects:
@@ -608,8 +608,9 @@ class Index(object):
                 next(counter)
 
     def update_projects(self, projects, clear=False):
+        project_ix = self.get_project_ix()
         self.shared_data.queue_projects(
-            projects, self.xom.keyfs.tx.at_serial, self.project_ix.searcher())
+            projects, self.xom.keyfs.tx.at_serial, project_ix.searcher())
 
     def _process_results(self, raw, page=1):
         items = []
@@ -743,7 +744,7 @@ class Index(object):
         return self._search_projects(searcher, query, page=page)
 
     def search_projects(self, query, page=1):
-        searcher = self.project_ix.searcher()
+        searcher = self.get_project_ix().searcher()
         try:
             result = self._process_results(
                 self._search_projects(searcher, query, page=page))
@@ -754,7 +755,7 @@ class Index(object):
             return result
 
     def query_projects(self, querystring, page=1):
-        searcher = self.project_ix.searcher()
+        searcher = self.get_project_ix().searcher()
         try:
             result = self._process_results(
                 self._query_projects(searcher, querystring, page=page))
