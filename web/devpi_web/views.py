@@ -667,6 +667,7 @@ def version_get(context, request):
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
         summary=verdata.get("summary"),
+        resolved_version=version,
         nav_links=nav_links,
         infos=infos,
         metadata_list_fields=frozenset(
