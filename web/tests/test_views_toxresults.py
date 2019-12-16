@@ -95,6 +95,24 @@ def test_testdata_missing(mapp, testapp, tox_result_data):
     assert '.toxresult' not in r.unicode_body
 
 
+@pytest.mark.with_notifier
+def test_testdata_latest_version(mapp, testapp, tox_result_data):
+    api = mapp.create_and_use()
+    mapp.set_versiondata(
+        {"name": "pkg1", "version": "2.6", "description": "foo"})
+    mapp.upload_file_pypi(
+        "pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200,
+        waithooks=True)
+    path, = mapp.get_release_paths("pkg1")
+    r = testapp.post(path, json.dumps(tox_result_data))
+    assert r.status_code == 200
+    r = testapp.xget(200, api.index + '/pkg1/latest', headers=dict(accept="text/html"))
+    links = r.html.select('td.toxresults a')
+    assert len(links) == 2
+    assert links[0].attrs['href'].startswith(api.index + '/pkg1/2.6')
+    assert links[1].attrs['href'].startswith(api.index + '/pkg1/2.6')
+
+
 def test_toxresults_state():
     from devpi_web.views import get_toxresults_info
     from devpi_web.views import get_toxresults_state

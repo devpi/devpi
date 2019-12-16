@@ -44,6 +44,15 @@ class ContextWrapper(object):
         return getattr(self.context, name)
 
     @reify
+    def resolved_version(self):
+        version = self.version
+        if version == 'latest' and self._versions:
+            version = self._versions[0]
+        elif version == 'stable' and self._stable_versions:
+            version = self._stable_versions[0]
+        return version
+
+    @reify
     def _versions(self):
         return get_sorted_versions(
             self.stage.list_versions_perstage(self.project),
@@ -581,11 +590,7 @@ def version_get(context, request):
     context = ContextWrapper(context)
     name = context.verified_project
     stage = context.stage
-    version = context.version
-    if version == 'latest' and context._versions:
-        version = context._versions[0]
-    elif version == 'stable' and context._stable_versions:
-        version = context._stable_versions[0]
+    version = context.resolved_version
     try:
         verdata = context.get_versiondata(version=version, perstage=True)
     except stage.UpstreamError as e:
@@ -673,11 +678,11 @@ def version_get(context, request):
         make_toxresults_url=functools.partial(
             request.route_url, "toxresults",
             user=context.username, index=context.index,
-            project=context.project, version=context.version),
+            project=context.project, version=version),
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.project, version=context.version))
+            project=context.project, version=version))
 
 
 @view_config(
