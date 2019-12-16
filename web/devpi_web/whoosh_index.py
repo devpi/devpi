@@ -232,6 +232,9 @@ class IndexingSharedData(object):
         self.Empty = Empty
         self.queue = PriorityQueue()
         self.error_queue = PriorityQueue()
+        self.last_added = None
+        self.last_errored = None
+        self.last_processed = None
 
     def add(self, project, serial):
         # note the negated serial for the PriorityQueue
@@ -240,6 +243,7 @@ class IndexingSharedData(object):
             -serial,
             project.indexname,
             (project.name,)))
+        self.last_added = time.time()
 
     def next_ts(self, delay):
         return time.time() + delay
@@ -267,10 +271,12 @@ class IndexingSharedData(object):
             names.append(project.name)
             if len(names) >= self.QUEUE_MAX_NAMES:
                 self.queue.put((is_from_mirror, -serial, indexname, names))
+                self.last_added = time.time()
                 names = []
         if names:
             # note the negated serial for the PriorityQueue
             self.queue.put((is_from_mirror, -serial, indexname, names))
+            self.last_added = time.time()
 
     def queue_projects(self, projects, serial, searcher):
         log.info("Queuing projects for index update")
@@ -336,6 +342,7 @@ class IndexingSharedData(object):
                 delay=min(
                     delay * self.ERROR_QUEUE_DELAY_MULTIPLIER,
                     self.ERROR_QUEUE_MAX_DELAY))
+            self.last_errored = time.time()
         finally:
             self.error_queue.task_done()
 
@@ -355,8 +362,10 @@ class IndexingSharedData(object):
             handler(is_from_mirror, serial, indexname, names)
         except Exception:
             self.add_errored(is_from_mirror, serial, indexname, names)
+            self.last_errored = time.time()
         finally:
             self.queue.task_done()
+            self.last_processed = time.time()
 
     def wait(self):
         self.queue.join()
@@ -859,3 +868,29 @@ def devpiserver_metrics(request):
             ('devpi_web_whoosh_index_queue_size', 'gauge', shared_data.queue.qsize()),
             ('devpi_web_whoosh_index_error_queue_size', 'gauge', shared_data.error_queue.qsize())])
     return result
+
+
+@hookimpl
+def devpiweb_get_status_info(request):
+    indexer = request.registry.get('search_index')
+    shared_data = getattr(indexer, 'shared_data', None)
+    msgs = []
+    if isinstance(shared_data, IndexingSharedData):
+        now = time.time()
+        qsize = shared_data.queue.qsize()
+        if qsize:
+            last_activity_seconds = 0
+            if shared_data.last_processed is None and shared_data.last_added:
+                last_activity_seconds = (now - shared_data.last_added)
+            elif shared_data.last_processed:
+                last_activity_seconds = (now - shared_data.last_processed)
+            if last_activity_seconds > 300:
+                msgs.append(dict(status="fatal", msg="Nothing indexed for more than 5 minutes"))
+            elif last_activity_seconds > 60:
+                msgs.append(dict(status="warn", msg="Nothing indexed for more than 1 minute"))
+            if qsize > 10:
+                msgs.append(dict(status="warn", msg="%s items in index queue" % qsize))
+        error_qsize = shared_data.error_queue.qsize()
+        if error_qsize:
+            msgs.append(dict(status="warn", msg="Errors during indexing"))
+    return msgs
