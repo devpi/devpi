@@ -411,7 +411,9 @@ def root(context, request):
     users = []
     for user in rawusers:
         users.append(get_user_info(context, request, user))
-    return dict(users=users)
+    return dict(
+        _context=context,
+        users=users)
 
 
 @view_config(
@@ -419,7 +421,9 @@ def root(context, request):
     renderer="templates/user.pt")
 def user_get(context, request):
     user = context.user.get()
-    return dict(user=get_user_info(context, request, user))
+    return dict(
+        _context=context,
+        user=get_user_info(context, request, user))
 
 
 @view_config(
@@ -433,6 +437,7 @@ def index_get(context, request):
     packages = []
     whitelist = []
     result = dict(
+        _context=context,
         title="%s index" % stage.name,
         simple_index_url=request.simpleindex_url(stage),
         permissions=permissions,
@@ -571,6 +576,7 @@ def project_get(context, request):
     latest_version = stage.get_latest_version_perstage(context.project)
     latest_verdata = stage.get_versiondata_perstage(context.project, latest_version)
     return dict(
+        _context=context,
         title="%s/: %s versions" % (context.stage.name, context.project),
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
         latest_version=latest_version,
@@ -664,6 +670,7 @@ def version_get(context, request):
                 css_class="severe",
                 url=url))
     return dict(
+        _context=context,
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
         summary=verdata.get("summary"),
@@ -697,6 +704,7 @@ def toxresults(context, request):
     toxresults = get_toxresults_info(
         linkstore, linkstore.get_links(basename=basename)[0], newest=False)
     return dict(
+        _context=context,
         title="%s/: %s-%s toxresults" % (
             context.stage.name, context.project, context.version),
         toxresults=toxresults,
@@ -721,6 +729,7 @@ def toxresult(context, request):
             linkstore.get_links(basename=basename)[0], newest=False)
         if x['basename'] == toxresult]
     return dict(
+        _context=context,
         title="%s/: %s-%s toxresult %s" % (
             context.stage.name, context.project, context.version, toxresult),
         toxresults=toxresults)
