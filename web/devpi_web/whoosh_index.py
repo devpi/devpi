@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 from collections import defaultdict
-from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
 from devpi_server.log import thread_push_log
@@ -385,9 +384,10 @@ class IndexerThread(object):
             len(names), indexname, serial)
         ix = get_indexer(self.xom)
         counter = itertools.count()
-        main_keys = ix.project_ix.schema.names()
-        writer = ix.project_ix.writer()
-        searcher = ix.project_ix.searcher()
+        project_ix = ix.project_ix
+        main_keys = project_ix.schema.names()
+        writer = project_ix.writer()
+        searcher = project_ix.searcher()
         try:
             with self.xom.keyfs.transaction(write=False) as tx:
                 stage = self.xom.model.getstage(indexname)
@@ -503,7 +503,7 @@ class Index(object):
             return True
         return self.project_ix.schema != self.project_schema
 
-    @cached_property
+    @property
     def project_ix(self):
         return self.ix('project')
 
@@ -527,8 +527,9 @@ class Index(object):
     def delete_projects(self, projects):
         counter = itertools.count()
         count = next(counter)
-        writer = self.project_ix.writer()
-        searcher = self.project_ix.searcher()
+        project_ix = self.project_ix
+        writer = project_ix.writer()
+        searcher = project_ix.searcher()
         for project in projects:
             path = u"/%s/%s" % (project.indexname, project.name)
             count = next(counter)
@@ -736,7 +737,7 @@ class Index(object):
 
     def _query_projects(self, searcher, querystring, page=1):
         parser = QueryParser(
-            "text", self.project_ix.schema,
+            "text", self.project_schema,
             plugins=self._query_parser_plugins())
         query = parser.parse(querystring)
         return self._search_projects(searcher, query, page=page)
