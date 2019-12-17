@@ -139,7 +139,7 @@ def main_remove(hub, args):
     index_url = hub.current.get_index_url(indexname=args.index)
     proj_url = hub.current.get_project_url(
         req.project_name, indexname=args.index)
-    reply = hub.http_api("get", proj_url, type="projectconfig")
+    reply = hub.http_api("get", proj_url.replace(query=dict(ignore_bases="")), type="projectconfig")
     ver_to_delete = get_versions_to_delete(index_url, reply, req)
     if not ver_to_delete:
         hub.error(
@@ -173,6 +173,8 @@ def get_versions_to_delete(index_url, response, requirement):
             files_to_delete = [link for link in vv.get_links()
                                if link.href.startswith(index_url.url)]
             ver_to_delete.append((version, files_to_delete))
+    # filter versions with no releases
+    ver_to_delete = [x for x in ver_to_delete if x[1]]
     return ver_to_delete
 
 
