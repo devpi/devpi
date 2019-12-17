@@ -44,6 +44,15 @@ class ContextWrapper(object):
         return getattr(self.context, name)
 
     @reify
+    def resolved_version(self):
+        version = self.version
+        if version == 'latest' and self._versions:
+            version = self._versions[0]
+        elif version == 'stable' and self._stable_versions:
+            version = self._stable_versions[0]
+        return version
+
+    @reify
     def _versions(self):
         return get_sorted_versions(
             self.stage.list_versions_perstage(self.project),
@@ -402,7 +411,9 @@ def root(context, request):
     users = []
     for user in rawusers:
         users.append(get_user_info(context, request, user))
-    return dict(users=users)
+    return dict(
+        _context=context,
+        users=users)
 
 
 @view_config(
@@ -410,7 +421,9 @@ def root(context, request):
     renderer="templates/user.pt")
 def user_get(context, request):
     user = context.user.get()
-    return dict(user=get_user_info(context, request, user))
+    return dict(
+        _context=context,
+        user=get_user_info(context, request, user))
 
 
 @view_config(
@@ -424,6 +437,7 @@ def index_get(context, request):
     packages = []
     whitelist = []
     result = dict(
+        _context=context,
         title="%s index" % stage.name,
         simple_index_url=request.simpleindex_url(stage),
         permissions=permissions,
@@ -562,6 +576,7 @@ def project_get(context, request):
     latest_version = stage.get_latest_version_perstage(context.project)
     latest_verdata = stage.get_versiondata_perstage(context.project, latest_version)
     return dict(
+        _context=context,
         title="%s/: %s versions" % (context.stage.name, context.project),
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
         latest_version=latest_version,
@@ -581,11 +596,7 @@ def version_get(context, request):
     context = ContextWrapper(context)
     name = context.verified_project
     stage = context.stage
-    version = context.version
-    if version == 'latest' and context._versions:
-        version = context._versions[0]
-    elif version == 'stable' and context._stable_versions:
-        version = context._stable_versions[0]
+    version = context.resolved_version
     try:
         verdata = context.get_versiondata(version=version, perstage=True)
     except stage.UpstreamError as e:
@@ -659,9 +670,11 @@ def version_get(context, request):
                 css_class="severe",
                 url=url))
     return dict(
+        _context=context,
         title="%s/: %s-%s metadata and description" % (stage.name, name, version),
         content=get_description(stage, name, version),
         summary=verdata.get("summary"),
+        resolved_version=version,
         nav_links=nav_links,
         infos=infos,
         metadata_list_fields=frozenset(
@@ -673,11 +686,11 @@ def version_get(context, request):
         make_toxresults_url=functools.partial(
             request.route_url, "toxresults",
             user=context.username, index=context.index,
-            project=context.project, version=context.version),
+            project=context.project, version=version),
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.project, version=context.version))
+            project=context.project, version=version))
 
 
 @view_config(
@@ -691,6 +704,7 @@ def toxresults(context, request):
     toxresults = get_toxresults_info(
         linkstore, linkstore.get_links(basename=basename)[0], newest=False)
     return dict(
+        _context=context,
         title="%s/: %s-%s toxresults" % (
             context.stage.name, context.project, context.version),
         toxresults=toxresults,
@@ -715,6 +729,7 @@ def toxresult(context, request):
             linkstore.get_links(basename=basename)[0], newest=False)
         if x['basename'] == toxresult]
     return dict(
+        _context=context,
         title="%s/: %s-%s toxresult %s" % (
             context.stage.name, context.project, context.version, toxresult),
         toxresults=toxresults)
