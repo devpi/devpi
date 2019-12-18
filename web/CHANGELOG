@@ -2,6 +2,19 @@
 
 .. towncrier release notes start
 
+4.0.1 (2019-12-18)
+==================
+
+Bug Fixes
+---------
+
+- Fix #756: correct URL to toxresults when using ``latest`` or ``stable`` as version in URL.
+
+- Fix caching of Whoosh indexer, so memory is properly freed.
+
+- Add warnings and errors for indexing to status page/badge.
+
+
 4.0.0 (2019-10-19)
 ==================
 

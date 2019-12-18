@@ -1,1 +1,0 @@
-Fix #756: correct URL to toxresults when using ``latest`` or ``stable`` as version in URL.
