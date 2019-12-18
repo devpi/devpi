@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+5.3.1 (2019-12-05)
+==================
+
+Bug Fixes
+---------
+
+- fix #688: on file upload existing metadata is only updated, not replaced.
+
+
 5.3.0 (2019-12-03)
 ==================
 
