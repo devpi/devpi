@@ -1,11 +1,13 @@
 <!--
-Thanks for submitting an issue!
+Thanks for filing an issue!
 
-Here's a quick checklist:
+Please check the following points before submitting:
 
-- [ ] have you tried the newest released versions to see if your issue is already fixed? If not, please explain what prevents you from doing so.
-- [ ] output of `pip list` from the virtual environment you are using
-- [ ] Python and operating system versions
-- [ ] minimal example to reproduce if possible
+- [ ] Are you using the latest released version?
+      If something is preventing you from trying with the newest version,
+      we would like to know so we can make it easier.
+- [ ] Provide the output of ``pip list`` from the virtual environment you are using.
+- [ ] Provide the Python and operating system versions under which the issue occurs.
+- [ ] If possible, provide a minimal example to reproduce the issue.
 
 -->
