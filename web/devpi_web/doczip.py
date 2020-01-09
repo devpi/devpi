@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 try:
     from UserDict import DictMixin
 except ImportError:
-    from collections import MutableMapping as DictMixin
+    from collections.abc import MutableMapping as DictMixin
 from bs4 import BeautifulSoup
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
