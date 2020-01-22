@@ -35,6 +35,7 @@ jobs:
       script:
         - devpi use https://m.devpi.net/devpi-travis
         - devpi login devpi-travis --password ${DEVPI_TRAVIS_PASSWD}
+        - python .ci/cleanup_devpi_indices.py
         - yes yes | devpi index --delete "${DEVPI_INDEX}" || true
         - devpi index -c "${DEVPI_INDEX}" bases=root/pypi
         - devpi use "${DEVPI_INDEX}"
