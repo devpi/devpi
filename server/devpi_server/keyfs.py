@@ -3,7 +3,7 @@ filesystem key/value storage with support for storing and retrieving
 basic python types based on parametrizable keys.  Multiple
 read Transactions can execute concurrently while at most one
 write Transaction is ongoing.  Each Transaction will see a consistent
-view of key/values refering to the point in time it was started,
+view of key/values referring to the point in time it was started,
 independent from any future changes.
 """
 from __future__ import unicode_literals
