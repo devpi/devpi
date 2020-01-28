@@ -573,8 +573,11 @@ def project_get(context, request):
             has_mirror_base=context.stage.has_mirror_base(context.project),
             blocked_by_mirror_whitelist=None)
     stage = context.stage
+    latest_verdata = {}
     latest_version = stage.get_latest_version_perstage(context.project)
-    latest_verdata = stage.get_versiondata_perstage(context.project, latest_version)
+    if latest_version is not None:
+        latest_verdata = stage.get_versiondata_perstage(
+            context.project, latest_version)
     return dict(
         _context=context,
         title="%s/: %s versions" % (context.stage.name, context.project),

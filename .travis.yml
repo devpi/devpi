@@ -154,3 +154,8 @@ jobs:
           packages:
             - nginx
         postgresql: "9.5"
+
+  allow_failures:
+    - stage: test
+      python: "nightly"
+      env: PROJECT=web

@@ -311,6 +311,17 @@ def test_project_view_root_and_docs(mapp, testapp, pypistage):
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6/+d/index.html")]
 
 
+def test_project_view_inherited_no_versions_on_stage(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("prod")
+    mapp.use("root/prod")
+    mapp.upload_file_pypi("pkg5-1.0.tgz", b"123", "pkg5", "1.0")
+    mapp.create_index("dev", indexconfig=dict(bases="root/prod"))
+    mapp.use("root/dev")
+    pkg_url = mapp.api.index + '/pkg5'
+    testapp.xget(200, pkg_url)
+
+
 @pytest.mark.with_notifier
 def test_version_view(mapp, testapp, monkeypatch):
     import devpi_server.model
