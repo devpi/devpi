@@ -334,10 +334,8 @@ class Importer:
         total_num_projects = 0
         total_num_files = 0
         for idx_name, idx in self.import_indexes.items():
-            if idx['indexconfig']['type'] == 'mirror':
-                continue
-            num_projects = len(idx['projects'])
-            num_files = len(idx['files'])
+            num_projects = len(idx.get('projects', {}))
+            num_files = len(idx.get('files', []))
             self.tw.line(
                 'Index %s has %d projects and %d files'
                 % (idx_name, num_projects, num_files))
@@ -409,9 +407,10 @@ class Importer:
         # first create all users
         with self.xom.keyfs.transaction(write=True):
             for username, userconfig in self.import_users.items():
+                user = None
                 if username == "root":
                     user = self.xom.model.get_user(username)
-                else:
+                if user is None:
                     user = self.xom.model.create_user(username, password="")
                 user._set(userconfig)
 
@@ -429,10 +428,8 @@ class Importer:
         stages = []
         with self.xom.keyfs.transaction(write=True):
             for stagename in tree.iternames():
-                if stagename == "root/pypi":
-                    stage = self.xom.model.getstage(stagename)
-                    if stage is not None:
-                        continue
+                if stagename == "root/pypi" and stagename not in self.import_indexes:
+                    continue
                 import_index = self.import_indexes[stagename]
                 indexconfig = dict(import_index["indexconfig"])
                 if indexconfig['type'] in self.types_to_skip:
@@ -454,7 +451,15 @@ class Importer:
                 # newer versions don't. To support exports from both we
                 # have the default None value
                 bases = indexconfig.pop('bases', None)
-                stage = user.create_stage(index, **indexconfig)
+                stage = None
+                if stagename == "root/pypi":
+                    stage = self.xom.model.getstage(stagename)
+                    if stage is not None:
+                        stage.modify(**indexconfig)
+                    elif self.xom.config.args.no_root_pypi:
+                        continue
+                if stage is None:
+                    stage = user.create_stage(index, **indexconfig)
                 if "bases" in import_index["indexconfig"]:
                     indexconfig = stage.ixconfig
                     indexconfig["bases"] = bases
@@ -464,12 +469,10 @@ class Importer:
 
         # create projects and releasefiles for each index
         for stage in stages:
-            if stage.ixconfig["type"] == "mirror":
-                continue
             imported_files = set()
             import_index = self.import_indexes[stage.name]
-            projects = import_index["projects"]
-            files = import_index["files"]
+            projects = import_index.get("projects", {})
+            files = import_index.get("files", [])
             for project, versions in self.iter_projects_normalized(projects):
                 with self.xom.keyfs.transaction(write=True):
                     for version, versiondata in versions.items():
