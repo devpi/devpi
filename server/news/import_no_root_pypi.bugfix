@@ -1,0 +1,1 @@
+Fix ``--no-root-pypi`` option when importing devpi data.

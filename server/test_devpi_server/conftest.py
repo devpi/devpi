@@ -234,10 +234,9 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
                     lambda self: set())
             add_pypistage_mocks(monkeypatch, httpget)
         # initialize default indexes
-        from devpi_server.main import set_default_indexes
+        from devpi_server.main import init_default_indexes
         if not xom.config.args.master_url:
-            with xom.keyfs.transaction(write=True):
-                set_default_indexes(xom.model)
+            init_default_indexes(xom)
         if request.node.get_closest_marker("with_replica_thread"):
             from devpi_server.replica import ReplicaThread
             rt = ReplicaThread(xom)

@@ -210,6 +210,7 @@ def test_import_on_existing_server_data(tmpdir, xom):
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
 
+
 class TestIndexTree:
     def test_basic(self):
         tree = IndexTree()
@@ -413,6 +414,38 @@ class TestImportExport:
         assert 'root/pypi!Jo' in record.message
         (record,) = caplog.getrecords('You could also try to edit')
         assert 'dataindex.json' in record.message
+
+    @pytest.mark.parametrize("norootpypi", [False, True])
+    def test_import_no_user(self, caplog, impexp, norootpypi):
+        from devpi_server.main import _pypi_ixconfig_default
+        options = ()
+        if norootpypi:
+            options = ('--no-root-pypi',)
+        mapp = impexp.import_testdata('nouser', options=options)
+        with mapp.xom.keyfs.transaction(write=False):
+            user = mapp.xom.model.get_user("root")
+            assert user is not None
+            stage = mapp.xom.model.getstage("root/pypi")
+            if norootpypi:
+                assert stage is None
+            else:
+                assert stage.ixconfig == _pypi_ixconfig_default
+
+    @pytest.mark.parametrize("norootpypi", [False, True])
+    def test_import_no_root_pypi(self, caplog, impexp, norootpypi):
+        from devpi_server.main import _pypi_ixconfig_default
+        options = ()
+        if norootpypi:
+            options = ('--no-root-pypi',)
+        mapp = impexp.import_testdata('nouser', options=options)
+        with mapp.xom.keyfs.transaction(write=False):
+            user = mapp.xom.model.get_user("root")
+            assert user is not None
+            stage = mapp.xom.model.getstage("root/pypi")
+            if norootpypi:
+                assert stage is None
+            else:
+                assert stage.ixconfig == _pypi_ixconfig_default
 
     def test_normalization(self, caplog, impexp):
         mapp = impexp.import_testdata('normalization')
