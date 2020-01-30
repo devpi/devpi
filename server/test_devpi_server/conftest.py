@@ -912,7 +912,7 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
-@pytest.yield_fixture(scope="module")
+@pytest.yield_fixture(scope="class")
 def server_directory():
     import tempfile
     srvdir = py.path.local(
