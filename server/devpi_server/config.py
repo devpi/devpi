@@ -256,6 +256,10 @@ def add_export_options(parser, pluginmanager, standalone=True):
                  "This will export all users, indices, release files "
                  "(except for mirrors), test results and documentation.")
 
+    parser.addoption(
+        "--include-mirrored-files", action="store_true",
+        help="include downloaded files from mirror indexes in dump.")
+
 
 def add_import_options(parser, pluginmanager, standalone=True):
     if not standalone:

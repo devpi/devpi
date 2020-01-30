@@ -11,8 +11,10 @@ from devpi_server.importexport import Exporter
 from devpi_server.importexport import IndexTree
 from devpi_server.importexport import do_export, do_import
 from devpi_server.main import Fatal
+from devpi_server.readonly import get_mutable_deepcopy
 from devpi_common.archive import Archive, zip_dict
 from devpi_common.metadata import Version
+from devpi_common.url import URL
 
 import devpi_server
 
@@ -446,6 +448,62 @@ class TestImportExport:
                 assert stage is None
             else:
                 assert stage.ixconfig == _pypi_ixconfig_default
+
+    def test_include_mirrordata(self, caplog, makeimpexp, maketestapp, pypistage):
+        impexp = makeimpexp(options=('--include-mirrored-files',))
+        mapp1 = impexp.mapp1
+        testapp = maketestapp(mapp1.xom)
+        api = mapp1.use('root/pypi')
+        pypistage.mock_simple(
+            "package",
+            '<a href="/package-1.0.zip" />\n'
+            '<a href="/package-1.1.zip#sha256=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3" />\n'
+            + '<a href="/package-2.0.zip#sha256=b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0eee8ebb4a5d0" data-requires-python="&gt;=3.5" />')
+        pypistage.mock_extfile("/package-1.1.zip", b"123")
+        pypistage.mock_extfile("/package-2.0.zip", b"456")
+        r = testapp.get(api.index + "/+simple/package/")
+        assert r.status_code == 200
+        # fetch some files, so they are included in the dump
+        (_, link1, link2) = sorted(x.attrs['href'] for x in r.html.select('a'))
+        baseurl = URL(r.request.url)
+        r = testapp.get(baseurl.joinpath(link1).url)
+        assert r.body == b"123"
+        r = testapp.get(baseurl.joinpath(link2).url)
+        assert r.body == b"456"
+        impexp.export()
+        mapp2 = impexp.new_import()
+        with mapp2.xom.keyfs.transaction(write=False):
+            stage = mapp2.xom.model.getstage(api.stagename)
+            stage.offline = True
+            projects = stage.list_projects_perstage()
+            assert projects == {'package'}
+            links = sorted(get_mutable_deepcopy(
+                stage.get_simplelinks_perstage("package")))
+            assert links == [
+                ('package-1.1.zip', 'root/pypi/+f/a66/5a45920422f9d/package-1.1.zip', None),
+                ('package-2.0.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-2.0.zip', '>=3.5')]
+
+    def test_mirrordata(self, caplog, impexp):
+        mapp = impexp.import_testdata('mirrordata')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/pypi')
+            stage.offline = True
+            (link,) = stage.get_simplelinks_perstage("dddttt")
+            link = stage.get_link_from_entrypath(link[1])
+            assert link.project == "dddttt"
+            assert link.version == "0.1.dev1"
+            assert link.relpath == 'root/pypi/+f/100/7f0cd10aaa290/dddttt-0.1.dev1.tar.gz'
+            assert link.entry.hash_spec == 'sha256=1007f0cd10aaa290eb84f092e786639bbe930b7f2169f51f755a0f50a6aba489'
+
+    def test_modifiedpypi(self, caplog, impexp):
+        mapp = impexp.import_testdata('modifiedpypi')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage('root/pypi')
+            # test that we actually get the config from the import and not
+            # the default PyPI settings
+            assert stage.ixconfig['title'] == 'Modified PyPI'
+            assert stage.ixconfig['mirror_url'] == 'https://example.com/simple/'
+            assert stage.ixconfig['mirror_web_url_fmt'] == 'https://example.com/project/{name}/'
 
     def test_normalization(self, caplog, impexp):
         mapp = impexp.import_testdata('normalization')
