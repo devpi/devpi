@@ -17,6 +17,7 @@ def make_stage_plugin(cls, name="mystage"):
 
 
 def test_permissions_for_unknown_index(mapp, xom):
+    from devpi_server.model import ReadonlyIndex
     api = mapp.create_and_use()
     mapp.upload_file_pypi("hello-1.0.tar.gz", b'content', "hello", "1.0")
     (path,) = mapp.get_release_paths("hello")
@@ -28,8 +29,26 @@ def test_permissions_for_unknown_index(mapp, xom):
         stage = xom.model.getstage(api.stagename)
         with stage.user.key.update() as userconfig:
             userconfig["indexes"][stage.index]['type'] = 'unknown'
+    with xom.keyfs.transaction(write=True):
+        stage = xom.model.getstage(api.stagename)
+        # first check direct stage access
+        with pytest.raises(ReadonlyIndex):
+            stage.modify(**dict(stage.ixconfig, bases=[]))
+        with pytest.raises(ReadonlyIndex):
+            stage.set_versiondata(
+                dict(name="hello", version="1.0", requires_python=">=3.5"))
+        with pytest.raises(ReadonlyIndex):
+            stage.add_project_name("foo")
+        with pytest.raises(ReadonlyIndex):
+            stage.store_releasefile("foo", "2.0", "foo-2.0.zip", b'123')
+        with pytest.raises(ReadonlyIndex):
+            stage.store_doczip("foo", "2.0", b'456')
+        link_store = stage.get_linkstore_perstage("hello", "1.0")
+        (link,) = link_store.get_links()
+        with pytest.raises(ReadonlyIndex):
+            stage.store_toxresult(link, {})
     assert mapp.getjson(api.index)['result']['type'] == 'unknown'
-    # now check
+    # now check via views, which are protected by permissions most of the time
     mapp.modify_index(api.stagename, indexconfig=dict(bases=[]), code=403)
     mapp.testapp.xdel(403, path)
     mapp.delete_project('hello', code=403)
