@@ -1,0 +1,15 @@
+{
+  "users": {
+  },
+  "indexes": {},
+  "dumpversion": "2",
+  "pythonversion": [
+    3,
+    6,
+    8,
+    "final",
+    0
+  ],
+  "devpi_server": "5.3.1",
+  "uuid": "b63921e918684b23ae62b9a66095e382"
+}

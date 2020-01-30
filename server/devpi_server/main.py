@@ -154,7 +154,8 @@ def _main(pluginmanager, argv=None):
 
     xom = xom_from_config(config)
 
-    init_default_indexes(xom)
+    if args.init:
+        init_default_indexes(xom)
 
     if args.start or args.stop or args.log or args.status:
         xprocdir = config.serverdir.join(".xproc")
