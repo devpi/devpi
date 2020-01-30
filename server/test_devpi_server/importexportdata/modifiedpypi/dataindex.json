@@ -1,0 +1,31 @@
+{
+  "users": {
+    "root": {
+      "pwhash": "$argon2id$v=19$m=102400,t=2,p=8$rzUGQKiVsrZ2DkEIIQTA+A$tX1MOZ8fl1T4QrfgEwXj9Q",
+      "username": "root"
+    }
+  },
+  "indexes": {
+    "root/pypi": {
+      "indexconfig": {
+        "type": "mirror",
+        "volatile": false,
+        "title": "Modified PyPI",
+        "mirror_url": "https://example.com/simple/",
+        "mirror_web_url_fmt": "https://example.com/project/{name}/"
+      },
+      "projects": {},
+      "files": []
+    }
+  },
+  "dumpversion": "2",
+  "pythonversion": [
+    3,
+    6,
+    8,
+    "final",
+    0
+  ],
+  "devpi_server": "5.3.1",
+  "uuid": "0846290854e347f782fd65dd529cde40"
+}
