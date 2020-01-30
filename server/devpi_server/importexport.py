@@ -9,11 +9,13 @@ import shutil
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import BasenameMeta
 from devpi_common.types import parse_hash_spec
+from devpi_common.url import URL
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
 from devpi_server.model import get_stage_customizer_classes
 from .config import MyArgumentParser
 from .config import add_configfile_option
+from .config import add_export_options
 from .config import add_hard_links_option
 from .config import add_help_option
 from .config import add_import_options
@@ -81,6 +83,7 @@ def export(pluginmanager=None, argv=None):
         add_help_option(parser, pluginmanager)
         add_configfile_option(parser, pluginmanager)
         add_storage_options(parser, pluginmanager)
+        add_export_options(parser, pluginmanager)
         add_hard_links_option(parser, pluginmanager)
         parser.add_argument("directory")
         config = parseoptions(pluginmanager, argv, parser=parser)
@@ -238,10 +241,16 @@ class IndexDump:
         self.indexmeta = exporter.export_indexes[stage.name] = {}
         self.indexmeta["indexconfig"] = stage.ixconfig
 
-    def dump(self):
+    def should_dump(self):
         if self.stage.ixconfig["type"] == "mirror":
-            projects = []
-        else:
+            if not self.exporter.config.args.include_mirrored_files:
+                return False
+        return True
+
+    def dump(self):
+        projects = []
+        if self.should_dump():
+            self.stage.offline = True
             self.indexmeta["projects"] = {}
             self.indexmeta["files"] = []
             projects = self.stage.list_projects_perstage()
@@ -263,7 +272,9 @@ class IndexDump:
                 self.basedir.ensure(dir=1)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
-                entry = self.stage.get_doczip_entry(vername, version)
+                entry = None
+                if hasattr(self.stage, 'get_doczip_entry'):
+                    entry = self.stage.get_doczip_entry(vername, version)
                 if entry:
                     self.dump_docfile(vername, version, entry)
         self.exporter.completed("index %r" % self.stage.name)
@@ -271,6 +282,8 @@ class IndexDump:
     def dump_releasefiles(self, linkstore):
         for link in linkstore.get_links(rel="releasefile"):
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
+            if not entry.last_modified:
+                continue
             assert entry.file_exists(), entry.relpath
             relpath = self.exporter.copy_file(
                 entry,
@@ -486,13 +499,16 @@ class Importer:
                                       "version, setting derived %r" %
                                       (name, version))
                             versiondata["version"] = version
-                        stage.set_versiondata(versiondata)
+                        if hasattr(stage, 'set_versiondata'):
+                            stage.set_versiondata(versiondata)
+                        else:
+                            stage.add_project_name(versiondata["name"])
 
                     # import release files
                     for filedesc in files:
                         if normalize_name(filedesc["projectname"]) == normalize_name(project):
                             imported_files.add(filedesc["relpath"])
-                            self.import_filedesc(stage, filedesc)
+                            self.import_filedesc(stage, filedesc, versions)
             missing = set(x["relpath"] for x in files) - imported_files
             if missing:
                 fatal(
@@ -514,8 +530,7 @@ class Importer:
         self.tw.line("wait_for_events: importing finished"
                      "; latest_serial = %s" % latest_serial)
 
-    def import_filedesc(self, stage, filedesc):
-        assert stage.ixconfig["type"] != "mirror"
+    def import_filedesc(self, stage, filedesc, versions):
         rel = filedesc["relpath"]
         project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
@@ -533,15 +548,33 @@ class Importer:
             else:
                 version = filedesc["version"]
 
-            link = stage.store_releasefile(project, version,
-                                           p.basename, data,
-                                           last_modified=mapping["last_modified"])
+            if hasattr(stage, 'store_releasefile'):
+                link = stage.store_releasefile(
+                    project, version,
+                    p.basename, data,
+                    last_modified=mapping["last_modified"])
+                entry = link.entry
+            else:
+                link = None
+                url = URL(mapping['url']).replace(fragment=mapping['hash_spec'])
+                entry = self.xom.filestore.maplink(
+                    url, stage.username, stage.index, project)
+                entry.file_set_content(data, mapping["last_modified"])
+                (_, links_with_require_python, serial) = stage._load_cache_links(project)
+                if links_with_require_python is None:
+                    links_with_require_python = []
+                links = [(url.basename, entry.relpath)]
+                requires_python = [versions[version].get('requires_python')]
+                for key, href, require_python in links_with_require_python:
+                    links.append((key, href))
+                    requires_python.append(require_python)
+                stage._save_cache_links(project, links, requires_python, serial)
             # devpi-server-2.1 exported with md5 checksums
             if "md5" in mapping:
                 assert "hash_spec" not in mapping
                 mapping["hash_spec"] = "md5=" + mapping["md5"]
             hash_algo, hash_value = parse_hash_spec(mapping["hash_spec"])
-            digest = hash_algo(link.entry.file_get_content()).hexdigest()
+            digest = hash_algo(entry.file_get_content()).hexdigest()
             if digest != hash_value:
                 fatal("File %s has bad checksum %s, expected %s" % (
                       p, digest, hash_value))
@@ -560,11 +593,12 @@ class Importer:
             link = stage.store_toxresult(link, json.loads(data.decode("utf8")))
         else:
             fatal("unknown file type: %s" % (type,))
-        history_log = filedesc.get('log')
-        if history_log is None:
-            link.add_log('upload', '<import>', dst=stage.name)
-        else:
-            link.add_logs(history_log)
+        if link is not None:
+            history_log = filedesc.get('log')
+            if history_log is None:
+                link.add_log('upload', '<import>', dst=stage.name)
+            else:
+                link.add_logs(history_log)
 
 
 class IndexTree:

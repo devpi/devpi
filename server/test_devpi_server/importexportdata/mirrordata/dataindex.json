@@ -1,0 +1,53 @@
+{
+  "users": {
+    "root": {
+      "pwhash": "$argon2id$v=19$m=102400,t=2,p=8$rzUGQKiVsrZ2DkEIIQTA+A$tX1MOZ8fl1T4QrfgEwXj9Q",
+      "username": "root"
+    }
+  },
+  "indexes": {
+    "root/pypi": {
+      "indexconfig": {
+        "type": "mirror",
+        "volatile": false,
+        "title": "PyPI",
+        "mirror_url": "https://pypi.org/simple/",
+        "mirror_web_url_fmt": "https://pypi.org/project/{name}/"
+      },
+      "projects": {
+        "dddttt": {
+          "0.1.dev1": {
+            "name": "dddttt",
+            "version": "0.1.dev1"
+          }
+        }
+      },
+      "files": [
+        {
+          "version": "0.1.dev1",
+          "entrymapping": {
+            "url": "https://files.pythonhosted.org/packages/d0/c9/64c9fae84124fec0c08fa1b2db6259fb1ee894d4f41b5d0a79242c7709b7/dddttt-0.1.dev1.tar.gz",
+            "hash_spec": "sha256=1007f0cd10aaa290eb84f092e786639bbe930b7f2169f51f755a0f50a6aba489",
+            "project": "dddttt",
+            "version": "0.1.dev1",
+            "last_modified": "Sat, 23 Apr 2016 07:01:31 GMT"
+          },
+          "log": [],
+          "type": "releasefile",
+          "projectname": "dddttt",
+          "relpath": "root/pypi/dddttt/0.1.dev1/dddttt-0.1.dev1.tar.gz"
+        }
+      ]
+    }
+  },
+  "dumpversion": "2",
+  "pythonversion": [
+    3,
+    6,
+    8,
+    "final",
+    0
+  ],
+  "devpi_server": "5.3.1",
+  "uuid": "0846290854e347f782fd65dd529cde40"
+}
