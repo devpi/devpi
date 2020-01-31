@@ -649,6 +649,14 @@ class Config(object):
         return getattr(self.args, 'offline_mode', False)
 
     @property
+    def replica_cert(self):
+        return getattr(self.args, 'replica_cert', None)
+
+    @property
+    def replica_max_retries(self):
+        return getattr(self.args, 'replica_max_retries', None)
+
+    @property
     def requests_only(self):
         return getattr(self.args, 'requests_only', False)
 
