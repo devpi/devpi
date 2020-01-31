@@ -1049,6 +1049,40 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
     assert r.json["message"] == "error 502 getting https://pypi.org/simple/hello/hello-1.0.tar.gz"
 
 
+def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypistage, testapp):
+    pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
+    pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123")
+    mapp.create_and_login_user("foo")
+    mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.use("root/pypi")
+    assert not pypistage.use_external_url
+    # download the file to the mirror index
+    pkg_url = api.simpleindex + 'hello/'
+    (tag,) = testapp.get(pkg_url).html.select('a')
+    r = testapp.get(URL(pkg_url).joinpath(tag['href']).url)
+    assert r.body == b"123"
+    with mapp.xom.keyfs.transaction(write=True):
+        # switch to external URLs
+        pypistage.modify(mirror_use_external_urls=True)
+        # and remove the file to simulate a cleanup
+        linkstore = pypistage.get_linkstore_perstage("hello", "1.0")
+        (link,) = linkstore.get_links()
+        link.entry.file_delete()
+    assert pypistage.use_external_url
+    # we should now get a redirect when trying to get the file
+    r = testapp.xget(302, URL(pkg_url).joinpath(tag['href']).url)
+    # now we try to push the release to the new index
+    req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
+    r = testapp.push("/root/pypi", json.dumps(req))
+    assert r.status_code == 200
+    assert r.json == {
+        'result': [
+            [200, 'register', 'hello', '1.0', '->', 'foo/newindex1'],
+            [200, 'store_releasefile',
+             'foo/newindex1/+f/a66/5a45920422f9d/hello-1.0.tar.gz']],
+        'type': 'actionlog'}
+
+
 def test_upload_docs_for_version_without_release(mapp, testapp, monkeypatch):
     mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
