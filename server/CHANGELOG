@@ -2,6 +2,32 @@
 
 .. towncrier release notes start
 
+5.4.0 (2020-01-31)
+==================
+
+.. note::
+  This is the last feature release with Python 2.7 support!
+
+  We will only make export related bugfix releases of 5.4.x.
+
+Features
+--------
+
+- The ``requires_python`` metadata is now included in version data on mirror indexes.
+
+- Downloaded files from mirrors can be included in exports with the ``--include-mirrored-files`` option.
+
+- On import files for mirror indexes are now imported when they were included in the dump (see ``--include-mirrored-files``).
+
+
+Bug Fixes
+---------
+
+- Fix ``--no-root-pypi`` option when importing devpi data.
+
+- Fix pushing from mirror to an index when the file was removed and ``mirror_use_external_urls`` is active.
+
+
 5.3.1 (2019-12-05)
 ==================
 

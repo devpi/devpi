@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.2 (2020-01-31)
+==================
+
+Bug Fixes
+---------
+
+- Fix project view if project doesn't exist on the index, but in an inherited index.
+
+
 4.0.1 (2019-12-18)
 ==================
 

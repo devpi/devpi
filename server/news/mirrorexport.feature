@@ -1,1 +1,0 @@
-Downloaded files from mirrors can be included in exports with the ``--include-mirrored-files`` option.

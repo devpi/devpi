@@ -1,1 +1,0 @@
-Fix project view if project doesn't exist on the index, but in an inherited index.
