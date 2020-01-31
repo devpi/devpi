@@ -1,1 +1,0 @@
-On import files for mirror indexes are now imported when they were included in the dump (see ``--include-mirrored-files``).

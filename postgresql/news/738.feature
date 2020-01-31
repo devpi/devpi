@@ -1,1 +1,0 @@
-fix #738: add ``ssl_cert_reqs``, ``ssl_ca_certs``, ``ssl_certfile`` and ``ssl_keyfile`` settings to the --storage=pg8000 option. Each setting corresponds to the similarly-named key (remove the initial "ssl_") in the ``ssl`` parameter passed to pg8000.connect(). ``ssl_cert_reqs`` should be either "cert_optional" or "cert_required" and the other three settings are file names.
