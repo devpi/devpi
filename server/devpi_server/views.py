@@ -1397,11 +1397,16 @@ def iter_cache_remote_file(xom, entry):
         # the file was downloaded before but locally removed, so put
         # it back in place without creating a new serial
         # we need a direct write connection to use the io_file_* methods
-        with xom.keyfs._storage.get_connection(write=True) as conn:
-            conn.io_file_set(entry._storepath, content)
+        if tx is not None:
+            tx.conn.io_file_set(entry._storepath, content)
             threadlog.debug(
                 "put missing file back into place: %s", entry._storepath)
-            conn.commit_files_without_increasing_serial()
+        else:
+            with xom.keyfs._storage.get_connection(write=True) as conn:
+                conn.io_file_set(entry._storepath, content)
+                threadlog.debug(
+                    "put missing file back into place: %s", entry._storepath)
+                conn.commit_files_without_increasing_serial()
 
 
 def iter_remote_file_replica(xom, entry):
