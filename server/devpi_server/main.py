@@ -359,16 +359,16 @@ class XOM:
 
     def new_http_session(self, component_name, max_retries=None):
         session = new_requests_session(agent=(component_name, server_version), max_retries=max_retries)
-        session.cert = getattr(self.config.args, 'replica_cert', None)
+        session.cert = self.config.replica_cert
         return session
 
     @cached_property
     def _httpsession(self):
-        max_retries = getattr(self.config.args, 'replica_max_retries', None)
+        max_retries = self.config.replica_max_retries
         return self.new_http_session("server", max_retries=max_retries)
 
     def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
-        if getattr(self.config.args, 'offline_mode', False):
+        if self.config.offline_mode:
             resp = Response()
             resp.status_code = 503  # service unavailable
             return resp
