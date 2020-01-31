@@ -1,0 +1,1 @@
+Fix pushing from mirror to an index when the file was removed and ``mirror_use_external_urls`` is active.
