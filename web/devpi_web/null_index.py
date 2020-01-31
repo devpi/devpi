@@ -14,6 +14,9 @@ class Index:
     def delete_index(self):
         pass
 
+    def delete_projects(self, projects):
+        pass
+
     def update_projects(self, projects, clear=False):
         pass
 
