@@ -374,18 +374,6 @@ def addoptions(parser, pluginmanager):
         parser.addgroup("permission options"),
         pluginmanager)
 
-    bg = parser.addgroup(
-        "background server (DEPRECATED, see --gen-config to use a process "
-        "manager from your OS)")
-    bg.addoption("--start", action="store_true",
-            help="start the background devpi-server")
-    bg.addoption("--stop", action="store_true",
-            help="stop the background devpi-server")
-    bg.addoption("--status", action="store_true",
-            help="show status of background devpi-server")
-    bg.addoption("--log", action="store_true",
-            help="show logfile content of background server")
-
 
 def try_argcomplete(parser):
     try:
