@@ -101,8 +101,7 @@ def test_requests_only(makexom):
 
 
 @wsgi_run_throws
-@pytest.mark.parametrize("use_option", (False, True))
-def test_run_commands_called(tmpdir, use_option):
+def test_run_commands_called(tmpdir):
     from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
     l = []
@@ -113,14 +112,9 @@ def test_run_commands_called(tmpdir, use_option):
             return 1
     pm = get_pluginmanager()
     pm.register(Plugin())
-    if use_option:
-        result = _main(
-            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
-            pluginmanager=pm)
-    else:
-        result = init(
-            argv=["devpi-init", "--serverdir", str(tmpdir)],
-            pluginmanager=pm)
+    result = init(
+        argv=["devpi-init", "--serverdir", str(tmpdir)],
+        pluginmanager=pm)
     result = _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
         pluginmanager=pm)
@@ -130,8 +124,7 @@ def test_run_commands_called(tmpdir, use_option):
 
 
 @wsgi_run_throws
-@pytest.mark.parametrize("use_option", (False, True))
-def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir, use_option):
+def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir):
     from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
 
@@ -141,14 +134,9 @@ def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir, use_option):
             return 1
     pm = get_pluginmanager()
     pm.register(Plugin())
-    if use_option:
-        _main(
-            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
-            pluginmanager=pm)
-    else:
-        init(
-            argv=["devpi-init", "--serverdir", str(tmpdir)],
-            pluginmanager=pm)
+    init(
+        argv=["devpi-init", "--serverdir", str(tmpdir)],
+        pluginmanager=pm)
     _main(
         argv=["devpi-server", "--serverdir", str(tmpdir)],
         pluginmanager=pm)
@@ -162,8 +150,7 @@ def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir, use_option):
 
 
 @wsgi_run_throws
-@pytest.mark.parametrize("use_option", (False, True))
-def test_main_starts_server_if_run_commands_returns_none(tmpdir, use_option):
+def test_main_starts_server_if_run_commands_returns_none(tmpdir):
     from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
     l = []
@@ -173,14 +160,9 @@ def test_main_starts_server_if_run_commands_returns_none(tmpdir, use_option):
             l.append(xom)
     pm = get_pluginmanager()
     pm.register(Plugin())
-    if use_option:
-        _main(
-            argv=["devpi-server", "--init", "--serverdir", str(tmpdir)],
-            pluginmanager=pm)
-    else:
-        init(
-            argv=["devpi-init", "--serverdir", str(tmpdir)],
-            pluginmanager=pm)
+    init(
+        argv=["devpi-init", "--serverdir", str(tmpdir)],
+        pluginmanager=pm)
     with pytest.raises(ZeroDivisionError):
         _main(
             argv=["devpi-server", "--serverdir", str(tmpdir)],
@@ -274,16 +256,17 @@ def test_request_args_timeout_handover(makexom, input_set):
     xom.httpget("http://whatever", allow_redirects=False, timeout=input_set['kwarg'])
 
 
-def test_no_root_pypi_option(makexom):
-    xom = makexom(["--no-root-pypi"])
+def test_no_root_pypi_option(gentmp, makexom, storage_info):
+    from devpi_server.init import init
+    serverdir = gentmp()
+    argv = ["devpi-init", "--serverdir", serverdir, "--no-root-pypi"]
+    if storage_info["name"] != "sqlite":
+        argv.append("--storage=%s" % storage_info["name"])
+    init(argv=argv)
+    xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.transaction(write=False):
         stage = xom.model.getstage('root/pypi')
         assert stage is None
-    xom = makexom()
-    with xom.keyfs.transaction(write=False):
-        stage = xom.model.getstage('root/pypi')
-        assert stage is not None
-        assert stage.name == 'root/pypi'
 
 
 def test_no_init_empty_directory(call_devpi_in_dir, tmpdir):
@@ -293,15 +276,11 @@ def test_no_init_empty_directory(call_devpi_in_dir, tmpdir):
     result.stderr.fnmatch_lines("*contains no devpi-server data*")
 
 
-@pytest.mark.parametrize("use_option", (False, True))
-def test_init_empty_directory(call_devpi_in_dir, monkeypatch, tmpdir, use_option):
+def test_init_empty_directory(call_devpi_in_dir, monkeypatch, tmpdir):
     monkeypatch.setattr("devpi_server.config.Config.init_nodeinfo", lambda x: 0/0)
     assert not len(os.listdir(tmpdir.strpath))
     with pytest.raises(ZeroDivisionError):
-        if use_option:
-            call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
-        else:
-            call_devpi_in_dir(tmpdir, ["devpi-init"])
+        call_devpi_in_dir(tmpdir, ["devpi-init"])
 
 
 def test_no_init_no_server_directory(call_devpi_in_dir, tmpdir):
@@ -312,26 +291,18 @@ def test_no_init_no_server_directory(call_devpi_in_dir, tmpdir):
     result.stderr.fnmatch_lines("*contains no devpi-server data*")
 
 
-@pytest.mark.parametrize("use_option", (False, True))
-def test_init_no_server_directory(call_devpi_in_dir, monkeypatch, tmpdir, use_option):
+def test_init_no_server_directory(call_devpi_in_dir, monkeypatch, tmpdir):
     monkeypatch.setattr("devpi_server.config.Config.init_nodeinfo", lambda x: 0/0)
     tmpdir.ensure("foo")
     assert os.listdir(tmpdir.strpath) == ["foo"]
     with pytest.raises(ZeroDivisionError):
-        if use_option:
-            call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
-        else:
-            call_devpi_in_dir(tmpdir, ["devpi-init"])
+        call_devpi_in_dir(tmpdir, ["devpi-init"])
 
 
-@pytest.mark.parametrize("use_option", (False, True))
-def test_init_server_directory(call_devpi_in_dir, tmpdir, use_option):
+def test_init_server_directory(call_devpi_in_dir, tmpdir):
     tmpdir.ensure(".nodeinfo")
     assert os.listdir(tmpdir.strpath) == [".nodeinfo"]
-    if use_option:
-        result = call_devpi_in_dir(tmpdir, ["devpi-server", "--init"])
-    else:
-        result = call_devpi_in_dir(tmpdir, ["devpi-init"])
+    result = call_devpi_in_dir(tmpdir, ["devpi-init"])
     assert os.listdir(tmpdir.strpath) == [".nodeinfo"]
     result.stderr.fnmatch_lines("*already contains devpi-server data*")
 
@@ -352,30 +323,56 @@ def test_serve_max_body(monkeypatch, tmpdir):
     main(["devpi-server", "--max-request-body-size", "42"])
 
 
-def test_root_passwd_option(makexom):
+def test_root_passwd_option(gentmp, makexom, storage_info):
+    from devpi_server.init import init
     # by default the password is empty
-    xom = makexom()
+    serverdir = gentmp()
+    argv = ["devpi-init", "--serverdir", serverdir]
+    if storage_info["name"] != "sqlite":
+        argv.append("--storage=%s" % storage_info["name"])
+    init(argv=argv)
+    xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.transaction(write=False):
         user = xom.model.get_user('root')
         assert user.validate("")
         assert not user.validate("foobar")
     # the password can be set from the command line
-    xom = makexom(["--root-passwd", "foobar"])
+    serverdir = gentmp()
+    argv = [
+        "devpi-init", "--serverdir", serverdir,
+        "--root-passwd", "foobar"]
+    if storage_info["name"] != "sqlite":
+        argv.append("--storage=%s" % storage_info["name"])
+    init(argv=argv)
+    xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.transaction(write=False):
         user = xom.model.get_user('root')
         assert not user.validate("")
         assert user.validate("foobar")
 
 
-def test_root_passwd_hash_option(makexom):
+def test_root_passwd_hash_option(gentmp, makexom, storage_info):
+    from devpi_server.init import init
     # by default the password is empty
-    xom = makexom()
+    serverdir = gentmp()
+    argv = ["devpi-init", "--serverdir", serverdir]
+    if storage_info["name"] != "sqlite":
+        argv.append("--storage=%s" % storage_info["name"])
+    init(argv=argv)
+    xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.transaction(write=False):
         user = xom.model.get_user('root')
         assert user.validate("")
         assert not user.validate("foobar")
     # the password hash can be directly set from the command line
-    xom = makexom(["--root-passwd-hash", "$argon2i$v=19$m=102400,t=2,p=8$j9G6V8o5B0Co9f4fQ6gVIg$WzcG2C5Bv0LwtzPWeBcz0g"])
+    serverdir = gentmp()
+    argv = [
+        "devpi-init", "--serverdir", serverdir,
+        "--root-passwd-hash", "$argon2i$v=19$m=102400,t=2,p=8$j9G6V8o5B0Co9f4fQ6gVIg$WzcG2C5Bv0LwtzPWeBcz0g"]
+    if storage_info["name"] != "sqlite":
+        argv.append("--storage=%s" % storage_info["name"])
+    init(argv=argv)
+    xom = makexom(opts=("--serverdir", serverdir))
     # we allow writes, because the hash might be upgraded
     # this happend after passlib 1.7.2 made argon2id the default
     with xom.keyfs.transaction(write=True):

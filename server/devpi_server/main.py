@@ -39,7 +39,7 @@ def check_compatible_version(config):
         if state_ver[0] != DATABASE_VERSION:
             fatal("Incompatible state: server %s cannot run serverdir "
                   "%s created at database version %s.\n"
-                  "Use devpi-export (or --export) from older version, then "
+                  "Use devpi-export from older version, then "
                   "devpi-import with newer version."
                   % (server_version, config.serverdir, state_ver[0]))
 
@@ -71,18 +71,18 @@ def main(argv=None):
         return 1
 
 
-def xom_from_config(config):
+def xom_from_config(config, init=False):
     check_compatible_version(config)
 
     # read/create node UUID and role of this server
     config.init_nodeinfo()
 
-    if config.sqlite_file_needed_but_missing():
+    if not init and config.sqlite_file_needed_but_missing():
         fatal(
-            "No sqlite storage found in serverdir."
+            "No sqlite storage found in %s."
             " Or you need to run with --storage to specify the storage type,"
             " or you first need to run devpi-init or devpi-import"
-            " in order to create the sqlite database."
+            " in order to create the sqlite database." % config.serverdir
         )
 
     return XOM(config)
@@ -111,49 +111,13 @@ def _main(pluginmanager, argv=None):
         print(server_version)
         return 0
 
-    if args.genconfig:
-        from devpi_server.genconfig import genconfig
-        import warnings
-        warnings.warn(
-            "DEPRECATION: the --gen-config option is deprecated, use the "
-            "devpi-gen-config command instead")
-        return genconfig(config, argv)
-
     # now we can configure logging
     configure_logging(config.args)
 
-    if args.init:
-        import warnings
-        warnings.warn(
-            "DEPRECATION: the --init option is deprecated, use the "
-            "devpi-init command instead")
-        if config.path_nodeinfo.exists():
-            fatal("The path '%s' already contains devpi-server data." % config.serverdir)
-    elif not args.import_:
-        if not config.path_nodeinfo.exists():
-            fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
-
-    if args.init or args.import_:
-        sdir = config.serverdir
-        if not (sdir.exists() and len(sdir.listdir()) >= 2):
-            set_state_version(config, DATABASE_VERSION)
+    if not config.path_nodeinfo.exists():
+        fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
 
     xom = xom_from_config(config)
-
-    if args.init:
-        init_default_indexes(xom)
-
-    if args.passwd:
-        from devpi_server.model import run_passwd
-        import warnings
-        warnings.warn(
-            "DEPRECATION: the --passwd option is deprecated, use the "
-            "devpi-passwd command instead")
-        with xom.keyfs.transaction(write=True):
-            return run_passwd(xom.model, config.args.passwd)
-
-    if args.init:
-        return 0
 
     return xom.main()
 
@@ -259,27 +223,6 @@ class XOM:
 
     def main(self):
         xom = self
-        args = xom.config.args
-        if args.export:
-            from devpi_server.importexport import do_export
-            import warnings
-            warnings.warn(
-                "DEPRECATION: the --export option is deprecated, use the "
-                "devpi-export command instead")
-            #xom.thread_pool.start_one(xom.keyfs.notifier)
-            return do_export(args.export, xom)
-
-        if args.import_:
-            from devpi_server.importexport import do_import
-            import warnings
-            warnings.warn(
-                "DEPRECATION: the --import option is deprecated, use the "
-                "devpi-import command instead")
-            # we need to start the keyfs notifier so that import
-            # can wait on completion of events
-            if args.wait_for_events:
-                xom.thread_pool.start_one(xom.keyfs.notifier)
-            return do_import(args.import_, xom)
 
         # creation of app will register handlers of key change events
         # which cannot happen anymore after the tx notifier has started
@@ -552,12 +495,12 @@ def set_default_indexes(model):
     if not root_user:
         root_user = model.create_user(
             "root",
-            model.xom.config.args.root_passwd,
-            pwhash=model.xom.config.args.root_passwd_hash)
+            model.xom.config.root_passwd,
+            pwhash=model.xom.config.root_passwd_hash)
         threadlog.info("created root user")
     userconfig = root_user.key.get(readonly=False)
     indexes = userconfig["indexes"]
-    if "pypi" not in indexes and not model.xom.config.args.no_root_pypi:
+    if "pypi" not in indexes and not model.xom.config.no_root_pypi:
         indexes["pypi"] = _pypi_ixconfig_default.copy()
         root_user.key.set(userconfig)
         threadlog.info("created root/pypi index")
