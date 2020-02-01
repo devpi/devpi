@@ -135,8 +135,6 @@ def genconfig(config=None, argv=None):
     new_argv = []
     argv_iter = iter(argv[1:])
     for arg in argv_iter:
-        if arg == "--gen-config":
-            continue
         if arg.startswith("--serverdir"):
             if '=' not in arg:
                 next(argv_iter)  # remove path

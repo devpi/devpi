@@ -223,14 +223,7 @@ def add_storage_options(parser, pluginmanager):
              "average. So by default about 10MB are used.")
 
 
-def add_init_options(parser, pluginmanager, standalone=True):
-    if not standalone:
-        parser.addoption(
-            "--init", action="store_true",
-            help="(DEPRECATED, use devpi-init command) initialize "
-                 "devpi-server state in an empty directory "
-                 "(also see --serverdir)")
-
+def add_init_options(parser, pluginmanager):
     parser.addoption(
         "--no-root-pypi", action="store_true",
         help="don't create root/pypi on server initialization.")
@@ -247,33 +240,13 @@ def add_init_options(parser, pluginmanager, standalone=True):
              "exist.")
 
 
-def add_export_options(parser, pluginmanager, standalone=True):
-    if not standalone:
-        parser.addoption(
-            "--export", type=str, metavar="PATH",
-            help="(DEPRECATED, use devpi-passwd command) export "
-                 "devpi-server database state into PATH. "
-                 "This will export all users, indices, release files "
-                 "(except for mirrors), test results and documentation.")
-
+def add_export_options(parser, pluginmanager):
     parser.addoption(
         "--include-mirrored-files", action="store_true",
         help="include downloaded files from mirror indexes in dump.")
 
 
-def add_import_options(parser, pluginmanager, standalone=True):
-    if not standalone:
-        parser.addoption(
-            "--import", type=str, metavar="PATH",
-            dest="import_",
-            help="(DEPRECATED, use devpi-import command) import "
-                 "devpi-server database from PATH where PATH "
-                 "is a directory which was created by a "
-                 "'devpi-server --export PATH' operation, "
-                 "using the same or an earlier devpi-server version. "
-                 "Note that you can only import into a fresh server "
-                 "state directory (positional argument to devpi-server).")
-
+def add_import_options(parser, pluginmanager):
     parser.addoption(
         "--skip-import-type", action="append", metavar="TYPE",
         help="skip the given index type during import. "
@@ -291,14 +264,6 @@ def add_import_options(parser, pluginmanager, standalone=True):
 
 
 def add_deploy_options(parser, pluginmanager):
-    parser.addoption(
-        "--gen-config", dest="genconfig", action="store_true",
-        help="(DEPRECATED, use devpi-gen-config command) "
-             "generate example config files for "
-             "nginx/supervisor/crontab/systemd/launchd/windows-service, "
-             "taking other passed options into account "
-             "(e.g. port, host, etc.)")
-
     parser.addoption(
         "--secretfile", type=str, metavar="path",
         help="file containing the server side secret used for user "
@@ -358,15 +323,6 @@ def addoptions(parser, pluginmanager):
     add_storage_options(
         parser.addgroup("storage options"),
         pluginmanager)
-    add_init_options(
-        parser.addgroup("initialization options"),
-        pluginmanager, standalone=False)
-    add_import_options(
-        parser.addgroup("serverstate import options"),
-        pluginmanager, standalone=False)
-    add_export_options(
-        parser.addgroup("serverstate export options"),
-        pluginmanager, standalone=False)
     add_deploy_options(
         parser.addgroup("deployment options"),
         pluginmanager)
@@ -629,8 +585,16 @@ class Config(object):
         self._master_url = value
 
     @property
+    def include_mirrored_files(self):
+        return getattr(self.args, 'include_mirrored_files', False)
+
+    @property
     def mirror_cache_expiry(self):
         return getattr(self.args, 'mirror_cache_expiry', DEFAULT_MIRROR_CACHE_EXPIRY)
+
+    @property
+    def no_root_pypi(self):
+        return getattr(self.args, 'no_root_pypi', False)
 
     @property
     def offline_mode(self):
@@ -651,6 +615,18 @@ class Config(object):
     @property
     def request_timeout(self):
         return getattr(self.args, 'request_timeout', DEFAULT_REQUEST_TIMEOUT)
+
+    @property
+    def root_passwd(self):
+        return getattr(self.args, 'root_passwd', "")
+
+    @property
+    def root_passwd_hash(self):
+        return getattr(self.args, 'root_passwd_hash', None)
+
+    @property
+    def skip_import_type(self):
+        return getattr(self.args, 'skip_import_type', None)
 
     @property
     def restrict_modify(self):
@@ -748,9 +724,7 @@ class Config(object):
 
     def sqlite_file_needed_but_missing(self):
         return (
-            not getattr(self.args, 'init', None)
-            and not getattr(self.args, 'import_', None)
-            and self.storage_info['name'] == 'sqlite'
+            self.storage_info['name'] == 'sqlite'
             and not self.serverdir.join(".sqlite").exists()
         )
 
