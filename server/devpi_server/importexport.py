@@ -26,7 +26,6 @@ from .fileutil import BytesForHardlink
 from .log import configure_cli_logging
 from .main import DATABASE_VERSION
 from .main import Fatal
-from .main import check_python_version
 from .main import fatal
 from .main import init_default_indexes
 from .main import set_state_version
@@ -73,7 +72,6 @@ def export(pluginmanager=None, argv=None):
     else:
         # for tests
         argv = [str(x) for x in argv]
-    check_python_version()
     if pluginmanager is None:
         pluginmanager = get_pluginmanager()
     try:
@@ -131,7 +129,6 @@ def import_(pluginmanager=None, argv=None):
     else:
         # for tests
         argv = [str(x) for x in argv]
-    check_python_version()
     if pluginmanager is None:
         pluginmanager = get_pluginmanager()
     try:

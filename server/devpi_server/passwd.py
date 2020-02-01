@@ -5,7 +5,6 @@ from .config import add_storage_options
 from .config import parseoptions, get_pluginmanager
 from .log import configure_cli_logging
 from .main import Fatal
-from .main import check_python_version
 from .main import fatal
 from .main import xom_from_config
 from .model import run_passwd
@@ -23,7 +22,6 @@ def get_username():
 
 def passwd():
     """ devpi-passwd command line entry point. """
-    check_python_version()
     pluginmanager = get_pluginmanager()
     try:
         parser = MyArgumentParser(
