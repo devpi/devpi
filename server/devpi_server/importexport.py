@@ -143,16 +143,13 @@ def import_(pluginmanager=None, argv=None):
         add_hard_links_option(parser, pluginmanager)
         parser.add_argument("directory")
         config = parseoptions(pluginmanager, argv, parser=parser)
-        # BBB set import_ flag on args until the option is removed and the
-        # code adjusted
-        config.args.import_ = True
         configure_cli_logging(config.args)
         if config.path_nodeinfo.exists():
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
         sdir = config.serverdir
         if not (sdir.exists() and len(sdir.listdir()) >= 2):
             set_state_version(config, DATABASE_VERSION)
-        xom = xom_from_config(config)
+        xom = xom_from_config(config, init=True)
         if config.args.wait_for_events:
             xom.thread_pool.start_one(xom.keyfs.notifier)
         init_default_indexes(xom)
@@ -240,7 +237,7 @@ class IndexDump:
 
     def should_dump(self):
         if self.stage.ixconfig["type"] == "mirror":
-            if not self.exporter.config.args.include_mirrored_files:
+            if not self.exporter.config.include_mirrored_files:
                 return False
         return True
 
@@ -328,7 +325,7 @@ class Importer:
         self.filestore = xom.filestore
         self.tw = tw
         self.index_customizers = get_stage_customizer_classes(self.xom)
-        self.types_to_skip = set(self.xom.config.args.skip_import_type or [])
+        self.types_to_skip = set(self.xom.config.skip_import_type or [])
 
     def read_json(self, path):
         self.tw.line("reading json: %s" %(path,))
@@ -466,7 +463,7 @@ class Importer:
                     stage = self.xom.model.getstage(stagename)
                     if stage is not None:
                         stage.modify(**indexconfig)
-                    elif self.xom.config.args.no_root_pypi:
+                    elif self.xom.config.no_root_pypi:
                         continue
                 if stage is None:
                     stage = user.create_stage(index, **indexconfig)

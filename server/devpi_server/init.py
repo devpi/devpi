@@ -37,16 +37,13 @@ def init(pluginmanager=None, argv=None):
         add_storage_options(parser, pluginmanager)
         add_init_options(parser, pluginmanager)
         config = parseoptions(pluginmanager, argv, parser=parser)
-        # BBB set init flag on args until the option is removed and the
-        # code adjusted
-        config.args.init = True
         configure_cli_logging(config.args)
         if config.path_nodeinfo.exists():
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
         sdir = config.serverdir
         if not (sdir.exists() and len(sdir.listdir()) >= 2):
             set_state_version(config, DATABASE_VERSION)
-        xom = xom_from_config(config)
+        xom = xom_from_config(config, init=True)
         init_default_indexes(xom)
         return 0
     except Fatal as e:

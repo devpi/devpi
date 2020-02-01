@@ -3,12 +3,9 @@ import pytest
 
 
 @pytest.mark.skipif("sys.platform == 'win32'")
-@pytest.mark.parametrize("args", (
-    ["devpi-server", "--gen-config"],
-    ["devpi-gen-config"]))
-def test_gen_config_all(args, tmpdir):
+def test_gen_config_all(tmpdir):
     tmpdir.chdir()
-    proc = subprocess.Popen(args)
+    proc = subprocess.Popen(["devpi-gen-config"])
     res = proc.wait()
     assert res == 0
     b = tmpdir.join("gen-config")

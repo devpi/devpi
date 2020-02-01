@@ -208,7 +208,10 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
         for plugin in plugins:
             pm.register(plugin)
         serverdir = gentmp()
-        fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
+        if "--serverdir" in opts:
+            fullopts = ["devpi-server"] + list(opts)
+        else:
+            fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         if request.node.get_closest_marker("with_replica_thread"):
             fullopts.append("--master=http://localhost")
         if not request.node.get_closest_marker("no_storage_option"):
