@@ -581,6 +581,8 @@ class Config(object):
             if value.port:
                 netloc = "%s:%s" % (netloc, value.port)
             value = value.replace(netloc=netloc)
+        if auth == (None, None):
+            auth = None
         self.master_auth = auth
         self._master_url = value
 
