@@ -768,16 +768,14 @@ class TestFileReplication:
         assert list(replication_errors.errors.keys()) == []
 
 
-def test_simplelinks_update_updates_projectname(httpget, monkeypatch,
-        pypistage, replica_pypistage, pypiurls, replica_xom, xom):
-
+def test_simplelinks_update_updates_projectname(pypistage, replica_xom, xom):
     pypistage.mock_simple_projects([])
     pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
     with xom.keyfs.transaction():
         assert not pypistage.list_projects_perstage()
 
     with xom.keyfs.transaction():
-        pypistage.get_simplelinks("pytest")
+        assert len(pypistage.get_simplelinks("pytest")) == 1
 
     # replicate including executing events
     replay(xom, replica_xom)
