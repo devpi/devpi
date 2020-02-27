@@ -572,7 +572,8 @@ class Mapp(MappMixin):
         assert r.status_code == code
         if code in (200,201):
             assert r.json["result"]["type"] == indexconfig.get("type", "stage")
-            return self.use("%s/%s" % (user, index))
+            if use:
+                return self.use("%s/%s" % (user, index))
         if code in (400,):
             return r.json["message"]
 

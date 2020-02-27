@@ -59,6 +59,16 @@ def devpiserver_stage_created(stage):
     """
 
 
+@hookspec(firstresult=True)
+def devpiserver_stage_get_principals_for_pkg_read(ixconfig):
+    """Returns principals allowed to read packages.
+
+    Returns a list of principal names. The ``:AUTHENTICATED:`` and
+    ``:ANONYMOUS:`` principals are special, see description for acl_upload.
+    The first plugin to return principals is used. return None to be skipped.
+    """
+
+
 @hookspec
 def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     """ called when versiondata data changes in a stage for a project/version.
