@@ -753,6 +753,9 @@ class PyPIView:
             apireturn(404, message="no release/files found for %s-%s" %(
                       name, version))
 
+        if not request.has_permission("pkg_read"):
+            abort(request, 403, "package read forbidden")
+
         metadata = linkstore.metadata
 
         results = []
@@ -1147,6 +1150,9 @@ class PyPIView:
             if stage is not None and stage.use_external_url:
                 # redirect to external url
                 return HTTPFound(location=entry.url)
+
+        if not request.has_permission("pkg_read"):
+            abort(request, 403, "package read forbidden")
 
         try:
             if should_fetch_remote_file(entry, request.headers):

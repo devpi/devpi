@@ -595,10 +595,7 @@ def test_apiconfig_with_outside_url(testapp):
     assert result["login"] == u + "/+login"
     assert result["simpleindex"] == u + "/root/pypi/+simple/"
 
-    #for name in "pushrelease simpleindex login pypisubmit resultlog".split():
-    #    assert name in r.json
-    #
-    #
+
 def test_root_pypi(testapp):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
