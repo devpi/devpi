@@ -391,6 +391,7 @@ class BaseStageCustomizer(object):
 
     def __init__(self, stage):
         self.stage = stage
+        self.hooks = self.stage.xom.config.hook
 
     # get_principals_for_* methods for each of the following permissions:
     # pypi_submit, toxresult_upload, index_delete, index_modify,
@@ -398,6 +399,10 @@ class BaseStageCustomizer(object):
     # also see __acl__ method of BaseStage
 
     def get_principals_for_pkg_read(self, restrict_modify=None):
+        principals = self.hooks.devpiserver_stage_get_principals_for_pkg_read(
+            ixconfig=self.stage.ixconfig)
+        if principals is not None:
+            return principals
         return [':ANONYMOUS:']
 
     def get_principals_for_pypi_submit(self, restrict_modify=None):

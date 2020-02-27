@@ -253,3 +253,60 @@ def test_package_filters(makemapp, maketestapp, makexom):
     assert 'hello-1.0.tar.gz' not in r.text
     assert 'hello-1.1.tar.gz' in r.text
     mapp.get_simple('pkg', code=404)
+
+
+def test_pkg_read_permission(makemapp, maketestapp, makexom):
+    from devpi_server.model import ACLList
+    import json
+
+    class Plugin:
+        @hookimpl
+        def devpiserver_indexconfig_defaults(self, index_type):
+            return {"acl_pkg_read": ACLList([':ANONYMOUS:'])}
+
+        @hookimpl
+        def devpiserver_stage_get_principals_for_pkg_read(self, ixconfig):
+            return ixconfig.get('acl_pkg_read', None)
+
+    plugin = Plugin()
+    xom = makexom(plugins=[plugin])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    api1 = mapp.create_and_use("someuser/dev")
+    mapp.create_index("someuser/dev_b", use=False)
+    mapp.upload_file_pypi("hello-1.0.tar.gz", b'content', "hello", "1.0")
+    (path,) = mapp.get_release_paths("hello")
+    # current user should be able to read package
+    testapp.xget(200, path)
+    # and push should work
+    req = dict(name="hello", version="1.0", targetindex="someuser/dev_b")
+    r = testapp.push("/someuser/dev", json.dumps(req))
+    assert r.status_code == 200
+    # cleanup
+    mapp.delete_project('hello', indexname="someuser/dev_b")
+    # create another user
+    api2 = mapp.create_and_use("otheruser/dev")
+    # they also have access by default
+    testapp.xget(200, path)
+    # and push should work
+    req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
+    r = testapp.push("/someuser/dev", json.dumps(req))
+    assert r.status_code == 200
+    # cleanup
+    mapp.delete_project('hello', indexname="otheruser/dev")
+    # change acl_pkg_read permission
+    mapp.login(api1.user, password=api1.password)
+    testapp.patch_json(api1.index, ['acl_pkg_read=%s' % api1.user])
+    # we should still be able to read
+    testapp.xget(200, path)
+    # and push
+    req = dict(name="hello", version="1.0", targetindex="someuser/dev_b")
+    r = testapp.push("/someuser/dev", json.dumps(req))
+    assert r.status_code == 200
+    # but now it should be forbidden for the other user
+    mapp.login(api2.user, password=api2.password)
+    testapp.xget(403, path)
+    # and push should be forbidden as well
+    req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
+    r = testapp.push("/someuser/dev", json.dumps(req))
+    assert r.status_code == 403
