@@ -397,6 +397,9 @@ class BaseStageCustomizer(object):
     # del_entry, del_project, del_verdata
     # also see __acl__ method of BaseStage
 
+    def get_principals_for_pkg_read(self, restrict_modify=None):
+        return [':ANONYMOUS:']
+
     def get_principals_for_pypi_submit(self, restrict_modify=None):
         return self.stage.ixconfig.get("acl_upload", [])
 
@@ -968,6 +971,7 @@ class BaseStage(object):
         from pyramid.security import Allow
 
         permissions = (
+            'pkg_read',
             'pypi_submit',
             'toxresult_upload',
             'index_delete',
