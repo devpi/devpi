@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 import base64
 import os.path
 import argparse
+import secrets
 import sys
 import uuid
 from operator import itemgetter
@@ -752,7 +753,7 @@ class Config(object):
                 "No secret file provided, creating a new random secret. "
                 "Login tokens issued before are invalidate. "
                 "Use --secretfile option to provide a persistent secret.")
-            return base64.b64encode(os.urandom(32))
+            return base64.b64encode(secrets.token_bytes(32))
         if not self.secretfile.check(file=True):
             fatal("The given secret file doesn't exist.")
         log.info("Using secret file '%s'.", self.secretfile)

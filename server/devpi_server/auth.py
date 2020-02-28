@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
 import base64
-import os
 import hashlib
 import itsdangerous
 import py
+import secrets
 from .log import threadlog
 from passlib.context import CryptContext
 from passlib.utils.handlers import MinimalHandler
@@ -107,7 +107,7 @@ def getpwhash(password, salt):
     return py.builtin._totext(hash.hexdigest())
 
 def newsalt():
-    return py.builtin._totext(base64.b64encode(os.urandom(16)), "ascii")
+    return py.builtin._totext(base64.b64encode(secrets.token_bytes(16)), "ascii")
 
 
 class DevpiHandler(MinimalHandler):
