@@ -167,6 +167,11 @@ def ensure_list(data):
     return list(filter(None, (x.strip() for x in data.split(","))))
 
 
+class ACLList(list):
+    # marker class for devpiserver_indexconfig_defaults
+    pass
+
+
 def ensure_acl_list(data):
     data = ensure_list(data)
     for index, name in enumerate(data):
@@ -577,7 +582,14 @@ class BaseStage(object):
                     "existing index configuration keys for '%s': %s"
                     % (index_type, ", ".join(sorted(conflicting))))
             for key, value in defaults.items():
-                ixconfig.setdefault(key, kwargs.pop(key, value))
+                new_value = kwargs.pop(key, value)
+                if isinstance(value, bool):
+                    new_value = ensure_boolean(new_value)
+                elif isinstance(value, ACLList):
+                    new_value = ensure_acl_list(new_value)
+                elif isinstance(value, (list, tuple, set)):
+                    new_value = ensure_list(new_value)
+                ixconfig.setdefault(key, new_value)
         # XXX backward compatibility for old exports where these could appear
         # on mirror indexes
         # and pypi_whitelist also still needs to be here for existing dbs
