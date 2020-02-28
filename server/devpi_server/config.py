@@ -756,8 +756,17 @@ class Config(object):
             return base64.b64encode(secrets.token_bytes(32))
         if not self.secretfile.check(file=True):
             fatal("The given secret file doesn't exist.")
+        secret = self.secretfile.read()
+        if len(secret) < 32:
+            fatal(
+                "The secret in the given secret file is too short, "
+                "it should be at least 32 characters long.")
+        if len(set(secret)) < 6:
+            fatal(
+                "The secret in the given secret file is too weak, "
+                "it should use less repetition.")
         log.info("Using secret file '%s'.", self.secretfile)
-        return self.secretfile.read()
+        return secret
 
 
 def getpath(path):
