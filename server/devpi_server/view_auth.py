@@ -2,7 +2,7 @@ from pyramid.httpexceptions import HTTPFound
 from devpi_common.types import ensure_unicode
 from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
-from devpi_server.views import abort, abort_authenticate
+from devpi_server.views import abort
 from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy
 from pyramid.decorator import reify
@@ -184,13 +184,7 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
             request.log.debug("got auth status %r for user %r" % (status, auth_user))
             if status == "ok":
                 return [":%s" % g for g in groups]
-            elif status == "reject":
-                abort_authenticate(request, msg="credentials for user '%s' were rejected" % auth_user)
-            elif status == "nouser":
-                abort_authenticate(request, msg="user '%s' does not exist" % auth_user)
-            elif status == "expired":
-                abort_authenticate(request, msg="auth expired for '%s'" % auth_user)
-            raise ValueError("Unknown authentication status: %s" % status)
+            return None
 
     def _get_credentials(self, request):
         return self.hook.devpiserver_get_credentials(request=request)
