@@ -1,0 +1,1 @@
+The server secret for token signing is now derived via argon2 from the data provided by ``--secretfile``. Existing login tokens are invalidated by this.
