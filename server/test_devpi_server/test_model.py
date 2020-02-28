@@ -1159,10 +1159,6 @@ class TestLinkStore:
 
 class TestUsers:
 
-    def test_secret(self, xom, model):
-        xom.keyfs.basedir.ensure(".something")
-        assert model.get_user(".something") is None
-
     def test_create_and_validate(self, model):
         user = model.get_user("user")
         assert not user
