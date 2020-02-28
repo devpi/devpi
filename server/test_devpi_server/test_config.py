@@ -54,7 +54,7 @@ class TestConfig:
     def test_parse_secret(self, caplog, tmpdir):
         # create a secret file
         p = tmpdir.join("secret")
-        secret = "qwoieuqwelkj123"
+        secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
         # and use it
         caplog.clear()
@@ -89,7 +89,7 @@ class TestConfig:
         warnings.simplefilter("always")
         # setup secret file in old default location
         p = tmpdir.join(".secret")
-        secret = "qwoieuqwelkj123"
+        secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
         caplog.clear()
         config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
@@ -102,6 +102,26 @@ class TestConfig:
         assert len(recwarn) == 1
         warning = recwarn.pop(Warning)
         assert 'deprecated existing secret' in warning.message.args[0]
+
+    def test_secret_complexity(self, tmpdir):
+        # create a secret file with too short secret
+        p = tmpdir.join("secret")
+        secret = "qwoieuqwelkj123"
+        p.write(secret)
+        # and use it
+        config = make_config(["devpi-server", "--secretfile=%s" % p])
+        with pytest.raises(Fatal) as e:
+            config.secret
+        assert "at least 32 characters" in "%s" % e.value
+        # create a secret file which is too repetitive
+        p = tmpdir.join("secret")
+        secret = "12345" * 7
+        p.write(secret)
+        # and use it
+        config = make_config(["devpi-server", "--secretfile=%s" % p])
+        with pytest.raises(Fatal) as e:
+            config.secret
+        assert "less repetition" in "%s" % e.value
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)
