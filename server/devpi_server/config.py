@@ -748,6 +748,7 @@ class Config(object):
     @cached_property
     def secret(self):
         from .main import fatal
+        import stat
         if self.secretfile is None:
             log.warn(
                 "No secret file provided, creating a new random secret. "
@@ -756,6 +757,10 @@ class Config(object):
             return base64.b64encode(secrets.token_bytes(32))
         if not self.secretfile.check(file=True):
             fatal("The given secret file doesn't exist.")
+        if self.secretfile.stat().mode & stat.S_IRWXO:
+            fatal("The given secret file is world accessible, the access mode must be user accessible only (0600).")
+        if self.secretfile.stat().mode & stat.S_IRWXG:
+            fatal("The given secret file is group accessible, the access mode must be user accessible only (0600).")
         secret = self.secretfile.read()
         if len(secret) < 32:
             fatal(

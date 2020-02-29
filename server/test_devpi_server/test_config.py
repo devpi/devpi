@@ -56,6 +56,7 @@ class TestConfig:
         p = tmpdir.join("secret")
         secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
+        p.chmod(0o600)
         # and use it
         caplog.clear()
         config = make_config(["devpi-server", "--secretfile=%s" % p])
@@ -91,6 +92,7 @@ class TestConfig:
         p = tmpdir.join(".secret")
         secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
+        p.chmod(0o600)
         caplog.clear()
         config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
         # the existing file should be used
@@ -108,6 +110,7 @@ class TestConfig:
         p = tmpdir.join("secret")
         secret = "qwoieuqwelkj123"
         p.write(secret)
+        p.chmod(0o600)
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal) as e:
@@ -117,6 +120,7 @@ class TestConfig:
         p = tmpdir.join("secret")
         secret = "12345" * 7
         p.write(secret)
+        p.chmod(0o600)
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal) as e:
