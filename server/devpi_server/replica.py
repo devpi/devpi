@@ -302,10 +302,15 @@ class ReplicaThread:
                     H_REPLICA_OUTSIDE_URL: config.args.outside_url,
                     str('Authorization'): 'Bearer %s' % token},
                 timeout=self.REPLICA_REQUEST_TIMEOUT)
-            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
         except Exception as e:
-            log.error("error fetching %s: %s", url, str(e))
+            msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
+            log.error("error fetching %s: %s", url, msg)
             return False
+
+        if r.status_code not in (200, 202):
+            log.error("%s %s: failed fetching %s", r.status_code, r.reason, url)
+            return False
+
         # we check that the remote instance
         # has the same UUID we saw last time
         master_uuid = config.get_master_uuid()
@@ -329,6 +334,13 @@ class ReplicaThread:
             # force exit of the process
             os._exit(3)
 
+        try:
+            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
+        except Exception as e:
+            msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
+            log.error("error fetching %s: %s", url, msg)
+            return False
+
         if r.status_code == 200:
             try:
                 handler(r)
@@ -343,12 +355,11 @@ class ReplicaThread:
                 self.update_master_serial(remote_serial)
                 return True
         elif r.status_code == 202:
+            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
             log.debug("%s: trying again %s\n", r.status_code, url)
             # also record the current master serial for status info
             self.update_master_serial(remote_serial)
             return True
-        else:
-            log.error("%s: failed fetching %s", r.status_code, url)
         return False
 
     def handler_single(self, response, serial):
