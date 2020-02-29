@@ -18,6 +18,14 @@ pytestmark = [pytest.mark.notransaction]
 
 
 @pytest.fixture
+def auth_serializer(xom):
+    import itsdangerous
+
+    return itsdangerous.TimedSerializer(
+        xom.config.get_replica_secret())
+
+
+@pytest.fixture
 def replica_pypistage(devpiserver_makepypistage, replica_xom):
     return devpiserver_makepypistage(replica_xom)
 
@@ -37,10 +45,12 @@ class TestChangelog:
     replica_url = "http://qwe"
 
     @pytest.fixture(params=[False, True])
-    def reqchangelog(self, request, testapp):
+    def reqchangelog(self, request, auth_serializer, testapp, xom):
         def reqchangelog(serial):
+            token = auth_serializer.dumps(self.replica_uuid)
             req_headers = {H_REPLICA_UUID: self.replica_uuid,
-                           H_REPLICA_OUTSIDE_URL: self.replica_url}
+                           H_REPLICA_OUTSIDE_URL: self.replica_url,
+                           str('Authorization'): 'Bearer %s' % token}
             url = "/+changelog/%s" % serial
             use_multi_endpoint = request.param
             if use_multi_endpoint:
@@ -86,9 +96,16 @@ class TestChangelog:
             serial = mcr._wait_for_serial(xom.keyfs.get_current_serial())
         assert serial == 1
 
-    def test_master_id_mismatch(self, testapp):
-        testapp.xget(400, "/+changelog/0", headers={H_EXPECTED_MASTER_ID:str("123")})
-        r = testapp.xget(200, "/+changelog/0", headers={H_EXPECTED_MASTER_ID: ''})
+    def test_master_id_mismatch(self, auth_serializer, testapp):
+        token = auth_serializer.dumps(self.replica_uuid)
+        testapp.xget(400, "/+changelog/0", headers={
+            H_REPLICA_UUID: self.replica_uuid,
+            H_EXPECTED_MASTER_ID:str("123"),
+            str('Authorization'): 'Bearer %s' % token})
+        r = testapp.xget(200, "/+changelog/0", headers={
+            H_REPLICA_UUID: self.replica_uuid,
+            H_EXPECTED_MASTER_ID: '',
+            str('Authorization'): 'Bearer %s' % token})
         assert r.headers[H_MASTER_UUID]
         del testapp.headers[H_EXPECTED_MASTER_ID]
         testapp.xget(400, "/+changelog/0")
@@ -99,10 +116,12 @@ class TestMultiChangelog:
     replica_url = "http://qwe"
 
     @pytest.fixture
-    def reqchangelogs(self, request, testapp):
+    def reqchangelogs(self, request, auth_serializer, testapp):
         def reqchangelogs(serial):
+            token = auth_serializer.dumps(self.replica_uuid)
             req_headers = {H_REPLICA_UUID: self.replica_uuid,
-                           H_REPLICA_OUTSIDE_URL: self.replica_url}
+                           H_REPLICA_OUTSIDE_URL: self.replica_url,
+                           str('Authorization'): 'Bearer %s' % token}
             url = "/+changelog/%s-" % serial
             return testapp.get(url, expect_errors=False, headers=req_headers)
         return reqchangelogs
@@ -404,11 +423,12 @@ def replay(xom, replica_xom, events=True):
 
 
 @pytest.fixture
-def make_replica_xom(makexom):
+def make_replica_xom(makexom, secretfile):
     def make_replica_xom(options=()):
         replica_xom = makexom([
             "--master", "http://localhost",
-            "--file-replication-threads", "1"] + list(options))
+            "--file-replication-threads", "1",
+            "--secretfile", secretfile.strpath] + list(options))
         # shorten error delay for tests
         replica_xom.replica_thread.shared_data.ERROR_QUEUE_MAX_DELAY = 0.1
         replica_xom.thread_pool.start_one(replica_xom.replica_thread)

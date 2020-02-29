@@ -864,6 +864,9 @@ class Config(object):
     def get_auth_secret(self):
         return self.get_derived_key(b'devpi-server-auth')
 
+    def get_replica_secret(self):
+        return self.get_derived_key(b'devpi-server-replica')
+
 
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))

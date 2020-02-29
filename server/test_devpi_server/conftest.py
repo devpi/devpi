@@ -210,10 +210,11 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
         from devpi_server import model
+        from devpi_server import replica
         plugins = [
             plugin[0] if isinstance(plugin, tuple) else plugin
             for plugin in plugins]
-        for plugin in [auth_basic, auth_devpi, extpypi, model, storage_info["_test_plugin"]]:
+        for plugin in [auth_basic, auth_devpi, extpypi, model, replica, storage_info["_test_plugin"]]:
             if plugin not in plugins:
                 plugins.append(plugin)
         pm = get_pluginmanager(load_entrypoints=False)
@@ -264,10 +265,10 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
 
 
 @pytest.fixture
-def replica_xom(request, makexom):
+def replica_xom(request, makexom, secretfile):
     from devpi_server.replica import register_key_subscribers
     master_url = "http://localhost:3111"
-    xom = makexom(["--master", master_url])
+    xom = makexom(["--master", master_url, "--secretfile", secretfile.strpath])
     register_key_subscribers(xom)
     return xom
 
@@ -977,8 +978,8 @@ def master_serverdir(server_directory):
     return server_directory.join("master")
 
 
-@pytest.yield_fixture(scope="class")
-def master_host_port(request, call_devpi_in_dir, master_serverdir, server_directory, storage_info):
+@pytest.fixture(scope="class")
+def secretfile(server_directory):
     import base64
     import secrets
     secretfile = server_directory.join('testserver.secret')
@@ -986,12 +987,20 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir, server_direct
         secretfile.write(base64.b64encode(secrets.token_bytes(32)))
         if sys.platform != "win32":
             secretfile.chmod(0o600)
+    return secretfile
+
+
+@pytest.yield_fixture(scope="class")
+def master_host_port(request, call_devpi_in_dir, master_serverdir, server_directory, secretfile, storage_info):
     host = 'localhost'
     port = get_open_port(host)
     args = [
         "devpi-server",
         "--role", "master",
         "--secretfile", secretfile.strpath,
+        "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
+        "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
+        "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST),
         "--host", host,
         "--port", str(port),
         "--requests-only"]
@@ -1023,11 +1032,15 @@ def replica_serverdir(server_directory):
 
 
 @pytest.yield_fixture(scope="class")
-def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir, storage_info):
+def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir, secretfile, storage_info):
     host = 'localhost'
     port = get_open_port(host)
     args = [
         "devpi-server",
+        "--secretfile", secretfile.strpath,
+        "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
+        "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
+        "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST),
         "--host", host, "--port", str(port)]
     storage_args = [
         "--serverdir", replica_serverdir.strpath]
