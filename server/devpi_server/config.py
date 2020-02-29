@@ -753,7 +753,11 @@ class Config(object):
             log.warn(
                 "No secret file provided, creating a new random secret. "
                 "Login tokens issued before are invalidate. "
-                "Use --secretfile option to provide a persistent secret.")
+                "Use --secretfile option to provide a persistent secret. "
+                "You can create a proper secret to pipe into a file with one "
+                "of these commands:\n"
+                "python -c \"import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode('ascii'))\"\n"
+                "openssl rand -base64 32")
             return base64.b64encode(secrets.token_bytes(32))
         if not self.secretfile.check(file=True):
             fatal("The given secret file doesn't exist.")
