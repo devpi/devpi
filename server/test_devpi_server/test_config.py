@@ -113,9 +113,8 @@ class TestConfig:
         p.chmod(0o600)
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
-        with pytest.raises(Fatal) as e:
+        with pytest.raises(Fatal, match="at least 32 characters"):
             config.secret
-        assert "at least 32 characters" in "%s" % e.value
         # create a secret file which is too repetitive
         p = tmpdir.join("secret")
         secret = "12345" * 7
@@ -123,9 +122,8 @@ class TestConfig:
         p.chmod(0o600)
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
-        with pytest.raises(Fatal) as e:
+        with pytest.raises(Fatal, match="less repetition"):
             config.secret
-        assert "less repetition" in "%s" % e.value
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)
@@ -191,9 +189,8 @@ class TestConfig:
     def test_replica_role_missing_master_url(self, tmpdir):
         config = make_config(["devpi-server", "--role=replica",
                              "--serverdir", str(tmpdir)])
-        with pytest.raises(Fatal) as excinfo:
+        with pytest.raises(Fatal, match="need to specify --master-url"):
             config.init_nodeinfo()
-        assert "need to specify --master-url" in str(excinfo.value)
 
     def test_uuid(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])

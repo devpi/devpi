@@ -118,9 +118,8 @@ def test_indexer_relative_path():
     from devpi_web.main import get_indexer_from_config
     options = ("--indexer-backend", "whoosh:path=ham")
     config = parseoptions(get_pluginmanager(), ("devpi-server",) + options)
-    with pytest.raises(Fatal) as e:
+    with pytest.raises(Fatal, match="must be absolute"):
         get_indexer_from_config(config)
-    assert "must be absolute" in "%s" % e.value
 
 
 class FakeStage(object):
@@ -253,9 +252,8 @@ class TestIndexingSharedData:
         stage = FakeStage('stage')
         mirror_prj = ProjectIndexingInfo(stage=mirror, name='mirror_prj')
         stage_prj = ProjectIndexingInfo(stage=stage, name='stage_prj')
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(ValueError, match="Project isn't from same index"):
             shared_data.extend([mirror_prj, stage_prj], 0)
-        assert "Project isn't from same index" in "%s" % e.value
 
     def test_extend_max_names(self, shared_data):
         shared_data.QUEUE_MAX_NAMES = 3

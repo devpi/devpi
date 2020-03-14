@@ -571,16 +571,12 @@ class TestStage:
         assert not stage.has_project_perstage("some-xyz")
 
     def test_delete_not_existing(self, stage, bases):
-        with pytest.raises(stage.NotFound) as excinfo:
+        with pytest.raises(stage.NotFound, match="^project.*not found"):
             stage.del_versiondata("hello", "1.0")
-        assert excinfo.value.msg.startswith("project")
-        assert "not found" in excinfo.value.msg
         register_and_store(stage, "hello-1.0.zip")
         stage.del_versiondata("hello", "1.0", cleanup=False)
-        with pytest.raises(stage.NotFound) as excinfo:
+        with pytest.raises(stage.NotFound, match="^version.*not found"):
             stage.del_versiondata("hello", "1.0")
-        assert excinfo.value.msg.startswith("version")
-        assert "not found" in excinfo.value.msg
 
     def test_releasefile_sorting(self, stage, bases):
         register_and_store(stage, "some-1.1.zip")
@@ -901,9 +897,8 @@ class TestStage:
         with xom.keyfs.transaction(write=True):
             stage = user.create_stage(**udict(
                 index="world", bases=(), type="stage", volatile=True))
-            with pytest.raises(KeyError) as e:
+            with pytest.raises(KeyError, match='not commited yet'):
                 stage.get_last_change_serial_perstage()
-            assert 'not commited yet' in str(e.value)
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.transaction(write=False):
