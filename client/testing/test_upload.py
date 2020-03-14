@@ -59,8 +59,8 @@ class TestCheckout:
         return repo.join(setupdir_rel)
 
     @pytest.fixture(scope="class", params=["hg", "git"])
-    def repo(self, request, setupdir_rel):
-        repo = request.config._tmpdirhandler.mktemp("repo", numbered=True)
+    def repo(self, request, setupdir_rel, tmpdir_factory):
+        repo = tmpdir_factory.mktemp("repo", numbered=True)
         setupdir = repo.ensure_dir(setupdir_rel)
         file = setupdir.join("file")
         file.write("hello")
