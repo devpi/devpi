@@ -96,13 +96,12 @@ def caplog(caplog):
     return caplog
 
 @pytest.fixture
-def gentmp(request):
-    tmpdirhandler = request.config._tmpdirhandler
+def gentmp(request, tmpdir_factory):
     cache = []
     def gentmp(name=None):
         if not cache:
             prefix = re.sub(r"[\W]", "_", request.node.name)
-            basedir = tmpdirhandler.mktemp(prefix, numbered=True)
+            basedir = tmpdir_factory.mktemp(prefix, numbered=True)
             cache.append(basedir)
         else:
             basedir = cache[0]
