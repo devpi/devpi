@@ -21,6 +21,13 @@ def key(request):
     return request.param
 
 
+@pytest.yield_fixture
+def pool():
+    pool = ThreadPool()
+    yield pool
+    pool.shutdown()
+
+
 class TestKeyFS:
     def test_get_non_existent(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", dict)
@@ -291,9 +298,8 @@ class TestTransactionIsolation:
         with pytest.raises(keyfs.ReadOnly):
             tx_1.delete(key)
 
-    def test_serialized_writing(self, queue, keyfs):
+    def test_serialized_writing(self, TimeoutQueue, keyfs):
         import threading
-        from test_devpi_server.conftest import TimeoutQueue
         q1 = TimeoutQueue()
         q2 = TimeoutQueue()
         def trans1():
@@ -318,9 +324,8 @@ class TestTransactionIsolation:
         for i in range(NUM):
             assert q1.get() == "write2"
 
-    def test_reading_while_writing(self, queue, keyfs):
+    def test_reading_while_writing(self, TimeoutQueue, keyfs):
         import threading
-        from test_devpi_server.conftest import TimeoutQueue
         q1 = TimeoutQueue()
         q2 = TimeoutQueue()
         q3 = TimeoutQueue()
@@ -536,6 +541,12 @@ class TestDeriveKey:
             key = tx.derive_key(D.relpath)
             assert key == D
             assert key.params == params
+
+
+
+@pytest.fixture
+def queue(TimeoutQueue):
+    return TimeoutQueue()
 
 
 

@@ -8,6 +8,12 @@ zip_types = ("application/zip", "application/x-zip-compressed")
 
 BytesIO = py.io.BytesIO
 
+
+@pytest.fixture
+def filestore(xom):
+    return xom.filestore
+
+
 def getdigest(content, hash_type):
     return getattr(hashlib, hash_type)(content).hexdigest()
 

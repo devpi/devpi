@@ -47,7 +47,7 @@ def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"
         s = s.format(stage=stagename)
     return s
 
-class TimeoutQueue(BaseQueue):
+class _TimeoutQueue(BaseQueue):
     def get(self, timeout=2):
         return BaseQueue.get(self, timeout=timeout)
 
@@ -59,20 +59,10 @@ def _clear():
     thread_clear_log()
 
 
-@pytest.yield_fixture
-def pool():
-    from devpi_server.mythread  import ThreadPool
-    pool = ThreadPool()
-    yield pool
-    pool.shutdown()
-
 @pytest.fixture
-def queue():
-    return TimeoutQueue()
+def TimeoutQueue():
+    return _TimeoutQueue
 
-@pytest.fixture
-def Queue():
-    return TimeoutQueue
 
 @pytest.fixture()
 def caplog(caplog):
@@ -351,9 +341,6 @@ def httpget(pypiurls):
 
     return MockHTTPGet()
 
-@pytest.fixture
-def filestore(xom):
-    return xom.filestore
 
 @pytest.fixture
 def keyfs(xom):
