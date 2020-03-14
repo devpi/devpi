@@ -115,6 +115,11 @@ def test_get_mirror_whitelist_info(model, pypistage):
         blocked_by_mirror_whitelist=None)
 
 
+@pytest.fixture
+def queue(TimeoutQueue):
+    return TimeoutQueue()
+
+
 class TestStage:
     def test_create_and_delete(self, model):
         user = model.create_user("hello", password="123")

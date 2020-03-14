@@ -2,14 +2,17 @@
 from devpi_server import mythread
 import pytest
 
-@pytest.fixture
+
+@pytest.yield_fixture
 def pool():
-    return mythread.ThreadPool()
+    pool = mythread.ThreadPool()
+    yield pool
+    pool.shutdown()
 
 
-def test_basic_interact(pool, Queue):
-    queue1 = Queue()
-    queue2 = Queue()
+def test_basic_interact(pool, TimeoutQueue):
+    queue1 = TimeoutQueue()
+    queue2 = TimeoutQueue()
     class T:
         def thread_run(self):
             queue1.put(10)
@@ -29,8 +32,8 @@ def test_basic_interact(pool, Queue):
     t.thread.join()
     assert not mythread.has_active_thread(t)
 
-def test_custom_shutdown(pool, Queue):
-    queue1 = Queue()
+def test_custom_shutdown(pool, TimeoutQueue):
+    queue1 = TimeoutQueue()
     class T:
         def thread_shutdown(self):
             queue1.put(10)
