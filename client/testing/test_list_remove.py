@@ -1,3 +1,4 @@
+from _pytest.outcomes import Failed
 from devpi_common.metadata import parse_requirement
 from devpi.list_remove import get_versions_to_delete
 from devpi.list_remove import confirm_delete
@@ -202,7 +203,7 @@ class TestListRemove:
         out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
         out = out_devpi("remove", "dddttt==0.666", code=200)
         out = out_devpi("list", "dddttt", "--all")
-        with pytest.raises(ValueError):
+        with pytest.raises((Failed, ValueError)):
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
 
     def test_delete_version_range_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
@@ -238,7 +239,7 @@ class TestListRemove:
         out = out_devpi("remove", "dddttt<2.0", code=200)
         out = out_devpi("list", "dddttt", "--all")
         out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
-        with pytest.raises(ValueError):
+        with pytest.raises((Failed, ValueError)):
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-1.0.zip")
         out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
 
@@ -253,5 +254,5 @@ class TestListRemove:
         out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
         out = out_devpi("remove", "dddttt", code=200)
         out = out_devpi("list", "dddttt", "--all")
-        with pytest.raises(ValueError):
+        with pytest.raises((Failed, ValueError)):
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
