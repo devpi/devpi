@@ -274,10 +274,9 @@ class TestFileStore:
                  "content-type": "application/zip"}
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"123"))
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ValueError, match=link.md5):
             for part in iter_cache_remote_file(xom, entry):
                 pass
-        assert link.md5 in str(excinfo.value)
         assert not entry.file_exists()
 
     def test_store_and_iter(self, filestore):

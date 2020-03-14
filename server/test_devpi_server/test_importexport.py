@@ -961,9 +961,8 @@ class TestImportExport:
 
         impexp.export()
 
-        with pytest.raises(InvalidIndexconfig) as excinfo:
+        with pytest.raises(InvalidIndexconfig, match="uploadtrigger_jenkins"):
             impexp.new_import()
-        assert "uploadtrigger_jenkins" in excinfo.value.args[0][0]
 
     def test_plugin_index_config(self, impexp):
         class Plugin:
