@@ -256,7 +256,7 @@ def add_import_options(parser, pluginmanager):
     parser.addoption(
         "--no-events", action="store_false",
         default=True, dest="wait_for_events",
-        help="no events will be run during import, instead they are"
+        help="no events will be run during import, instead they are "
              "postponed to run on server start. This allows much faster "
              "start of the server after import, when devpi-web is used. "
              "When you start the server after the import, the search "
@@ -269,7 +269,7 @@ def add_deploy_options(parser, pluginmanager):
         "--secretfile", type=str, metavar="path",
         help="file containing the server side secret used for user "
              "validation. If not specified, a random secret is "
-             "generated on each start up. ")
+             "generated on each start up.")
 
     parser.addoption(
         "--requests-only", action="store_true",
