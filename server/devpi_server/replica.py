@@ -881,6 +881,12 @@ class ImportFileReplica:
         self.errors = errors
         self.file_search_path = self.xom.config.replica_file_search_path
         self.use_hard_links = self.xom.config.hard_links
+        self.uuid, master_uuid = make_uuid_headers(xom.config.nodeinfo)
+        assert self.uuid != master_uuid
+
+    @cached_property
+    def auth_serializer(self):
+        return get_auth_serializer(self.xom.config)
 
     def find_pre_existing_file(self, key, val):
         if self.file_search_path is None:
@@ -935,9 +941,13 @@ class ImportFileReplica:
         url = self.xom.config.master_url.joinpath(relpath).url
         # we perform the request with a special header so that
         # the master can avoid -getting "volatile" links
+        token = self.auth_serializer.dumps(self.uuid)
         r = session.get(
             url, allow_redirects=False,
-            headers={H_REPLICA_FILEREPL: str("YES")},
+            headers={
+                H_REPLICA_FILEREPL: str("YES"),
+                H_REPLICA_UUID: self.uuid,
+                str('Authorization'): 'Bearer %s' % token},
             timeout=self.xom.config.args.request_timeout)
         if r.status_code == 302:
             # mirrors might redirect to external file when

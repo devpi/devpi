@@ -257,6 +257,7 @@ def test_package_filters(makemapp, maketestapp, makexom):
 
 def test_pkg_read_permission(makemapp, maketestapp, makexom):
     from devpi_server.model import ACLList
+    from devpi_server.replica import REPLICA_USER_NAME
     import json
 
     class Plugin:
@@ -294,6 +295,10 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     assert r.status_code == 200
     # cleanup
     mapp.delete_project('hello', indexname="otheruser/dev")
+    # check get_principals_for_pkg_read directly
+    with xom.keyfs.transaction(write=False):
+        stage = xom.model.getstage(api1.stagename)
+        assert stage.customizer.get_principals_for_pkg_read() == [':ANONYMOUS:']
     # change acl_pkg_read permission
     mapp.login(api1.user, password=api1.password)
     testapp.patch_json(api1.index, ['acl_pkg_read=%s' % api1.user])
@@ -310,3 +315,12 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 403
+    with xom.keyfs.transaction(write=False):
+        stage = xom.model.getstage(api1.stagename)
+        # by default get_principals_for_pkg_read returns just the set principals
+        assert stage.customizer.get_principals_for_pkg_read() == ['someuser']
+        # but if the server acts as a master for replicas,
+        # then the special replica user is included
+        xom.config.nodeinfo['role'] = 'master'
+        assert set(stage.customizer.get_principals_for_pkg_read()) == set(
+            ['someuser', REPLICA_USER_NAME])
