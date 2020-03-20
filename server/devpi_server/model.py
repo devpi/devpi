@@ -402,7 +402,11 @@ class BaseStageCustomizer(object):
         principals = self.hooks.devpiserver_stage_get_principals_for_pkg_read(
             ixconfig=self.stage.ixconfig)
         if principals is not None:
-            return principals
+            principals = set(principals)
+            if self.stage.xom.is_master():
+                # replicas always need to be able to download packages
+                principals.add("+replica")
+            return list(principals)
         return [':ANONYMOUS:']
 
     def get_principals_for_pypi_submit(self, restrict_modify=None):
