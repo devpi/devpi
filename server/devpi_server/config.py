@@ -765,6 +765,10 @@ class Config(object):
             fatal("The given secret file is world accessible, the access mode must be user accessible only (0600).")
         if self.secretfile.stat().mode & stat.S_IRWXG:
             fatal("The given secret file is group accessible, the access mode must be user accessible only (0600).")
+        if self.secretfile.dirpath().stat().mode & stat.S_IWGRP:
+            fatal("The folder of the given secret file is group writable, it must only be writable by the user.")
+        if self.secretfile.dirpath().stat().mode & stat.S_IWOTH:
+            fatal("The folder of the given secret file is world writable, it must only be writable by the user.")
         secret = self.secretfile.read()
         if len(secret) < 32:
             fatal(
