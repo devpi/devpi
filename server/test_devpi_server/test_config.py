@@ -53,7 +53,9 @@ class TestParser:
 class TestConfig:
     def test_parse_secret(self, caplog, tmpdir):
         # create a secret file
-        p = tmpdir.join("secret")
+        configdir = tmpdir.ensure_dir('config')
+        configdir.chmod(0o700)
+        p = configdir.join("secret")
         secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
         p.chmod(0o600)
@@ -67,7 +69,7 @@ class TestConfig:
         assert len(recs) == 0
         # now check the default
         caplog.clear()
-        config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
+        config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         assert config.args.secretfile is None
         assert config.secretfile is None
         assert config.secret != secret
@@ -77,7 +79,7 @@ class TestConfig:
         prev_secret = config.secret
         # each startup without a secret file creates a new random secret
         caplog.clear()
-        config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
+        config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         assert config.args.secretfile is None
         assert config.secretfile is None
         assert config.secret != secret
@@ -89,12 +91,14 @@ class TestConfig:
         import warnings
         warnings.simplefilter("always")
         # setup secret file in old default location
-        p = tmpdir.join(".secret")
+        configdir = tmpdir.ensure_dir('config')
+        configdir.chmod(0o700)
+        p = configdir.join(".secret")
         secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
         p.chmod(0o600)
         caplog.clear()
-        config = make_config(["devpi-server", "--serverdir", tmpdir.strpath])
+        config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         # the existing file should be used
         assert config.args.secretfile is None
         assert config.secretfile == str(p)
@@ -107,7 +111,9 @@ class TestConfig:
 
     def test_secret_complexity(self, tmpdir):
         # create a secret file with too short secret
-        p = tmpdir.join("secret")
+        configdir = tmpdir.ensure_dir('config')
+        configdir.chmod(0o700)
+        p = configdir.join("secret")
         secret = "qwoieuqwelkj123"
         p.write(secret)
         p.chmod(0o600)
@@ -116,7 +122,7 @@ class TestConfig:
         with pytest.raises(Fatal, match="at least 32 characters"):
             config.secret
         # create a secret file which is too repetitive
-        p = tmpdir.join("secret")
+        p = configdir.join("secret")
         secret = "12345" * 7
         p.write(secret)
         p.chmod(0o600)
