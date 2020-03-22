@@ -74,7 +74,7 @@ jobs:
       env: PROJECT=common
 
     - stage: test
-      python: "pypy3.5-7.0"
+      python: "pypy3.6-7.1.1"
       env: PROJECT=common
 
     #########################
@@ -96,7 +96,7 @@ jobs:
       env: PROJECT=server
 
     - stage: test
-      python: "pypy3.5-7.0"
+      python: "pypy3.6-7.1.1"
       env: PROJECT=server
 
     #########################
@@ -118,7 +118,7 @@ jobs:
       env: PROJECT=web
 
     - stage: test
-      python: "pypy3.5-7.0"
+      python: "pypy3.6-7.1.1"
       env: PROJECT=web
 
     #########################
@@ -148,7 +148,7 @@ jobs:
       env: PROJECT=client
 
     - stage: test
-      python: "pypy3.5-7.0"
+      python: "pypy3.6-7.1.1"
       env: PROJECT=client
 
     #########################
@@ -167,7 +167,7 @@ jobs:
         postgresql: "9.5"
 
     - stage: test
-      python: "pypy3.5-7.0"
+      python: "pypy3.6-7.1.1"
       env: PROJECT=postgresql
       addons:
         apt:
