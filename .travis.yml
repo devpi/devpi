@@ -1,4 +1,4 @@
-dist: xenial
+dist: focal
 language: python
 os: linux
 env:
@@ -60,10 +60,12 @@ jobs:
 
     - stage: test
       python: "pypy2.7-7.1.1"
+      dist: "xenial"
       env: PROJECT=common
 
     - stage: test
       python: "3.4"
+      dist: "xenial"
       env: PROJECT=common
 
     - stage: test
@@ -76,6 +78,7 @@ jobs:
 
     - stage: test
       python: "pypy3.6-7.1.1"
+      dist: "xenial"
       env: PROJECT=common
 
     #########################
@@ -86,6 +89,7 @@ jobs:
 
     - stage: test
       python: "3.4"
+      dist: "xenial"
       env: PROJECT=server
 
     - stage: test
@@ -98,6 +102,7 @@ jobs:
 
     - stage: test
       python: "pypy3.6-7.1.1"
+      dist: "xenial"
       env: PROJECT=server
 
     #########################
@@ -108,6 +113,7 @@ jobs:
 
     - stage: test
       python: "3.4"
+      dist: "xenial"
       env: PROJECT=web
 
     - stage: test
@@ -120,6 +126,7 @@ jobs:
 
     - stage: test
       python: "pypy3.6-7.1.1"
+      dist: "xenial"
       env: PROJECT=web
 
     #########################
@@ -134,10 +141,12 @@ jobs:
 
     - stage: test
       python: "pypy2.7-7.1.1"
+      dist: "xenial"
       env: PROJECT=client
 
     - stage: test
       python: "3.4"
+      dist: "xenial"
       env: PROJECT=client
 
     - stage: test
@@ -150,6 +159,7 @@ jobs:
 
     - stage: test
       python: "pypy3.6-7.1.1"
+      dist: "xenial"
       env: PROJECT=client
 
     #########################
@@ -169,6 +179,7 @@ jobs:
 
     - stage: test
       python: "pypy3.6-7.1.1"
+      dist: "xenial"
       env: PROJECT=postgresql
       addons:
         apt:
