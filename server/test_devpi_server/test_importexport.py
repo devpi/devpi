@@ -401,6 +401,21 @@ class TestImportExport:
             stage = mapp.xom.model.getstage('root/dev')
             assert stage.ixconfig['bases'] == ('root/dev',)
 
+    def test_deleted_base(self, caplog, impexp):
+        mapp = impexp.import_testdata('deletedbase')
+        with mapp.xom.keyfs.transaction(write=False):
+            assert mapp.xom.model.getstage('root/removed') is None
+            stage = mapp.xom.model.getstage('root/dev1')
+            assert stage.ixconfig['bases'] == ('root/removed',)
+            stage = mapp.xom.model.getstage('root/dev2')
+            assert stage.ixconfig['bases'] == ('root/removed',)
+            stage = mapp.xom.model.getstage('root/dev3')
+            assert stage.ixconfig['bases'] == ('root/dev2',)
+            stage = mapp.xom.model.getstage('root/dev4')
+            assert stage.ixconfig['bases'] == ('root/removed', 'root/pypi')
+            stage = mapp.xom.model.getstage('root/dev5')
+            assert stage.ixconfig['bases'] == ('root/removed', 'root/dev2')
+
     def test_bad_username(self, caplog, impexp):
         with pytest.raises(SystemExit):
             impexp.import_testdata('badusername')

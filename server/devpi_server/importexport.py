@@ -429,13 +429,26 @@ class Importer:
 
         # memorize index inheritance structure
         tree = IndexTree()
+        indexes = set(self.import_indexes)
         with self.xom.keyfs.transaction(write=False):
             stage = self.xom.model.getstage("root/pypi")
         if stage is not None:
+            indexes.add("root/pypi")
             tree.add("root/pypi")
+        missing_bases = set()
         for stagename, import_index in self.import_indexes.items():
             bases = import_index["indexconfig"].get("bases")
-            tree.add(stagename, bases)
+            if bases is None:
+                tree.add(stagename)
+            else:
+                existing_bases = set(bases).intersection(indexes)
+                missing_bases.update(set(bases) - existing_bases)
+                tree.add(stagename, existing_bases)
+
+        if missing_bases:
+            self.warn(
+                "The following indexes are in bases, but don't exist "
+                "in the import data: %s" % ", ".join(sorted(missing_bases)))
 
         # create stages in inheritance/root-first order
         stages = []
@@ -474,9 +487,11 @@ class Importer:
                 if stage is None:
                     stage = user.create_stage(index, **indexconfig)
                 if "bases" in import_index["indexconfig"]:
-                    indexconfig = stage.ixconfig
-                    indexconfig["bases"] = bases
-                    stage.modify(**indexconfig)
+                    # we are changing bases directly to allow import with
+                    # removed bases without changing the data from the export
+                    with stage.user.key.update() as userconfig:
+                        indexconfig = userconfig['indexes'][stage.index]
+                        indexconfig["bases"] = tuple(bases)
                 stages.append(stage)
         del tree
 
