@@ -1,0 +1,1 @@
+Upgrade pg8000 to version 1.14.0 or newer and take advantage of its improved SSL interface.
