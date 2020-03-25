@@ -32,7 +32,7 @@ setup(
     description="devpi-postgresql: a PostgreSQL storage backend for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
     url="http://doc.devpi.net",
-    version='1.1.0',
+    version='2.0.0',
     maintainer="Florian Schulze, Holger Krekel",
     maintainer_email="florian.schulze@gmx.net",
     license="MIT",
@@ -47,7 +47,7 @@ setup(
         "Programming Language :: Python :: Implementation :: PyPy",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"] + [
             "Programming Language :: Python :: %s" % x
-            for x in "3.4 3.5 3.6 3.7 3.8".split()],
+            for x in "3.5 3.6 3.7 3.8".split()],
     entry_points={
         'devpi_server': [
             "devpi-postgresql = devpi_postgresql.main"],
@@ -55,8 +55,8 @@ setup(
             "pytest_devpi_postgresql = pytest_devpi_postgresql"]},
     install_requires=[
         'devpi-server>=3.0.0.dev2',
-        'pg8000<1.14.0'],
+        'pg8000>=1.14.0'],
     include_package_data=True,
-    python_requires='>=3.4',
+    python_requires='>=3.5',
     zip_safe=False,
     packages=['devpi_postgresql', 'pytest_devpi_postgresql'])
