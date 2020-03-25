@@ -59,12 +59,13 @@ def devpipostgresql_postgresql(request):
             "unix_socket_directories = '{}'".format(tmpdir.strpath)]
 
         pg_ssl = request.config.option.backend_postgresql_ssl
+        host = 'localhost'
 
         if pg_ssl:
             # Make certificate authority and server certificate
             ca = CertificateAuthority('Test CA', tmpdir.join('ca.pem').strpath,
                                       cert_cache=tmpdir.strpath)
-            server_cert = ca.cert_for_host('server')
+            server_cert = ca.cert_for_host(host)
             if not sys.platform.startswith("win"):
                 # Postgres requires restrictive permissions on private key.
                 os.chmod(server_cert, 0o600)
@@ -87,7 +88,6 @@ def devpipostgresql_postgresql(request):
         with tmpdir.join('postgresql.conf').open('w+', encoding='ascii') as f:
             f.write("\n".join(postgresql_conf_lines))
 
-        host = 'localhost'
         port = get_open_port(host)
         cap = py.io.StdCaptureFD()
         cap.startall()
@@ -108,7 +108,7 @@ def devpipostgresql_postgresql(request):
             if pg_ssl:
                 # Make client certificate for user and authenticate with it.
                 client_cert = ca.cert_for_host(user)
-                settings['ssl_cert_reqs'] = 'cert_required'
+                settings['ssl_check_hostname'] = 'yes'
                 settings['ssl_ca_certs'] = tmpdir.join('ca.pem').strpath
                 settings['ssl_certfile'] = client_cert
 

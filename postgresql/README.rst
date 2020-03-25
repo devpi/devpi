@@ -37,7 +37,9 @@ Upon first initialization of ``devpi-server`` use ``--storage pg8000`` to select
 
 By default it'll use the ``devpi`` database on ``localhost`` port ``5432``.
 To change that, use ``storage pg8000:host=example.com,port=5433,database=devpi_prod``.
-The possible settings are: ``database``, ``host``, ``port``, ``unix_sock``, ``user``, ``password``, ``ssl_cert_reqs``, ``ssl_ca_certs``, ``ssl_certfile`` and ``ssl_keyfile``. Each settings starting with "ssl" corresponds to the similarly-named key (remove the initial ``ssl_``) in the ``ssl`` parameter passed to pg8000.connect(). ``ssl_cert_reqs`` should be either "cert_optional" or "cert_required" and the other three settings are file names.
+The possible settings are: ``database``, ``host``, ``port``, ``unix_sock``, ``user``, ``password``, ``ssl_check_hostname``, ``ssl_ca_certs``, ``ssl_certfile`` and ``ssl_keyfile``.
+
+If any of the "ssl" settings is specified, a secure Postgres connection will be made. Typically, the name of a file containing a certificate authority certificate will need to be specified via ``ssl_ca_certs``. By default, the server's hostname will be checked against the certificate it presents. Optionally disable this behavior with the ``ssl_check_hostname`` setting.  Use ``ssl_certfile`` and ``ssl_keyfile`` to enable certificate-based client authentication.
 
 All user/index files and metadata of ``devpi-server`` are stored in the database.
 A few things and settings are still stored as files in the directory specified by ``--serverdir``.
