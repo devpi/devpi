@@ -158,7 +158,7 @@ jobs:
     #########################
 
     - stage: test
-      python: "3.4"
+      python: "3.5"
       env: PROJECT=postgresql
       addons:
         apt:
