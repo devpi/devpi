@@ -1,1 +1,0 @@
-Import won't abort anymore when a base index was removed. The bases setting will be imported as is.
