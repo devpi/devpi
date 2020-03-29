@@ -4,23 +4,15 @@ import sys
 import subprocess
 from collections import OrderedDict
 from devpi_common.url import URL
+from functools import partial
+from plistlib import dumps as plist_dumps
 
 from devpi_server.config import (
     render, parseoptions, get_parser, get_pluginmanager
 )
 
-try:
-    # python >= 3.4
-    from plistlib import dumps as plist_dumps
-    # don't sort the keys; that way we can keep our own order
-    write_plist_to_bytes = lambda d: plist_dumps(d, sort_keys=False)
-except ImportError:
-    try:
-        # python 3.0-3.3
-        from plistlib import writePlistToBytes as write_plist_to_bytes
-    except ImportError:
-        # python 2
-        from plistlib import writePlistToString as write_plist_to_bytes
+# don't sort the keys; that way we can keep our own order
+write_plist_to_bytes = partial(plist_dumps, sort_keys=False)
 
 
 def get_devpibin():
