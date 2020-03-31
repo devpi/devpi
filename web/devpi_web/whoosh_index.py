@@ -253,6 +253,7 @@ class IndexingSharedData(object):
         # this priority queue is ordered by time stamp
         self.error_queue.put(
             (ts, delay, is_from_mirror, serial, indexname, names))
+        self.last_errored = time.time()
 
     def extend(self, projects, serial):
         if not projects:
@@ -341,7 +342,6 @@ class IndexingSharedData(object):
                 delay=min(
                     delay * self.ERROR_QUEUE_DELAY_MULTIPLIER,
                     self.ERROR_QUEUE_MAX_DELAY))
-            self.last_errored = time.time()
         finally:
             self.error_queue.task_done()
 
@@ -361,7 +361,6 @@ class IndexingSharedData(object):
             handler(is_from_mirror, serial, indexname, names)
         except Exception:
             self.add_errored(is_from_mirror, serial, indexname, names)
-            self.last_errored = time.time()
         finally:
             self.queue.task_done()
             self.last_processed = time.time()
