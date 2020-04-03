@@ -1324,8 +1324,8 @@ def should_fetch_remote_file(entry, headers):
 def _headers_from_response(r):
     headers = {
         str("X-Accel-Buffering"): str("no"),  # disable buffering in nginx
-        str("content-type"): r.headers.get(
-            "content-type", (str("application/octet-stream"), None))[0]}
+        str("content-type"): (r.headers.get(
+            "content-type") or (str("application/octet-stream"), None))[0]}
     if "last-modified" in r.headers:
         headers[str("last-modified")] = r.headers["last-modified"]
     if "content-length" in r.headers:

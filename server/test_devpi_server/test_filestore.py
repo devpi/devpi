@@ -234,6 +234,20 @@ class TestFileStore:
         assert rheaders["content-type"] in zip_types
         assert entry.file_get_content() == b"123"
 
+    def test_iterfile_remote_empty_content_type_header(self, filestore, httpget, gen, xom):
+        link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
+        entry = filestore.maplink(link, "root", "pypi", "pytest")
+        assert not entry.hash_spec
+        headers={"Content-Type": ""}
+        httpget.url2response[link.url] = dict(status_code=200,
+                headers=headers, raw = BytesIO(b"123"))
+        for part in iter_cache_remote_file(xom, entry):
+            pass
+        rheaders = entry.gethttpheaders()
+        assert rheaders["content-length"] == "3"
+        assert rheaders["content-type"] in zip_types
+        assert entry.file_get_content() == b"123"
+
     def test_iterfile_remote_error_size_mismatch(self, filestore, httpget, gen, xom):
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
