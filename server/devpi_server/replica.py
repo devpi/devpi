@@ -375,6 +375,14 @@ def clean_response_headers(response):
     return headers
 
 
+class BodyFileWrapper:
+    # required to provide length to prevent transfer-encoding: chunked
+
+    def __init__(self, bf, length):
+        self.read = bf.read
+        self.len = length
+
+
 def proxy_request_to_master(xom, request, stream=False):
     master_url = xom.config.master_url
     url = master_url.joinpath(request.path).url
@@ -382,9 +390,18 @@ def proxy_request_to_master(xom, request, stream=False):
     http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method, url):
         try:
+            headers = clean_request_headers(request)
+            try:
+                length = int(headers.get('Content-Length'))
+            except (ValueError, TypeError):
+                length = None
+            if length:
+                body = BodyFileWrapper(request.body_file, length)
+            else:
+                body = request.body
             return http.request(request.method, url,
-                                data=request.body,
-                                headers=clean_request_headers(request),
+                                data=body,
+                                headers=headers,
                                 stream=stream,
                                 allow_redirects=False,
                                 timeout=xom.config.args.proxy_timeout)
@@ -400,9 +417,9 @@ def proxy_write_to_master(xom, request):
     # for redirects, the body is already read and stored in the ``next``
     # attribute (see requests.sessions.send)
     if r.raw.closed and r.next:
-        body = r.next.body
+        app_iter = (r.next.body,)
     else:
-        body = r.raw.read()
+        app_iter = r.raw.stream()
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.wait_tx_serial(commit_serial)
@@ -415,7 +432,7 @@ def proxy_write_to_master(xom, request):
         headers[str("location")] = str(
             master_location.replace(xom.config.master_url.url, outside_url))
     return Response(status="%s %s" %(r.status_code, r.reason),
-                    body=body,
+                    app_iter=app_iter,
                     headers=headers)
 
 
