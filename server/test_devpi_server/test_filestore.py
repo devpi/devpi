@@ -1,4 +1,5 @@
 from devpi_server.views import iter_cache_remote_file
+from webob.headers import ResponseHeaders
 import hashlib
 import pytest
 import py
@@ -238,7 +239,7 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
-        headers={"Content-Type": ""}
+        headers = ResponseHeaders({"Content-Type": ""})
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
         for part in iter_cache_remote_file(xom, entry):
