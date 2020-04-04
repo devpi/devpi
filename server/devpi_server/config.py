@@ -761,13 +761,13 @@ class Config(object):
             return base64.b64encode(secrets.token_bytes(32))
         if not self.secretfile.check(file=True):
             fatal("The given secret file doesn't exist.")
-        if self.secretfile.stat().mode & stat.S_IRWXO:
+        if self.secretfile.stat().mode & stat.S_IRWXO and sys.platform != "win32":
             fatal("The given secret file is world accessible, the access mode must be user accessible only (0600).")
-        if self.secretfile.stat().mode & stat.S_IRWXG:
+        if self.secretfile.stat().mode & stat.S_IRWXG and sys.platform != "win32":
             fatal("The given secret file is group accessible, the access mode must be user accessible only (0600).")
-        if self.secretfile.dirpath().stat().mode & stat.S_IWGRP:
+        if self.secretfile.dirpath().stat().mode & stat.S_IWGRP and sys.platform != "win32":
             fatal("The folder of the given secret file is group writable, it must only be writable by the user.")
-        if self.secretfile.dirpath().stat().mode & stat.S_IWOTH:
+        if self.secretfile.dirpath().stat().mode & stat.S_IWOTH and sys.platform != "win32":
             fatal("The folder of the given secret file is world writable, it must only be writable by the user.")
         secret = self.secretfile.read()
         if len(secret) < 32:

@@ -50,6 +50,7 @@ class TestParser:
         p = sub.add_parser("hello")
         assert isinstance(p, MyArgumentParser)
 
+
 class TestConfig:
     def test_parse_secret(self, caplog, tmpdir):
         # create a secret file
