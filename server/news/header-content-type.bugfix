@@ -1,0 +1,1 @@
+Handle cases where the ``Content-Type`` header can be an empty string.
