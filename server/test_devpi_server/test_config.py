@@ -132,6 +132,28 @@ class TestConfig:
         with pytest.raises(Fatal, match="less repetition"):
             config.secret
 
+    @pytest.mark.skipif("sys.platform == 'win32'")
+    def test_secretfile_permissions(self, tmpdir):
+        # create a secret file with too short secret
+        configdir = tmpdir.ensure_dir('config')
+        configdir.chmod(0o777)
+        p = configdir.join("secret")
+        secret = "qwoieuqwelkj123"
+        p.write(secret)
+        p.chmod(0o677)
+        config = make_config(["devpi-server", "--secretfile=%s" % p])
+        with pytest.raises(Fatal, match="file is world accessible"):
+            config.secret
+        p.chmod(0o670)
+        with pytest.raises(Fatal, match="file is group accessible"):
+            config.secret
+        p.chmod(0o600)
+        with pytest.raises(Fatal, match="folder of the given secret file is group writable"):
+            config.secret
+        configdir.chmod(0o707)
+        with pytest.raises(Fatal, match="folder of the given secret file is world writable"):
+            config.secret
+
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)
         config = make_config(["devpi-server"])
