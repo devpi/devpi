@@ -178,4 +178,8 @@ jobs:
   allow_failures:
     - stage: test
       python: "nightly"
+      env: PROJECT=client
+
+    - stage: test
+      python: "nightly"
       env: PROJECT=web
