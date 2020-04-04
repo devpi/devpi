@@ -176,8 +176,9 @@ class TestFileStore:
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec and not entry.file_exists()
         filestore.keyfs.restart_as_write_transaction()
-        headers={"content-length": "3",
-                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT"}
+        headers = ResponseHeaders({
+            "content-length": "3",
+            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT"})
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
         for part in iter_cache_remote_file(xom, entry):
@@ -225,7 +226,7 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
-        headers={}
+        headers = ResponseHeaders({})
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
         for part in iter_cache_remote_file(xom, entry):
@@ -253,9 +254,10 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
-        headers={"content-length": "3",
-                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-type": "application/zip"}
+        headers = ResponseHeaders({
+            "content-length": "3",
+            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+            "content-type": "application/zip"})
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"1"))
         with pytest.raises(ValueError):
@@ -266,8 +268,9 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-3.0.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
-        headers={"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-length": None,}
+        headers = ResponseHeaders({
+            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+            "content-length": None})
         assert entry.file_size() is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
@@ -284,9 +287,10 @@ class TestFileStore:
         link = gen.pypi_package_link("pytest-3.0.zip")
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry.hash_spec and entry.hash_spec == link.hash_spec
-        headers={"content-length": "3",
-                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-                 "content-type": "application/zip"}
+        headers = ResponseHeaders({
+            "content-length": "3",
+            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+            "content-type": "application/zip"})
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"123"))
         with pytest.raises(ValueError, match=link.md5):
