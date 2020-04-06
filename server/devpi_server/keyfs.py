@@ -54,9 +54,10 @@ class TxNotificationThread:
 
     def get_event_serial_timestamp(self):
         f = py.path.local(self.event_serial_path)
-        if not f.exists():
+        try:
+            return f.stat().mtime
+        except py.error.ENOENT:
             return
-        return f.stat().mtime
 
     def write_event_serial(self, event_serial):
         write_int_to_file(event_serial + 1, self.event_serial_path)
