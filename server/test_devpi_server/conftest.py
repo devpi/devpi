@@ -965,7 +965,8 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir, server_direct
     secretfile = server_directory.join('testserver.secret')
     if not secretfile.exists():
         secretfile.write(base64.b64encode(secrets.token_bytes(32)))
-        secretfile.chmod(0o600)
+        if sys.platform != "win32":
+            secretfile.chmod(0o600)
     host = 'localhost'
     port = get_open_port(host)
     args = [
