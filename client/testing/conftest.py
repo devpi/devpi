@@ -607,20 +607,20 @@ def mockhtml(monkeypatch):
         monkeypatch.setattr(cache.http, "gethtml", newgethtml)
     return mockhtml
 
+
 @pytest.fixture
 def create_venv(request, testdir, tmpdir_factory, monkeypatch):
     monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
-    backupenv = tmpdir_factory.mktemp("venvbackup")
     venvdir = tmpdir_factory.mktemp("venv")
+    venvinstalldir = tmpdir_factory.mktemp("inst")
+
     def do_create_venv():
-        if not venvdir.listdir():
-            assert not backupenv.listdir()
-            result = testdir.run("virtualenv", "--never-download", venvdir)
-            assert result.ret == 0
-            venvdir.copy(backupenv, mode=True)
-        else:
-            venvdir.remove()
-            backupenv.copy(venvdir, mode=True)
+        # we need to change directory, otherwise the path will become
+        # too long on windows
+        venvinstalldir.ensure_dir()
+        os.chdir(venvinstalldir.strpath)
+        subprocess.check_call([
+            "virtualenv", "--never-download", venvdir.strpath])
         # activate
         if sys.platform == "win32":
             bindir = "Scripts"
@@ -628,6 +628,7 @@ def create_venv(request, testdir, tmpdir_factory, monkeypatch):
             bindir = "bin"
         monkeypatch.setenv("PATH", bindir + os.pathsep + os.environ["PATH"])
         return venvdir
+
     return do_create_venv
 
 
