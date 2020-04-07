@@ -7,39 +7,57 @@ from devpi_common.url import URL
 from functools import partial
 from plistlib import dumps as plist_dumps
 
-from devpi_server.config import (
-    render, parseoptions, get_parser, get_pluginmanager
-)
+from devpi_server.config import parseoptions, get_parser, get_pluginmanager
+
 
 # don't sort the keys; that way we can keep our own order
 write_plist_to_bytes = partial(plist_dumps, sort_keys=False)
 
 
-def get_devpibin():
-    return py.path.local(sys.argv[0].replace("devpi-gen-config", "devpi-server"))
+def render(confname, format=None, **kw):
+    template = confname + ".template"
+    from pkg_resources import resource_string
+    templatestring = resource_string("devpi_server.cfg", template)
+    if not py.builtin._istext(templatestring):
+        templatestring = py.builtin._totext(templatestring, "utf-8")
+
+    kw = dict((x[0], str(x[1])) for x in kw.items())
+    if format is None:
+        result = templatestring.format(**kw)
+    else:
+        result = templatestring % kw
+    return result
+
+
+def get_devpibin(tw):
+    devpibin = py.path.local(
+        sys.argv[0].replace("devpi-gen-config", "devpi-server"))
+    if not devpibin.exists():
+        tw.line(
+            "The devpi-server executable doesn't exist in the following "
+            "expected location:\n%s\nYou might have to edit the following "
+            "config." % devpibin,
+            yellow=True)
+    return devpibin
 
 
 def gen_supervisor(tw, config, argv, writer):
     import getpass
-    devpibin = get_devpibin()
-    assert devpibin.exists()
+    devpibin = get_devpibin(tw)
     content = render(
-            tw, "supervisor-devpi.conf",
-            server_args=subprocess.list2cmdline(argv),
-            user=getpass.getuser(),
-            devpibin=devpibin,
-    )
+        "supervisor-devpi.conf",
+        server_args=subprocess.list2cmdline(argv),
+        user=getpass.getuser(),
+        devpibin=devpibin)
     writer("supervisor-devpi.conf", content)
-    content = render(
-            tw, "supervisord.conf",
-    )
+    content = render("supervisord.conf")
     writer("supervisord.conf", content)
 
 
 def gen_cron(tw, config, argv, writer):
     import getpass
     content = render(
-        tw, "crontab",
+        "crontab",
         user=getpass.getuser())
     writer("crontab", content)
 
@@ -54,7 +72,7 @@ def gen_nginx(tw, config, argv, writer):
         parts.append(80)
     outside_host, outside_port = parts
 
-    nginxconf = render(tw, "nginx-devpi.conf", format=1,
+    nginxconf = render("nginx-devpi.conf", format=1,
                        outside_url=outside_url,
                        outside_host=outside_host,
                        outside_port=outside_port,
@@ -64,24 +82,22 @@ def gen_nginx(tw, config, argv, writer):
 
 
 def gen_launchd(tw, config, argv, writer):
-    devpibin = get_devpibin()
+    devpibin = get_devpibin(tw)
     plist_content = write_plist_to_bytes(OrderedDict([
         ("Label", "net.devpi"),
         ("ProgramArguments", [str(devpibin)] + argv),
         ("RunAtLoad", True),
     ]))
     writer("net.devpi.plist", plist_content)
-    content = render(
-        tw, "launchd-macos.txt")
+    content = render("launchd-macos.txt")
     writer("launchd-macos.txt", content)
 
 
 def gen_systemd(tw, config, argv, writer):
     import getpass
-    devpibin = get_devpibin()
-    assert devpibin.exists()
+    devpibin = get_devpibin(tw)
     content = render(
-        tw, "devpi.service",
+        "devpi.service",
         server_args=subprocess.list2cmdline(argv),
         user=getpass.getuser(),
         devpibin=devpibin,
@@ -90,10 +106,9 @@ def gen_systemd(tw, config, argv, writer):
 
 
 def gen_windows_service(tw, config, argv, writer):
-    devpibin = get_devpibin()
-    assert devpibin.exists()
+    devpibin = get_devpibin(tw)
     content = render(
-        tw, "windows-service.txt",
+        "windows-service.txt",
         server_args=subprocess.list2cmdline(argv),
         devpibin=devpibin)
     writer("windows-service.txt", content)
