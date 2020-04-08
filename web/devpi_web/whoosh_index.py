@@ -344,6 +344,7 @@ class IndexingSharedData(object):
                     self.ERROR_QUEUE_MAX_DELAY))
         finally:
             self.error_queue.task_done()
+            self.last_processed = time.time()
 
     def process_next(self, handler):
         try:
