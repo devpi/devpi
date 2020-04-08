@@ -366,8 +366,10 @@ class IndexingSharedData(object):
             self.queue.task_done()
             self.last_processed = time.time()
 
-    def wait(self):
+    def wait(self, error_queue=False):
         self.queue.join()
+        if error_queue:
+            self.error_queue.join()
 
 
 class IndexerThread(object):
@@ -375,8 +377,8 @@ class IndexerThread(object):
         self.xom = xom
         self.shared_data = shared_data
 
-    def wait(self):
-        self.shared_data.wait()
+    def wait(self, error_queue=False):
+        self.shared_data.wait(error_queue=error_queue)
 
     def handler(self, is_from_mirror, serial, indexname, names):
         log.debug(
