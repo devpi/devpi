@@ -2,6 +2,21 @@
 
 .. towncrier release notes start
 
+2.0.0 (2020-04-14)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- Python 3.4 isn't supported anymore, Python 3.5 support will be dropped at its EOL in September 2020.
+
+
+Features
+--------
+
+- Upgrade pg8000 to version 1.14.0 or newer and take advantage of its improved SSL interface.
+
+
 1.1.0 (2020-01-31)
 ==================
 
