@@ -279,7 +279,7 @@ class IndexingSharedData(object):
             self.last_added = time.time()
 
     def queue_projects(self, projects, serial, searcher):
-        log.info("Queuing projects for index update")
+        log.debug("Queuing projects for index update")
         queued_counter = itertools.count()
         queued = next(queued_counter)
         last_time = time.time()
@@ -288,7 +288,7 @@ class IndexingSharedData(object):
         for processed, project in enumerate(projects, start=1):
             if time.time() - last_time > 5:
                 last_time = time.time()
-                log.info(
+                log.debug(
                     "Processed a total of %s projects and queued %s so far. "
                     "Currently in %s" % (processed, queued, project.indexname))
             # we find the last serial the project was changed to avoid re-indexing
@@ -397,10 +397,21 @@ class IndexerThread(object):
                     for name in names:
                         data = preprocess_project(
                             ProjectIndexingInfo(stage=stage, name=name))
+                        if data is None:
+                            ix._delete_project(
+                                indexname, name, tx.at_serial, counter, writer,
+                                searcher=searcher)
+                            continue
                         # because we use the current transaction, we also
                         # use the current serial for indexing
                         ix._update_project(
                             data, tx.at_serial, counter, main_keys, writer,
+                            searcher=searcher)
+                else:
+                    # stage was deleted
+                    for name in names:
+                        ix._delete_project(
+                            indexname, name, tx.at_serial, counter, writer,
                             searcher=searcher)
             count = next(counter)
         except Exception:
@@ -408,7 +419,7 @@ class IndexerThread(object):
             # let the queue handle retries
             raise
         else:
-            log.debug("Committing %s new documents to search index." % count)
+            log.info("Committing %s new documents to search index." % count)
             writer.commit()
 
     def tick(self):
@@ -526,19 +537,15 @@ class Index(object):
             text_title=fields.STORED(),
             text=fields.TEXT(analyzer=NgramWordAnalyzer(), stored=False, phrase=False))
 
+    def _delete_project(self, indexname, project, serial, counter, writer, searcher):
+        path = u"/%s/%s" % (indexname, project)
+        writer.delete_by_term('path', path, searcher=searcher)
+        next(counter)
+        log.debug("Removed %s from search index.", path)
+
     def delete_projects(self, projects):
-        counter = itertools.count()
-        count = next(counter)
-        project_ix = self.get_project_ix()
-        writer = project_ix.writer()
-        searcher = project_ix.searcher()
-        for project in projects:
-            path = u"/%s/%s" % (project.indexname, project.name)
-            count = next(counter)
-            writer.delete_by_term('path', path, searcher=searcher)
-        log.debug("Committing %s deletions to search index." % count)
-        writer.commit()
-        log.info("Finished committing %s deletions to search index." % count)
+        # we just queue the projects and let the thread handle this
+        self.update_projects(projects)
 
     def _update_project(self, project, serial, counter, main_keys, writer, searcher):
         def add_document(**kw):

@@ -1,0 +1,1 @@
+Fix some problems with deletion from index when project was deleted after indexing changes in 4.0.0.

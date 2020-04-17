@@ -31,6 +31,9 @@ def preprocess_project(project):
             project=project, result=result)
         return result
     stage.offline = True
+    if not stage.has_project_perstage(name):
+        # project doesn't exist anymore
+        return
     setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
     result = dict(name=name)
