@@ -124,7 +124,7 @@ class Connection(BaseConnection):
             message += ", files_del: %s"
             args.append(",".join(files_del))
         if args:
-            threadlog.info(message, *args)
+            threadlog.debug(message, *args)
 
 
 class Storage(BaseStorage):
@@ -197,13 +197,13 @@ class FSWriter:
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter%s:" % self.next_serial)
+        commit_serial = self.next_serial
+        thread_pop_log("fswriter%s:" % commit_serial)
         if cls is None:
             pending_renames = write_dirty_files(self.conn.dirty_files)
 
             changed_keys, files_commit, files_del = \
                 self.commit_to_filesystem(pending_renames)
-            commit_serial = self.next_serial
 
             # write out a nice commit entry to logging
             message = "committed: keys: %s"
@@ -214,13 +214,14 @@ class FSWriter:
             if files_del:
                 message += ", files_del: %s"
                 args.append(",".join(files_del))
-            self.log.info(message, *args)
+            self.log.info("commited at %s", commit_serial)
+            self.log.debug(message, *args)
 
             self.storage._notify_on_commit(commit_serial)
         else:
             drop_dirty_files(self.conn.dirty_files)
             self.conn.rollback()
-            self.log.info("roll back at %s" %(self.next_serial))
+            self.log.info("roll back at %s", commit_serial)
 
     def commit_to_filesystem(self, pending_renames):
         basedir = str(self.storage.basedir)
