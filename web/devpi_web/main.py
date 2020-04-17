@@ -5,6 +5,7 @@ from devpi_web.config import add_indexer_backend_option
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
 from devpi_web.indexing import ProjectIndexingInfo
+from devpi_web.indexing import is_project_cached
 from devpi_server.log import threadlog
 from devpi_server.main import fatal
 from pkg_resources import resource_filename
@@ -316,7 +317,7 @@ def devpiserver_on_changed_versiondata(stage, project, version, metadata):
         # TODO we don't have enough info to delete the project
         return
     if not metadata:
-        if not stage.has_project_perstage(project):
+        if is_project_cached(stage, project) and not stage.has_project_perstage(project):
             delete_project(stage, project)
             return
         versions = stage.list_versions(project)
