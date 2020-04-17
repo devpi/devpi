@@ -320,17 +320,18 @@ class Writer:
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter%s:" % self.next_serial)
+        commit_serial = self.next_serial
+        thread_pop_log("fswriter%s:" % commit_serial)
         if cls is None:
             entry = self.changes, []
-            self.conn.write_changelog_entry(self.next_serial, entry)
+            self.conn.write_changelog_entry(commit_serial, entry)
             self.conn.commit()
-            commit_serial = self.next_serial
             message = "committed: keys: %s"
             args = [",".join(map(repr, list(self.changes)))]
-            self.log.info(message, *args)
+            self.log.info("commited at %s", commit_serial)
+            self.log.debug(message, *args)
 
             self.storage._notify_on_commit(commit_serial)
         else:
             self.conn.rollback()
-            self.log.info("roll back at %s" %(self.next_serial))
+            self.log.info("roll back at %s", commit_serial)

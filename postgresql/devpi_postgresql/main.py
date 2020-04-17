@@ -315,10 +315,11 @@ class Writer:
             self.storage.next_serial += 1
             message = "committed: keys: %s"
             args = [",".join(map(repr, list(self.changes)))]
-            self.log.info(message, *args)
+            self.log.info("commited at %s", commit_serial)
+            self.log.debug(message, *args)
 
             self.storage._notify_on_commit(commit_serial)
         else:
-            self.log.info("roll back at %s" % (self.storage.next_serial))
+            self.log.info("roll back at %s", self.storage.next_serial)
         del self.conn
         del self.storage
