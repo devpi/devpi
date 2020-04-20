@@ -1,4 +1,5 @@
 from __future__ import absolute_import, unicode_literals
+from lazy import lazy as cached_property  # noqa
 from types import FunctionType
 import hashlib
 import operator
@@ -25,23 +26,6 @@ def canraise(Error):
         return func
     return wrap
 
-
-def cached_property(f):
-    """returns a cached property that is calculated by function f"""
-    def get(self):
-        try:
-            return self._property_cache[f]
-        except AttributeError:
-            self._property_cache = {}
-        except KeyError:
-            pass
-        x = self._property_cache[f] = f(self)
-        return x
-
-    def set(self, val):
-        propcache = self.__dict__.setdefault("_property_cache", {})
-        propcache[f] = val
-    return property(get, set)
 
 class CompareMixin(object):
     def _cmp(self, other, op):
