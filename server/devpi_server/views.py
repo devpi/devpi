@@ -295,7 +295,6 @@ class StatusView:
                 seen.add(name)
                 status["metrics"].append(metric)
         if self.xom.is_replica():
-            from .replica import ReplicationErrors
             status["role"] = "REPLICA"
             status["master-url"] = config.master_url.url
             status["master-uuid"] = config.get_master_uuid()
@@ -305,7 +304,7 @@ class StatusView:
             status["master-contacted-at"] = self.xom.replica_thread.master_contacted_at
             status["update-from-master-at"] = self.xom.replica_thread.update_from_master_at
             status["replica-in-sync-at"] = self.xom.replica_thread.replica_in_sync_at
-            replication_errors = ReplicationErrors(self.xom.config.serverdir)
+            replication_errors = self.xom.replica_thread.shared_data.errors
             status["replication-errors"] = replication_errors.errors
         else:
             status["role"] = "MASTER"
@@ -1410,8 +1409,8 @@ def iter_cache_remote_file(xom, entry):
 
 
 def iter_remote_file_replica(xom, entry):
-    from .replica import H_REPLICA_FILEREPL, ReplicationErrors
-    replication_errors = ReplicationErrors(xom.config.serverdir)
+    from .replica import H_REPLICA_FILEREPL
+    replication_errors = xom.replica_thread.shared_data.errors
     # construct master URL with param
     url = xom.config.master_url.joinpath(entry.relpath).url
     if not entry.url:

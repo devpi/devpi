@@ -12,7 +12,7 @@ import requests
 import socket
 import sys
 import time
-from .reqmock import reqmock  # noqa
+from .reqmock import reqmock, patch_reqsessionmock  # noqa
 from bs4 import BeautifulSoup
 from contextlib import closing
 from devpi_server import extpypi
@@ -229,12 +229,8 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
         from devpi_server.main import init_default_indexes
         if not xom.config.args.master_url:
             init_default_indexes(xom)
-        if request.node.get_closest_marker("with_replica_thread"):
-            from devpi_server.replica import ReplicaThread
-            rt = ReplicaThread(xom)
-            xom.replica_thread = rt
-            xom.thread_pool.register(rt)
-            xom.thread_pool.start_one(rt)
+        if xom.is_replica() and request.node.get_closest_marker("with_replica_thread"):
+            xom.thread_pool.start_one(xom.replica_thread)
         if request.node.get_closest_marker("start_threads"):
             xom.thread_pool.start()
         elif request.node.get_closest_marker("with_notifier"):

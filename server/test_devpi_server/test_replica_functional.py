@@ -7,11 +7,7 @@ import pytest
 
 @pytest.yield_fixture
 def replica_mapp(makemapp, master_host_port):
-    from devpi_server.replica import ReplicaThread
     app = makemapp(options=['--master', 'http://%s:%s' % master_host_port])
-    rt = ReplicaThread(app.xom)
-    app.xom.replica_thread = rt
-    app.xom.thread_pool.register(rt)
     try:
         yield app
     finally:
@@ -90,5 +86,5 @@ def test_replicating_deleted_pypi_release(
     master_serial = mapp.getjson('/+status')['result']['serial']
     replica_mapp.xom.thread_pool.start_one(replica_mapp.xom.replica_thread)
     replica_mapp.xom.keyfs.wait_tx_serial(master_serial)
-    records = caplog.getrecords('ignoring.*retrieved.*pkg-1.0.zip')
-    assert len(records) == 1
+    # the replica is in sync
+    assert replica_mapp.xom.keyfs.get_current_serial() == master_serial

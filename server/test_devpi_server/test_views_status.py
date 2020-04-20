@@ -144,12 +144,10 @@ class TestStatusInfoPlugin:
                 msg='No changes processed by plugins for more than 30 minutes')]
 
     def test_replica_lagging(self, plugin, makexom, monkeypatch):
-        from devpi_server.replica import ReplicaThread
         import time
         now = time.time()
         xom = makexom(["--master=http://localhost"])
         request = self._xomrequest(xom)
-        xom.replica_thread = ReplicaThread(xom)
         assert xom.is_replica()
         # fake first serial processed
         xom.replica_thread.update_master_serial(0)
@@ -171,12 +169,10 @@ class TestStatusInfoPlugin:
             msg='Replica is behind master for more than 5 minutes')]
 
     def test_initial_master_connection(self, plugin, makexom, monkeypatch):
-        from devpi_server.replica import ReplicaThread
         import time
         now = time.time()
         xom = makexom(["--master=http://localhost"])
         request = self._xomrequest(xom)
-        xom.replica_thread = ReplicaThread(xom)
         assert xom.is_replica()
         assert xom.replica_thread.started_at is None
         # fake replica start

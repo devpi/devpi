@@ -545,7 +545,7 @@ class Importer:
         p = self.import_rootdir.join(rel)
         assert p.check(), p
         data = p.read("rb")
-        if self.xom.config.args.hard_links:
+        if self.xom.config.hard_links:
             # wrap the data for additional attribute
             data = BytesForHardlink(data)
             data.devpi_srcpath = p.strpath
