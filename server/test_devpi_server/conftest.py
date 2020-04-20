@@ -59,6 +59,29 @@ def _clear():
     thread_clear_log()
 
 
+LOWER_ARGON2_MEMORY_COST = 8
+LOWER_ARGON2_PARALLELISM = 1
+LOWER_ARGON2_TIME_COST = 1
+
+
+@pytest.fixture(autouse=True)
+def lower_argon2_parameters(monkeypatch):
+    from devpi_server.config import Config
+    import argon2
+
+    secret_parameters = argon2.Parameters(
+        type=argon2.low_level.Type.ID,
+        version=argon2.low_level.ARGON2_VERSION,
+        salt_len=16,
+        hash_len=16,
+        time_cost=LOWER_ARGON2_TIME_COST,
+        memory_cost=LOWER_ARGON2_MEMORY_COST,
+        parallelism=LOWER_ARGON2_PARALLELISM)
+
+    monkeypatch.setattr(
+        Config, "_secret_parameters", secret_parameters)
+
+
 @pytest.fixture
 def TimeoutQueue():
     return _TimeoutQueue

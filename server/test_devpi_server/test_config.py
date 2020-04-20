@@ -57,7 +57,7 @@ class TestConfig:
         configdir = tmpdir.ensure_dir('config')
         configdir.chmod(0o700)
         p = configdir.join("secret")
-        secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
+        secret = b"qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
         p.chmod(0o600)
         # and use it
@@ -65,7 +65,7 @@ class TestConfig:
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         assert config.args.secretfile == str(p)
         assert config.secretfile == str(p)
-        assert config.secret == secret
+        assert config.basesecret == secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 0
         # now check the default
@@ -73,18 +73,18 @@ class TestConfig:
         config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         assert config.args.secretfile is None
         assert config.secretfile is None
-        assert config.secret != secret
+        assert config.basesecret != secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 1
         # remember the secret
-        prev_secret = config.secret
+        prev_secret = config.basesecret
         # each startup without a secret file creates a new random secret
         caplog.clear()
         config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         assert config.args.secretfile is None
         assert config.secretfile is None
-        assert config.secret != secret
-        assert config.secret != prev_secret
+        assert config.basesecret != secret
+        assert config.basesecret != prev_secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 1
 
@@ -95,7 +95,7 @@ class TestConfig:
         configdir = tmpdir.ensure_dir('config')
         configdir.chmod(0o700)
         p = configdir.join(".secret")
-        secret = "qwoieuqwelkj1234qwoieuqwelkj1234"
+        secret = b"qwoieuqwelkj1234qwoieuqwelkj1234"
         p.write(secret)
         p.chmod(0o600)
         caplog.clear()
@@ -103,7 +103,7 @@ class TestConfig:
         # the existing file should be used
         assert config.args.secretfile is None
         assert config.secretfile == str(p)
-        assert config.secret == secret
+        assert config.basesecret == secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 0
         assert len(recwarn) == 1
@@ -115,22 +115,22 @@ class TestConfig:
         configdir = tmpdir.ensure_dir('config')
         configdir.chmod(0o700)
         p = configdir.join("secret")
-        secret = "qwoieuqwelkj123"
+        secret = b"qwoieuqwelkj123"
         p.write(secret)
         p.chmod(0o600)
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal, match="at least 32 characters"):
-            config.secret
+            config.basesecret
         # create a secret file which is too repetitive
         p = configdir.join("secret")
-        secret = "12345" * 7
+        secret = b"12345" * 7
         p.write(secret)
         p.chmod(0o600)
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal, match="less repetition"):
-            config.secret
+            config.basesecret
 
     @pytest.mark.skipif("sys.platform == 'win32'")
     def test_secretfile_permissions(self, tmpdir):
@@ -138,21 +138,21 @@ class TestConfig:
         configdir = tmpdir.ensure_dir('config')
         configdir.chmod(0o777)
         p = configdir.join("secret")
-        secret = "qwoieuqwelkj123"
+        secret = b"qwoieuqwelkj123"
         p.write(secret)
         p.chmod(0o677)
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal, match="file is world accessible"):
-            config.secret
+            config.basesecret
         p.chmod(0o670)
         with pytest.raises(Fatal, match="file is group accessible"):
-            config.secret
+            config.basesecret
         p.chmod(0o600)
         with pytest.raises(Fatal, match="folder of the given secret file is group writable"):
-            config.secret
+            config.basesecret
         configdir.chmod(0o707)
         with pytest.raises(Fatal, match="folder of the given secret file is world writable"):
-            config.secret
+            config.basesecret
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)

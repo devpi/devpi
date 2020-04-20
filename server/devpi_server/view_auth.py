@@ -154,7 +154,7 @@ class RootFactory(object):
 class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
     def __init__(self, xom):
         self.realm = "pypi"
-        self.auth = Auth(xom.model, xom.config.secret)
+        self.auth = Auth(xom.model, xom.config.get_auth_secret())
         self.hook = xom.config.hook
 
     def unauthenticated_userid(self, request):

@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import argon2
 import base64
 import os.path
 import argparse
@@ -28,6 +29,9 @@ DEFAULT_MIRROR_CACHE_EXPIRY = 1800
 DEFAULT_PROXY_TIMEOUT = 30
 DEFAULT_REQUEST_TIMEOUT = 5
 DEFAULT_FILE_REPLICATION_THREADS = 5
+DEFAULT_ARGON2_MEMORY_COST = 524288
+DEFAULT_ARGON2_PARALLELISM = 8
+DEFAULT_ARGON2_TIME_COST = 16
 
 
 def get_pluginmanager(load_entrypoints=True):
@@ -278,6 +282,30 @@ def add_deploy_options(parser, pluginmanager):
              "generated on each start up.")
 
     parser.addoption(
+        "--argon2-memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY_COST,
+        help="Argon2 memory cost parameter for key derivation. "
+             "This is *not* for the user password hashes. "
+             "There should be no need to touch this setting, "
+             "except you really know what this is about! "
+             "Replicas need to use the same parameters as the master.")
+
+    parser.addoption(
+        "--argon2-parallelism", type=int, default=DEFAULT_ARGON2_PARALLELISM,
+        help="Argon2 parallelism parameter for key derivation. "
+             "This is *not* for the user password hashes. "
+             "There should be no need to touch this setting, "
+             "except you really know what this is about! "
+             "Replicas need to use the same parameters as the master.")
+
+    parser.addoption(
+        "--argon2-time-cost", type=int, default=DEFAULT_ARGON2_TIME_COST,
+        help="Argon2 time cost parameter for key derivation. "
+             "This is *not* for the user password hashes. "
+             "There should be no need to touch this setting, "
+             "except you really know what this is about! "
+             "Replicas need to use the same parameters as the master.")
+
+    parser.addoption(
         "--requests-only", action="store_true",
         help="only start as a worker which handles read/write web requests "
              "but does not run an event processing or replication thread.")
@@ -519,6 +547,7 @@ class Config(object):
         self.hook = pluginmanager.hook
         self.serverdir = py.path.local(os.path.expanduser(self.args.serverdir))
         self.path_nodeinfo = self.serverdir.join(".nodeinfo")
+        self._key_cache = {}
 
     def init_nodeinfo(self):
         log.info("Loading node info from %s", self.path_nodeinfo)
@@ -770,7 +799,7 @@ class Config(object):
             os.path.expanduser(self.args.secretfile))
 
     @cached_property
-    def secret(self):
+    def basesecret(self):
         from .main import fatal
         import stat
         if self.secretfile is None:
@@ -793,7 +822,7 @@ class Config(object):
             fatal("The folder of the given secret file is group writable, it must only be writable by the user.")
         if self.secretfile.dirpath().stat().mode & stat.S_IWOTH and sys.platform != "win32":
             fatal("The folder of the given secret file is world writable, it must only be writable by the user.")
-        secret = self.secretfile.read()
+        secret = self.secretfile.read_binary()
         if len(secret) < 32:
             fatal(
                 "The secret in the given secret file is too short, "
@@ -804,6 +833,36 @@ class Config(object):
                 "it should use less repetition.")
         log.info("Using secret file '%s'.", self.secretfile)
         return secret
+
+    @property
+    def _secret_parameters(self):
+        # this is a property, so it can easily be changed for tests
+        # see lower_argon2_parameters fixture
+        return argon2.Parameters(
+            type=argon2.low_level.Type.ID,
+            version=argon2.low_level.ARGON2_VERSION,
+            salt_len=16,
+            hash_len=16,
+            time_cost=self.args.argon2_time_cost,
+            memory_cost=self.args.argon2_memory_cost,
+            parallelism=self.args.argon2_parallelism)
+
+    def get_derived_key(self, salt):
+        if salt not in self._key_cache:
+            secret_parameters = self._secret_parameters
+            self._key_cache[salt] = argon2.low_level.hash_secret_raw(
+                self.basesecret,
+                salt,
+                time_cost=secret_parameters.time_cost,
+                memory_cost=secret_parameters.memory_cost,
+                parallelism=secret_parameters.parallelism,
+                hash_len=secret_parameters.hash_len,
+                type=secret_parameters.type,
+                version=secret_parameters.version)
+        return self._key_cache[salt]
+
+    def get_auth_secret(self):
+        return self.get_derived_key(b'devpi-server-auth')
 
 
 def getpath(path):
