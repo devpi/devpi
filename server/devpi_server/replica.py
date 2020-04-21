@@ -592,7 +592,7 @@ def devpiweb_get_status_info(request):
                 msgs.append(dict(status="warn", msg="%s items in file download queue" % qsize))
         error_qsize = shared_data.error_queue.qsize()
         if error_qsize:
-            msgs.append(dict(status="warn", msg="Errors during file downloads"))
+            msgs.append(dict(status="warn", msg="Errors during file downloads, %s files queued for retry" % error_qsize))
     return msgs
 
 
