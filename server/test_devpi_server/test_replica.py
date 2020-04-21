@@ -179,8 +179,10 @@ class TestReplicaThread:
             headers.setdefault("x-devpi-serial", str(2))
             if headers["x-devpi-serial"] is None:
                 del headers["x-devpi-serial"]
-            reqmock.mockresponse("http://localhost/+changelog/%s" % num,
-                                 code=code, data=data, headers=headers)
+            url = "http://localhost/+changelog/%s" % num
+            if num == 0:
+                url = url + '?initial_fetch'
+            reqmock.mockresponse(url, code=code, data=data, headers=headers)
         return mockchangelog
 
     def test_thread_run_fail(self, rt, mockchangelog, caplog):
@@ -203,7 +205,7 @@ class TestReplicaThread:
         data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         # get the result
-        orig_req = reqmock.url2reply[("http://localhost/+changelog/0", None)]
+        orig_req = reqmock.url2reply[("http://localhost/+changelog/0?initial_fetch", None)]
         # setup so the first attempt fails, then the second succeeds
         reqmock.url2reply = mock.Mock()
         reqmock.url2reply.get.side_effect = [socket.error(), orig_req]

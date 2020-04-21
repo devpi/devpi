@@ -13,6 +13,7 @@ from pyramid.view import view_config
 from pyramid.response import Response
 from repoze.lru import LRUCache
 from devpi_common.types import cached_property
+from devpi_common.url import URL
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
@@ -216,9 +217,14 @@ class MasterChangelogRequest:
         if serial > next_serial:
             raise HTTPNotFound("can only wait for next serial")
         elif serial == next_serial:
-            arrived = keyfs.wait_tx_serial(serial, timeout=self.MAX_REPLICA_BLOCK_TIME)
+            if 'initial_fetch' in self.request.params:
+                timeout = 1
+            else:
+                timeout = self.MAX_REPLICA_BLOCK_TIME
+            arrived = keyfs.wait_tx_serial(serial, timeout=timeout)
             if not arrived:
-                raise HTTPAccepted("no new transaction yet",
+                raise HTTPAccepted(
+                    "no new transaction yet",
                     headers={str("X-DEVPI-SERIAL"):
                              str(keyfs.get_current_serial())})
         return serial
@@ -255,6 +261,7 @@ class ReplicaThread:
         # set whenever the master serial and current replication serial match
         self.replica_in_sync_at = None
         self.session = self.xom.new_http_session("replica")
+        self.initial_fetch = True
 
     @cached_property
     def auth_serializer(self):
@@ -285,6 +292,13 @@ class ReplicaThread:
         self._master_serial_timestamp = now
 
     def fetch(self, handler, url):
+        if self.initial_fetch:
+            url = URL(url)
+            if url.query:
+                url = url.replace(query=url.query + '&initial_fetch')
+            else:
+                url = url.replace(query='initial_fetch')
+            url = url.url
         log = self.log
         config = self.xom.config
         log.info("fetching %s", url)
@@ -392,6 +406,9 @@ class ReplicaThread:
         if not result:
             # we got an error, let's wait a bit
             self.thread.sleep(5.0)
+        else:
+            # from now on we do polling
+            self.initial_fetch = False
 
     def thread_run(self):
         # within a devpi replica server this thread is the only writer
