@@ -76,7 +76,7 @@
             <h2>Replication errors</h2>
             <ul>
                 <li tal:repeat="error replication_errors">
-                    <span tal:replace="error.get('relurl', '')" />
+                    <span tal:replace="error.get('relpath', '')" />
                     ${error.message}
                 </li>
             </ul>
