@@ -1,5 +1,7 @@
 import os
 import contextlib
+import itsdangerous
+import secrets
 import threading
 import time
 import traceback
@@ -10,6 +12,7 @@ from pyramid.httpexceptions import HTTPForbidden
 from pyramid.view import view_config
 from pyramid.response import Response
 from repoze.lru import LRUCache
+from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from webob.headers import EnvironHeaders, ResponseHeaders
 
@@ -31,12 +34,64 @@ H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
 H_EXPECTED_MASTER_ID = str("X-DEVPI-EXPECTED-MASTER-ID")
 
 MAX_REPLICA_BLOCK_TIME = 30.0
+REPLICA_USER_NAME = "+replica"
 REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
 REPLICA_MULTIPLE_TIMEOUT = REPLICA_REQUEST_TIMEOUT / 2
+REPLICA_AUTH_MAX_AGE = REPLICA_REQUEST_TIMEOUT + 0.1
 MAX_REPLICA_CHANGES_SIZE = 5 * 1024 * 1024
 
 
 notset = object()
+
+
+def get_auth_serializer(config):
+    return itsdangerous.TimedSerializer(config.get_replica_secret())
+
+
+class ReplicaPassword(str):
+    # we need to be able to pass on some objects to devpiserver_auth_user
+    __slots__ = ('auth_serializer', 'token')
+
+
+@hookimpl
+def devpiserver_get_credentials(request):
+    # the DummyRequest class used in testing doesn't have the attribute
+    authorization = getattr(request, 'authorization', None)
+    if not authorization:
+        return None
+    if authorization.authtype != 'Bearer':
+        return None
+    if H_REPLICA_UUID not in request.headers:
+        return None
+    xom = request.registry["xom"]
+    if not xom.is_master():
+        return None
+    password = ReplicaPassword(request.headers[H_REPLICA_UUID])
+    password.token = authorization.params
+    password.auth_serializer = get_auth_serializer(xom.config)
+    return (REPLICA_USER_NAME, password)
+
+
+@hookimpl
+def devpiserver_auth_user(userdict, username, password):
+    if username != REPLICA_USER_NAME:
+        return dict(status="unknown")
+    # no other plugin must be able to authenticate the special REPLICA_USER_NAME
+    # so instead of returning status unknown, we will raise HTTPForbidden
+    if not isinstance(password, ReplicaPassword):
+        raise HTTPForbidden("Authorization malformed.")
+    token = password.token
+    auth_serializer = password.auth_serializer
+    try:
+        sent_uuid = auth_serializer.loads(
+            token, max_age=REPLICA_AUTH_MAX_AGE)
+    except itsdangerous.SignatureExpired:
+        raise HTTPForbidden("Authorization expired.")
+    except itsdangerous.BadData:
+        raise HTTPForbidden("Authorization malformed.")
+    if not secrets.compare_digest(password, sent_uuid):
+        raise HTTPForbidden("Wrong authorization value.")
+    return dict(status="ok")
 
 
 class MasterChangelogRequest:
@@ -88,6 +143,10 @@ class MasterChangelogRequest:
                       expected_uuid)
             raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
                                  (master_uuid, expected_uuid))
+
+        if self.request.authenticated_userid != REPLICA_USER_NAME:
+            raise HTTPForbidden(
+                "Authenticated user name is not '%s'." % REPLICA_USER_NAME)
 
     @view_config(route_name="/+changelog/{serial}")
     def get_changes(self):
@@ -197,6 +256,10 @@ class ReplicaThread:
         self.replica_in_sync_at = None
         self.session = self.xom.new_http_session("replica")
 
+    @cached_property
+    def auth_serializer(self):
+        return get_auth_serializer(self.xom.config)
+
     def get_master_serial(self):
         return self._master_serial
 
@@ -229,18 +292,25 @@ class ReplicaThread:
         assert uuid != master_uuid
         try:
             self.master_contacted_at = time.time()
+            token = self.auth_serializer.dumps(uuid)
             r = self.session.get(
                 url,
                 auth=self.master_auth,
                 headers={
                     H_REPLICA_UUID: uuid,
                     H_EXPECTED_MASTER_ID: master_uuid,
-                    H_REPLICA_OUTSIDE_URL: config.args.outside_url},
+                    H_REPLICA_OUTSIDE_URL: config.args.outside_url,
+                    str('Authorization'): 'Bearer %s' % token},
                 timeout=self.REPLICA_REQUEST_TIMEOUT)
-            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
         except Exception as e:
-            log.error("error fetching %s: %s", url, str(e))
+            msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
+            log.error("error fetching %s: %s", url, msg)
             return False
+
+        if r.status_code not in (200, 202):
+            log.error("%s %s: failed fetching %s", r.status_code, r.reason, url)
+            return False
+
         # we check that the remote instance
         # has the same UUID we saw last time
         master_uuid = config.get_master_uuid()
@@ -264,6 +334,13 @@ class ReplicaThread:
             # force exit of the process
             os._exit(3)
 
+        try:
+            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
+        except Exception as e:
+            msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
+            log.error("error fetching %s: %s", url, msg)
+            return False
+
         if r.status_code == 200:
             try:
                 handler(r)
@@ -278,12 +355,11 @@ class ReplicaThread:
                 self.update_master_serial(remote_serial)
                 return True
         elif r.status_code == 202:
+            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
             log.debug("%s: trying again %s\n", r.status_code, url)
             # also record the current master serial for status info
             self.update_master_serial(remote_serial)
             return True
-        else:
-            log.error("%s: failed fetching %s", r.status_code, url)
         return False
 
     def handler_single(self, response, serial):
@@ -516,7 +592,7 @@ def devpiweb_get_status_info(request):
                 msgs.append(dict(status="warn", msg="%s items in file download queue" % qsize))
         error_qsize = shared_data.error_queue.qsize()
         if error_qsize:
-            msgs.append(dict(status="warn", msg="Errors during file downloads"))
+            msgs.append(dict(status="warn", msg="Errors during file downloads, %s files queued for retry" % error_qsize))
     return msgs
 
 

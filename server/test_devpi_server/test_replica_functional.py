@@ -6,8 +6,10 @@ import pytest
 
 
 @pytest.yield_fixture
-def replica_mapp(makemapp, master_host_port):
-    app = makemapp(options=['--master', 'http://%s:%s' % master_host_port])
+def replica_mapp(makemapp, master_host_port, secretfile):
+    app = makemapp(options=[
+        '--master', 'http://%s:%s' % master_host_port,
+        '--secretfile', secretfile.strpath])
     try:
         yield app
     finally:
