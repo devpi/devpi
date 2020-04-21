@@ -403,6 +403,7 @@ class XOM:
         pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("{path:.*}/+api", "{path:.*}/+api", accept="application/json")
+        pyramid_config.add_route("/+authcheck", "/+authcheck")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
         pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
         pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")

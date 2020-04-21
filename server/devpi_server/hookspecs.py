@@ -12,6 +12,30 @@ def devpiserver_add_parser_options(parser):
 
 
 @hookspec(firstresult=True)
+def devpiserver_authcheck_always_ok(request):
+    """If the request should always be allowed with +authcheck,
+    this returns True, otherwise None, so other plugins can continue.
+
+    Used for routes like +api and +login."""
+
+
+@hookspec(firstresult=True)
+def devpiserver_authcheck_forbidden(request):
+    """If the request should be forbidden with +authcheck,
+    this returns True, otherwise None, so other plugins can continue.
+
+    Used by plugins for additional permission checks."""
+
+
+@hookspec(firstresult=True)
+def devpiserver_authcheck_unauthorized(request):
+    """If the request should be unauthorized with +authcheck,
+    this returns True, otherwise None, so other plugins can continue.
+
+    Used by plugins for additional permission checks."""
+
+
+@hookspec(firstresult=True)
 def devpiserver_cmdline_run(xom):
     """ return an integer with a success code (0 == no errors) if
     you handle the command line invocation, otherwise None.  When
