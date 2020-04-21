@@ -18,11 +18,19 @@ from pluggy import HookimplMarker
 from pyramid.compat import escape
 from pyramid.compat import urlparse
 from pyramid.interfaces import IAuthenticationPolicy
+from pyramid.interfaces import IRequestExtensions
+from pyramid.interfaces import IRootFactory
+from pyramid.interfaces import IRoutesMapper
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
+from pyramid.httpexceptions import HTTPForbidden
+from pyramid.httpexceptions import HTTPOk
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
+from pyramid.request import Request
+from pyramid.request import apply_request_extensions
 from pyramid.response import Response
 from pyramid.security import forget
+from pyramid.traversal import DefaultRootFactory
 from pyramid.view import exception_view_config
 from pyramid.view import view_config
 import itertools
@@ -30,6 +38,7 @@ import json
 from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
+from .config import hookimpl
 from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
 from .model import ReadonlyIndex
@@ -366,6 +375,33 @@ def devpiweb_get_status_info(request):
     return msgs
 
 
+@hookimpl
+def devpiserver_authcheck_always_ok(request):
+    route = request.matched_route
+    if route and route.name.endswith('/+api'):
+        return True
+    if route and route.name == '/+login':
+        return True
+
+
+@hookimpl
+def devpiserver_authcheck_forbidden(request):
+    route = request.matched_route
+    if not route:
+        return
+    route_names = (
+        '/{user}/{index}/+e/{relpath:.*}',
+        '/{user}/{index}/+f/{relpath:.*}')
+    if route.name not in route_names:
+        return
+    root_factory = request.registry.queryUtility(
+        IRootFactory, default=DefaultRootFactory)
+    root_factory = route.factory or root_factory
+    request.context = root_factory(request)
+    if not request.has_permission('pkg_read'):
+        return True
+
+
 class PyPIView:
     def __init__(self, request):
         self.request = request
@@ -420,6 +456,31 @@ class PyPIView:
                     api["pypisubmit"] = request.route_url(
                         "/{user}/{index}/", user=user, index=index)
         apireturn(200, type="apiconfig", result=api)
+
+    @view_config(route_name="/+authcheck")
+    def authcheck_view(self):
+        request = self.request
+        routes_mapper = request.registry.queryUtility(IRoutesMapper)
+        request_extensions = request.registry.queryUtility(IRequestExtensions)
+        url = request.headers.get('x-original-uri', request.url)
+        threadlog.debug("Authcheck for %s", url)
+        orig_request = Request.blank(url, headers=request.headers)
+        orig_request.log = request.log
+        orig_request.registry = request.registry
+        if request_extensions:
+            apply_request_extensions(
+                orig_request, extensions=request_extensions)
+        info = routes_mapper(orig_request)
+        (orig_request.matchdict, orig_request.matched_route) = (
+            info['match'], info['route'])
+        hook = self.xom.config.hook
+        if hook.devpiserver_authcheck_always_ok(request=orig_request):
+            return HTTPOk()
+        if hook.devpiserver_authcheck_unauthorized(request=orig_request):
+            return HTTPUnauthorized()
+        if hook.devpiserver_authcheck_forbidden(request=orig_request):
+            return HTTPForbidden()
+        return HTTPOk()
 
     #
     # attach test results to release files

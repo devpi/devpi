@@ -258,6 +258,7 @@ def test_package_filters(makemapp, maketestapp, makexom):
 def test_pkg_read_permission(makemapp, maketestapp, makexom):
     from devpi_server.model import ACLList
     from devpi_server.replica import REPLICA_USER_NAME
+    from webob.headers import ResponseHeaders
     import json
 
     class Plugin:
@@ -279,6 +280,9 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     (path,) = mapp.get_release_paths("hello")
     # current user should be able to read package
     testapp.xget(200, path)
+    testapp.xget(
+        200, '/+authcheck',
+        headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push should work
     req = dict(name="hello", version="1.0", targetindex="someuser/dev_b")
     r = testapp.push("/someuser/dev", json.dumps(req))
@@ -289,6 +293,9 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     api2 = mapp.create_and_use("otheruser/dev")
     # they also have access by default
     testapp.xget(200, path)
+    testapp.xget(
+        200, '/+authcheck',
+        headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push should work
     req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
     r = testapp.push("/someuser/dev", json.dumps(req))
@@ -304,6 +311,9 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     testapp.patch_json(api1.index, ['acl_pkg_read=%s' % api1.user])
     # we should still be able to read
     testapp.xget(200, path)
+    testapp.xget(
+        200, '/+authcheck',
+        headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push
     req = dict(name="hello", version="1.0", targetindex="someuser/dev_b")
     r = testapp.push("/someuser/dev", json.dumps(req))
@@ -311,6 +321,9 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     # but now it should be forbidden for the other user
     mapp.login(api2.user, password=api2.password)
     testapp.xget(403, path)
+    testapp.xget(
+        403, '/+authcheck',
+        headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push should be forbidden as well
     req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
     r = testapp.push("/someuser/dev", json.dumps(req))
