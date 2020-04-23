@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 import time
 
 import re
+from defusedxml import ElementTree
 from devpi_common.vendor._pip import HTMLPage
 
 from devpi_common.url import URL
@@ -17,6 +18,7 @@ from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name
 from functools import partial
+from io import StringIO
 from .config import hookimpl
 from .model import BaseStageCustomizer
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
@@ -236,6 +238,21 @@ class PyPIStage(BaseStage):
             self.xom.set_singleton(self.name, "project_retrieve_times", c)
             return c
 
+    def _iter_remote_project_links(self, response):
+        source = StringIO()
+        # wrap in one outer tag for ElementTree to be happy (HTML vs XML)
+        source.write('<html>')
+        source.write(response.text)
+        source.write('</html>')
+        source.seek(0)
+        try:
+            for event, elem in ElementTree.iterparse(source):
+                if elem.tag != 'a' or 'href' not in elem.attrib:
+                    continue
+                yield elem
+        except ElementTree.ParseError:
+            threadlog.exception("Error parsing remote project list")
+
     def _get_remote_projects(self):
         headers = {"Accept": "text/html"}
         # use a minimum of 30 seconds as timeout for remote server and
@@ -251,21 +268,25 @@ class PyPIStage(BaseStage):
         if response.status_code != 200:
             raise self.UpstreamError("URL %r returned %s %s",
                 self.mirror_url, response.status_code, response.reason)
-        page = HTMLPage(response.text, response.url)
         projects = set()
         baseurl = URL(response.url)
         basehost = baseurl.replace(path='')
-        for link in page.links:
-            newurl = URL(link.url)
-            # remove trailing slashes, so basename works correctly
-            newurl = newurl.asfile()
-            if not newurl.is_valid_http_url():
-                continue
-            if not newurl.path.startswith(baseurl.path):
-                continue
-            if basehost != newurl.replace(path=''):
-                continue
-            projects.add(newurl.basename)
+        for elem in self._iter_remote_project_links(response):
+            href = elem.attrib['href']
+            if '://' not in href:
+                project = href.rstrip('/').rsplit('/', 1)[-1]
+            else:
+                newurl = baseurl.joinpath(href)
+                # remove trailing slashes, so basename works correctly
+                newurl = newurl.asfile()
+                if not newurl.is_valid_http_url():
+                    continue
+                if not newurl.path.startswith(baseurl.path):
+                    continue
+                if basehost != newurl.replace(path=''):
+                    continue
+                project = newurl.basename
+            projects.add(project)
         return projects
 
     def list_projects_perstage(self):
