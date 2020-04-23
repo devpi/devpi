@@ -30,6 +30,7 @@ if __name__ == "__main__":
                         "appdirs",
                         "argon2-cffi",
                         "attrs",
+                        "defusedxml",
                         "devpi_common<4,>=3.3.0",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
