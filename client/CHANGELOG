@@ -28,23 +28,6 @@ Bug Fixes
 - the 410 status for the register action isn't marked as error anymore for push to external repository.
 
 
-5.1.0 (2019-10-31)
-==================
-
-Features
---------
-
-- Add keyring support for ``devpi push`` to external repositories like pypi.org. This is compatible with ``twine``, see https://twine.readthedocs.io/en/latest/#keyring-support
-
-
-Bug Fixes
----------
-
-- fix #666: output nicer error message when section couldn't be found in pypirc.
-
-- the 410 status for the register action isn't marked as error anymore for push to external repository.
-
-
 5.0.0 (2019-06-28)
 ==================
 
