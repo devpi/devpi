@@ -115,6 +115,46 @@ def test_get_mirror_whitelist_info(model, pypistage):
         blocked_by_mirror_whitelist=None)
 
 
+@pytest.mark.notransaction
+def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    mapp.set_versiondata(
+        {"name": "pkg1", "version": "2.6", "description": "foo"},
+        set_whitelist=False)
+    # test that getting the whitelist info doesn't reveal package name, see #451
+    with mapp.xom.model.keyfs.transaction(write=False):
+        with monkeypatch.context() as m:
+            # make sure we get an error if data is fetched
+            m.setattr(mapp.xom, 'httpget', None)
+            stage = mapp.xom.model.getstage(api.stagename)
+            info = stage.get_mirror_whitelist_info("pkg1")
+            assert info['has_mirror_base'] is False
+            assert info['blocked_by_mirror_whitelist'] == "root/pypi"
+    mapp.use("root/pypi")
+    mapp.xom.httpget.mock_simple("pkg1", text="")
+    mapp.get_simple("pkg1")
+    with mapp.xom.model.keyfs.transaction(write=False):
+        with monkeypatch.context() as m:
+            # make sure we get an error if data is fetched
+            m.setattr(mapp.xom, 'httpget', None)
+            pypistage = mapp.xom.model.getstage("root/pypi")
+            # expire the project data, otherwise we wouldn't fetch data
+            # by accident
+            pypistage.cache_retrieve_times.expire("pkg1")
+            # now we check that we get correct info without fetching data
+            stage = mapp.xom.model.getstage(api.stagename)
+            info = stage.get_mirror_whitelist_info("pkg1")
+            assert info['has_mirror_base'] is False
+            assert info['blocked_by_mirror_whitelist'] == "root/pypi"
+    # now we whitelist the package
+    testapp.patch_json("/" + api.stagename, ["mirror_whitelist+=pkg1"])
+    with mapp.xom.model.keyfs.transaction(write=False):
+        stage = mapp.xom.model.getstage(api.stagename)
+        info = stage.get_mirror_whitelist_info("pkg1")
+        assert info['has_mirror_base'] is True
+        assert info['blocked_by_mirror_whitelist'] is None
+
+
 @pytest.fixture
 def queue(TimeoutQueue):
     return TimeoutQueue()
