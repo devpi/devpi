@@ -780,13 +780,20 @@ class BaseStage(object):
         project = ensure_unicode(project)
         private_hit = whitelisted = False
         for stage in self.sro():
-            in_index = stage.has_project_perstage(project)
             if stage.ixconfig["type"] == "mirror":
+                if private_hit and not whitelisted:
+                    # don't check the mirror for private packages
+                    return dict(
+                        has_mirror_base=False,
+                        blocked_by_mirror_whitelist=stage.name)
+                in_index = stage.has_project_perstage(project)
                 has_mirror_base = in_index and (not private_hit or whitelisted)
                 blocked_by_mirror_whitelist = in_index and private_hit and not whitelisted
                 return dict(
                     has_mirror_base=has_mirror_base,
                     blocked_by_mirror_whitelist=stage.name if blocked_by_mirror_whitelist else None)
+            else:
+                in_index = stage.has_project_perstage(project)
             private_hit = private_hit or in_index
             whitelist = set(stage.ixconfig.get("mirror_whitelist", set()))
             whitelisted = whitelisted or '*' in whitelist or project in whitelist
