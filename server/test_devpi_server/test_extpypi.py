@@ -430,6 +430,17 @@ class TestPyPIStageprojects:
         s = pypistage.list_projects_perstage()
         assert s == set(["ploy-ansible", "devpi-server", "django"])
 
+    def test_get_remote_projects_doctype(self, pypistage):
+        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
+            <!DOCTYPE html>
+            <html><head><title>Simple Index</title>
+            <meta name="api-version" value="2" /></head>
+            <body>
+                <a href='devpi-server'>devpi-server</a><br/>
+            </body></html>""")
+        x = pypistage._get_remote_projects()
+        assert x == set(["devpi-server"])
+
     def test_single_project_access_updates_projects(self, pypistage):
         pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
             <body>
