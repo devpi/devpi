@@ -7,7 +7,7 @@ import secrets
 import sys
 import uuid
 from operator import itemgetter
-
+from tempfile import NamedTemporaryFile
 from pluggy import HookimplMarker, PluginManager
 import py
 from devpi_common.types import cached_property
@@ -592,8 +592,12 @@ class Config(object):
         return {}
 
     def write_nodeinfo(self):
-        self.path_nodeinfo.dirpath().ensure(dir=1)
-        self.path_nodeinfo.write(json.dumps(self.nodeinfo, indent=2))
+        nodeinfo_dir = self.path_nodeinfo.dirpath()
+        nodeinfo_dir.ensure(dir=1)
+        prefix = "-" + self.path_nodeinfo.basename
+        with NamedTemporaryFile(prefix=prefix, delete=False, dir=nodeinfo_dir.strpath) as f:
+            f.write(json.dumps(self.nodeinfo, indent=2).encode('utf-8'))
+        os.rename(f.name, self.path_nodeinfo.strpath)
         threadlog.info("wrote nodeinfo to: %s", self.path_nodeinfo)
 
     @property
