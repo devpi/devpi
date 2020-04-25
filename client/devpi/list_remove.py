@@ -1,5 +1,6 @@
 import json
 from devpi_common.metadata import get_sorted_versions, parse_requirement, Version
+from devpi_common.url import URL
 from devpi_common.viewhelp import ViewLinkStore, iter_toxresults
 from functools import partial
 
@@ -121,13 +122,20 @@ def main_list(hub, args):
         out_index(hub, reply.result["projects"])
 
 
+def add_force_flag(url):
+    return url.replace(query=dict(url.get_query_dict(), force=''))
+
+
 def main_remove(hub, args):
     hub.require_valid_current_with_index()
     args = hub.args
     spec_or_url = args.spec_or_url
     if spec_or_url.startswith(('http://', 'https://')):
         # delete specified file
-        url = spec_or_url
+        url = URL(spec_or_url)
+        if args.force:
+            url = add_force_flag(url)
+        url = url.url
         if confirm_delete_file(hub, url):
             hub.http_api("delete", url)
         return
@@ -139,6 +147,8 @@ def main_remove(hub, args):
     index_url = hub.current.get_index_url(indexname=args.index)
     proj_url = hub.current.get_project_url(
         req.project_name, indexname=args.index)
+    if args.force:
+        proj_url = add_force_flag(proj_url)
     reply = hub.http_api("get", proj_url.replace(query=dict(ignore_bases="")), type="projectconfig")
     ver_to_delete = get_versions_to_delete(index_url, reply, req)
     if not ver_to_delete:

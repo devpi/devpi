@@ -682,6 +682,8 @@ def remove(parser):
     """
     parser.add_argument("--index", default=None,
         help="index to remove from (defaults to current index)")
+    parser.add_argument("-f", "--force", action="store_true", default=False,
+        help="remove even on non-volatile index (with devpi-server >= 6.0.0)")
     parser.add_argument("spec_or_url",
         help="""\
         describes project/version/release file(s) to release from the current index. 
