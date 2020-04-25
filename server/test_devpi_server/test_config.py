@@ -342,6 +342,18 @@ class TestConfigFile:
         (out, err) = capsys.readouterr()
         assert "argument --port: invalid int value: 'foo'" in err
 
+    def test_requests_only(self, make_yaml_config):
+        yaml_path = make_yaml_config(textwrap.dedent("""\
+            devpi-server:
+              requests-only: false"""))
+        config = make_config(["devpi-server", "-c", yaml_path])
+        assert config.args.requests_only is False
+        yaml_path = make_yaml_config(textwrap.dedent("""\
+            devpi-server:
+              requests-only: true"""))
+        config = make_config(["devpi-server", "-c", yaml_path])
+        assert config.args.requests_only is True
+
     @pytest.mark.no_storage_option
     def test_storage_backend_options(self, makexom, make_yaml_config):
         class Plugin:
