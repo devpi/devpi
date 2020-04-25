@@ -10,15 +10,13 @@ from __future__ import unicode_literals
 import time
 
 import re
-from defusedxml import ElementTree
 from devpi_common.vendor._pip import HTMLPage
-
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
 from devpi_common.validation import normalize_name
 from functools import partial
-from io import StringIO
+from html.parser import HTMLParser
 from .config import hookimpl
 from .model import BaseStageCustomizer
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
@@ -32,6 +30,42 @@ class Link(URL):
     def __init__(self, url="", *args, **kwargs):
         self.requires_python = kwargs.pop('requires_python', None)
         URL.__init__(self, url, *args, **kwargs)
+
+
+class ProjectParser(HTMLParser):
+    def __init__(self, url):
+        HTMLParser.__init__(self)
+        self.projects = set()
+        self.baseurl = URL(url)
+        self.basehost = self.baseurl.replace(path='')
+        self.project = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'a':
+            self.project = None
+            attrs = dict(attrs)
+            if 'href' not in attrs:
+                return
+            href = attrs['href']
+            if '://' not in href:
+                project = href.rstrip('/').rsplit('/', 1)[-1]
+            else:
+                newurl = self.baseurl.joinpath(href)
+                # remove trailing slashes, so basename works correctly
+                newurl = newurl.asfile()
+                if not newurl.is_valid_http_url():
+                    return
+                if not newurl.path.startswith(self.baseurl.path):
+                    return
+                if self.basehost != newurl.replace(path=''):
+                    return
+                project = newurl.basename
+            self.project = project
+
+    def handle_endtag(self, tag):
+        if tag == 'a' and self.project:
+            self.projects.add(self.project)
+            self.project = None
 
 
 class IndexParser:
@@ -238,21 +272,6 @@ class PyPIStage(BaseStage):
             self.xom.set_singleton(self.name, "project_retrieve_times", c)
             return c
 
-    def _iter_remote_project_links(self, response):
-        source = StringIO()
-        # wrap in one outer tag for ElementTree to be happy (HTML vs XML)
-        source.write('<html>')
-        source.write(response.text)
-        source.write('</html>')
-        source.seek(0)
-        try:
-            for event, elem in ElementTree.iterparse(source):
-                if elem.tag != 'a' or 'href' not in elem.attrib:
-                    continue
-                yield elem
-        except ElementTree.ParseError:
-            threadlog.exception("Error parsing remote project list")
-
     def _get_remote_projects(self):
         headers = {"Accept": "text/html"}
         # use a minimum of 30 seconds as timeout for remote server and
@@ -268,26 +287,9 @@ class PyPIStage(BaseStage):
         if response.status_code != 200:
             raise self.UpstreamError("URL %r returned %s %s",
                 self.mirror_url, response.status_code, response.reason)
-        projects = set()
-        baseurl = URL(response.url)
-        basehost = baseurl.replace(path='')
-        for elem in self._iter_remote_project_links(response):
-            href = elem.attrib['href']
-            if '://' not in href:
-                project = href.rstrip('/').rsplit('/', 1)[-1]
-            else:
-                newurl = baseurl.joinpath(href)
-                # remove trailing slashes, so basename works correctly
-                newurl = newurl.asfile()
-                if not newurl.is_valid_http_url():
-                    continue
-                if not newurl.path.startswith(baseurl.path):
-                    continue
-                if basehost != newurl.replace(path=''):
-                    continue
-                project = newurl.basename
-            projects.add(project)
-        return projects
+        parser = ProjectParser(response.url)
+        parser.feed(response.text)
+        return parser.projects
 
     def list_projects_perstage(self):
         """ return set of all projects served through the mirror. """
