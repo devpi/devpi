@@ -196,7 +196,15 @@ def server_version(server_executable):
         raise
 
 
-def _liveserver(clientdir, server_executable, server_version):
+@pytest.fixture(scope="session")
+def indexer_backend_option(server_executable):
+    out = subprocess.check_output([server_executable, '-h'])
+    if b'--indexer-backend' in out:
+        return ['--indexer-backend', 'null']
+    return []
+
+
+def _liveserver(clientdir, indexer_backend_option, server_executable, server_version):
     host = 'localhost'
     port = get_open_port(host)
     try:
@@ -215,6 +223,7 @@ def _liveserver(clientdir, server_executable, server_version):
             getattr(e, 'output', "Can't get process output on Windows"),
             file=sys.stderr)
         raise
+    args.extend(indexer_backend_option)
     p = subprocess.Popen([server_executable] + args + [
         "--debug", "--host", host, "--port", str(port)])
     wait_for_port(host, port)
@@ -222,14 +231,14 @@ def _liveserver(clientdir, server_executable, server_version):
 
 
 @pytest.yield_fixture(scope="session")
-def url_of_liveserver(request, server_executable, server_version, tmpdir_factory):
+def url_of_liveserver(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     if request.config.option.live_url:
         yield URL(request.config.option.live_url)
         return
     clientdir = tmpdir_factory.mktemp("liveserver")
-    (p, url) = _liveserver(clientdir, server_executable, server_version)
+    (p, url) = _liveserver(clientdir, indexer_backend_option, server_executable, server_version)
     try:
         yield url
     finally:
@@ -238,11 +247,11 @@ def url_of_liveserver(request, server_executable, server_version, tmpdir_factory
 
 
 @pytest.yield_fixture(scope="session")
-def url_of_liveserver2(request, server_executable, server_version, tmpdir_factory):
+def url_of_liveserver2(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     clientdir = tmpdir_factory.mktemp("liveserver2")
-    (p, url) = _liveserver(clientdir, server_executable, server_version)
+    (p, url) = _liveserver(clientdir, indexer_backend_option, server_executable, server_version)
     try:
         yield url
     finally:
