@@ -1371,10 +1371,18 @@ def test_upload_and_delete_project_version(mapp):
     #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
     mapp.getjson(api.index + "pkg1", code=404)
 
+
 def test_delete_version_fails_on_non_volatile(mapp):
     mapp.create_and_use(indexconfig=dict(volatile=False))
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     mapp.delete_project("pkg1/2.6", code=403)
+
+
+def test_delete_version_on_non_volatile_force(mapp):
+    mapp.create_and_use(indexconfig=dict(volatile=False))
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.delete_project("pkg1/2.6", code=403)
+    mapp.delete_project("pkg1/2.6?force")
 
 
 @pytest.mark.nomocking
@@ -1569,6 +1577,17 @@ def test_delete_volatile_fails(mapp):
     mapp.use("root/test")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
+    assert mapp.getpkglist() == ["pkg5"]
+
+
+def test_delete_volatile_force(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test", indexconfig=dict(volatile=False))
+    api = mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
+    assert mapp.getpkglist() == ["pkg5"]
+    testapp.delete_json("/%s/pkg5?force" % api.stagename)
+    assert mapp.getpkglist() == []
 
 
 @pytest.mark.nomocking
@@ -1812,6 +1831,16 @@ def test_delete_package_volatile_fails(mapp, testapp):
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     (link,) = vv.get_links()
     testapp.xdel(403, link.href)
+
+
+def test_delete_package_volatile_force(mapp, testapp):
+    mapp.login_root()
+    mapp.create_index("test", indexconfig=dict(volatile=False))
+    mapp.use("root/test")
+    mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
+    vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
+    (link,) = vv.get_links()
+    testapp.xdel(200, link.href + '?force')
 
 
 @proj

@@ -1073,7 +1073,8 @@ class PyPIView:
     def del_project(self):
         stage = self.context.stage
         project = self.context.project
-        if not stage.ixconfig["volatile"]:
+        force = 'force' in self.request.params
+        if not stage.ixconfig["volatile"] and not force:
             apireturn(403, "project %r is on non-volatile index %s" %(
                       project, stage.name))
         try:
@@ -1116,7 +1117,8 @@ class PyPIView:
     def del_versiondata(self):
         stage = self.context.stage
         name, version = self.context.project, self.context.version
-        if not stage.ixconfig["volatile"]:
+        force = 'force' in self.request.params
+        if not stage.ixconfig["volatile"] and not force:
             abort(self.request, 403, "cannot delete version on non-volatile index")
         try:
             stage.del_versiondata(name, version)
@@ -1197,7 +1199,8 @@ class PyPIView:
                  request_method="DELETE")
     def del_pkg(self):
         stage = self.context.stage
-        if not stage.ixconfig["volatile"]:
+        force = 'force' in self.request.params
+        if not stage.ixconfig["volatile"] and not force:
             abort(self.request, 403, "cannot delete version on non-volatile index")
         relpath = self.request.path_info.strip("/")
         filestore = self.xom.filestore

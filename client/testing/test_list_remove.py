@@ -256,3 +256,44 @@ class TestListRemove:
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+
+    def test_delete_file_non_volatile(self, initproj, devpi, out_devpi, server_version):
+        from pkg_resources import parse_version
+        if server_version < parse_version("6dev"):
+            pytest.skip(
+                "devpi-server before 6.0.0 didn't support deleting "
+                "from non-volatile indexes.")
+        devpi("index", "volatile=false")
+        initproj("dddttt-0.666", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        out = out_devpi("list", "dddttt", "--all")
+        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        url = out.stdout.lines[0]
+        out = out_devpi("remove", url, code=403)
+        out = out_devpi("remove", "-f", url)
+        out = out_devpi("list", "dddttt", "--all")
+        with pytest.raises((Failed, ValueError)):
+            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+
+    def test_delete_project_non_volatile(self, initproj, devpi, out_devpi, server_version):
+        from pkg_resources import parse_version
+        if server_version < parse_version("6dev"):
+            pytest.skip(
+                "devpi-server before 6.0.0 didn't support deleting "
+                "from non-volatile indexes.")
+        devpi("index", "volatile=false")
+        initproj("dddttt-0.666", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        devpi("upload", "--formats", "sdist.zip")
+        out = out_devpi("list", "dddttt", "--all")
+        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out = out_devpi("remove", "dddttt", code=403)
+        out = out_devpi("remove", "--force", "dddttt")
+        out = out_devpi("list", "dddttt", "--all")
+        with pytest.raises((Failed, ValueError)):
+            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
