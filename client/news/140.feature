@@ -1,0 +1,1 @@
+fix #140: support ``-f/--force`` option for deletion on non-volatile indexes with devpi-server >= 6.0.0.

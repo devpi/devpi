@@ -1,0 +1,1 @@
+fix #140: support ``force`` flag for deletion on non-volatile indexes.
