@@ -324,6 +324,12 @@ class User:
         stage = self._getstage(index, type, {"type": type})
         if isinstance(stage.customizer, UnknownCustomizer):
             raise InvalidIndexconfig("unknown index type %r" % type)
+        # apply default values for new indexes
+        for key, value in stage.get_default_config_items():
+            kwargs.setdefault(key, value)
+        # apply default values from customizer class for new indexes
+        for key, value in stage.customizer.get_default_config_items():
+            kwargs.setdefault(key, value)
         stage._modify(**kwargs)
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
@@ -433,7 +439,7 @@ class BaseStageCustomizer(object):
             Will only be called for custom options, not for existing options
             of a private index.
             """
-        return ()
+        pass
 
     def validate_config(self, oldconfig, newconfig):
         """ Validates the index config.
@@ -527,13 +533,10 @@ class BaseStage(object):
                 "The stage customizer for '%s' defines keys which conflict "
                 "with existing index configuration keys: %s"
                 % (index_type, ", ".join(sorted(conflicting))))
-        # get default values from the stage class
+        # prevent default values from being removed
         for key, value in self.get_default_config_items():
             if kwargs.get(key) is RemoveValue:
                 raise InvalidIndexconfig("Default values can't be removed.")
-            # if current ixconfig already has the value, use that
-            value = self.ixconfig.get(key, value)
-            kwargs.setdefault(key, value)
         # now process any key known by the stage class
         for key in stage_keys:
             if key not in kwargs:
@@ -546,13 +549,10 @@ class BaseStage(object):
                         "The key '%s' wasn't processed."
                         % (key))
             ixconfig[key] = value
-        # next get defaults from the customizer class
+        # prevent removal of defaults from the customizer class
         for key, value in self.customizer.get_default_config_items():
             if kwargs.get(key) is RemoveValue:
                 raise InvalidIndexconfig("Default values can't be removed.")
-            # if current ixconfig already has the value, use that
-            value = self.ixconfig.get(key, value)
-            kwargs.setdefault(key, value)
         # and process any key known by the customizer class
         for key in customizer_keys:
             if key not in kwargs:
@@ -776,9 +776,14 @@ class BaseStage(object):
                         for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
         return all_links
 
+    def get_whitelist_inheritance(self):
+        return self.ixconfig.get("mirror_whitelist_inheritance", "union")
+
     def get_mirror_whitelist_info(self, project):
         project = ensure_unicode(project)
         private_hit = whitelisted = False
+        whitelist_inheritance = self.get_whitelist_inheritance()
+        whitelist = None
         for stage in self.sro():
             if stage.ixconfig["type"] == "mirror":
                 if private_hit and not whitelisted:
@@ -795,8 +800,21 @@ class BaseStage(object):
             else:
                 in_index = stage.has_project_perstage(project)
             private_hit = private_hit or in_index
-            whitelist = set(stage.ixconfig.get("mirror_whitelist", set()))
-            whitelisted = whitelisted or '*' in whitelist or project in whitelist
+            stage_whitelist = set(
+                stage.ixconfig.get("mirror_whitelist", set()))
+            if whitelist is None:
+                whitelist = stage_whitelist
+            else:
+                if whitelist_inheritance == "union":
+                    whitelist = whitelist.union(stage_whitelist)
+                elif whitelist_inheritance == "intersection":
+                    whitelist = whitelist.intersection(stage_whitelist)
+                else:
+                    raise RuntimeError(
+                        "Unknown whitelist_inheritance setting '%s'"
+                        % whitelist_inheritance)
+            if whitelisted or whitelist.intersection(('*', project)):
+                whitelisted = True
         return dict(
             has_mirror_base=False,
             blocked_by_mirror_whitelist=None)
@@ -866,6 +884,10 @@ class BaseStage(object):
         if not self.filter_projects([project]):
             return
         whitelisted = private_hit = False
+        # the default value if the setting is missing is the old behaviour,
+        # so existing indexes work as before
+        whitelist_inheritance = self.get_whitelist_inheritance()
+        whitelist = None
         for stage in self.sro():
             if stage.ixconfig["type"] == "mirror":
                 if private_hit:
@@ -876,8 +898,20 @@ class BaseStage(object):
                     threadlog.debug("private package %r whitelisted at stage %s",
                                     project, whitelisted.name)
             else:
-                whitelist = set(stage.ixconfig.get("mirror_whitelist", set()))
-                if '*' in whitelist or project in whitelist:
+                stage_whitelist = set(
+                    stage.ixconfig.get("mirror_whitelist", set()))
+                if whitelist is None:
+                    whitelist = stage_whitelist
+                else:
+                    if whitelist_inheritance == "union":
+                        whitelist = whitelist.union(stage_whitelist)
+                    elif whitelist_inheritance == "intersection":
+                        whitelist = whitelist.intersection(stage_whitelist)
+                    else:
+                        raise RuntimeError(
+                            "Unknown whitelist_inheritance setting '%s'"
+                            % whitelist_inheritance)
+                if whitelist.intersection(('*', project)):
                     whitelisted = stage
                 elif stage.has_project_perstage(project):
                     private_hit = True
@@ -886,7 +920,6 @@ class BaseStage(object):
                 if not stage.has_project_perstage(project):
                     continue
                 res = getattr(stage, opname)(**kw)
-                private_hit = private_hit or res
                 yield stage, res
             except self.UpstreamError as exc:
                 # If we are currently checking ourself raise the error, it is fatal
@@ -977,7 +1010,8 @@ class PrivateStage(BaseStage):
             ("acl_upload", [self.username]),
             ("acl_toxresult_upload", [":ANONYMOUS:"]),
             ("bases", ()),
-            ("mirror_whitelist", [])]
+            ("mirror_whitelist", []),
+            ("mirror_whitelist_inheritance", "intersection")]
 
     def normalize_indexconfig_value(self, key, value):
         if key == "volatile":
@@ -993,6 +1027,13 @@ class PrivateStage(BaseStage):
             return [
                 normalize_whitelist_name(x)
                 for x in ensure_list(value)]
+        if key == "mirror_whitelist_inheritance":
+            value = value.lower()
+            if value not in ("intersection", "union"):
+                raise InvalidIndexconfig(
+                    "Unknown value '%s' for mirror_whitelist_inheritance, "
+                    "must be 'intersection' or 'union'." % value)
+            return value
         if key in ("custom_data", "description", "title"):
             return value
 
