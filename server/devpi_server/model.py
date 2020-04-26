@@ -920,7 +920,6 @@ class BaseStage(object):
                 if not stage.has_project_perstage(project):
                     continue
                 res = getattr(stage, opname)(**kw)
-                private_hit = private_hit or res
                 yield stage, res
             except self.UpstreamError as exc:
                 # If we are currently checking ourself raise the error, it is fatal
