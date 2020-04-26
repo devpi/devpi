@@ -23,12 +23,13 @@ from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
-def join_requires(links, requires_python):
-    # build list of (key, href, require_python) tuples
+def join_links_data(links, requires_python, yanked):
+    # build list of (key, href, require_python, yanked) tuples
     result = []
-    for link, require_python in zip_longest(links, requires_python, fillvalue=None):
+    links = zip_longest(links, requires_python, yanked, fillvalue=None)
+    for link, require_python, yanked in links:
         key, href = link
-        result.append((key, href, require_python))
+        result.append((key, href, require_python, yanked))
     return result
 
 
@@ -476,7 +477,8 @@ class BaseStageCustomizer(object):
         """ Called when a list of simple links is returned.
 
             Returns None for no filtering, or an iterator returning
-            True for items to keep and False for items to remove."""
+            True for items to keep and False for items to remove.
+            The size of the tuples in links might grow, develop defensively."""
         return None
 
 
@@ -620,21 +622,21 @@ class BaseStage(object):
         # compatibility access method used by devpi-web and tests
         project = normalize_name(project)
         try:
-            return [self._make_elink(project, key, href, require_python)
-                    for key, href, require_python in self.get_simplelinks(project)]
+            return [self._make_elink(project, link_info)
+                    for link_info in self.get_simplelinks(project)]
         except self.UpstreamNotFoundError:
             return []
 
     def get_releaselinks_perstage(self, project):
         # compatibility access method for devpi-findlinks and possibly other plugins
         project = normalize_name(project)
-        return [self._make_elink(project, key, href, require_python)
-                for key, href, require_python in self.get_simplelinks_perstage(project)]
+        return [self._make_elink(project, link_info)
+                for link_info in self.get_simplelinks_perstage(project)]
 
-    def _make_elink(self, project, key, href, require_python):
-        rp = SimplelinkMeta((key, href, require_python))
+    def _make_elink(self, project, link_info):
+        rp = SimplelinkMeta(link_info)
         linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
-                    "require_python": require_python}
+                    "require_python": rp.require_python, "yanked": rp.yanked}
         return ELink(self.filestore, linkdict, project, rp.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
@@ -764,15 +766,16 @@ class BaseStage(object):
                 iterator = self.customizer.get_simple_links_filter_iter(project, res)
                 if iterator is not None:
                     res = apply_filter_iter(res, iterator)
-                for key, href, require_python in res:
+                for link_info in res:
+                    key = link_info[0]
                     if key not in seen:
                         seen.add(key)
-                        all_links.append((key, href, require_python))
+                        all_links.append(link_info)
         except self.UpstreamNotFoundError:
             return []
 
         if sorted_links:
-            all_links = [(v.key, v.href, v.require_python)
+            all_links = [(v.key, v.href, v.require_python, v.yanked)
                         for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
         return all_links
 
@@ -1138,7 +1141,8 @@ class PrivateStage(BaseStage):
         data = self.key_projsimplelinks(project).get()
         links = data.get("links", [])
         requires_python = data.get("requires_python", [])
-        return join_requires(links, requires_python)
+        yanked = []  # PEP 592 isn't supported for private stages yet
+        return join_links_data(links, requires_python, yanked)
 
     def _regen_simplelinks(self, project_input):
         project = normalize_name(project_input)
@@ -1477,8 +1481,8 @@ class LinkStore:
 
 class SimplelinkMeta(CompareMixin):
     """ helper class to provide information for items from get_simplelinks() """
-    def __init__(self, key_href):
-        self.key, self.href, self.require_python = key_href
+    def __init__(self, link_info):
+        self.key, self.href, self.require_python, self.yanked = link_info
         self._url = URL(self.href)
         self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
 
