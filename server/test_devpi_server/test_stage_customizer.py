@@ -200,7 +200,8 @@ def test_package_filters(makemapp, maketestapp, makexom):
                 yield version != '1.0'
 
         def get_simple_links_filter_iter(self, project, links):
-            for key, href, require_python in links:
+            for link_info in links:
+                key = link_info[0]
                 yield '1.0' not in key
 
     xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])

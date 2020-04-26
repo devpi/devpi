@@ -21,7 +21,7 @@ from .config import hookimpl
 from .model import BaseStageCustomizer
 from .model import BaseStage, make_key_and_href, SimplelinkMeta
 from .model import ensure_boolean
-from .model import join_requires
+from .model import join_links_data
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
 
@@ -29,6 +29,7 @@ from .log import threadlog
 class Link(URL):
     def __init__(self, url="", *args, **kwargs):
         self.requires_python = kwargs.pop('requires_python', None)
+        self.yanked = kwargs.pop('yanked', None)
         URL.__init__(self, url, *args, **kwargs)
 
 
@@ -103,7 +104,7 @@ class IndexParser:
         p = HTMLPage(html, disturl.url)
         seen = set()
         for link in p.links:
-            newurl = Link(link.url, requires_python=link.requires_python)
+            newurl = Link(link.url, requires_python=link.requires_python, yanked=link.yanked)
             if not newurl.is_valid_http_url():
                 continue
             if is_archive_of_project(newurl, self.project):
@@ -331,12 +332,14 @@ class PyPIStage(BaseStage):
         """ return True if we have some cached simpelinks information. """
         return self.key_projsimplelinks(project).exists()
 
-    def _save_cache_links(self, project, links, requires_python, serial):
+    def _save_cache_links(self, project, links, requires_python, yanked, serial):
         assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
-        data = {"serial": serial, "links": links,
-            "requires_python": requires_python}
+        data = {
+            "serial": serial, "links": links,
+            "requires_python": requires_python,
+            "yanked": yanked}
         key = self.key_projsimplelinks(project)
         old = key.get()
         if old != data:
@@ -353,19 +356,21 @@ class PyPIStage(BaseStage):
         self.cache_retrieve_times.refresh(project)
 
     def _load_cache_links(self, project):
-        is_expired, links_with_require_python, serial = True, None, -1
+        is_expired, links_with_data, serial = True, None, -1
 
         cache = self.key_projsimplelinks(project).get()
         if cache:
             is_expired = self.cache_retrieve_times.is_expired(project, self.cache_expiry)
             serial = cache["serial"]
-            links_with_require_python = join_requires(
-                cache["links"], cache.get("requires_python", []))
-            if self.offline and links_with_require_python:
-                links_with_require_python = ensure_deeply_readonly(list(
-                    filter(self._is_file_cached, links_with_require_python)))
+            links_with_data = join_links_data(
+                cache["links"],
+                cache.get("requires_python", []),
+                cache.get("yanked", []))
+            if self.offline and links_with_data:
+                links_with_data = ensure_deeply_readonly(list(
+                    filter(self._is_file_cached, links_with_data)))
 
-        return is_expired, links_with_require_python, serial
+        return is_expired, links_with_data, serial
 
     def _entry_from_href(self, href):
         # extract relpath from href by cutting of the hash
@@ -476,12 +481,13 @@ class PyPIStage(BaseStage):
             entries = [maplink(link) for link in releaselinks]
             links = [make_key_and_href(entry) for entry in entries]
             requires_python = [link.requires_python for link in releaselinks]
-            self._save_cache_links(project, links, requires_python, serial)
+            yanked = [link.yanked for link in releaselinks]
+            self._save_cache_links(project, links, requires_python, yanked, serial)
             # make project appear in projects list even
             # before we next check up the full list with remote
             threadlog.info("setting projects cache for %r", project)
             self.cache_projectnames.get_inplace().add(project)
-            return join_requires(links, requires_python)
+            return join_links_data(links, requires_python, yanked)
 
         try:
             return map_and_dump()
@@ -558,6 +564,8 @@ class PyPIStage(BaseStage):
                     verdata['version'] = version
                 if sm.require_python is not None:
                     verdata['requires_python'] = sm.require_python
+                if sm.yanked:
+                    verdata['yanked'] = sm.yanked
                 elinks = verdata.setdefault("+elinks", [])
                 entrypath = sm._url.path
                 elinks.append({"rel": "releasefile", "entrypath": entrypath})

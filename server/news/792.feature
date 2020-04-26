@@ -1,0 +1,1 @@
+fix #792: support data-yanked attribute from PEP 592 for mirror indexes.

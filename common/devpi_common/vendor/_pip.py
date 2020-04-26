@@ -79,7 +79,8 @@ class HTMLPage(object):
                 continue
 
             pyrequire = anchor.get('data-requires-python')
-            yield Link(url, self, requires_python=pyrequire)
+            yanked = 'data-yanked' in anchor
+            yield Link(url, self, requires_python=pyrequire, yanked=yanked)
 
     def rel_links(self, rels=('homepage', 'download')):
         for url in self.explicit_rel_links(rels):
@@ -132,18 +133,23 @@ class HTMLPage(object):
 class Link(object):
 
     # CHANGED from PIP original: store requires_python
-    def __init__(self, url, comes_from=None, requires_python=None):
+    def __init__(self, url, comes_from=None, requires_python=None, yanked=False):
         self.url = url
         self.comes_from = comes_from
         self.requires_python = requires_python if requires_python else None
+        self.yanked = yanked
 
     def __str__(self):
         if self.requires_python:
             rp = ' (requires-python:%s)' % self.requires_python
         else:
             rp = ''
+        if self.yanked:
+            yanked = ' (yanked)'
+        else:
+            yanked = ''
         if self.comes_from:
-            return '%s (from %s)%s' % (self.url, self.comes_from, rp)
+            return '%s (from %s)%s%s' % (self.url, self.comes_from, rp, yanked)
         else:
             return str(self.url)
 
