@@ -32,8 +32,10 @@ def test_permissions_for_unknown_index(mapp, xom):
     with xom.keyfs.transaction(write=True):
         stage = xom.model.getstage(api.stagename)
         # first check direct stage access
-        with pytest.raises(ReadonlyIndex):
-            stage.modify(**dict(stage.ixconfig, bases=[]))
+        # modifing the stage directly is ok, as the view is protected by
+        # a permission and other index types might want to use the
+        # readonly functionality for all the rest of the methods
+        stage.modify(**dict(stage.ixconfig, bases=[]))
         with pytest.raises(ReadonlyIndex):
             stage.set_versiondata(
                 dict(name="hello", version="1.0", requires_python=">=3.5"))
@@ -49,7 +51,7 @@ def test_permissions_for_unknown_index(mapp, xom):
             stage.store_toxresult(link, {})
     assert mapp.getjson(api.index)['result']['type'] == 'unknown'
     # now check via views, which are protected by permissions most of the time
-    mapp.modify_index(api.stagename, indexconfig=dict(bases=[]), code=403)
+    mapp.modify_index(api.stagename, indexconfig=dict(bases=["root/pypi"]), code=403)
     mapp.testapp.xdel(403, path)
     mapp.delete_project('hello', code=403)
     mapp.upload_file_pypi("hello1-1.0.tar.gz", b'content1', "hello1", "1.0", code=403)

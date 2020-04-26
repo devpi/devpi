@@ -865,8 +865,6 @@ class BaseStage(object):
             return newconfig
 
     def modify(self, index=None, **kw):
-        if self.customizer.readonly:
-            raise ReadonlyIndex("index is marked read only")
         newconfig = self._modify(**kw)
         threadlog.info("modified index %s: %s", self.name, newconfig)
         return newconfig
