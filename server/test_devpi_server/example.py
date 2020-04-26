@@ -13,7 +13,7 @@ tox_result_data = {
     "testenvs": {
         "py27": {
             "test": [{
-                "command": ["python",],
+                "command": ["python"],
                 "retcode": "0",
                 "output": "everything fine",
             }]

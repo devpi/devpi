@@ -35,7 +35,7 @@ def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
         if hash_type and "#" not in pkgver:
             hv = (pkgver + str(pypiserial)).encode("ascii")
             hash_value = getattr(hashlib, hash_type)(hv).hexdigest()
-            ret.hash_spec = "%s=%s" %(hash_type, hash_value)
+            ret.hash_spec = "%s=%s" % (hash_type, hash_value)
             pkgver += "#" + ret.hash_spec
         text = '<a href="../../{name}/{pkgver}"{attribs}>{pkgver}</a>'.format(
             name=name, pkgver=pkgver, attribs=attribs)

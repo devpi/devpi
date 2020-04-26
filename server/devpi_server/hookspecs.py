@@ -52,10 +52,12 @@ def devpiserver_mirror_initialnames(stage, projectnames):
     (both for replica and a master)
     """
 
+
 @hookspec
 def devpiserver_stage_created(stage):
     """ called when a stage was successfully created. (both for replica and a master)
     """
+
 
 @hookspec
 def devpiserver_on_changed_versiondata(stage, project, version, metadata):
