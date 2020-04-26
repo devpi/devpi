@@ -519,6 +519,8 @@ class PyPIStage(BaseStage):
             return map_and_dump()
 
     def has_project_perstage(self, project):
+        if self.is_project_cached(project):
+            return True
         try:
             self.get_simplelinks_perstage(project)
         except self.UpstreamNotFoundError:
