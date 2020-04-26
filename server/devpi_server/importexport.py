@@ -569,15 +569,18 @@ class Importer:
                 entry = self.xom.filestore.maplink(
                     url, stage.username, stage.index, project)
                 entry.file_set_content(data, mapping["last_modified"])
-                (_, links_with_require_python, serial) = stage._load_cache_links(project)
-                if links_with_require_python is None:
-                    links_with_require_python = []
+                (_, links_with_data, serial) = stage._load_cache_links(project)
+                if links_with_data is None:
+                    links_with_data = []
                 links = [(url.basename, entry.relpath)]
                 requires_python = [versions[version].get('requires_python')]
-                for key, href, require_python in links_with_require_python:
+                yanked = [versions[version].get('yanked')]
+                for key, href, require_python, is_yanked in links_with_data:
                     links.append((key, href))
                     requires_python.append(require_python)
-                stage._save_cache_links(project, links, requires_python, serial)
+                    yanked.append(is_yanked)
+                stage._save_cache_links(
+                    project, links, requires_python, yanked, serial)
             # devpi-server-2.1 exported with md5 checksums
             if "md5" in mapping:
                 assert "hash_spec" not in mapping
