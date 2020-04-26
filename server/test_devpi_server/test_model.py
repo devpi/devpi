@@ -31,6 +31,13 @@ def udict(**kw):
 def bases(request):
     return request.param
 
+
+def get_release_basenames(stage, project):
+    return sorted(
+        x.basename
+        for x in stage.get_releaselinks(project))
+
+
 def register_and_store(stage, basename, content=b"123", name=None):
     assert py.builtin._isbytes(content), content
     n, version = splitbasename(basename)[:2]
@@ -595,9 +602,152 @@ class TestStage:
             "someproject", "<a href='someproject-1.1.zip' /a>")
         stage.modify(mirror_whitelist="*", bases=(pypistage.name,))
         stage2 = user.create_stage(index='inheriting', bases=(stage.name,))
+        assert stage.ixconfig['mirror_whitelist_inheritance'] == 'intersection'
+        assert stage2.ixconfig['mirror_whitelist_inheritance'] == 'intersection'
         assert stage2.ixconfig['mirror_whitelist'] == []
+        assert pypistage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(pypistage, 'someproject') == [
+            'someproject-1.1.zip']
+        assert stage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.1.zip']
+        assert stage2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.1.zip']
+        register_and_store(stage, 'someproject-1.1-py2.py3-none-any.whl')
+        assert stage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        assert stage2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl']
         register_and_store(stage2, 'someproject-1.0.zip')
+        assert stage2.list_versions('someproject') == {'1.0', '1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.0.zip',
+            'someproject-1.1-py2.py3-none-any.whl']
+
+    def test_whitelist_intersection_two_mirrors(self, httpget, stage, user):
+        mirror1 = user.create_stage("mirror1", **udict(
+            mirror_url="http://pypi.org/simple", type="mirror"))
+        mirror2 = user.create_stage("mirror2", **udict(
+            mirror_url="http://example.com/simple", type="mirror"))
+        httpget.mock_simple(
+            "someproject", "<a href='someproject-1.1.zip' /a>",
+            remoteurl=mirror1.mirror_url)
+        httpget.mock_simple(
+            "someproject", "<a href='someproject-1.1-py2.py3-none-any.whl' /a>",
+            remoteurl=mirror2.mirror_url)
+        stage.modify(
+            bases=(mirror1.name, mirror2.name),
+            mirror_whitelist='*')
+        stage2 = user.create_stage(index='inheriting', bases=(stage.name,))
+        assert stage.ixconfig['mirror_whitelist_inheritance'] == 'intersection'
+        assert stage2.ixconfig['mirror_whitelist_inheritance'] == 'intersection'
+        assert mirror1.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(mirror1, 'someproject') == [
+            'someproject-1.1.zip']
+        assert mirror2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(mirror2, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl']
+        assert stage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        assert stage2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        register_and_store(stage, 'someproject-1.0.zip')
+        assert stage.list_versions('someproject') == {'1.0', '1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.0.zip',
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
         assert stage2.list_versions('someproject') == {'1.0'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.0.zip']
+
+    def test_whitelist_union(self, pypistage, stage, user):
+        pypistage.mock_simple(
+            "someproject", "<a href='someproject-1.1.zip' /a>")
+        stage.modify(mirror_whitelist="*", bases=(pypistage.name,))
+        stage2 = user.create_stage(
+            index='inheriting', bases=(stage.name,),
+            mirror_whitelist_inheritance='union')
+        assert stage.ixconfig['mirror_whitelist_inheritance'] == 'intersection'
+        assert stage2.ixconfig['mirror_whitelist_inheritance'] == 'union'
+        assert stage2.ixconfig['mirror_whitelist'] == []
+        assert pypistage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(pypistage, 'someproject') == [
+            'someproject-1.1.zip']
+        assert stage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.1.zip']
+        assert stage2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.1.zip']
+        register_and_store(stage, 'someproject-1.1-py2.py3-none-any.whl')
+        assert stage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        assert stage2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        register_and_store(stage2, 'someproject-1.0.zip')
+        assert stage2.list_versions('someproject') == {'1.0', '1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.0.zip',
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+
+    def test_whitelist_union_two_mirrors(self, httpget, stage, user):
+        mirror1 = user.create_stage("mirror1", **udict(
+            mirror_url="http://pypi.org/simple", type="mirror"))
+        mirror2 = user.create_stage("mirror2", **udict(
+            mirror_url="http://example.com/simple", type="mirror"))
+        httpget.mock_simple(
+            "someproject", "<a href='someproject-1.1.zip' /a>",
+            remoteurl=mirror1.mirror_url)
+        httpget.mock_simple(
+            "someproject", "<a href='someproject-1.1-py2.py3-none-any.whl' /a>",
+            remoteurl=mirror2.mirror_url)
+        stage.modify(
+            bases=(mirror1.name, mirror2.name),
+            mirror_whitelist='*')
+        stage2 = user.create_stage(
+            index='inheriting', bases=(stage.name,),
+            mirror_whitelist_inheritance='union')
+        assert stage.ixconfig['mirror_whitelist_inheritance'] == 'intersection'
+        assert stage2.ixconfig['mirror_whitelist_inheritance'] == 'union'
+        assert mirror1.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(mirror1, 'someproject') == [
+            'someproject-1.1.zip']
+        assert mirror2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(mirror2, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl']
+        assert stage.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        assert stage2.list_versions('someproject') == {'1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        register_and_store(stage, 'someproject-1.0.zip')
+        assert stage.list_versions('someproject') == {'1.0', '1.1'}
+        assert get_release_basenames(stage, 'someproject') == [
+            'someproject-1.0.zip',
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
+        assert stage2.list_versions('someproject') == {'1.0', '1.1'}
+        assert get_release_basenames(stage2, 'someproject') == [
+            'someproject-1.0.zip',
+            'someproject-1.1-py2.py3-none-any.whl',
+            'someproject-1.1.zip']
 
     @pytest.mark.notransaction
     def test_mirror_whitelist_inheritance_bbb(self, xom):
