@@ -73,6 +73,7 @@ class TagLogger:
     def exception(self, msg, *args):
         self._logout.exception(self._prefix + msg, *args)
 
+
 class ThreadLog:
     def __getattr__(self, name):
         return getattr(thread_current_log(), name)
@@ -90,6 +91,7 @@ class ThreadLog:
 
 threadlog = ThreadLog()
 
+
 def thread_push_log(prefix):
     oldtlog = getattr(threadlocal, "taglogger", None)
     if oldtlog is None:
@@ -99,17 +101,20 @@ def thread_push_log(prefix):
     threadlocal.taglogger = tlog
     return tlog
 
+
 def thread_pop_log(prefix=None):
     if prefix and not threadlocal.taglogger._prefix.rstrip().endswith(prefix):
         raise ValueError("Wrong thread log order, expected %r, saw %r" %
                          (prefix, threadlocal.taglogger._prefix))
     threadlocal.taglogger = threadlocal.taglogger.last
 
+
 def thread_clear_log():
     try:
         del threadlocal.taglogger
     except AttributeError:
         pass
+
 
 def thread_current_log():
     taglogger = getattr(threadlocal, "taglogger", None)

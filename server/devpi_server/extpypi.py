@@ -286,7 +286,8 @@ class PyPIStage(BaseStage):
             self.mirror_url, allow_redirects=True, extra_headers=headers,
             timeout=timeout)
         if response.status_code != 200:
-            raise self.UpstreamError("URL %r returned %s %s",
+            raise self.UpstreamError(
+                "URL %r returned %s %s",
                 self.mirror_url, response.status_code, response.reason)
         parser = ProjectParser(response.url)
         parser.feed(response.text)

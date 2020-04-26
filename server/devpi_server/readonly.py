@@ -6,7 +6,9 @@ into a readonly view.
 
 import py
 
+
 _immutable = (py.builtin.text, type(None), int, py.builtin.bytes, float)
+
 
 def ensure_deeply_readonly(val):
     """ return a recursive readonly-view wrapper around ``val`` in O(1) time.
@@ -52,6 +54,7 @@ def is_deeply_readonly(val):
     (which ensures only reading of data is possible). """
     return isinstance(val, ReadonlyView) or isinstance(val, _immutable)
 
+
 def is_sequence(val):
     """ Return True if the value is a readonly or normal sequence (list, tuple)"""
     return isinstance(val, (ReadonlyView, list, tuple))
@@ -74,7 +77,7 @@ class ReadonlyView(object):
         return len(self._data)
 
     def __repr__(self):
-        return "%s(%s)" %(self.__class__.__name__, repr(self._data))
+        return "%s(%s)" % (self.__class__.__name__, repr(self._data))
 
 
 class DictViewReadonly(ReadonlyView):

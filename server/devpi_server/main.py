@@ -23,6 +23,7 @@ from . import __version__ as server_version
 class Fatal(Exception):
     pass
 
+
 def fatal(msg):
     raise Fatal(msg)
 
@@ -126,6 +127,7 @@ def make_application():
     """ entry point for making an application object with defaults. """
     config = parseoptions(get_pluginmanager(), [])
     return XOM(config).create_app()
+
 
 def wsgi_run(xom, app):
     from waitress import serve
@@ -302,10 +304,10 @@ class XOM:
             headers.update(extra_headers)
         try:
             resp = self._httpsession.get(
-                        url, stream=True,
-                        allow_redirects=allow_redirects,
-                        headers=headers,
-                        timeout=timeout or self.config.args.request_timeout)
+                url, stream=True,
+                allow_redirects=allow_redirects,
+                headers=headers,
+                timeout=timeout or self.config.args.request_timeout)
             return resp
         except OSError:
             location = get_caller_location()
@@ -382,8 +384,8 @@ class XOM:
                             "%s.%s" % (x.__module__, x.__name__)
                             for x in ixclasses)))
         self.config.hook.devpiserver_pyramid_configure(
-                config=self.config,
-                pyramid_config=pyramid_config)
+            config=self.config,
+            pyramid_config=pyramid_config)
 
         pyramid_config.add_view_deriver(self.view_deriver, under=INGRESS)
         pyramid_config.add_view_predicate('content_type', ContentTypePredicate)
