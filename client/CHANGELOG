@@ -2,6 +2,23 @@
 
 .. towncrier release notes start
 
+5.2.0 (2020-05-04)
+==================
+
+Features
+--------
+
+- fix #140: support ``-f/--force`` option for deletion on non-volatile indexes with devpi-server >= 6.0.0.
+
+
+Bug Fixes
+---------
+
+- fix #799: proper error message for devpi login without prior devpi use
+
+- Support for check_manifest>=0.42.
+
+
 5.1.1 (2019-12-18)
 ==================
 

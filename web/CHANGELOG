@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+4.0.3 (2020-05-04)
+==================
+
+Bug Fixes
+---------
+
+- Fix some problems with deletion from index when project was deleted after indexing changes in 4.0.0.
+
+- Fix replication error list on +status when there are more than 10 failures.
+
+
 4.0.2 (2020-01-31)
 ==================
 

@@ -1,1 +1,0 @@
-fix #792: support data-yanked attribute in HTMLPage parser.
