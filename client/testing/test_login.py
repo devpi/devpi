@@ -18,6 +18,7 @@ def args(tmpdir):
     class args:
         clientdir = tmpdir.join("client")
         username = "user"
+        password = None
     return args
 
 
@@ -26,7 +27,6 @@ def hub(args):
     out = py.io.TextIO()
     hub = Hub(args, file=out)
     hub._out = out
-    hub.current._currentdict["login"] = "http://localhost/"
     return hub
 
 
@@ -36,7 +36,8 @@ def login(args, hub, monkeypatch):
     return partial(main, hub, args)
 
 
-def test_login_asks_for_passwd(args, login):
+def test_login_asks_for_passwd(args, hub, login):
+    hub.current._currentdict["login"] = "http://localhost/"
     args.password = None
     with pytest.raises(GetPassException):
         login()
@@ -44,6 +45,7 @@ def test_login_asks_for_passwd(args, login):
 
 def test_login(args, hub, login, mock_http_api):
     args.password = "foo"
+    hub.current._currentdict["login"] = "http://localhost/"
     mock_http_api.set(hub.current.login, 200, result={
         "expiration": 36000,
         "password": "token"})
@@ -51,6 +53,13 @@ def test_login(args, hub, login, mock_http_api):
     out = hub._out.getvalue()
     assert "logged in 'user'" in out
     assert "credentials valid for 10.00 hours" in out
+
+
+def test_login_without_use(hub, login):
+    with pytest.raises(SystemExit):
+        login()
+    out = hub._out.getvalue()
+    assert "not connected to a server, see 'devpi use'" in out
 
 
 def test_login_plugin(args, hub, login, mock_http_api):
@@ -63,6 +72,7 @@ def test_login_plugin(args, hub, login, mock_http_api):
 
     hub.pm.register(Plugin())
     args.password = None
+    hub.current._currentdict["login"] = "http://localhost/"
     mock_http_api.set(hub.current.login, 200, result={
         "expiration": 36000,
         "password": "token"})

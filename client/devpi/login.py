@@ -3,6 +3,8 @@ import getpass
 
 
 def main(hub, args):
+    if not hub.current.root_url:
+        hub.fatal("not connected to a server, see 'devpi use'")
     user = args.username
     if user is None:
         user = hub.raw_input("user: ")
