@@ -1,1 +1,0 @@
-Fix replication error list on +status when there are more than 10 failures.

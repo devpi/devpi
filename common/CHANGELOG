@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+3.5.0 (2020-05-04)
+==================
+
+Features
+--------
+
+- fix #792: support data-yanked attribute in HTMLPage parser.
+
+- Replace "cached_property" with "lazy" package, which uses __dict__ directly for much faster reads.
+
+
 3.4.0 (2019-06-28)
 ==================
 
