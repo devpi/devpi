@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+5.5.0 (2020-05-04)
+==================
+
+Features
+--------
+
+- Proxy requests from replica to master are now streamed if possible. This improves reliability of large uploads through replicas and reduces RAM usage on the replica.
+
+
 5.4.1 (2020-03-26)
 ==================
 

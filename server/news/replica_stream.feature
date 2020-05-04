@@ -1,1 +1,0 @@
-Proxy requests from replica to master are now streamed if possible. This improves reliability of large uploads through replicas and reduces RAM usage on the replica.
