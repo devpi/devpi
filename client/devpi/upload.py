@@ -273,13 +273,19 @@ def find_parent_subpath(startpath, relpath, raising=True):
 class Checkout:
     def __init__(self, hub, setupdir, hasvcs=None, setupdir_only=None):
         self.hub = hub
+        self.cm_ui = None
+        if hasattr(check_manifest, 'UI'):
+            self.cm_ui = check_manifest.UI()
         assert setupdir.join("setup.py").check(), setupdir
         hasvcs = not hasvcs and not hub.args.novcs
         setupdir_only = bool(setupdir_only or hub.args.setupdironly)
         if hasvcs:
             with setupdir.as_cwd():
                 try:
-                    hasvcs = check_manifest.detect_vcs().metadata_name
+                    if self.cm_ui:
+                        hasvcs = check_manifest.detect_vcs(self.cm_ui).metadata_name
+                    else:
+                        hasvcs = check_manifest.detect_vcs().metadata_name
                 except check_manifest.Failure:
                     hasvcs = None
                 else:
@@ -301,7 +307,10 @@ class Checkout:
         if not self.hasvcs:
             return Exported(self.hub, self.setupdir, self.setupdir)
         with self.rootpath.as_cwd():
-            files = check_manifest.get_vcs_files()
+            if self.cm_ui:
+                files = check_manifest.get_vcs_files(self.cm_ui)
+            else:
+                files = check_manifest.get_vcs_files()
         newrepo = basetemp.join(self.rootpath.basename)
         for fn in files:
             source = self.rootpath.join(fn)
