@@ -419,7 +419,10 @@ class IndexerThread(object):
             # let the queue handle retries
             raise
         else:
-            log.info("Committing %s new documents to search index." % count)
+            if count:
+                log.info("Committing %s new documents to search index." % count)
+            else:
+                log.debug("Committing no new documents to search index.")
             writer.commit()
 
     def tick(self):
