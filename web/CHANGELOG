@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.4 (2020-05-11)
+==================
+
+Bug Fixes
+---------
+
+- Fix avoiding re-index of existing indexed projects on startup.
+
+
 4.0.3 (2020-05-04)
 ==================
 
