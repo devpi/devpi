@@ -278,7 +278,7 @@ class IndexingSharedData(object):
             self.queue.put((is_from_mirror, -serial, indexname, names))
             self.last_added = time.time()
 
-    def queue_projects(self, projects, serial, searcher):
+    def queue_projects(self, projects, at_serial, searcher):
         log.debug("Queuing projects for index update")
         queued_counter = itertools.count()
         queued = next(queued_counter)
@@ -291,25 +291,30 @@ class IndexingSharedData(object):
                 log.debug(
                     "Processed a total of %s projects and queued %s so far. "
                     "Currently in %s" % (processed, queued, project.indexname))
-            # we find the last serial the project was changed to avoid re-indexing
-            serial = project.stage.get_last_project_change_serial_perstage(
-                project.name, at_serial=serial)
             if project.is_from_mirror:
+                # we find the last serial the project was changed to avoid re-indexing
+                project_serial = project.stage.get_last_project_change_serial_perstage(
+                    project.name, at_serial=at_serial)
                 # mirrors have no docs, so we can shortcut
                 path = '/%s/%s' % (project.indexname, project.name)
                 existing = searcher.document(path=path)
                 if existing:
                     existing_serial = existing.get('serial', -1)
-                    if existing_serial >= serial:
+                    if existing_serial >= project_serial:
                         continue
-                key = (project.indexname, serial)
+                # we use at_serial here, because indexing is always done
+                # with the latest metadata
+                key = (project.indexname, at_serial)
                 _projects = mirror_projects.setdefault(key, [])
                 _projects.append(project)
                 if len(_projects) >= self.QUEUE_MAX_NAMES:
-                    self.extend(_projects, serial)
+                    self.extend(_projects, at_serial)
                     _projects.clear()
             else:
-                self.add(project, serial)
+                # private projects need to be checked in IndexerThread.handler,
+                # because preprocess_project might depend on files which were
+                # not available when indexing while replicating like doczips
+                self.add(project, at_serial)
             queued = next(queued_counter)
         for (indexname, serial), _projects in mirror_projects.items():
             self.extend(_projects, serial)

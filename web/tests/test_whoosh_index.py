@@ -126,9 +126,11 @@ class FakeStage(object):
     def __init__(self, index_type):
         self.ixconfig = dict(type=index_type)
         self.name = index_type
+        self.serials = {}
+        self.serial = -1
 
     def get_last_project_change_serial_perstage(self, project, at_serial=None):
-        return self.serial
+        return self.serials.get(project, self.serial)
 
 
 class TestIndexingSharedData:
@@ -337,3 +339,83 @@ class TestIndexingSharedData:
             ['prj6', 'prj7', 'prj8'],
             ['prj9']]
         assert shared_data.error_queue.qsize() == 0
+
+    def test_queue_projects_skip_existing(self, shared_data):
+        """ For projects from mirrors the existing serial from the index
+            is checked to skip reindexing projects which are already up to
+            date.
+
+            There was a bug where the used serial was overwritten during that
+            check causing wrong entries in the queue.
+        """
+        class FakeSearcher:
+            index = {}
+
+            def document(self, path):
+                if path in self.index:
+                    return {'serial': self.index[path]}
+
+        searcher = FakeSearcher()
+
+        result = []
+
+        def handler(is_from_mirror, serial, indexname, names):
+            if is_from_mirror and indexname == 'mirror':
+                for project in names:
+                    searcher.index['/%s/%s' % (indexname, project)] = serial
+            result.append((is_from_mirror, serial, indexname, names))
+
+        mirror = FakeStage('mirror')
+        stage = FakeStage('stage')
+        # add one project on the mirror at serial 0
+        mirror.serials['mirror1'] = 0
+        shared_data.queue_projects(
+            [
+                ProjectIndexingInfo(stage=mirror, name='mirror1')],
+            0, searcher)
+        assert shared_data.queue.qsize() == 1
+        while shared_data.queue.qsize():
+            shared_data.process_next(handler)
+        assert result == [
+            (True, 0, 'mirror', ['mirror1'])]
+        result.clear()
+        # add another project on the mirror at serial 1 and re-add first project
+        mirror.serials['mirror2'] = 1
+        shared_data.queue_projects(
+            [
+                ProjectIndexingInfo(stage=mirror, name='mirror1'),
+                ProjectIndexingInfo(stage=mirror, name='mirror2')],
+            1, searcher)
+        assert shared_data.queue.qsize() == 1
+        while shared_data.queue.qsize():
+            shared_data.process_next(handler)
+        assert result == [
+            (True, 1, 'mirror', ['mirror2'])]
+        result.clear()
+        # add a project on the stage at serial 2 and re-add mirror projects
+        stage.serials['prj'] = 2
+        shared_data.queue_projects(
+            [
+                ProjectIndexingInfo(stage=mirror, name='mirror1'),
+                ProjectIndexingInfo(stage=mirror, name='mirror2'),
+                ProjectIndexingInfo(stage=stage, name='prj')],
+            2, searcher)
+        assert shared_data.queue.qsize() == 1
+        while shared_data.queue.qsize():
+            shared_data.process_next(handler)
+        assert result == [
+            (False, 2, 'stage', ('prj',))]
+        result.clear()
+        # now re-add everything at a later serial
+        shared_data.queue_projects(
+            [
+                ProjectIndexingInfo(stage=mirror, name='mirror1'),
+                ProjectIndexingInfo(stage=mirror, name='mirror2'),
+                ProjectIndexingInfo(stage=stage, name='prj')],
+            3, searcher)
+        assert shared_data.queue.qsize() == 1
+        while shared_data.queue.qsize():
+            shared_data.process_next(handler)
+        assert result == [
+            (False, 3, 'stage', ('prj',))]
+        result.clear()
