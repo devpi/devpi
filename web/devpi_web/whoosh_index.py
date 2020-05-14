@@ -297,7 +297,10 @@ class IndexingSharedData(object):
                     project.name, at_serial=at_serial)
                 # mirrors have no docs, so we can shortcut
                 path = '/%s/%s' % (project.indexname, project.name)
-                existing = searcher.document(path=path)
+                existing = None
+                doc_num = searcher.document_number(path=path)
+                if doc_num is not None:
+                    existing = searcher.stored_fields(doc_num)
                 if existing:
                     existing_serial = existing.get('serial', -1)
                     if existing_serial >= project_serial:
@@ -573,7 +576,10 @@ class Index(object):
         data['path'] = u"/{user}/{index}/{name}".format(
             user=data['user'], index=data['index'],
             name=normalize_name(data['name']))
-        existing = searcher.document(path=data['path'])
+        existing = None
+        doc_num = searcher.document_number(path=data['path'])
+        if doc_num is not None:
+            existing = searcher.stored_fields(doc_num)
         if existing is not None:
             needs_reindex = False
             if ('+doczip' in project) != ('doc_version' in existing):

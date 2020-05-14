@@ -310,7 +310,7 @@ class TestIndexingSharedData:
             result.append(names)
 
         class FakeSearcher:
-            def document(self, path):
+            def document_number(self, path):
                 return None
 
         shared_data.queue_projects(prjs, 0, FakeSearcher())
@@ -351,9 +351,12 @@ class TestIndexingSharedData:
         class FakeSearcher:
             index = {}
 
-            def document(self, path):
+            def document_number(self, path):
                 if path in self.index:
-                    return {'serial': self.index[path]}
+                    return path
+
+            def stored_fields(self, path):
+                return {'serial': self.index[path]}
 
         searcher = FakeSearcher()
 
