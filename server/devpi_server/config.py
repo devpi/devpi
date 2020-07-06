@@ -274,12 +274,16 @@ def add_import_options(parser, pluginmanager):
              "server has caught up with all events.")
 
 
-def add_deploy_options(parser, pluginmanager):
+def add_secretfile_option(parser, pluginmanager):
     parser.addoption(
         "--secretfile", type=str, metavar="path",
         help="file containing the server side secret used for user "
              "validation. If not specified, a random secret is "
              "generated on each start up.")
+
+
+def add_deploy_options(parser, pluginmanager):
+    add_secretfile_option(parser, pluginmanager)
 
     parser.addoption(
         "--argon2-memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY_COST,
@@ -536,6 +540,10 @@ class MyArgumentParser(argparse.ArgumentParser):
         return grp
 
 
+def new_secret():
+    return base64.b64encode(secrets.token_bytes(32))
+
+
 class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
@@ -545,9 +553,15 @@ class Config(object):
         self.args = args
         self.pluginmanager = pluginmanager
         self.hook = pluginmanager.hook
-        self.serverdir = py.path.local(os.path.expanduser(self.args.serverdir))
-        self.path_nodeinfo = self.serverdir.join(".nodeinfo")
         self._key_cache = {}
+
+    @cached_property
+    def serverdir(self):
+        return py.path.local(os.path.expanduser(self.args.serverdir))
+
+    @cached_property
+    def path_nodeinfo(self):
+        return self.serverdir.join(".nodeinfo")
 
     def init_nodeinfo(self):
         log.info("Loading node info from %s", self.path_nodeinfo)
@@ -802,20 +816,9 @@ class Config(object):
         return py.path.local(
             os.path.expanduser(self.args.secretfile))
 
-    @cached_property
-    def basesecret(self):
+    def get_validated_secret(self):
         from .main import fatal
         import stat
-        if self.secretfile is None:
-            log.warn(
-                "No secret file provided, creating a new random secret. "
-                "Login tokens issued before are invalidate. "
-                "Use --secretfile option to provide a persistent secret. "
-                "You can create a proper secret to pipe into a file with one "
-                "of these commands:\n"
-                "python -c \"import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode('ascii'))\"\n"
-                "openssl rand -base64 32")
-            return base64.b64encode(secrets.token_bytes(32))
         if not self.secretfile.check(file=True):
             fatal("The given secret file doesn't exist.")
         if self.secretfile.stat().mode & stat.S_IRWXO and sys.platform != "win32":
@@ -835,6 +838,21 @@ class Config(object):
             fatal(
                 "The secret in the given secret file is too weak, "
                 "it should use less repetition.")
+        return secret
+
+    @cached_property
+    def basesecret(self):
+        if self.secretfile is None:
+            log.warn(
+                "No secret file provided, creating a new random secret. "
+                "Login tokens issued before are invalidate. "
+                "Use --secretfile option to provide a persistent secret. "
+                "You can create a proper secret to pipe into a file with one "
+                "of these commands:\n"
+                "python -c \"import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode('ascii'))\"\n"
+                "openssl rand -base64 32")
+            return new_secret()
+        secret = self.get_validated_secret()
         log.info("Using secret file '%s'.", self.secretfile)
         return secret
 
@@ -874,3 +892,41 @@ class Config(object):
 
 def getpath(path):
     return py.path.local(os.path.expanduser(str(path)))
+
+
+def gensecret():
+    from .log import configure_cli_logging
+    from .log import threadlog as log
+    from .main import Fatal
+    from .main import fatal
+    import stat
+    try:
+        pluginmanager = get_pluginmanager()
+        parser = MyArgumentParser(
+            description="Create a random secret.",
+            add_help=False)
+        add_help_option(parser, pluginmanager)
+        add_configfile_option(parser, pluginmanager)
+        add_secretfile_option(parser, pluginmanager)
+        config = parseoptions(pluginmanager, sys.argv, parser=parser)
+        configure_cli_logging(config.args)
+        if config.args.secretfile is None:
+            fatal("You need to provide a location for the secret file.")
+        if not config.secretfile.exists():
+            with config.secretfile.open("wb") as f:
+                f.write(new_secret())
+            log.info("New secret written to '%s'" % config.secretfile)
+            if sys.platform != "win32":
+                mode = config.secretfile.stat().mode
+                if mode & stat.S_IRWXG or mode & stat.S_IRWXO:
+                    config.secretfile.chmod(0o600)
+                    log.info("Changed file mode to 0600 to adjust access permissions.")
+        else:
+            log.info("Checking existing secret at '%s'" % config.secretfile)
+        # run checks
+        config.get_validated_secret()
+        log.info("Permissions of secret file look good.")
+    except Fatal as e:
+        tw = py.io.TerminalWriter(sys.stderr)
+        tw.line("fatal: %s" % e.args[0], red=True)
+        return 1
