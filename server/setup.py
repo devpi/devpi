@@ -84,6 +84,7 @@ if __name__ == "__main__":
             "devpi-export = devpi_server.importexport:export",
             "devpi-fsck = devpi_server.fsck:fsck",
             "devpi-gen-config = devpi_server.genconfig:genconfig",
+            "devpi-gen-secret = devpi_server.config:gensecret",
             "devpi-import = devpi_server.importexport:import_",
             "devpi-init = devpi_server.init:init",
             "devpi-passwd = devpi_server.passwd:passwd",
