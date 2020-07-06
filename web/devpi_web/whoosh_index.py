@@ -27,7 +27,9 @@ import itertools
 import os
 import py
 import shutil
+import sys
 import time
+import traceback
 
 
 hookimpl = HookimplMarker("devpiweb")
@@ -369,6 +371,14 @@ class IndexingSharedData(object):
         try:
             handler(is_from_mirror, serial, indexname, names)
         except Exception:
+            (exc_type, exc_value, exc_traceback) = sys.exc_info()
+            (filename, lineno, name) = traceback.extract_tb(exc_traceback, 2)[-1][:3]
+            del exc_traceback
+            formatted_exception = ''.join(
+                traceback.format_exception_only(exc_type, exc_value)).strip()
+            log.warn(
+                "Error during indexing in %s:%s:%s %s" % (
+                    filename, lineno, name, formatted_exception))
             self.add_errored(is_from_mirror, serial, indexname, names)
         finally:
             self.queue.task_done()
