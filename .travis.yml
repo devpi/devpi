@@ -182,4 +182,8 @@ jobs:
 
     - stage: test
       python: "nightly"
+      env: PROJECT=server
+
+    - stage: test
+      python: "nightly"
       env: PROJECT=web
