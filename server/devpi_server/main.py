@@ -8,6 +8,7 @@ import inspect
 import os
 import py
 import sys
+import traceback
 
 from requests import Response, exceptions
 from devpi_common.types import cached_property
@@ -309,17 +310,23 @@ class XOM:
                 headers=headers,
                 timeout=timeout or self.config.args.request_timeout)
             return resp
-        except OSError:
+        except OSError as e:
             location = get_caller_location()
-            threadlog.warn("OS error during httpget of %s at %s", url, location)
+            threadlog.warn(
+                "OS error during httpget of %s at %s: %s",
+                url, location, traceback.format_exception_only(e.__class__, e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
-        except exceptions.ConnectionError:
+        except exceptions.ConnectionError as e:
             location = get_caller_location()
-            threadlog.warn("Connection error during httpget of %s at %s", url, location)
+            threadlog.warn(
+                "Connection error during httpget of %s at %s: %s",
+                url, location, traceback.format_exception_only(e.__class__, e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
-        except self._httpsession.Errors:
+        except self._httpsession.Errors as e:
             location = get_caller_location()
-            threadlog.warn("HTTPError during httpget of %s at %s", url, location)
+            threadlog.warn(
+                "HTTPError during httpget of %s at %s: %s",
+                url, location, traceback.format_exception_only(e.__class__, e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
 
     def view_deriver(self, view, info):
