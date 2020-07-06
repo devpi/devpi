@@ -4,10 +4,12 @@ try:
 except ImportError:
     from collections.abc import MutableMapping as DictMixin
 from bs4 import BeautifulSoup
+from contextlib import contextmanager
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
+import fcntl
 import json
 import os
 import py
@@ -24,25 +26,41 @@ def get_unpack_path(stage, name, version):
         stage.user.name, stage.index, normalize_name(name), version, "+doc")
 
 
+@contextmanager
+def locked_unpack_path(stage, name, version):
+    unpack_path = get_unpack_path(stage, name, version)
+    lock_path = unpack_path.new(ext="lock")
+    with lock_path.open("w", ensure=True) as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield unpack_path
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
 def unpack_docs(stage, name, version, entry):
     # unpack, maybe a bit uncarefully but in principle
     # we are not loosing the original zip file anyway
-    unpack_path = get_unpack_path(stage, name, version)
-    hash_path = unpack_path.join('.hash')
-    if hash_path.exists():
-        with hash_path.open() as f:
-            if f.read().strip() == entry.hash_spec:
-                return unpack_path
-    if unpack_path.exists():
-        unpack_path.remove()
-    with entry.file_open_read() as f:
-        with Archive(f) as archive:
-            archive.extract(unpack_path)
-    with hash_path.open('w') as f:
-        f.write(entry.hash_spec)
-    threadlog.debug("%s: unpacked %s-%s docs to %s",
-                    stage.name, name, version, unpack_path)
-    return unpack_path
+    with locked_unpack_path(stage, name, version) as unpack_path:
+        hash_path = unpack_path.join('.hash')
+        if hash_path.exists():
+            with hash_path.open() as f:
+                if f.read().strip() == entry.hash_spec:
+                    return unpack_path
+        if unpack_path.exists():
+            try:
+                unpack_path.remove()
+            except py.error.ENOENT:
+                # there is a rare possibility of a race condition here
+                pass
+        with entry.file_open_read() as f:
+            with Archive(f) as archive:
+                archive.extract(unpack_path)
+        with hash_path.open('w') as f:
+            f.write(entry.hash_spec)
+        threadlog.debug("%s: unpacked %s-%s docs to %s",
+                        stage.name, name, version, unpack_path)
+        return unpack_path
 
 
 class Docs(DictMixin):

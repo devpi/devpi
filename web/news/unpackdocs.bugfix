@@ -1,0 +1,1 @@
+Use a lock file to prevent concurrent unpacking of documentation.
