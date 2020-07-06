@@ -73,7 +73,7 @@ def devpiserver_get_credentials(request):
     return (REPLICA_USER_NAME, password)
 
 
-@hookimpl
+@hookimpl(tryfirst=True)
 def devpiserver_auth_user(userdict, username, password):
     if username != REPLICA_USER_NAME:
         return dict(status="unknown")

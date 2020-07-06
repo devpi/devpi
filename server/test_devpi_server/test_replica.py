@@ -952,6 +952,27 @@ def test_master_url_auth_with_port(makexom):
     assert replica_xom.config.master_url.url == "http://localhost:3140"
 
 
+def test_replica_user_auth_before_other_plugins(makexom):
+    from devpi_server import replica
+    from devpi_server.config import hookimpl
+    from devpi_server.auth import Auth
+    from pyramid.httpexceptions import HTTPForbidden
+
+    class Plugin:
+        @hookimpl
+        def devpiserver_auth_user(self, userdict, username, password):
+            raise RuntimeError("Shouldn't be called")
+
+    plugin = Plugin()
+    # register both plugins, so the above plugin would normally be called first
+    xom = makexom(plugins=[replica, plugin])
+    auth = Auth(xom.model, "qweqwe")
+    with xom.keyfs.transaction(write=False):
+        # because the replica auth has tryfirst our plugin shouldn't be called
+        with pytest.raises(HTTPForbidden):
+            auth.get_auth_status((replica.REPLICA_USER_NAME, ''))
+
+
 class TestFileReplicationSharedData:
     @pytest.fixture
     def shared_data(self, replica_xom):
