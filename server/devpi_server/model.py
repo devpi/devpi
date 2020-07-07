@@ -114,8 +114,23 @@ class RootModel:
         self.xom = xom
         self.keyfs = xom.keyfs
 
-    def create_user(self, username, password, email=None, pwhash=None):
-        return User.create(self, username, password, email, pwhash=pwhash)
+    def create_user(self, username, password, **kwargs):
+        userlist = self.keyfs.USERLIST.get(readonly=False)
+        if username in userlist:
+            raise InvalidUser("username '%s' already exists" % username)
+        if not is_valid_name(username):
+            raise InvalidUser(
+                "username '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % username)
+        user = User(self, username)
+        user._modify(password=password, **kwargs)
+        userlist.add(username)
+        self.keyfs.USERLIST.set(userlist)
+        if "email" in kwargs:
+            threadlog.info("created user %r with email %r" % (username, kwargs["email"]))
+        else:
+            threadlog.info("created user %r" % username)
+        return user
 
     def get_user(self, name):
         user = User(self, name)
@@ -221,7 +236,26 @@ def is_valid_name(name):
     return not name_char_blocklist_regexp.search(name)
 
 
+class InvalidUserconfig(Exception):
+    def __init__(self, messages):
+        if isinstance(messages, py.builtin._basestring):
+            messages = [messages]
+        self.messages = messages
+        Exception.__init__(self, messages)
+
+
 class User:
+    # ignored_keys are skipped on create and modify
+    ignored_keys = frozenset(('indexes', 'username'))
+    hidden_keys = frozenset((
+        "password", "pwhash", "pwsalt"))
+    public_keys = frozenset((
+        "custom_data", "description", "email", "title"))
+    # allowed_keys can be modified
+    allowed_keys = hidden_keys.union(public_keys)
+    known_keys = allowed_keys.union(ignored_keys)
+    # visible_keys are returned via json
+    visible_keys = ignored_keys.union(public_keys)
 
     def __init__(self, parent, name):
         self.__parent__ = parent
@@ -233,37 +267,29 @@ class User:
     def key(self):
         return self.keyfs.USER(user=self.name)
 
-    @classmethod
-    def create(cls, model, username, password, email, pwhash=None):
-        userlist = model.keyfs.USERLIST.get(readonly=False)
-        if username in userlist:
-            raise InvalidUser("username '%s' already exists" % username)
-        if not is_valid_name(username):
-            raise InvalidUser(
-                "username '%s' contains characters that aren't allowed. "
-                "Any ascii symbol besides -.@_ is blocked." % username)
-        user = cls(model, username)
-        with user.key.update() as userconfig:
-            if password is not None or pwhash:
-                user._setpassword(userconfig, password, pwhash=pwhash)
-            if email:
-                userconfig["email"] = email
-            userconfig.setdefault("indexes", {})
-        userlist.add(username)
-        model.keyfs.USERLIST.set(userlist)
-        threadlog.info("created user %r with email %r" %(username, email))
-        return user
+    def get_cleaned_config(self, **kwargs):
+        unknown_keys = set(kwargs) - self.known_keys
+        if unknown_keys:
+            raise InvalidUserconfig(
+                "Unknown keys in user config: %s" % ", ".join(unknown_keys))
+        result = {}
+        for key in self.allowed_keys:
+            if key not in kwargs:
+                continue
+            result[key] = kwargs[key]
+        return result
 
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
             userconfig.update(newuserconfig)
             threadlog.info("internal: set user information %r", self.name)
 
-    def modify(self, password=None, **kwargs):
+    def _modify(self, password=None, pwhash=None, **kwargs):
+        kwargs = self.get_cleaned_config(**kwargs)
+        modified = []
         with self.key.update() as userconfig:
-            modified = []
-            if password is not None:
-                self._setpassword(userconfig, password)
+            if password is not None or pwhash:
+                self._setpassword(userconfig, password, pwhash=pwhash)
                 modified.append("password=*******")
                 kwargs['pwsalt'] = None
             for key, value in kwargs.items():
@@ -274,11 +300,16 @@ class User:
                     userconfig[key] = value
                 elif key in userconfig:
                     del userconfig[key]
-                if key in ('pwsalt', 'pwhash') and value:
+                if key in User.hidden_keys and value:
                     value = "*******"
                 modified.append("%s=%s" % (key, value))
-            threadlog.info("modified user %r: %s", self.name,
-                           ", ".join(modified))
+            userconfig.setdefault("indexes", {})
+        return modified
+
+    def modify(self, **kwargs):
+        modified = self._modify(**kwargs)
+        threadlog.info("modified user %r: %s", self.name,
+                       ", ".join(modified))
 
     def _setpassword(self, userconfig, password, pwhash=None):
         if pwhash:
@@ -315,8 +346,9 @@ class User:
         if not d:
             return d
         if not credentials:
-            d.pop("pwsalt", None)
-            d.pop("pwhash", None)
+            for key in list(d):
+                if key not in User.visible_keys:
+                    del d[key]
         d["username"] = self.name
         return d
 

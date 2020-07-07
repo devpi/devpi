@@ -2074,16 +2074,6 @@ class Test_getjson:
         abort_call_args = abort_calls[0][0]
         assert abort_call_args[1] == 400
 
-    def test_getjson_wrong_keys(self, abort_calls):
-        from devpi_server.views import getjson
-        from pyramid.request import Request
-        request = Request({}, body=b'{"k1": "v1", "k2": "v2"')
-        with pytest.raises(SystemExit):
-            getjson(request, allowed_keys=["k1", "k3"])
-        assert len(abort_calls) == 1
-        abort_call_args = abort_calls[0][0]
-        assert abort_call_args[1] == 400
-
 
 class TestTweenKeyfsTransaction:
     def test_nowrite(self, xom, blank_request):
