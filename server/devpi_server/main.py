@@ -367,10 +367,9 @@ class XOM:
         version_info = [
             ("devpi-server", get_distribution("devpi_server").version)]
         for plug, distinfo in self.config.pluginmanager.list_plugin_distinfo():
-            threadlog.info("Found plugin %s-%s (%s)." % (
-                distinfo.project_name, distinfo.version, distinfo.location))
             key = (distinfo.project_name, distinfo.version)
             if key not in version_info:
+                threadlog.info("Found plugin %s-%s." % key)
                 version_info.append(key)
         version_info.sort()
         pyramid_config.registry['devpi_version_info'] = version_info
