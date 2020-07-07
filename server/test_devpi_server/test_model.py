@@ -1408,18 +1408,17 @@ class TestUsers:
         assert 'pwhash' in userconfig
         salt = newsalt()
         hash = getpwhash("password", salt)
-        user.modify(pwsalt=salt, pwhash=hash)
+        with user.key.update() as userconfig:
+            # modify directly, because the modify method doesn't allow this
+            userconfig["pwsalt"] = salt
+            userconfig["pwhash"] = hash
         userconfig = user.get(credentials=True)
         assert userconfig['pwsalt'] == salt
         assert userconfig['pwhash'] == hash
         # now validate and check for migration
-        recs = caplog.getrecords(".*modified user .*")
-        assert len(recs) == 1
-        assert "pwsalt=*******" in recs[0].getMessage()
         assert user.validate("password")
-        recs = caplog.getrecords(".*modified user .*")
-        assert len(recs) == 2
-        assert "pwsalt=None" in recs[1].getMessage()
+        (rec,) = caplog.getrecords(".*modified user .*")
+        assert "pwsalt=None" in rec.getMessage()
         userconfig = user.get(credentials=True)
         assert 'pwsalt' not in userconfig
         assert userconfig['pwhash'].startswith("$argon2")

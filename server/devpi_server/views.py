@@ -40,7 +40,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .config import hookimpl
 from .filestore import BadGateway
-from .model import InvalidIndex, InvalidIndexconfig, InvalidUser
+from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
 from .model import ReadonlyIndex
 from .model import RemoveValue
 from .model import UpstreamError
@@ -730,7 +730,7 @@ class PyPIView:
         permission="index_modify")
     def index_modify(self):
         stage = self.context.stage
-        json = _getjson(self.request)
+        json = getjson(self.request)
         if isinstance(json, list):
             ixconfig = stage.get()
             for op, key, value in get_actions(json):
@@ -1293,7 +1293,6 @@ class PyPIView:
         dict = getjson(request)
         user = dict.get("user", None)
         password = dict.get("password", None)
-        #self.log.debug("got password %r" % password)
         if user is None or password is None:
             abort(request, 400, "Bad request: no user/password specified")
         proxyauth = self.auth.new_proxy_auth(user, password)
@@ -1307,18 +1306,13 @@ class PyPIView:
         permission="user_modify")
     def user_patch(self):
         request = self.request
-        ignored_keys = set(('indexes', 'username'))
-        allowed_keys = set((
-            "email", "password", "title", "description", "custom_data"))
-        result = getjson(request, allowed_keys=allowed_keys.union(ignored_keys))
-        kvdict = dict()
-        for key in allowed_keys:
-            if key not in result:
-                continue
-            kvdict[key] = result[key]
+        kvdict = getjson(request)
         user = self.context.user
         password = kvdict.get("password")
-        user.modify(**kvdict)
+        try:
+            user.modify(**kvdict)
+        except InvalidUserconfig as e:
+            apireturn(400, message=", ".join(e.messages))
         if password is not None:
             apireturn(200, "user updated, new proxy auth",
                       type="userpassword",
@@ -1341,6 +1335,8 @@ class PyPIView:
                 user = self.model.create_user(username, **kvdict)
             except InvalidUser as e:
                 apireturn(400, "%s" % e)
+            except InvalidUserconfig as e:
+                apireturn(400, message=", ".join(e.messages))
             apireturn(201, type="userconfig", result=user.get())
         apireturn(400, "password needs to be set")
 
@@ -1557,24 +1553,11 @@ def url_for_entrypath(request, entrypath):
         route_name, user=user, index=index, relpath=relpath)
 
 
-def _getjson(request):
+def getjson(request):
     try:
         d = request.json_body
     except ValueError:
         abort(request, 400, "Bad request: could not decode json")
-    return d
-
-
-def _check_allowed_keys(request, d, allowed_keys):
-    diff = set(d).difference(allowed_keys)
-    if diff:
-        abort(request, 400, "json keys not recognized: %s" % ",".join(diff))
-
-
-def getjson(request, allowed_keys=None):
-    d = _getjson(request)
-    if allowed_keys is not None:
-        _check_allowed_keys(request, d, allowed_keys)
     return d
 
 
