@@ -22,31 +22,19 @@ class Auth:
     def __init__(self, model, secret):
         self.model = model
         self.serializer = itsdangerous.TimedSerializer(secret)
-        self.hook = self.model.xom.config.hook.devpiserver_auth_user
+        self.hook = self.model.xom.config.hook.devpiserver_auth_request
+        self.legacy_hook = self.model.xom.config.hook.devpiserver_auth_user
 
-    def _validate(self, authuser, authpassword):
-        """ Validates user credentials.
-
-            If authentication plugins are installed, they will be queried.
-
-            If no user can be found, returns None.
-            If the credentials are wrong, returns False.
-            On success a list of group names the user is member of will be
-            returned. If the plugins don't return any groups, then the list
-            will be empty.
-            The 'root' user is always authenticated with the devpi-server
-            credentials, never by plugins.
-        """
-        user = self.model.get_user(authuser)
+    def _legacy_auth(self, authuser, authpassword, is_root, user):
         results = []
-        is_root = authuser == 'root'
         if not is_root:
             userinfo = user.get() if user is not None else None
             try:
                 results = [
-                    x for x in self.hook(userdict=userinfo,
-                                         username=authuser,
-                                         password=authpassword)
+                    x for x in self.legacy_hook(
+                        userdict=userinfo,
+                        username=authuser,
+                        password=authpassword)
                     if x["status"] != "unknown"]
             except AuthException:
                 threadlog.exception("Error in authentication plugin.")
@@ -61,6 +49,33 @@ class Auth:
             # return union of all groups which may be contained in that info
             groups = (ui.get('groups', []) for ui in userinfo_list)
             return dict(status="ok", groups=sorted(set(sum(groups, []))))
+
+    def _validate(self, authuser, authpassword, request=None):
+        """ Validates user credentials.
+
+            If authentication plugins are installed, they will be queried.
+
+            If no user can be found, returns None.
+            If the credentials are wrong, returns False.
+            On success a list of group names the user is member of will be
+            returned. If the plugins don't return any groups, then the list
+            will be empty.
+            The 'root' user is always authenticated with the devpi-server
+            credentials, never by plugins.
+        """
+        user = self.model.get_user(authuser)
+        is_root = authuser == 'root'
+        result = None
+        if not is_root:
+            userinfo = user.get(credentials=True) if user is not None else None
+            result = self.hook(request=request, userdict=userinfo, username=authuser, password=authpassword)
+            if result is not None:
+                if result["status"] != "ok":
+                    return dict(status="reject")
+                return result
+        result = self._legacy_auth(authuser, authpassword, is_root, user)
+        if result is not None:
+            return result
         if user is None:
             # we got no user model
             return dict(status="nouser")
@@ -69,22 +84,22 @@ class Auth:
             return dict(status="ok")
         return dict(status="reject")
 
-    def _get_auth_status(self, authuser, authpassword):
+    def _get_auth_status(self, authuser, authpassword, request=None):
         try:
             val = self.serializer.loads(authpassword, max_age=self.LOGIN_EXPIRATION)
         except itsdangerous.SignatureExpired:
             return dict(status="expired")
         except itsdangerous.BadData:
             # check if we got user/password direct authentication
-            return self._validate(authuser, authpassword)
+            return self._validate(authuser, authpassword, request=request)
         else:
             if not isinstance(val, list) or len(val) != 2 or val[0] != authuser:
                 threadlog.debug("mismatch credential for user %r", authuser)
                 return dict(status="nouser")
             return dict(status="ok", groups=val[1])
 
-    def new_proxy_auth(self, username, password):
-        result = self._validate(username, password)
+    def new_proxy_auth(self, username, password, request=None):
+        result = self._validate(username, password, request=request)
         if result["status"] == "ok":
             pseudopass = self.serializer.dumps(
                 (username, result.get("groups", [])))
@@ -92,11 +107,11 @@ class Auth:
             return {"password": pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
 
-    def get_auth_status(self, userpassword):
+    def get_auth_status(self, userpassword, request=None):
         if userpassword is None:
             return ["noauth", "", []]
         username, password = userpassword
-        status = self._get_auth_status(username, password)
+        status = self._get_auth_status(username, password, request=request)
         return [status["status"], username, status.get("groups", [])]
 
 

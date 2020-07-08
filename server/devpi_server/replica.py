@@ -49,11 +49,6 @@ def get_auth_serializer(config):
     return itsdangerous.TimedSerializer(config.get_replica_secret())
 
 
-class ReplicaPassword(str):
-    # we need to be able to pass on some objects to devpiserver_auth_user
-    __slots__ = ('auth_serializer', 'token')
-
-
 @hookimpl
 def devpiserver_get_credentials(request):
     # the DummyRequest class used in testing doesn't have the attribute
@@ -64,33 +59,28 @@ def devpiserver_get_credentials(request):
         return None
     if H_REPLICA_UUID not in request.headers:
         return None
-    xom = request.registry["xom"]
-    if not xom.is_master():
+    if not request.registry["xom"].is_master():
         return None
-    password = ReplicaPassword(request.headers[H_REPLICA_UUID])
-    password.token = authorization.params
-    password.auth_serializer = get_auth_serializer(xom.config)
-    return (REPLICA_USER_NAME, password)
+    return (REPLICA_USER_NAME, authorization.params)
 
 
 @hookimpl(tryfirst=True)
-def devpiserver_auth_user(userdict, username, password):
+def devpiserver_auth_request(request, userdict, username, password):
     if username != REPLICA_USER_NAME:
-        return dict(status="unknown")
+        return None
     # no other plugin must be able to authenticate the special REPLICA_USER_NAME
     # so instead of returning status unknown, we will raise HTTPForbidden
-    if not isinstance(password, ReplicaPassword):
+    if request is None or H_REPLICA_UUID not in request.headers:
         raise HTTPForbidden("Authorization malformed.")
-    token = password.token
-    auth_serializer = password.auth_serializer
+    auth_serializer = get_auth_serializer(request.registry["xom"].config)
     try:
         sent_uuid = auth_serializer.loads(
-            token, max_age=REPLICA_AUTH_MAX_AGE)
+            password, max_age=REPLICA_AUTH_MAX_AGE)
     except itsdangerous.SignatureExpired:
         raise HTTPForbidden("Authorization expired.")
     except itsdangerous.BadData:
         raise HTTPForbidden("Authorization malformed.")
-    if not secrets.compare_digest(password, sent_uuid):
+    if not secrets.compare_digest(request.headers[H_REPLICA_UUID], sent_uuid):
         raise HTTPForbidden("Wrong authorization value.")
     return dict(status="ok")
 

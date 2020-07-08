@@ -184,7 +184,8 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
         # that, however, winds up duplicating logic from the superclass.
         credentials = self._get_credentials(request)
         if credentials:
-            status, auth_user, groups = self.auth.get_auth_status(credentials)
+            status, auth_user, groups = self.auth.get_auth_status(
+                credentials, request=request)
             request.log.debug("got auth status %r for user %r" % (status, auth_user))
             if status == "ok":
                 return [":%s" % g for g in groups]
@@ -196,7 +197,7 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
     def verify_credentials(self, request):
         credentials = self._get_credentials(request)
         if credentials:
-            status = self.auth._validate(*credentials)
+            status = self.auth._validate(*credentials, request=request)
             if status.get("status") == "ok":
                 return True
         return False
