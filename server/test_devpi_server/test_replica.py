@@ -962,6 +962,10 @@ def test_replica_user_auth_before_other_plugins(makexom):
 
     class Plugin:
         @hookimpl
+        def devpiserver_auth_request(self, request, userdict, username, password):
+            raise RuntimeError("Shouldn't be called")
+
+        @hookimpl
         def devpiserver_auth_user(self, userdict, username, password):
             raise RuntimeError("Shouldn't be called")
 

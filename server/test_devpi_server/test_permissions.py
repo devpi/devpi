@@ -42,12 +42,12 @@ def permissionrequest(dummyrequest, model):
 def plugin():
     class Plugin:
         @hookimpl
-        def devpiserver_auth_user(self, userdict, username, password):
+        def devpiserver_auth_request(self, request, userdict, username, password):
             if username == 'external':
                 return dict(
                     status='ok',
                     groups=['developer'])
-            return dict(status="unknown")
+            return None
     return Plugin()
 
 

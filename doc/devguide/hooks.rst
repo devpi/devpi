@@ -34,14 +34,24 @@ To get the username and password from the request, the following hook is used::
 
 There is one hook to enable authentication from external sources::
 
-    devpiserver_auth_user(userdict, username, password):
-        """Needs to validate the username and password.
+    def devpiserver_auth_request(request, userdict, username, password):
+        """return authentication validation results.
 
-        A dict must be returned with a key "status" with one of the following
-        values:
+        If the user is unknown, return None, so other plugins can be tried.
+
+        Otherwise a dict must be returned with a key "status" with one of the
+        following values:
+
             "ok" - authentication succeeded
-            "unknown" - no matching user, other plugins are tried
             "reject" - invalid password, authentication stops
+
+        It is recommended to only use "reject" when explicitly configured to do
+        so by the user, otherwise interaction of multiple plugins might have
+        unexpected problems.
+
+        Plugins doing network requests should use ``trylast=True`` for the
+        hook implementation, so other plugins can potentially shortcut the
+        authentication before a network request is required.
 
         Optionally the plugin can return a list of group names the user is
         member of using the "groups" key of the result dict.

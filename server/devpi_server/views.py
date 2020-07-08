@@ -423,7 +423,7 @@ class PyPIView:
         # to stay and the alternative was uglier
         policy = self.request.registry.queryUtility(IAuthenticationPolicy)
         credentials = policy._get_credentials(self.request)
-        return self.auth.get_auth_status(credentials)
+        return self.auth.get_auth_status(credentials, request=self.request)
 
     #
     # supplying basic API locations for all services
@@ -1302,7 +1302,7 @@ class PyPIView:
         password = dict.get("password", None)
         if user is None or password is None:
             abort(request, 400, "Bad request: no user/password specified")
-        proxyauth = self.auth.new_proxy_auth(user, password)
+        proxyauth = self.auth.new_proxy_auth(user, password, request=request)
         if proxyauth:
             apireturn(200, "login successful", type="proxyauth",
                 result=proxyauth)
@@ -1323,8 +1323,8 @@ class PyPIView:
         if password is not None:
             apireturn(200, "user updated, new proxy auth",
                       type="userpassword",
-                      result=self.auth.new_proxy_auth(user.name,
-                                                      password=password))
+                      result=self.auth.new_proxy_auth(
+                          user.name, password=password, request=request))
         apireturn(200, "user updated")
 
     @view_config(

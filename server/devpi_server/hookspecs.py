@@ -131,7 +131,7 @@ def devpiserver_get_credentials(request):
     """
 
 
-@hookspec
+@hookspec(warn_on_impl="Use new devpiserver_auth_request hook instead")
 def devpiserver_auth_user(userdict, username, password):
     """return dict containing authentication validation results.
 
@@ -141,6 +141,31 @@ def devpiserver_auth_user(userdict, username, password):
         "ok" - authentication succeeded
         "unknown" - no matching user, other plugins are tried
         "reject" - invalid password, authentication stops
+
+    Optionally the plugin can return a list of group names the user is
+    member of using the "groups" key of the result dict.
+    """
+
+
+@hookspec(firstresult=True)
+def devpiserver_auth_request(request, userdict, username, password):
+    """return authentication validation results.
+
+    If the user is unknown, return None, so other plugins can be tried.
+
+    Otherwise a dict must be returned with a key "status" with one of the
+    following values:
+
+        "ok" - authentication succeeded
+        "reject" - invalid password, authentication stops
+
+    It is recommended to only use "reject" when explicitly configured to do
+    so by the user, otherwise interaction of multiple plugins might have
+    unexpected problems.
+
+    Plugins doing network requests should use ``trylast=True`` for the
+    hook implementation, so other plugins can potentially shortcut the
+    authentication before a network request is required.
 
     Optionally the plugin can return a list of group names the user is
     member of using the "groups" key of the result dict.

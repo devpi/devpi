@@ -1302,10 +1302,10 @@ class TestPluginPermissions:
             groups = ['plugingroup']
 
             @hookimpl
-            def devpiserver_auth_user(self, userdict, username, password):
+            def devpiserver_auth_request(self, request, userdict, username, password):
                 if username == 'pluginuser':
                     return dict(status="ok", groups=self.groups)
-                return dict(status="unknown")
+                return None
 
         return Plugin()
 
@@ -2141,12 +2141,12 @@ class TestRestrictModify:
     def plugin(self):
         class Plugin:
             @hookimpl
-            def devpiserver_auth_user(self, userdict, username, password):
+            def devpiserver_auth_request(self, request, userdict, username, password):
                 if username == "regular" and password == "regular":
                     return dict(status="ok", groups=["regulars"])
                 if username == "admin" and password == "admin":
                     return dict(status="ok", groups=["admins"])
-                return dict(status="unknown")
+                return None
         return Plugin()
 
     @pytest.fixture
