@@ -847,10 +847,8 @@ class Config(object):
                 "No secret file provided, creating a new random secret. "
                 "Login tokens issued before are invalidate. "
                 "Use --secretfile option to provide a persistent secret. "
-                "You can create a proper secret to pipe into a file with one "
-                "of these commands:\n"
-                "python -c \"import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode('ascii'))\"\n"
-                "openssl rand -base64 32")
+                "You can create a proper secret with the "
+                "devpi-gen-secret command.")
             return new_secret()
         secret = self.get_validated_secret()
         log.info("Using secret file '%s'.", self.secretfile)
