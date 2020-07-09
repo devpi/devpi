@@ -148,3 +148,29 @@ class TestStage:
         # except external can upload
         assert with_user(permissionrequest, 'external').has_permission(
             'toxresult_upload', stage)
+
+
+class TestAuthDenialPlugin:
+    @pytest.fixture
+    def plugin(self):
+        class Plugin:
+            @hookimpl
+            def devpiserver_auth_denials(self, request, acl, user, stage):
+                return self.results.pop()
+        return Plugin()
+
+    @pytest.fixture
+    def xom(self, makexom, plugin):
+        xom = makexom(plugins=[plugin])
+        return xom
+
+    def test_denials_plugin(self, permissionrequest, plugin, xom):
+        from devpi_server.view_auth import RootFactory
+        request = with_user(permissionrequest, 'root')
+        request.registry['xom'] = xom
+        context = RootFactory(request)
+        plugin.results = [None]
+        assert request.has_permission('user_create', context)
+        context = RootFactory(request)
+        plugin.results = [[('root', 'user_create')]]
+        assert not request.has_permission('user_create', context)

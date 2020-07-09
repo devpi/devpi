@@ -1,15 +1,15 @@
 from pyramid.httpexceptions import HTTPFound
+from devpi_common.types import cached_property
 from devpi_common.types import ensure_unicode
 from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
 from devpi_server.views import abort
 from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy
-from pyramid.decorator import reify
 try:
-    from pyramid.authorization import Allow, Everyone
+    from pyramid.authorization import Allow, Deny, Everyone
 except ImportError:
-    from pyramid.security import Allow, Everyone
+    from pyramid.security import Allow, Deny, Everyone
 
 
 class RootFactory(object):
@@ -18,8 +18,19 @@ class RootFactory(object):
         xom = request.registry['xom']
         self.model = xom.model
         self.restrict_modify = xom.config.restrict_modify
+        self.hook = xom.config.hook
 
-    @reify
+    @cached_property
+    def _user(self):
+        if self.username:
+            return self.model.get_user(self.username)
+
+    @cached_property
+    def _stage(self):
+        if self.username and self.index:
+            return self.model.getstage(self.username, self.index)
+
+    @cached_property
     def matchdict(self):
         result = {}
         if not self.request.matchdict:
@@ -30,6 +41,7 @@ class RootFactory(object):
             result[k] = v
         return result
 
+    @cached_property
     def __acl__(self):
         acl = []
         if self.restrict_modify is None:
@@ -53,11 +65,16 @@ class RootFactory(object):
                     (Allow, principal, 'user_create'),
                     (Allow, principal, 'user_modify'),
                     (Allow, principal, 'index_create')])
-        stage = None
-        if self.username and self.index:
-            stage = self.model.getstage(self.username, self.index)
+        stage = self._stage
         if stage:
             acl.extend(stage.__acl__())
+        acl = tuple(acl)
+        all_denials = self.hook.devpiserver_auth_denials(
+            request=self.request, acl=acl, user=self._user, stage=stage)
+        if all_denials:
+            denials = set().union(*all_denials)
+            if denials:
+                acl = tuple((Deny,) + denial for denial in denials) + acl
         return acl
 
     def getstage(self, user, index):
@@ -102,11 +119,11 @@ class RootFactory(object):
             abort(self.request, 404, "no project %r" %(project))
         return res
 
-    @reify
+    @cached_property
     def index(self):
         return self.matchdict.get('index')
 
-    @reify
+    @cached_property
     def project(self):
         project = self.matchdict.get('project')
         if project is None:
@@ -122,7 +139,7 @@ class RootFactory(object):
             raise HTTPFound(location=url)
         return n_project
 
-    @reify
+    @cached_property
     def verified_project(self):
         name = self.project
         try:
@@ -132,25 +149,30 @@ class RootFactory(object):
             abort(self.request, 502, str(e))
         return name
 
-    @reify
+    @cached_property
     def version(self):
         version = self.matchdict.get('version')
         if version is None:
             return
         return ensure_unicode(version)
 
-    @reify
+    @cached_property
     def stage(self):
-        return self.getstage(self.username, self.index)
+        stage = self._stage
+        if not stage:
+            abort(
+                self.request, 404, "The stage %s/%s could not be found." % (
+                    self.username, self.index))
+        return stage
 
-    @reify
+    @cached_property
     def user(self):
-        user = self.model.get_user(self.username)
+        user = self._user
         if not user:
             abort(self.request, 404, "no user %r" % self.username)
         return user
 
-    @reify
+    @cached_property
     def username(self):
         return self.matchdict.get('user')
 

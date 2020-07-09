@@ -173,6 +173,15 @@ def devpiserver_auth_request(request, userdict, username, password):
 
 
 @hookspec
+def devpiserver_auth_denials(request, acl, user, stage):
+    """EXPERIMENTAL!
+
+    Return None or iterable of tuples with (principal, permission) to be
+    added as denials to acl.
+    """
+
+
+@hookspec
 def devpiserver_get_stage_customizer_classes():
     """EXPERIMENTAL!
 
