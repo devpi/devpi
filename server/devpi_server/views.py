@@ -15,6 +15,7 @@ from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from html import escape
 from io import BytesIO
+from lazy import lazy
 from pluggy import HookimplMarker
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.interfaces import IRequestExtensions
@@ -690,6 +691,8 @@ class PyPIView:
                 if auth_policy.verify_credentials(self.request):
                     try:
                         user = self.model.create_user(username, password=None)
+                        lazy.invalidate(self.context, '_user')
+                        lazy.invalidate(self.context, 'user')
                     except InvalidUser as e:
                         apireturn(400, "%s" % e)
         stage = self.context.user.getstage(self.context.index)
