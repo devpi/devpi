@@ -702,11 +702,11 @@ class Config(object):
     def skip_import_type(self):
         return getattr(self.args, 'skip_import_type', None)
 
-    @property
+    @cached_property
     def restrict_modify(self):
         rm = self.args.restrict_modify
         if rm is not None:
-            rm = set(x.strip() for x in rm.split(','))
+            rm = frozenset(x.strip() for x in rm.split(','))
         return rm
 
     @property
