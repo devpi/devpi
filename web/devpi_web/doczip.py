@@ -11,9 +11,7 @@ from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
 import fcntl
 import json
-import os
 import py
-import shutil
 
 
 def get_unpack_path(stage, name, version):
@@ -27,15 +25,23 @@ def get_unpack_path(stage, name, version):
 
 
 @contextmanager
-def locked_unpack_path(stage, name, version):
+def locked_unpack_path(stage, name, version, remove_lock_file=False):
     unpack_path = get_unpack_path(stage, name, version)
     lock_path = unpack_path.new(ext="lock")
-    with lock_path.open("w", ensure=True) as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
-        try:
-            yield unpack_path
-        finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
+    try:
+        with lock_path.open("w", ensure=True) as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                yield unpack_path
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+    finally:
+        if remove_lock_file and lock_path.exists():
+            try:
+                lock_path.remove()
+            except py.error.ENOENT:
+                # there is a rare possibility of a race condition here
+                pass
 
 
 def unpack_docs(stage, name, version, entry):
@@ -144,9 +150,9 @@ def remove_docs(stage, project, version):
     if stage is None:
         # the stage was removed
         return
-    directory = get_unpack_path(stage, project, version).strpath
-    if not os.path.isdir(directory):
-        threadlog.debug("ignoring lost unpacked docs: %s" % directory)
-    else:
-        threadlog.debug("removing unpacked docs: %s" % directory)
-        shutil.rmtree(directory)
+    with locked_unpack_path(stage, project, version, remove_lock_file=True) as directory:
+        if not directory.isdir():
+            threadlog.debug("ignoring lost unpacked docs: %s" % directory)
+        else:
+            threadlog.debug("removing unpacked docs: %s" % directory)
+            directory.remove()
