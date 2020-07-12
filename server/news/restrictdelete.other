@@ -1,0 +1,1 @@
+When using ``--restrict-modify`` those users can't delete their own user object to prevent lockout.

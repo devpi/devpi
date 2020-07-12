@@ -1671,6 +1671,17 @@ def test_delete_root(mapp, xom):
     mapp.delete_user("root", code=403)
 
 
+def test_delete_self_restrict_modify(mapp, xom):
+    xom.config.args.restrict_modify = "root,admin"
+    mapp.login("root")
+    mapp.create_user("admin", "")
+    mapp.login("admin")
+    mapp.delete_user("admin", code=403)
+    mapp.login("root")
+    mapp.delete_user("root", code=403)
+    mapp.delete_user("admin")
+
+
 def test_delete_package(mapp, testapp):
     mapp.login_root()
     mapp.create_index("test")
