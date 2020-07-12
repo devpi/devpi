@@ -1662,6 +1662,15 @@ def test_delete_with_acl_upload(mapp, restrict_modify, volatile, xom):
     mapp.delete_project('pkg5', code=result_code)
 
 
+def test_delete_root(mapp, xom):
+    mapp.login_root()
+    # we need to set the index to non-volatile, otherwise that will
+    # trigger the 403 instead of the missing user_delete permission
+    res = mapp.getjson("/root/pypi")["result"]
+    mapp.modify_index("root/pypi", indexconfig=dict(res, volatile=True))
+    mapp.delete_user("root", code=403)
+
+
 def test_delete_package(mapp, testapp):
     mapp.login_root()
     mapp.create_index("test")

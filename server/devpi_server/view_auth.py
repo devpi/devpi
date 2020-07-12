@@ -6,7 +6,8 @@ from devpi_server.views import abort
 from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy
 from pyramid.decorator import reify
-from pyramid.security import Allow, Deny, Everyone
+from pyramid.security import Allow
+from pyramid.security import Everyone
 
 
 class RootFactory(object):
@@ -32,14 +33,14 @@ class RootFactory(object):
         if self.restrict_modify is None:
             acl.extend([
                 (Allow, Everyone, 'user_create'),
-                (Allow, 'root', 'user_delete'),
                 (Allow, 'root', 'user_modify'),
                 (Allow, 'root', 'index_create')])
-            if self.username == 'root':
-                acl.append((Deny, Everyone, 'user_delete'))
             if self.username:
+                if self.username != 'root':
+                    acl.extend([
+                        (Allow, 'root', 'user_delete'),
+                        (Allow, self.username, 'user_delete')])
                 acl.extend([
-                    (Allow, self.username, 'user_delete'),
                     (Allow, self.username, 'user_modify'),
                     (Allow, self.username, 'index_create')])
         else:
