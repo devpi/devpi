@@ -45,9 +45,10 @@ class RootFactory(object):
                     (Allow, self.username, 'index_create')])
         else:
             for principal in self.restrict_modify:
+                if self.username and self.username != principal:
+                    acl.append((Allow, principal, 'user_delete'))
                 acl.extend([
                     (Allow, principal, 'user_create'),
-                    (Allow, principal, 'user_delete'),
                     (Allow, principal, 'user_modify'),
                     (Allow, principal, 'index_create')])
         stage = None
