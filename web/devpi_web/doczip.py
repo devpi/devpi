@@ -27,18 +27,19 @@ def get_unpack_path(stage, name, version):
 @contextmanager
 def locked_unpack_path(stage, name, version, remove_lock_file=False):
     unpack_path = get_unpack_path(stage, name, version)
-    lock_path = unpack_path.new(ext="lock")
+    # we are using the hash file as a lock file
+    hash_path = unpack_path.new(ext="hash")
     try:
-        with lock_path.open("w", ensure=True) as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
+        with hash_path.open("a+", ensure=True) as hash_file:
+            fcntl.flock(hash_file, fcntl.LOCK_EX)
             try:
-                yield unpack_path
+                yield (hash_file, unpack_path)
             finally:
-                fcntl.flock(f, fcntl.LOCK_UN)
+                fcntl.flock(hash_file, fcntl.LOCK_UN)
     finally:
-        if remove_lock_file and lock_path.exists():
+        if remove_lock_file and hash_path.exists():
             try:
-                lock_path.remove()
+                hash_path.remove()
             except py.error.ENOENT:
                 # there is a rare possibility of a race condition here
                 pass
@@ -47,12 +48,10 @@ def locked_unpack_path(stage, name, version, remove_lock_file=False):
 def unpack_docs(stage, name, version, entry):
     # unpack, maybe a bit uncarefully but in principle
     # we are not loosing the original zip file anyway
-    with locked_unpack_path(stage, name, version) as unpack_path:
-        hash_path = unpack_path.join('.hash')
-        if hash_path.exists():
-            with hash_path.open() as f:
-                if f.read().strip() == entry.hash_spec:
-                    return unpack_path
+    with locked_unpack_path(stage, name, version) as (hash_file, unpack_path):
+        hash_file.seek(0)
+        if hash_file.read().strip() == entry.hash_spec:
+            return unpack_path
         if unpack_path.exists():
             try:
                 unpack_path.remove()
@@ -62,8 +61,9 @@ def unpack_docs(stage, name, version, entry):
         with entry.file_open_read() as f:
             with Archive(f) as archive:
                 archive.extract(unpack_path)
-        with hash_path.open('w') as f:
-            f.write(entry.hash_spec)
+        hash_file.seek(0)
+        hash_file.write(entry.hash_spec)
+        hash_file.truncate()
         threadlog.debug("%s: unpacked %s-%s docs to %s",
                         stage.name, name, version, unpack_path)
         return unpack_path
@@ -92,6 +92,8 @@ class Docs(DictMixin):
             threadlog.warn("Tried to access %s, but it doesn't exist.", self.unpack_path)
             return {}
         unpack_path = unpack_docs(self.stage, self.name, self.version, self.entry)
+        if not unpack_path.isdir():
+            return {}
         html = []
         fjson = []
         for entry in unpack_path.visit():
@@ -150,7 +152,7 @@ def remove_docs(stage, project, version):
     if stage is None:
         # the stage was removed
         return
-    with locked_unpack_path(stage, project, version, remove_lock_file=True) as directory:
+    with locked_unpack_path(stage, project, version, remove_lock_file=True) as (hash_file, directory):
         if not directory.isdir():
             threadlog.debug("ignoring lost unpacked docs: %s" % directory)
         else:

@@ -110,9 +110,9 @@ def get_doc_info(context, request, version=None, check_content=True):
         if not links:
             continue
         doc_path = unpack_docs(context.stage, name, doc_version, links[0].entry)
-        if doc_path.check():
+        if doc_path.isdir():
             break
-    if doc_path is None or not doc_path.check():
+    if doc_path is None or not doc_path.isdir():
         if version == 'stable':
             raise HTTPNotFound("No stable documentation available.")
         raise HTTPNotFound("No documentation available.")
@@ -368,7 +368,7 @@ def get_docs_info(request, stage, linkstore):
         return
     name, ver = normalize_name(linkstore.project), linkstore.version
     doc_path = unpack_docs(stage, name, ver, links[0].entry)
-    if doc_path.exists():
+    if doc_path.isdir():
         return dict(
             title="%s-%s" % (name, ver),
             url=request.route_url(
