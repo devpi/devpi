@@ -1,1 +1,0 @@
-Empty documentation zip files are now handled gracefully instead of causing exceptions in views and during indexing.
