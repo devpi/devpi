@@ -2,6 +2,25 @@
 
 .. towncrier release notes start
 
+4.0.5 (2020-07-16)
+==================
+
+Bug Fixes
+---------
+
+- Empty documentation zip files are now handled gracefully instead of causing exceptions in views and during indexing.
+
+- Use a lock file to prevent concurrent unpacking of documentation.
+
+
+Other Changes
+-------------
+
+- Provide location and exception info for indexing errors in log.
+
+- Slightly faster lookup of existing data during indexing.
+
+
 4.0.4 (2020-05-11)
 ==================
 
