@@ -451,7 +451,10 @@ def show_one_conf(hub, cfg):
     elif not cfg.indexserver:
         status = "no index server configured"
     else:
-        status = cfg.indexserver
+        url = URL(cfg.indexserver)
+        if url.password:
+            url = url.replace(password="****")
+        status = url.url
     hub.info("%-23s: %s" %(cfg.screen_name, status))
 
 class BaseCfg(object):
