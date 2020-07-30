@@ -93,6 +93,7 @@ if __name__ == "__main__":
             "devpi-server-auth-basic = devpi_server.auth_basic",
             "devpi-server-auth-devpi = devpi_server.auth_devpi",
             "devpi-server-extpypi = devpi_server.extpypi",
+            "devpi-server-genconfig = devpi_server.genconfig",
             "devpi-server-model = devpi_server.model",
             "devpi-server-replica = devpi_server.replica",
             "devpi-server-views = devpi_server.views",
