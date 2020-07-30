@@ -7,6 +7,7 @@ from devpi_common.url import URL
 from functools import partial
 from plistlib import dumps as plist_dumps
 
+from devpi_server.config import hookimpl
 from devpi_server.config import parseoptions, get_parser, get_pluginmanager
 
 
@@ -114,6 +115,16 @@ def gen_windows_service(tw, config, argv, writer):
     writer("windows-service.txt", content)
 
 
+@hookimpl
+def devpiserver_genconfig(tw, config, argv, writer):
+    gen_cron(tw, config, argv, writer)
+    gen_launchd(tw, config, argv, writer)
+    gen_nginx(tw, config, argv, writer)
+    gen_supervisor(tw, config, argv, writer)
+    gen_systemd(tw, config, argv, writer)
+    gen_windows_service(tw, config, argv, writer)
+
+
 def genconfig(config=None, argv=None):
     pluginmanager = get_pluginmanager()
 
@@ -159,18 +170,12 @@ def genconfig(config=None, argv=None):
                 py.path.local(config.args.configfile).strpath])
             continue
         new_argv.append(arg)
-    new_args = parseoptions(pluginmanager, ["devpi-server"] + new_argv)
-    cfg_types = [
-        "cron",
-        "launchd",
-        "nginx",
-        "supervisor",
-        "systemd",
-        "windows_service"]
-    for cfg_type in cfg_types:
-        def writer(basename, content):
-            p = destdir.join(basename)
-            p.write(content)
-            tw.line("wrote %s" % p.relto(tw.cwd), bold=True)
-        name = "gen_" + cfg_type
-        globals()[name](tw, new_args, new_argv, writer)
+    new_config = parseoptions(pluginmanager, ["devpi-server"] + new_argv)
+
+    def writer(basename, content):
+        p = destdir.join(basename)
+        p.write(content)
+        tw.line("wrote %s" % p.relto(tw.cwd), bold=True)
+
+    config.hook.devpiserver_genconfig(
+        tw=tw, config=new_config, argv=new_argv, writer=writer)
