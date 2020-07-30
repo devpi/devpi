@@ -240,6 +240,46 @@ class TestURL:
         # trying to change something not existing does nothing
         assert url.replace(foo='https').url == "http://qwe/foo?bar=ham#hash"
 
+    def test_replace_netloc_parts(self):
+        url = URL("http://example.com")
+        assert url.replace(username="foo").url == "http://foo@example.com"
+        assert url.replace(password="foo").url == "http://:foo@example.com"
+        assert url.replace(hostname="foo").url == "http://foo"
+        assert url.replace(port="8080").url == "http://example.com:8080"
+        # original shouldn't have changed
+        assert url.url == "http://example.com"
+        url = URL("http://bar@example.com")
+        assert url.replace(username="foo").url == "http://foo@example.com"
+        assert url.replace(password="foo").url == "http://bar:foo@example.com"
+        assert url.replace(hostname="foo").url == "http://bar@foo"
+        assert url.replace(port="8080").url == "http://bar@example.com:8080"
+        # original shouldn't have changed
+        assert url.url == "http://bar@example.com"
+        url = URL("http://bar:secret@example.com")
+        assert url.replace(username="foo").url == "http://foo:secret@example.com"
+        assert url.replace(password="foo").url == "http://bar:foo@example.com"
+        assert url.replace(hostname="foo").url == "http://bar:secret@foo"
+        assert url.replace(port="8080").url == "http://bar:secret@example.com:8080"
+        # original shouldn't have changed
+        assert url.url == "http://bar:secret@example.com"
+        url = URL("http://example.com:8080")
+        assert url.replace(username="foo").url == "http://foo@example.com:8080"
+        assert url.replace(password="foo").url == "http://:foo@example.com:8080"
+        assert url.replace(hostname="foo").url == "http://foo:8080"
+        assert url.replace(port="1234").url == "http://example.com:1234"
+        # original shouldn't have changed
+        assert url.url == "http://example.com:8080"
+        url = URL("http://bar:secret@example.com:8080")
+        assert url.replace(username=None).url == "http://:secret@example.com:8080"
+        assert url.replace(password=None).url == "http://bar@example.com:8080"
+        with pytest.raises(ValueError):
+            url.replace(hostname=None)
+        assert url.replace(port=None).url == "http://bar:secret@example.com"
+        with pytest.raises(ValueError):
+            url.replace(hostname="foo", netloc="bar")
+        # original shouldn't have changed
+        assert url.url == "http://bar:secret@example.com:8080"
+
     def test_replace_nothing(self):
         url = URL("http://qwe/foo?bar=ham#hash")
         new_url = url.replace()

@@ -76,6 +76,38 @@ class URL:
     def replace(self, **kwargs):
         _parsed = self._parsed
         url = []
+        if set(kwargs).intersection(('username', 'password', 'hostname', 'port')):
+            netloc = ""
+            if "username" in kwargs:
+                if kwargs["username"]:
+                    netloc += kwargs["username"]
+            elif self.username:
+                netloc += self.username
+            if "password" in kwargs:
+                if kwargs["password"]:
+                    netloc += ":" + kwargs["password"]
+            elif self.password:
+                netloc += ":" + self.password
+            if netloc:
+                netloc += "@"
+            if "hostname" in kwargs:
+                if not kwargs["hostname"]:
+                    raise ValueError("Can't use empty 'hostname'.")
+                netloc += kwargs["hostname"]
+            else:
+                if self.hostname:
+                    netloc += self.hostname
+            if "port" in kwargs:
+                if kwargs["port"]:
+                    netloc += ":%s" % kwargs["port"]
+            elif self.port:
+                netloc += ":%s" % self.port
+            if netloc != self.netloc:
+                if "netloc" in kwargs:
+                    raise ValueError(
+                        "Can't use 'netloc' together with any of "
+                        "'username', 'password', 'hostname', 'port'.")
+                kwargs["netloc"] = netloc
         for field in ('scheme', 'netloc', 'path', 'query', 'fragment'):
             value = kwargs.get(field, getattr(_parsed, field))
             if field == 'query':
