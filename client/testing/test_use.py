@@ -447,7 +447,7 @@ class TestUnit:
         ('https', ''),
         ('http', 'foo:bar@'),
         ('https', 'foo:bar@')])
-    def test_main_setcfg(self, scheme, basic_auth, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
+    def test_main_setcfg(self, scheme, basic_auth, capfd, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         monkeypatch.delenv("VIRTUAL_ENV", raising=False)
         monkeypatch.setenv("HOME", tmpdir.join('home').strpath)
         monkeypatch.setattr(PipCfg, "pip_conf_name", "pip.cfg")
@@ -468,6 +468,10 @@ class TestUnit:
         cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         # run twice to find any issues where lines are added more than once
         cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
+        if '@' in basic_auth:
+            (out, err) = capfd.readouterr()
+            assert basic_auth not in out
+            assert ':****@' in out
         assert PipCfg().default_location.exists()
         content = PipCfg().default_location.read()
         assert len(
