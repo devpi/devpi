@@ -9,7 +9,10 @@ from devpi_common.archive import Archive
 from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import json
 import py
 
@@ -31,11 +34,13 @@ def locked_unpack_path(stage, name, version, remove_lock_file=False):
     hash_path = unpack_path.new(ext="hash")
     try:
         with hash_path.open("a+", ensure=True) as hash_file:
-            fcntl.flock(hash_file, fcntl.LOCK_EX)
+            if fcntl:
+                fcntl.flock(hash_file, fcntl.LOCK_EX)
             try:
                 yield (hash_file, unpack_path)
             finally:
-                fcntl.flock(hash_file, fcntl.LOCK_UN)
+                if fcntl:
+                    fcntl.flock(hash_file, fcntl.LOCK_UN)
     finally:
         if remove_lock_file and hash_path.exists():
             try:
