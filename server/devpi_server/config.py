@@ -611,6 +611,10 @@ class Config(object):
         prefix = "-" + self.path_nodeinfo.basename
         with NamedTemporaryFile(prefix=prefix, delete=False, dir=nodeinfo_dir.strpath) as f:
             f.write(json.dumps(self.nodeinfo, indent=2).encode('utf-8'))
+        try:
+            os.remove(self.path_nodeinfo.strpath)
+        except FileNotFoundError:
+            pass
         os.rename(f.name, self.path_nodeinfo.strpath)
         threadlog.info("wrote nodeinfo to: %s", self.path_nodeinfo)
 

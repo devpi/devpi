@@ -1,0 +1,1 @@
+Fix trying to import fcntl on Windows.
