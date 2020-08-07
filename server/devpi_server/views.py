@@ -394,10 +394,6 @@ def devpiserver_authcheck_forbidden(request):
         '/{user}/{index}/+f/{relpath:.*}')
     if route.name not in route_names:
         return
-    root_factory = request.registry.queryUtility(
-        IRootFactory, default=DefaultRootFactory)
-    root_factory = route.factory or root_factory
-    request.context = root_factory(request)
     if not request.has_permission('pkg_read'):
         return True
 
@@ -461,6 +457,8 @@ class PyPIView:
     def authcheck_view(self):
         request = self.request
         routes_mapper = request.registry.queryUtility(IRoutesMapper)
+        root_factory = request.registry.queryUtility(
+            IRootFactory, default=DefaultRootFactory)
         request_extensions = request.registry.queryUtility(IRequestExtensions)
         url = request.headers.get('x-original-uri', request.url)
         threadlog.debug("Authcheck for %s", url)
@@ -473,6 +471,8 @@ class PyPIView:
         info = routes_mapper(orig_request)
         (orig_request.matchdict, orig_request.matched_route) = (
             info['match'], info['route'])
+        root_factory = orig_request.matched_route.factory or root_factory
+        orig_request.context = root_factory(orig_request)
         hook = self.xom.config.hook
         if hook.devpiserver_authcheck_always_ok(request=orig_request):
             return HTTPOk()
