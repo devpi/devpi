@@ -1145,8 +1145,11 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory):
 
 
 @pytest.yield_fixture(scope="class")
-def nginx_replica_host_port(replica_host_port, call_devpi_in_dir, server_directory):
-    (host, port) = replica_host_port
+def nginx_replica_host_port(request, call_devpi_in_dir, server_directory):
+    if sys.platform.startswith("win"):
+        pytest.skip("no nginx on windows")
+    # we need the skip above before master_host_port is called
+    (host, port) = request.getfixturevalue("replica_host_port")
     (p, nginx_port) = _nginx_host_port(
         host, port, call_devpi_in_dir, server_directory)
     try:
