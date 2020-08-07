@@ -64,10 +64,18 @@ class TxNotificationThread:
 
     def get_event_serial_timestamp(self):
         f = py.path.local(self.event_serial_path)
-        try:
-            return f.stat().mtime
-        except py.error.ENOENT:
-            return
+        retries = 5
+        while retries:
+            try:
+                return f.stat().mtime
+            except py.error.ENOENT:
+                return
+            except py.error.EBUSY:
+                retries -= 1
+                if not retries:
+                    raise
+                # let other threads work
+                time.sleep(0.001)
 
     def write_event_serial(self, event_serial):
         write_int_to_file(event_serial + 1, self.event_serial_path)
