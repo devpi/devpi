@@ -3,7 +3,6 @@ import subprocess
 import py
 import pytest
 import sys
-import tox
 from devpi_common.viewhelp import ViewLinkStore
 from devpi.test import DevIndex
 from devpi.test import find_sdist_and_wheels
@@ -157,21 +156,6 @@ def test_passthrough_args_env(makehub, tmpdir, pseudo_current):
     tmpdir.ensure("tox.ini")
     args = index.get_tox_args(unpack_path=tmpdir)
     assert contains_sublist(args, ["-epy27"])
-
-
-def test_no_detox(makehub, tmpdir, pseudo_current):
-    hub = makehub(["test", "-epy27", "somepkg"])
-    index = DevIndex(hub, tmpdir, pseudo_current)
-    runner = index.get_tox_runner()
-    assert runner == tox.cmdline
-
-
-def test_detox(makehub, tmpdir, pseudo_current):
-    pytest.importorskip("detox")
-    hub = makehub(["test", "--detox", "-epy27", "somepkg"])
-    index = DevIndex(hub, tmpdir, pseudo_current)
-    runner = index.get_tox_runner()
-    assert 'detox' in runner.__module__
 
 
 def test_fallback_ini(makehub, tmpdir, pseudo_current):

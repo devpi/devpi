@@ -98,14 +98,7 @@ class DevIndex:
         return 0
 
     def get_tox_runner(self):
-        if self.hub.args.detox:
-            try:
-                from detox.cli import main as detox_main
-            except ImportError:
-                from detox.main import main as detox_main
-            return detox_main
-        else:
-            return tox.cmdline
+        return tox.cmdline
 
     def get_tox_args(self, unpack_path):
         hub = self.hub
