@@ -2,7 +2,6 @@
 from __future__ import with_statement
 import os
 import re
-import sys
 import shlex
 import hashlib
 import pkg_resources
@@ -14,21 +13,6 @@ import tox
 from devpi_common.url import URL
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import ViewLinkStore
-
-
-def setenv_devpi(hub, env, posturl, packageurl, packagemd5):
-    if not packagemd5:
-        packagemd5 = ""
-    if sys.version_info[0] < 3:
-        posturl = posturl.encode("utf8")
-        packageurl = packageurl.encode("utf8")
-        packagemd5 = packagemd5.encode("utf8")
-    env["DEVPI_POSTURL"] = posturl.encode("utf8")
-    env["DEVPI_PACKAGEURL"] = packageurl.encode("utf8")
-    env["DEVPI_PACKAGEMD5"] = (packagemd5 or "").encode("utf8")
-    for name in env:
-        if name.startswith("DEVPI"):
-            hub.debug("setenv_devpi %s %s", name, env[name])
 
 
 class DevIndex:
