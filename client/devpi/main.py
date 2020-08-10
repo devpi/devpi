@@ -315,7 +315,7 @@ class Hub:
             rel = str(args[0])
         if extraenv is not None:
             envadd = " [%s]" % ",".join(
-                ["%s=%s" % item for item in sorted(extraenv.items())])
+                ["%s=%r" % item for item in sorted(extraenv.items())])
         else:
             envadd = ""
         self.line("--> ", base + "$", rel, " ".join(args[1:]), envadd)
@@ -326,7 +326,7 @@ class Hub:
         self.report_popen(args, extraenv=extraenv)
         env = os.environ.copy()
         if extraenv is not None:
-            env.update(extraenv)
+            env.update({k: str(v) for k, v in extraenv.items()})
         ret = subprocess.call(args, env=env)
         if ret != 0:
             self.fatal("command failed")

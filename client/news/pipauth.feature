@@ -1,0 +1,1 @@
+fix #443: pass authentication info to pip via environment variable for ``devpi install``.
