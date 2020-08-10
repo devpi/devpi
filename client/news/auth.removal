@@ -1,0 +1,1 @@
+Support for basic authentication and client side certificates is deprecated now. Take a look at devpi-lockdown instead.

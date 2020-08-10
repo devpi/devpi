@@ -236,9 +236,19 @@ class Current(object):
         self._configure_from_server_api(r.result, url)
         # at this point we know the root url to store the following data
         if basic_auth is not None:
+            hub.warn(
+                "Use of basic authentication is deprecated, "
+                "take a look at devpi-lockdown instead. "
+                "If that doesn't work for you, "
+                "let us know by filing an issue with details of your usecase.")
             self.set_basic_auth(basic_auth[0], basic_auth[1])
         if client_cert is not None:
             if client_cert:
+                hub.warn(
+                    "Use of client side certificates is deprecated, "
+                    "take a look at devpi-lockdown instead. "
+                    "If that doesn't work for you, "
+                    "let us know by filing an issue with details of your usecase.")
                 self.set_client_cert(client_cert)
             else:
                 hub.warn("Removing stored client cert for '%s'." % url.url)
