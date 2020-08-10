@@ -888,11 +888,6 @@ def test(parser):
         help="extra command line arguments for tox. e.g. "
              "--toxargs=\"-c othertox.ini\"")
 
-    parser.add_argument("--detox", "-d", action="store_true",
-        dest="detox", default=False,
-        help="(experimental) run tests concurrently in multiple processes using "
-             "the detox tool (which must be installed)")
-
     parser.add_argument("--no-upload", action="store_false",
         dest="upload_tox_results", default=True,
         help="Skip upload of tox results")
