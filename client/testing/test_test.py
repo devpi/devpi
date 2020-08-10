@@ -368,7 +368,7 @@ class TestFunctional:
         assert result.ret == 0
         expected_output = (
             'Using existing basic auth*',
-            '*password*available unencrypted*',
+            '*password*might be exposed*',
             '*//root:verysecret@*',
         )
         result.stdout.fnmatch_lines(expected_output)
@@ -421,3 +421,22 @@ class TestFunctional:
         result = out_devpi("list", "-f", "my-pkg-123")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*tests passed*""")
+
+    def test_test_hides_auth_in_url(self, capsys, create_and_upload, devpi_username, monkeypatch, devpi):
+        create_and_upload(("foo", "1.0"), filedefs={
+            "tox.ini": """
+                [testenv]
+                commands = python -c "print('ok')"
+            """})
+        calls = []
+
+        def subprocess_call(*args, **kwargs):
+            calls.append((args, kwargs))
+
+        monkeypatch.setattr('subprocess.call', subprocess_call)
+        devpi("test", "--no-upload", "foo")
+        assert len(calls) == 1
+        (out, err) = capsys.readouterr()
+        (line,) = [x for x in out.splitlines() if 'PIP_INDEX_URL' in x]
+        expected = 'http://%s:****@localhost' % devpi_username
+        assert expected in line
