@@ -41,10 +41,13 @@ class URL:
     __bool__ = __nonzero__
 
     def __repr__(self):
-        c = repr(self.url.encode("utf8"))
+        cloaked = self
+        if self.password:
+            cloaked = self.replace(password="****")
+        cloaked = repr(cloaked.url.encode("utf8"))
         if sys.version_info >= (3,0):
-            c = c.lstrip("b")
-        return "<URL %s>" % c
+            cloaked = cloaked.lstrip("b")
+        return "URL(%s)" % cloaked
 
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)
