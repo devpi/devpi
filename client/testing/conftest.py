@@ -157,7 +157,9 @@ def get_venv_script(venv_path, script_names):
 
 
 @pytest.fixture(scope="session")
-def server_executable(tmpdir_factory):
+def server_executable(request, tmpdir_factory):
+    if request.config.option.fast:
+        pytest.skip("not running functional tests in --fast mode")
     # first try installed devpi-server for quick runs during development
     path = py.path.local.sysfind("devpi-server")
     if path:
