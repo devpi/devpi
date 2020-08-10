@@ -320,16 +320,16 @@ class Hub:
             envadd = ""
         self.line("--> ", base + "$", rel, " ".join(args[1:]), envadd)
 
-    def popen_check(self, args, extraenv=None):
+    def popen_check(self, args, extraenv=None, **kwargs):
         assert args[0], args
         args = [str(x) for x in args]
         self.report_popen(args, extraenv=extraenv)
         env = os.environ.copy()
         if extraenv is not None:
             env.update({k: str(v) for k, v in extraenv.items()})
-        ret = subprocess.call(args, env=env)
+        ret = subprocess.call(args, env=env, **kwargs)
         if ret != 0:
-            self.fatal("command failed")
+            self.fatal_code("command failed", code=ret)
 
     def line(self, *msgs, **kwargs):
         msg = " ".join(map(str, msgs))
@@ -358,6 +358,10 @@ class Hub:
     def error(self, *msg):
         if not self.quiet:
             self.line(*msg, red=True)
+
+    def fatal_code(self, msg, code=1):
+        self._tw.line(msg, red=True)
+        raise SystemExit(code)
 
     def fatal(self, *msg):
         msg = " ".join(map(str, msg))

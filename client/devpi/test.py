@@ -1,6 +1,5 @@
 
 from __future__ import with_statement
-import os
 import re
 import shlex
 import hashlib
@@ -8,7 +7,7 @@ import pkg_resources
 import py
 from devpi_common.archive import Archive
 import json
-import tox
+import sys
 
 from devpi_common.url import URL
 from devpi_common.metadata import get_sorted_versions
@@ -64,7 +63,15 @@ class DevIndex:
     def runtox(self, link, pkg, sdist_pkg=None, upload_tox_results=True):
         jsonreport = pkg.rootdir.join("toxreport.json")
         path_archive = pkg.path_archive
-        toxargs = [
+        tox_path = self.hub.current.getvenvbin(
+            "tox", venvdir=self.hub.venv, glob=True)
+        if not tox_path:
+            # try outside of venv
+            tox_path = py.path.local.sysfind("tox")
+        if not tox_path:
+            self.hub.fatal("no tox binary found")
+        toxcmd = [
+            str(tox_path),
             "--installpkg", str(path_archive),
             "-i ALL=%s" % str(self.current.simpleindex_auth),
             "--recreate",
@@ -78,13 +85,15 @@ class DevIndex:
 
         if sdist_pkg is None:
             sdist_pkg = pkg
-        toxargs.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
+        toxcmd.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
 
+        ret = 0
         with sdist_pkg.path_unpacked.as_cwd():
-            self.hub.info("%s$ tox %s" % (os.getcwd(), " ".join(toxargs)))
-            toxrunner = self.get_tox_runner()
             try:
-                ret = toxrunner(toxargs)
+                self.hub.popen_check(
+                    toxcmd,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr)
             except SystemExit as e:
                 ret = e.args[0]
 
@@ -96,9 +105,6 @@ class DevIndex:
             self.hub.error("tox command failed", ret)
             return 1
         return 0
-
-    def get_tox_runner(self):
-        return tox.cmdline
 
     def get_tox_args(self, unpack_path):
         hub = self.hub
