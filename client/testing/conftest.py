@@ -620,7 +620,7 @@ def mockhtml(monkeypatch):
 
 
 @pytest.fixture
-def create_venv(request, testdir, tmpdir_factory, monkeypatch):
+def create_venv(request, tmpdir_factory, monkeypatch):
     monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
     venvdir = tmpdir_factory.mktemp("venv")
     venvinstalldir = tmpdir_factory.mktemp("inst")
