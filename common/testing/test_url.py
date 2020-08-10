@@ -20,10 +20,12 @@ class TestURL:
 
     def test_repr(self):
         d = URL("http://host.com/path")
-        assert repr(d) == "<URL 'http://host.com/path'>"
+        assert repr(d) == "URL('http://host.com/path')"
         d = URL("http://host.com/path?foo=bar")
-        assert repr(d) == "<URL 'http://host.com/path?foo=bar'>"
+        assert repr(d) == "URL('http://host.com/path?foo=bar')"
         assert d.query == "foo=bar"
+        d = URL("http://foo:bar@host.com/path")
+        assert repr(d) == "URL('http://foo:****@host.com/path')"
 
     def test_parentbasename(self):
         d = URL("http://codespeak.net/simple/basename/")
