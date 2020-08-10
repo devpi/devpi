@@ -346,12 +346,10 @@ class TestWheel:
 
 
 class TestFunctional:
-    @pytest.mark.xfail(reason="output capturing for devpi calls")
-    def test_main_nopackage(self, out_devpi):
-        result = out_devpi("test", "--debug", "notexists73", ret=1)
-        result.fnmatch_lines([
-            "*could not find/receive*",
-        ])
+    def test_main_nopackage(self, capfd, out_devpi):
+        out_devpi("test", "--debug", "notexists73", ret=1)
+        (out, err) = capfd.readouterr()
+        assert "could not find/receive links for notexists73" in out
 
     def test_main_example(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={

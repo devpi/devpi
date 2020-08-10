@@ -53,7 +53,9 @@ class DevIndex:
         req = next(pkg_resources.parse_requirements(pkgname))
         projurl = self.current.get_project_url(
             req.project_name, indexname=indexname).url
-        r = self.hub.http_api("get", projurl)
+        r = self.hub.http_api("get", projurl, fatal=False)
+        if r.status_code != 200:
+            return
         for version in get_sorted_versions(r.result):
             if version not in req:
                 continue
