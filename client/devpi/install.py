@@ -1,4 +1,15 @@
+from devpi_common.metadata import Version
 import os
+
+
+def get_pip_version(hub, pip_path):
+    version = Version('0')
+    result = hub.popen_output([pip_path, '--version']).splitlines()[:1]
+    if result:
+        result = result[0].split()
+        if len(result) > 1:
+            version = Version(result[1])
+    return version
 
 
 def main(hub, args):
@@ -18,7 +29,13 @@ def main(hub, args):
 
     if args.index and args.index.count("/") > 1:
         hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
-    simpleindex = current.get_simpleindex_url(args.index).url
+    simpleindex = current.get_simpleindex_url(args.index)
+    if get_pip_version(hub, pip_path) < Version('19.3'):
+        hub.warn(
+            "passing of authentication data to pip disabled, "
+            "because pip < 19.3 exposes the password in log output.")
+    else:
+        simpleindex = current.add_auth_to_url(simpleindex)
 
     if args.pkgspecs:
         os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
@@ -29,13 +46,15 @@ def main(hub, args):
         os.environ.pop("__PYVENV_LAUNCHER__", None)
         cmd = [
             pip_path, "install",
-            "-U",
-            "-i", simpleindex]
+            "-U"]
         if args.requirement:
             cmd.append('--requirement')
         cmd.extend(args.pkgspecs)
         hub.popen_check(
             cmd,
             # normalize pip<1.4 and pip>=1.4 behaviour
-            extraenv={"PIP_PRE": "1", "PIP_USE_WHEEL": "1"},
+            extraenv={
+                # normalize pip<1.4 and pip>=1.4 behaviour
+                "PIP_PRE": "1", "PIP_USE_WHEEL": "1",
+                "PIP_INDEX_URL": simpleindex},
         )

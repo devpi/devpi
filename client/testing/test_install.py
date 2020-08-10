@@ -91,3 +91,19 @@ def test_requirement_install_venv_workflow_index_option(create_and_upload,
         "install", "--venv", venvdir, "--index", "%s/dev" % user, "-l")
     out = res.stdout.str()
     assert "example" in out and "1.2.3" in out
+
+
+def test_install_hides_auth_in_url(capsys, devpi_username, monkeypatch, devpi):
+    calls = []
+
+    def subprocess_call(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr('subprocess.call', subprocess_call)
+    devpi("install", "foo")
+    assert len(calls) == 1
+    (out, err) = capsys.readouterr()
+    (line,) = [x for x in out.splitlines() if 'PIP_INDEX_URL' in x]
+    expected = 'http://%s:****@localhost' % devpi_username
+    # either the password is hidden, or not included at all (older pip versions)
+    assert (expected in line or 'http://localhost' in line)

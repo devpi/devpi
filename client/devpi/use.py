@@ -104,6 +104,14 @@ class Current(object):
         auth = self._value_from_dict_by_url(self._get_auth_dict(), url)
         return tuple(auth) if auth else None
 
+    def add_auth_to_url(self, url):
+        url = URL(url)
+        auth = self.get_auth()
+        if auth is not None:
+            url = url.replace(
+                username=auth[0], password=auth[1])
+        return url
+
     def _get_basic_auth_dict(self):
         basic_auth = self._basic_auth
         if not isinstance(basic_auth, dict):
