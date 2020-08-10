@@ -27,6 +27,10 @@ class TestURL:
         d = URL("http://foo:bar@host.com/path")
         assert repr(d) == "URL('http://foo:****@host.com/path')"
 
+    def test_str(self):
+        d = URL("http://foo:bar@host.com/path")
+        assert str(d) == "http://foo:bar@host.com/path"
+
     def test_parentbasename(self):
         d = URL("http://codespeak.net/simple/basename/")
         assert d.parentbasename == "basename"

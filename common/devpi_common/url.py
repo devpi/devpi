@@ -40,6 +40,9 @@ class URL:
 
     __bool__ = __nonzero__
 
+    def __str__(self):
+        return self.url
+
     def __repr__(self):
         cloaked = self
         if self.password:
