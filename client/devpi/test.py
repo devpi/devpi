@@ -22,9 +22,15 @@ class DevIndex:
         self.dir_download = self.rootdir.mkdir("downloads")
 
     def download_and_unpack(self, versioninfo, link):
-        url = link.href
-        r = self.hub.http.get(url,
-                              auth=self.hub.current.get_basic_auth(url),
+        basic_auth = self.hub.current.get_basic_auth(link.href)
+        if basic_auth:
+            auth_url = link.href
+            url = auth_url
+        else:
+            auth_url = self.hub.current.add_auth_to_url(link.href)
+            url = auth_url.replace(password="****")
+        r = self.hub.http.get(auth_url,
+                              auth=basic_auth,
                               cert=self.hub.current.get_client_cert(url))
         if r.status_code != 200:
             self.hub.fatal("could not receive", url)
@@ -73,15 +79,18 @@ class DevIndex:
         toxcmd = [
             str(tox_path),
             "--installpkg", str(path_archive),
-            "-i ALL=%s" % str(self.current.simpleindex_auth),
             "--recreate",
             "--result-json", str(jsonreport),
         ]
         if self.current.simpleindex != self.current.simpleindex_auth:
             self.hub.info("Using existing basic auth for '%s'." %
                           self.current.simpleindex)
-            self.hub.warn("The password will be available unencrypted in the "
-                          "JSON report!")
+            self.hub.warn("With pip < 19.3 the password might be exposed "
+                          "in the JSON report!")
+            simpleindex = self.current.simpleindex_auth
+        else:
+            simpleindex = self.hub.current.add_auth_to_url(
+                self.current.simpleindex)
 
         if sdist_pkg is None:
             sdist_pkg = pkg
@@ -93,7 +102,9 @@ class DevIndex:
                 self.hub.popen_check(
                     toxcmd,
                     stdout=sys.stdout,
-                    stderr=sys.stderr)
+                    stderr=sys.stderr,
+                    extraenv={
+                        "PIP_INDEX_URL": simpleindex})
             except SystemExit as e:
                 ret = e.args[0]
 
