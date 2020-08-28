@@ -17,6 +17,7 @@ from html import escape
 from io import BytesIO
 from lazy import lazy
 from pluggy import HookimplMarker
+from pyramid.authentication import b64encode
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.interfaces import IRequestExtensions
 from pyramid.interfaces import IRootFactory
@@ -1296,8 +1297,20 @@ class PyPIView:
             abort(request, 400, "Bad request: no user/password specified")
         proxyauth = self.auth.new_proxy_auth(user, password, request=request)
         if proxyauth:
-            apireturn(200, "login successful", type="proxyauth",
-                result=proxyauth)
+            # set the credentials on the current request
+            request.headers['X-Devpi-Auth'] = b64encode(
+                "%s:%s" % (user, proxyauth['password']))
+            # coherence check of the generated credentials
+            if user != request.authenticated_userid:
+                apireturn(401, "user %r could not be authenticated" % user)
+            # it is possible that a plugin removes the permission to login
+            if not request.has_permission('user_login'):
+                apireturn(
+                    401,
+                    "user %r has no permission to login with the "
+                    "provided credentials" % user)
+            apireturn(
+                200, "login successful", type="proxyauth", result=proxyauth)
         apireturn(401, "user %r could not be authenticated" % user)
 
     @view_config(
