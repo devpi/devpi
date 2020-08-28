@@ -43,7 +43,7 @@ class RootFactory(object):
 
     @cached_property
     def __acl__(self):
-        acl = []
+        acl = [(Allow, Everyone, 'user_login')]
         if self.restrict_modify is None:
             acl.extend([
                 (Allow, Everyone, 'user_create'),

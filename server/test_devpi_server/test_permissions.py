@@ -174,3 +174,11 @@ class TestAuthDenialPlugin:
         context = RootFactory(request)
         plugin.results = [[('root', 'user_create')]]
         assert not request.has_permission('user_create', context)
+
+    @pytest.mark.notransaction
+    def test_deny_login(self, plugin, xom, mapp):
+        plugin.results = [None]
+        mapp.login("root", "")
+        mapp.logout()
+        plugin.results = [[('root', 'user_login')]]
+        mapp.login("root", "", code=401)
