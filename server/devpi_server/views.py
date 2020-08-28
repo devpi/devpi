@@ -43,7 +43,6 @@ from .filestore import BadGateway
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
 from .model import ReadonlyIndex
 from .model import RemoveValue
-from .model import UpstreamError
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
 
@@ -409,16 +408,6 @@ class PyPIView:
         self.log = request.log
 
     def get_auth_status(self):
-        if self.xom.is_replica():
-            from .replica import proxy_request_to_master
-            try:
-                r = proxy_request_to_master(self.xom, self.request)
-                if r.status_code == 200:
-                    return r.json()["result"]["authstatus"]
-            except UpstreamError:
-                pass
-            threadlog.error("could not obtain master authentication status")
-            return ["fail", "", []]
         # this is accessing some pyramid internals, but they are pretty likely
         # to stay and the alternative was uglier
         policy = self.request.registry.queryUtility(IAuthenticationPolicy)

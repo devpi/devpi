@@ -924,9 +924,8 @@ def test_auth_status_master_down(maketestapp, replica_xom, mock):
             raise UpstreamError("foo")
         prtm.side_effect = proxy_request_to_master
         r = testapp.get('/+api')
-    assert len(calls) == 1
-    assert calls[0][0][1].url == 'http://localhost/+api'
-    assert r.json['result']['authstatus'] == ['fail', '', []]
+    assert len(calls) == 0
+    assert r.json['result']['authstatus'] == ['noauth', '', []]
 
 
 def test_master_url_auth(makexom, monkeypatch):
