@@ -190,9 +190,13 @@ class Hub:
             info = "%s %s\n" % (r.request.method, r.url)
         else:
             info = ""
-        message = reply.json_get("message", getattr(r, 'text', ''))
-        if message:
+        message = reply.json_get("message", None)
+        if message is not None:
             message = ": " + message
+        else:
+            message = ''
+            if self.args.debug:
+                message = getattr(r, 'text', '')
         out("%s%s %s%s" %(info, r.status_code, r.reason, message))
         return reply
 
