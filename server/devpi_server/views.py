@@ -473,7 +473,8 @@ class PyPIView:
         root_factory = orig_request.matched_route.factory or root_factory
         orig_request.context = root_factory(orig_request)
         hook = self.xom.config.hook
-        if hook.devpiserver_authcheck_always_ok(request=orig_request):
+        result = hook.devpiserver_authcheck_always_ok(request=orig_request)
+        if result and all(result):
             return HTTPOk()
         if hook.devpiserver_authcheck_forbidden(request=orig_request):
             return HTTPForbidden()
