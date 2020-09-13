@@ -441,7 +441,12 @@ class BaseStageCustomizer(object):
             if self.stage.xom.is_master():
                 # replicas always need to be able to download packages
                 principals.add("+replica")
-            return list(principals)
+            # admins should always be able to read the packages
+            if restrict_modify is None:
+                principals.add("root")
+            else:
+                principals.update(restrict_modify)
+            return principals
         return [':ANONYMOUS:']
 
     def get_principals_for_pypi_submit(self, restrict_modify=None):
