@@ -1,0 +1,1 @@
+When there is no json error message only the HTML error code and reason is printed now, to get the full HTML output use the ``--debug`` flag.
