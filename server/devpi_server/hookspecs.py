@@ -11,10 +11,11 @@ def devpiserver_add_parser_options(parser):
     """
 
 
-@hookspec(firstresult=True)
+@hookspec
 def devpiserver_authcheck_always_ok(request):
-    """If the request should always be allowed with +authcheck,
-    this returns True, otherwise None, so other plugins can continue.
+    """If the request should always be allowed with +authcheck return True,
+    if you want to block it even if other plugins returned True then return False,
+    if you can't decide at this stage return None.
 
     Used for routes like +api and +login."""
 
