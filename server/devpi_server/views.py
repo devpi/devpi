@@ -430,27 +430,26 @@ class PyPIView:
     #
 
     @view_config(route_name="/+api")
-    @view_config(route_name="{path:.*}/+api")
+    @view_config(route_name="/{user}/+api")
+    @view_config(route_name="/{user}/{index}/+api")
     def apiconfig_index(self):
         request = self.request
-        path = request.matchdict.get('path')
+        stage = None
+        if request.context.index is not None:
+            stage = request.context.stage
         api = {
             "login": request.route_url('/+login'),
             "authstatus": self.get_auth_status(),
             "features": self.xom.supported_features,
         }
-        if path:
-            parts = path.split("/")
-            if len(parts) >= 2:
-                user, index = parts[:2]
-                stage = self.context.getstage(user, index)
-                api.update({
-                    "index": request.stage_url(stage),
-                    "simpleindex": request.simpleindex_url(stage)
-                })
-                if stage.ixconfig["type"] != "mirror":
-                    api["pypisubmit"] = request.route_url(
-                        "/{user}/{index}/", user=user, index=index)
+        if stage is not None:
+            api.update({
+                "index": request.stage_url(stage),
+                "simpleindex": request.simpleindex_url(stage)
+            })
+            if stage.ixconfig["type"] != "mirror":
+                api["pypisubmit"] = request.route_url(
+                    "/{user}/{index}/", user=stage.username, index=stage.index)
         apireturn(200, type="apiconfig", result=api)
 
     @view_config(route_name="/+authcheck")
