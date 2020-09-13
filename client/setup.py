@@ -27,7 +27,7 @@ if __name__ == "__main__":
     CHANGELOG = get_changelog()
 
     install_requires=["tox>=3.1.0",
-                      "devpi_common<4,>=3.6.dev",
+                      "devpi_common<4,>=3.6.0",
                       "pkginfo>=1.4.2",
                       "check-manifest>=0.28",
                       "pluggy>=0.6.0,<1.0",
@@ -40,7 +40,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='5.2.1.dev0',
+      version='5.2.1',
       packages=['devpi'],
       install_requires=install_requires,
       extras_require=extras_require,
