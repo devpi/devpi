@@ -1,1 +1,0 @@
-Allow replacement of individual netloc parts with URL.replace method.

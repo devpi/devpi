@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+3.6.0 (2020-09-13)
+==================
+
+Features
+--------
+
+- Hide password from URL representation.
+
+- Allow replacement of individual netloc parts with URL.replace method.
+
+
 3.5.0 (2020-05-04)
 ==================
 

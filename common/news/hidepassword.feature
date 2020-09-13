@@ -1,1 +1,0 @@
-Hide password from URL representation.
