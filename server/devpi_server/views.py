@@ -475,15 +475,15 @@ class PyPIView:
         hook = self.xom.config.hook
         if hook.devpiserver_authcheck_always_ok(request=orig_request):
             return HTTPOk()
-        if hook.devpiserver_authcheck_unauthorized(request=orig_request):
-            user_agent = request.user_agent or ""
-            if 'devpi-client' in user_agent:
-                # devpi-client needs to know for proper error messages
-                return HTTPForbidden()
-            return HTTPUnauthorized()
         if hook.devpiserver_authcheck_forbidden(request=orig_request):
             return HTTPForbidden()
-        return HTTPOk()
+        if not hook.devpiserver_authcheck_unauthorized(request=orig_request):
+            return HTTPOk()
+        user_agent = request.user_agent or ""
+        if 'devpi-client' in user_agent:
+            # devpi-client needs to know for proper error messages
+            return HTTPForbidden()
+        return HTTPUnauthorized()
 
     #
     # attach test results to release files
