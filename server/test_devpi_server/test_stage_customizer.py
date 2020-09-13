@@ -305,7 +305,8 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     # check get_principals_for_pkg_read directly
     with xom.keyfs.transaction(write=False):
         stage = xom.model.getstage(api1.stagename)
-        assert stage.customizer.get_principals_for_pkg_read() == [':ANONYMOUS:']
+        assert stage.customizer.get_principals_for_pkg_read() == {
+            ':ANONYMOUS:', 'root'}
     # change acl_pkg_read permission
     mapp.login(api1.user, password=api1.password)
     testapp.patch_json(api1.index, ['acl_pkg_read=%s' % api1.user])
@@ -331,9 +332,10 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     with xom.keyfs.transaction(write=False):
         stage = xom.model.getstage(api1.stagename)
         # by default get_principals_for_pkg_read returns just the set principals
-        assert stage.customizer.get_principals_for_pkg_read() == ['someuser']
+        assert stage.customizer.get_principals_for_pkg_read() == {
+            'root', 'someuser'}
         # but if the server acts as a master for replicas,
         # then the special replica user is included
         xom.config.nodeinfo['role'] = 'master'
-        assert set(stage.customizer.get_principals_for_pkg_read()) == set(
-            ['someuser', REPLICA_USER_NAME])
+        assert set(stage.customizer.get_principals_for_pkg_read()) == {
+            'root', 'someuser', REPLICA_USER_NAME}
