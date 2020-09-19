@@ -428,6 +428,7 @@ def main(hub, args=None):
                 hub.info("current devpi index: %s (%s)" % (current.index, login_status))
                 if current.features:
                     hub.info("supported features: %s" % ", ".join(sorted(current.features)))
+            hub.validate_index_access()
         else:
             hub.info("using server: %s (%s)" % (current.rooturl, login_status))
             hub.error("no current index: type 'devpi use -l' "
