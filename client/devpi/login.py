@@ -21,6 +21,8 @@ def main(hub, args):
         msg = "%s at %r" % (msg, hub.current.index)
     msg = "%s, credentials valid for %.2f hours" % (msg, hours)
     hub.info(msg)
+    if hub.current.index:
+        hub.validate_index_access()
 
 
 @hookimpl(trylast=True)

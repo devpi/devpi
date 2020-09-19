@@ -72,6 +72,9 @@ class TestUnit:
                 login="/+login",
                 authstatus=["noauth", "", []]))
         mock_http_api.set(
+            "http://devpi/foo/bar?no_projects=", 200,
+            result=dict())
+        mock_http_api.set(
             "http://devpi/", 200, result=dict(
                 foo=dict(username="foo", indexes=dict(
                     bar=dict(bases=("root/pypi",), volatile=False)))))
@@ -191,6 +194,9 @@ class TestUnit:
                 login="/+login",
                 authstatus=["noauth", ""]))
         mock_http_api.set(
+            "http://devpi/foo/bar?no_projects=", 200,
+            result=dict())
+        mock_http_api.set(
             "http://devpi/foo/ham/+api", 200, result=dict(
                 pypisubmit="/post",
                 simpleindex="/index/",
@@ -198,6 +204,9 @@ class TestUnit:
                 bases="root/pypi",
                 login="/+login",
                 authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/ham?no_projects=", 200,
+            result=dict())
         mock_http_api.set(
             "http://devpi/", 200, result=dict(
                 foo=dict(username="foo", indexes=dict(
@@ -208,17 +217,21 @@ class TestUnit:
         # should work with and without explicit port if it's the default port
         assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
-        assert len(mock_http_api.called) == 1
+        assert len(mock_http_api.called) == 2
         assert mock_http_api.called[0][1].path == '/foo/bar/+api'
         assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
         mock_http_api.called[:] = []  # clear call list
         # now we switch only the index, basic auth info should be kept
         hub = cmd_devpi("use", "/foo/ham")
         assert hub.current.get_basic_auth(url="http://devpi/foo/ham") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi:80/foo/ham") == ('user', 'password')
-        assert len(mock_http_api.called) == 1
+        assert len(mock_http_api.called) == 2
         assert mock_http_api.called[0][1].path == '/foo/ham/+api'
         assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/ham'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
         mock_http_api.called[:] = []  # clear call list
         # just listing the index shouldn't change anything
         hub = cmd_devpi("use", "-l")
@@ -235,9 +248,11 @@ class TestUnit:
         assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi/foo/ham") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi/") == ('user', 'password')
-        assert len(mock_http_api.called) == 1
+        assert len(mock_http_api.called) == 2
         assert mock_http_api.called[0][1].path == '/foo/bar/+api'
-        assert mock_http_api.called[-1][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
 
     def test_use_with_basic_auth_https(self, cmd_devpi, mock_http_api):
         mock_http_api.set(
@@ -248,16 +263,28 @@ class TestUnit:
                 bases="root/pypi",
                 login="/+login",
                 authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "https://devpi/foo/bar?no_projects=", 200,
+            result=dict())
         # use with basic authentication
         hub = cmd_devpi("use", "https://user:password@devpi/foo/bar")
         # should work with and without explicit port if it's the default port
         assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="https://devpi:443/foo/bar") == ('user', 'password')
-        assert mock_http_api.called[-1][2]['basic_auth'] == ('user', 'password')
+        assert len(mock_http_api.called) == 2
+        assert mock_http_api.called[0][1].path == '/foo/bar/+api'
+        assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
+        mock_http_api.called[:] = []  # clear call list
         # now without basic authentication the user and password should still be used
         hub = cmd_devpi("use", "https://devpi/foo/bar")
         assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
-        assert mock_http_api.called[-1][2]['basic_auth'] == ('user', 'password')
+        assert len(mock_http_api.called) == 2
+        assert mock_http_api.called[0][1].path == '/foo/bar/+api'
+        assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
 
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", 200,
@@ -266,6 +293,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world.com/index?no_projects=", 200,
+            result=dict())
         mock_http_api.set("http://world2.com/+api", 200,
                     result=dict(
                         login="/+login",
@@ -316,6 +346,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/root/some?no_projects=", 200,
+            result=dict())
 
         hub = cmd_devpi("use", "--venv", "-", "http://world/this")
         newapi = hub.current
@@ -343,6 +376,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/?no_projects=", 200,
+            result=dict())
 
         cmd_devpi("use", "http://world/")
         mock_http_api.set(
@@ -424,6 +460,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/?no_projects=", 200,
+            result=dict())
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
@@ -461,6 +500,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/?no_projects=", 200,
+            result=dict())
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
@@ -496,6 +538,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "%s://world/?no_projects=" % scheme, 200,
+            result=dict())
 
         cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         # run twice to find any issues where lines are added more than once

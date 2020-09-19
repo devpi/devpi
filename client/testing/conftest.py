@@ -721,7 +721,7 @@ def mock_http_api(monkeypatch):
 
         def __call__(self, method, url, kvdict=None, quiet=False,
                      auth=None, basic_auth=None, cert=None,
-                     fatal=True, verify=None):
+                     check_version=True, fatal=True, type=None, verify=None):
             kwargs = dict(
                 kvdict=kvdict, quiet=quiet, auth=auth, basic_auth=basic_auth,
                 cert=cert, fatal=fatal)

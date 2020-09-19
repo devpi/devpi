@@ -179,6 +179,8 @@ class Hub:
         if r.status_code >= 400:
             if fatal:
                 out = self.fatal
+            elif quiet:
+                return reply
             else:
                 out = self.error
         elif quiet and not self.args.debug:
@@ -190,13 +192,7 @@ class Hub:
             info = "%s %s\n" % (r.request.method, r.url)
         else:
             info = ""
-        message = reply.json_get("message", None)
-        if message is not None:
-            message = ": " + message
-        else:
-            message = ''
-            if self.args.debug:
-                message = getattr(r, 'text', '')
+        message = reply.get_error_message(self.args.debug)
         out("%s%s %s%s" %(info, r.status_code, r.reason, message))
         return reply
 
@@ -235,6 +231,27 @@ class Hub:
         elif not p.isfile():
             self.fatal("is not a file: %s" % p)
         return p
+
+    def validate_index_access(self):
+        reply = self.http_api(
+            "get",
+            self.current.index_url.replace(query=dict(no_projects="")),
+            check_version=False,
+            fatal=False,
+            quiet=True,
+            type="indexconfig")
+        if reply.status_code >= 400:
+            self.error("%s %s%s" % (
+                reply.status_code, reply.reason,
+                reply.get_error_message(self.args.debug)))
+            if reply.status_code == 403:
+                if self.current.get_auth_user() is None:
+                    self.info(
+                        "You might have to login first to access this index.")
+                else:
+                    self.warn(
+                        "You don't have permission to access this index.")
+            raise SystemExit(1)
 
     @property
     def venv(self):
@@ -391,9 +408,23 @@ class HTTPReply(object):
     def __getattr__(self, name):
         return getattr(self._response, name)
 
+    def get_error_message(self, debug):
+        message = self.json_get("message", None)
+        if message is not None:
+            message = ": " + message
+        else:
+            message = ''
+            if debug:
+                message = getattr(self._response, 'text', '')
+        return message
+
     @property
     def reason(self):
         return self._response.reason
+
+    @property
+    def status_code(self):
+        return self._response.status_code
 
     @property
     def type(self):
