@@ -1,6 +1,6 @@
 from devpi_common.types  import lazydecorator
+from textwrap import dedent
 
-pytest_plugins = "pytester"
 
 def test_simpler():
     dec = lazydecorator()
@@ -67,8 +67,10 @@ def test_multi():
     assert l2[1] == (a.b, 2)
     assert l2[2] == (a.a, 3)
 
-def test_simpler_mod(testdir):
-    p = testdir.makepyfile("""
+
+def test_simpler_mod(tmpdir):
+    p = tmpdir.join("mod.py")
+    p.write(dedent("""
         from devpi_common.types import lazydecorator
 
         dec = lazydecorator()
@@ -76,16 +78,17 @@ def test_simpler_mod(testdir):
         @dec("hello")
         def f():
             pass
-    """)
+    """))
     mod = p.pyimport()
 
     l = []
+
     def anotherdec(arg):
         def wrapped(func):
             l.append((arg, func))
             return func
         return wrapped
+
     mod.dec.discover_and_call(mod, anotherdec)
     assert len(l) == 2
     assert l == [("hello", mod.f), ("world", mod.f)]
-

@@ -19,8 +19,6 @@ import subprocess
 
 print_ = py.builtin.print_
 
-pytest_plugins = "pytester"
-
 
 def pytest_addoption(parser):
     parser.addoption("--fast", help="skip functional/slow tests", default=False,

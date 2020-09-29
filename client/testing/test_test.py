@@ -11,8 +11,6 @@ from devpi.test import prepare_toxrun_args
 from devpi.test import post_tox_json_report
 
 
-pytest_plugins = "pytester"
-
 def test_post_tox_json_report(loghub, mock_http_api):
     mock_http_api.set("http://devpi.net", 200, result={})
     post_tox_json_report(loghub, "http://devpi.net", {"hello": "123"})
