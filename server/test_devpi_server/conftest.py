@@ -321,6 +321,7 @@ def httpget(pypiurls):
         def __init__(self):
             self.url2response = {}
             self._md5 = hashlib.md5()
+            self.call_log = []
 
         def __call__(self, url, allow_redirects=False, extra_headers=None, **kw):
             class mockresponse:
@@ -342,6 +343,12 @@ def httpget(pypiurls):
                                                          xself.url)
             r = mockresponse(url)
             log.debug("returning %s", r)
+            self.call_log.append(dict(
+                url=url,
+                allow_redirects=allow_redirects,
+                extra_headers=extra_headers,
+                kw=kw,
+                response=r))
             return r
 
         def mockresponse(self, mockurl, **kw):
@@ -395,14 +402,14 @@ def add_pypistage_mocks(monkeypatch, httpget):
 
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
         self.cache_retrieve_times.expire(name)
-        return self.httpget.mock_simple(name,
-                 text=text, pypiserial=pypiserial, **kw)
+        return self.xom.httpget.mock_simple(
+            name, text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
 
     def mock_simple_projects(self, projectlist):
         t = "".join('<a href="%s">%s</a>\n' % (name, name) for name in projectlist)
         threadlog.debug("patching simple page with: %s" %(t))
-        self.httpget.mockresponse(self.mirror_url, code=200, text=t)
+        self.xom.httpget.mockresponse(self.mirror_url, code=200, text=t)
 
     monkeypatch.setattr(PyPIStage, "mock_simple_projects",
                         mock_simple_projects, raising=False)
@@ -412,8 +419,8 @@ def add_pypistage_mocks(monkeypatch, httpget):
                    "content-type": mimetypes.guess_type(path),
                    "last-modified": "today",}
         url = URL(self.mirror_url).joinpath(path)
-        return self.httpget.mockresponse(url.url, content=content,
-                                         headers=headers, **kw)
+        return self.xom.httpget.mockresponse(
+            url.url, content=content, headers=headers, **kw)
     monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)
 
 

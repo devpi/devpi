@@ -398,10 +398,11 @@ class TestExtPYPIDB:
         # will result in the request response to have a "real" URL of
         # https://pypi.org/simple/hello-world because of the
         # new pypi normalization code
-        pypistage.httpget.mock_simple("hello-world",
-                '<a href="Hello_World-1.0.tar.gz" /a>',
-                code=200,
-                url="https://pypi.org/simple/hello-world",)
+        pypistage.xom.httpget.mock_simple(
+            "hello-world",
+            '<a href="Hello_World-1.0.tar.gz" /a>',
+            code=200,
+            url="https://pypi.org/simple/hello-world",)
         l = pypistage.get_releaselinks("Hello_World")
         assert len(l) == 1
 
@@ -482,7 +483,8 @@ class TestExtPYPIDB:
 @pytest.mark.nomockprojectsremote
 class TestPyPIStageprojects:
     def test_get_remote_projects(self, pypistage):
-        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
+        pypistage.xom.httpget.mockresponse(
+            pypistage.mirror_url, code=200, text="""
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
@@ -496,7 +498,8 @@ class TestPyPIStageprojects:
         assert s == set(["ploy-ansible", "devpi-server", "django"])
 
     def test_get_remote_projects_doctype(self, pypistage):
-        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
+        pypistage.xom.httpget.mockresponse(
+            pypistage.mirror_url, code=200, text="""
             <!DOCTYPE html>
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
@@ -507,7 +510,8 @@ class TestPyPIStageprojects:
         assert x == set(["devpi-server"])
 
     def test_single_project_access_updates_projects(self, pypistage):
-        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
+        pypistage.xom.httpget.mockresponse(
+            pypistage.mirror_url, code=200, text="""
             <body>
                 <a href='django'>Django</a><br/>
             </body>""")
@@ -523,7 +527,8 @@ class TestPyPIStageprojects:
         assert pypistage.list_projects_perstage() == set(["proj1", "proj2", "django"])
 
     def test_name_cache_expiration_updated_when_no_names_changed(self, httpget, pypistage):
-        pypistage.httpget.mockresponse(pypistage.mirror_url, code=200, text="""
+        pypistage.xom.httpget.mockresponse(
+            pypistage.mirror_url, code=200, text="""
             <body>
                 <a href='django'>Django</a><br/>
             </body>""")

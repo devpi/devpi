@@ -739,7 +739,7 @@ class TestFileReplication:
         with replica_xom.keyfs.transaction():
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
-            pypistage.httpget.mockresponse(url, status_code=500)
+            pypistage.xom.httpget.mockresponse(url, status_code=500)
             with pytest.raises(BadGateway) as e:
                 for part in iter_remote_file_replica(replica_xom, entry):
                     pass
@@ -766,11 +766,19 @@ class TestFileReplication:
                 "content-type": ("application/zip", None)}
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
-            pypistage.httpget.mockresponse(url, status_code=500)
-            pypistage.httpget.mockresponse(
+            pypistage.xom.httpget.mockresponse(url, status_code=500)
+            pypistage.xom.httpget.mockresponse(
                 entry.url, headers=headers, content=b'123')
             result = iter_remote_file_replica(replica_xom, entry)
             headers = next(result)
+            # there should be one get
+            (call_log_entry,) = [
+                x for x in pypistage.xom.httpget.call_log
+                if x['url'] == url]
+            # and it should have an authorization header
+            assert call_log_entry['extra_headers']['Authorization'].startswith('Bearer')
+            # and UUID header
+            assert call_log_entry['extra_headers'][H_REPLICA_UUID]
             assert headers['content-length'] == '3'
             assert b''.join(result) == b'123'
 
@@ -864,6 +872,14 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
         ret = replica_pypistage.get_releaselinks("pytest")
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.org_pytest/pytest-1.0.zip'
+    # there should be one get
+    (call_log_entry,) = [
+        x for x in pypistage.xom.httpget.call_log
+        if x['url'].startswith(pypiurls.simple)]
+    # and it should have an authorization header
+    assert call_log_entry['extra_headers']['Authorization'].startswith('Bearer')
+    # and UUID header
+    assert call_log_entry['extra_headers'][H_REPLICA_UUID]
 
     # now we change the links and expire the cache
     pypiurls.simple = orig_simple
