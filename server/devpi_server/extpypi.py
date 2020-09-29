@@ -24,6 +24,7 @@ from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
+from .views import make_uuid_headers
 
 
 class Link(URL):
@@ -129,7 +130,6 @@ class PyPIStage(BaseStage):
     def __init__(self, xom, username, index, ixconfig, customizer_cls):
         super(PyPIStage, self).__init__(
             xom, username, index, ixconfig, customizer_cls)
-        self.httpget = self.xom.httpget  # XXX is requests/httpget multi-thread safe?
         self.xom = xom
         self.offline = self.xom.config.offline_mode
         self.timeout = xom.config.request_timeout
@@ -137,6 +137,19 @@ class PyPIStage(BaseStage):
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         # used to log about stale projects only once
         self._offline_logging = set()
+
+    def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
+        if self.xom.is_replica():
+            if extra_headers is None:
+                extra_headers = {}
+            (uuid, master_uuid) = make_uuid_headers(self.xom.config.nodeinfo)
+            rt = self.xom.replica_thread
+            token = rt.auth_serializer.dumps(uuid)
+            extra_headers[rt.H_REPLICA_UUID] = uuid
+            extra_headers[str('Authorization')] = 'Bearer %s' % token
+        return self.xom.httpget(
+            url=url, allow_redirects=allow_redirects, timeout=timeout,
+            extra_headers=extra_headers)
 
     @property
     def cache_expiry(self):

@@ -1485,7 +1485,6 @@ def iter_cache_remote_file(xom, entry):
 
 
 def iter_remote_file_replica(xom, entry):
-    from .replica import H_REPLICA_FILEREPL
     replication_errors = xom.replica_thread.shared_data.errors
     # construct master URL with param
     url = xom.config.master_url.joinpath(entry.relpath).url
@@ -1493,9 +1492,15 @@ def iter_remote_file_replica(xom, entry):
         threadlog.warn("missing private file: %s" % entry.relpath)
     else:
         threadlog.info("replica doesn't have file: %s", entry.relpath)
+    (uuid, master_uuid) = make_uuid_headers(xom.config.nodeinfo)
+    rt = xom.replica_thread
+    token = rt.auth_serializer.dumps(uuid)
     r = xom.httpget(
         url, allow_redirects=True,
-        extra_headers={H_REPLICA_FILEREPL: str("YES")})
+        extra_headers={
+            rt.H_REPLICA_FILEREPL: str("YES"),
+            rt.H_REPLICA_UUID: uuid,
+            str('Authorization'): 'Bearer %s' % token})
     if r.status_code != 200:
         msg = "%s: received %s from master" % (url, r.status_code)
         if not entry.url:

@@ -49,6 +49,12 @@ def get_auth_serializer(config):
     return itsdangerous.TimedSerializer(config.get_replica_secret())
 
 
+def log_replica_token_error(request, msg):
+    if getattr(request, '__devpi_replica_token_warned', None) is None:
+        request.log.error(msg)
+        request.__devpi_replica_token_warned = True
+
+
 @hookimpl
 def devpiserver_get_credentials(request):
     # the DummyRequest class used in testing doesn't have the attribute
@@ -60,6 +66,8 @@ def devpiserver_get_credentials(request):
     if H_REPLICA_UUID not in request.headers:
         return None
     if not request.registry["xom"].is_master():
+        log_replica_token_error(
+            request, "Replica token detected, but role isn't master.")
         return None
     return (REPLICA_USER_NAME, authorization.params)
 
@@ -221,6 +229,8 @@ class MasterChangelogRequest:
 
 
 class ReplicaThread:
+    H_REPLICA_FILEREPL = H_REPLICA_FILEREPL
+    H_REPLICA_UUID = H_REPLICA_UUID
     REPLICA_REQUEST_TIMEOUT = REPLICA_REQUEST_TIMEOUT
     ERROR_SLEEP = 50
 
@@ -299,6 +309,7 @@ class ReplicaThread:
             token = self.auth_serializer.dumps(uuid)
             r = self.session.get(
                 url,
+                allow_redirects=False,
                 auth=self.master_auth,
                 headers={
                     H_REPLICA_UUID: uuid,
@@ -309,6 +320,12 @@ class ReplicaThread:
         except Exception as e:
             msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
             log.error("error fetching %s: %s", url, msg)
+            return False
+
+        if r.status_code in (301, 302):
+            log.error(
+                "%s %s: redirect detected at %s to %s",
+                r.status_code, r.reason, url, r.headers.get('Location'))
             return False
 
         if r.status_code not in (200, 202):
