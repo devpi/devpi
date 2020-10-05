@@ -20,12 +20,14 @@ from py.io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]
 
+
 def udict(**kw):
     """ return a dict where the keys are normalized to unicode. """
     d = {}
     for name, val in kw.items():
         d[py.builtin._totext(name)] = val
     return d
+
 
 @pytest.fixture(params=[(), ("root/pypi",)])
 def bases(request):
@@ -55,9 +57,11 @@ def stage(request, user):
         config["bases"] = request.getfixturevalue("bases")
     return user.create_stage(**config)
 
+
 @pytest.fixture
 def user(model):
     return model.create_user("hello", password="123")
+
 
 def test_has_mirror_base(model, pypistage):
     pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
@@ -380,7 +384,7 @@ class TestStage:
         link = register_and_store(stage, "some-1.0.zip", content)
         entry = link.entry
         assert entry.hash_spec
-        assert entry.last_modified != None
+        assert entry.last_modified is not None
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
         assert entries[0].hash_spec == entry.hash_spec
@@ -855,7 +859,6 @@ class TestStage:
             archive.extract(tmpdir)
         assert tmpdir.join("index.html").read() == "<html/>"
 
-
     def test_simulate_multiple_doczip_entries(self, stage, bases, tmpdir):
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         stage.store_doczip("pkg1", "1.0", zip_dict({}))
@@ -883,7 +886,6 @@ class TestStage:
         # get doczip and check it's really the latest one
         doczip = stage.get_doczip("pkg1", "1.0")
         assert doczip == content
-
 
     def test_storedoczipfile(self, stage, bases):
         from devpi_common.archive import Archive
@@ -1082,10 +1084,12 @@ class TestStage:
             def devpiserver_on_upload(self, stage, project, version, link):
                 queue.put((stage, project, version, link))
         stage.xom.config.pluginmanager.register(Plugin())
+
         class Plugin:
             @hookimpl
             def devpiserver_on_remove_file(self, stage, relpath):
                 queue.put((stage, relpath))
+
         stage.xom.config.pluginmanager.register(Plugin())
 
         # upload, should trigger devpiserver_on_upload
@@ -1477,11 +1481,13 @@ class TestUsers:
         user.modify(email=email_address)
         assert user.get()["email"] == email_address
 
+
 def test_user_set_without_indexes(model):
     user = model.create_user("user", "password", email="some@email.com")
     user.create_stage("hello")
     user._set({"password": "pass2"})
     assert model.getstage("user/hello")
+
 
 @pytest.mark.notransaction
 def test_setdefault_indexes(xom, model):

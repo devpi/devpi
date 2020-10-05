@@ -1,10 +1,12 @@
 import py
 import pytest
 
+
 def test_gentmp_suffix_raises(gentmp):
     t = gentmp("source")
     assert not t.listdir()
     pytest.raises(py.error.EEXIST, lambda: gentmp("source"))
+
 
 def test_gentmp_suffix(gentmp):
     source = gentmp("source")
@@ -13,11 +15,13 @@ def test_gentmp_suffix(gentmp):
     assert source.basename.startswith("source")
     assert dest.basename.startswith("dest")
 
+
 def test_gentmp_unique(gentmp):
     s1 = gentmp()
     s2 = gentmp()
     assert s1 != s2
     assert s1.dirpath() == s2.dirpath()
+
 
 def test_makexom(makexom, maketestapp):
     xom1 = makexom()
@@ -27,6 +31,7 @@ def test_makexom(makexom, maketestapp):
     testapp1.get("/")
     testapp2 = maketestapp(xom2)
     testapp2.get("/")
+
 
 def test_makemapp(makemapp):
     mapp1 = makemapp()

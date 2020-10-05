@@ -12,7 +12,7 @@ class PyPIPush:
 
     def execute(self, hub, name, version):
         req = dict(name=name, version=str(version), posturl=self.posturl,
-                   username=self.user, password=self.password )
+                   username=self.user, password=self.password)
         index = hub.current.index
         return hub.http_api("push", index, kvdict=req, fatal=False)
 
@@ -26,6 +26,7 @@ class DevpiPush:
         req = dict(name=name, version=str(version),
                    targetindex=self.targetindex)
         return hub.http_api("push", self.index, kvdict=req, fatal=True)
+
 
 def parse_target(hub, args):
     if args.target.startswith("pypi:"):

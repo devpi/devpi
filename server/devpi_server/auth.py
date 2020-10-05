@@ -89,7 +89,7 @@ class Auth:
             pseudopass = self.serializer.dumps(
                 (username, result.get("groups", [])))
             assert py.builtin._totext(pseudopass, 'ascii')
-            return {"password":  pseudopass,
+            return {"password": pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
 
     def get_auth_status(self, userpassword):
@@ -105,6 +105,7 @@ def getpwhash(password, salt):
     hash.update(salt.encode("ascii"))
     hash.update(password.encode("utf-8"))
     return py.builtin._totext(hash.hexdigest())
+
 
 def newsalt():
     return py.builtin._totext(base64.b64encode(secrets.token_bytes(16)), "ascii")

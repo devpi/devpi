@@ -1,6 +1,7 @@
 import sys
 from subprocess import Popen, CalledProcessError, PIPE
 
+
 def check_output(*args, **kwargs):
     # subprocess.check_output does not exist on python26
     if "universal_newlines" not in kwargs:

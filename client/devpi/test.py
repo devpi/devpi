@@ -126,6 +126,7 @@ class DevIndex:
             toxargs.extend(shlex.split(args.toxargs))
         return toxargs
 
+
 def post_tox_json_report(hub, href, jsondata):
     hub.line("posting tox result data to %s" % href)
     r = hub.http_api("post", href, kvdict=jsondata)
@@ -133,6 +134,7 @@ def post_tox_json_report(hub, href, jsondata):
         hub.info("successfully posted tox result data")
     else:
         hub.error("could not post tox result data to: %s" % href)
+
 
 class UnpackedPackage:
     def __init__(self, hub, rootdir, path_archive, versioninfo, link):

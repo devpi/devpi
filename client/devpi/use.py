@@ -19,8 +19,10 @@ devpi_data_keys = ["features"]
 def currentproperty(name):
     def propget(self):
         return self._currentdict.get(name, None)
+
     def propset(self, val):
         self._currentdict[name] = val
+
     return property(propget, propset)
 
 
@@ -353,6 +355,7 @@ def out_index_list(hub, data):
                      ixconfig["volatile"]))
     return
 
+
 def active_venv():
     venv = None
     if "VIRTUAL_ENV" in os.environ:
@@ -455,6 +458,7 @@ def main(hub, args=None):
         show_one_conf(hub, cfg)
     hub.line("always-set-cfg: %s" % ("yes" if current.always_setcfg else "no"))
 
+
 def show_one_conf(hub, cfg):
     if not cfg.exists():
         status = "no config file exists"
@@ -466,6 +470,7 @@ def show_one_conf(hub, cfg):
             url = url.replace(password="****")
         status = url.url
     hub.info("%-23s: %s" %(cfg.screen_name, status))
+
 
 class BaseCfg(object):
     config_name = "index_url"
@@ -526,12 +531,14 @@ class BaseCfg(object):
 
     def ensure_backup_file(self):
         if self.path.exists() and not self.backup_path.exists():
-             self.path.copy(self.backup_path)
+            self.path.copy(self.backup_path)
+
 
 class DistutilsCfg(BaseCfg):
     section_name = "[easy_install]"
     default_location = ("~/.pydistutils.cfg" if sys.platform != "win32"
                         else "~/pydistutils.cfg")
+
 
 class PipCfg(BaseCfg):
     section_name = "[global]"

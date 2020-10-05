@@ -42,6 +42,7 @@ def test_splitbasename(releasename, expected):
     result = splitbasename(releasename)
     assert result == expected
 
+
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("x-2.3.zip", ("source", "sdist")),
     ("x-2.3-0.4.0.win32-py3.1.exe", ("3.1", "bdist_wininst")),
@@ -57,6 +58,7 @@ def test_splitbasename(releasename, expected):
 def test_get_pyversion_filetype(releasename, expected):
     result = get_pyversion_filetype(releasename)
     assert result == expected
+
 
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest-2.3.4", ".zip")),
@@ -102,6 +104,7 @@ def test_version():
     ver1 = Version("1.0")
     ver2 = Version("1.1")
     assert max([ver1, ver2]) == ver2
+
 
 class TestBasenameMeta:
     def test_doczip(self):
@@ -161,5 +164,3 @@ def test_parse_requirement():
     assert req.project_name == "hello"
     assert "1.0" in req
     assert "0.9" not in req
-
--1.0

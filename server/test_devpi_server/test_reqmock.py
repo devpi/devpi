@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import pytest
 import requests
 
+
 @pytest.mark.parametrize("method", [None, "get", "post"])
 def test_req(reqmock, method):
     mr = reqmock.mockresponse("http://heise.de/", 201, data="hello",
@@ -12,6 +13,7 @@ def test_req(reqmock, method):
     assert r.status_code == 201
     assert len(mr.requests) == 1
     assert r.content == b"hello"
+
 
 def test_req_diff(reqmock):
     mr = reqmock.mockresponse("http://heise.de/", 201, data="hello",
@@ -29,6 +31,7 @@ def test_req_diff(reqmock):
     assert len(mr.requests) == 1
     assert len(mr2.requests) == 1
 
+
 def test_req_func(reqmock):
     l = []
     mr = reqmock.mockresponse("http://heise.de/", 201, data="hello",
@@ -37,6 +40,7 @@ def test_req_func(reqmock):
     r = requests.get("http://heise.de/")
     assert l == mr.requests
     assert r.status_code == 201
+
 
 def test_req_glob(reqmock):
     mr = reqmock.mockresponse("http://heise.de*", 201, data="hello",

@@ -10,12 +10,14 @@ def runproc(cmd):
     args = cmd.split()
     return check_output(args)
 
+
 def test_parse_target_devpi(loghub):
     class args:
         target = "user/name"
         index = None
     res = parse_target(loghub, args)
     assert isinstance(res, DevpiPush)
+
 
 def test_parse_target_pypi(tmpdir, loghub):
     p = tmpdir.join("pypirc")
@@ -28,10 +30,12 @@ def test_parse_target_pypi(tmpdir, loghub):
         username: test
         password: testp
     """))
+
     class args:
         target = "pypi:whatever"
         pypirc = str(p)
         index = None
+
     res = parse_target(loghub, args)
     assert isinstance(res, PyPIPush)
     assert res.user == "test"
@@ -49,10 +53,12 @@ def test_parse_target_pypi_default_repository(tmpdir, loghub):
         username: test
         password: testp
     """))
+
     class args:
         target = "pypi:whatever"
         pypirc = str(p)
         index = None
+
     res = parse_target(loghub, args)
     assert isinstance(res, PyPIPush)
     assert res.user == "test"
@@ -88,8 +94,10 @@ def test_push_devpi_index_option(loghub, monkeypatch, mock_http_api):
 def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
     from devpi.push import main
     l = []
+
     def mypost(method, url, data, headers, auth=None, cert=None, verify=None):
         l.append((method, url, data))
+
         class r:
             status_code = 201
             reason = "created"
@@ -119,6 +127,7 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         username: test
         password: testp
     """))
+
     class args:
         pypirc = str(p)
         target = "pypi:whatever"
@@ -153,8 +162,10 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
 def test_fail_push(monkeypatch, tmpdir):
     from devpi.push import main
     l = []
+
     def mypost(method, url, data, headers, auth=None, cert=None, verify=None):
         l.append((method, url, data))
+
         class r:
             status_code = 500
             reason = "Internal Server Error"
@@ -163,8 +174,10 @@ def test_fail_push(monkeypatch, tmpdir):
             ))
             headers = {"content-type": "application/json"}
             _json = json.loads(content)
+
             class request:
                 method = ''
+
         r.url = url
         r.request.method = method
 
@@ -187,6 +200,7 @@ def test_fail_push(monkeypatch, tmpdir):
         username: test
         password: testp
     """))
+
     class args:
         pypirc = str(p)
         target = "pypi:whatever"

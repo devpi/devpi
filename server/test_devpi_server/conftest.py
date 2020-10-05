@@ -47,12 +47,14 @@ def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"
         s = s.format(stage=stagename)
     return s
 
+
 class _TimeoutQueue(BaseQueue):
     def get(self, timeout=2):
         return BaseQueue.get(self, timeout=timeout)
 
 
 log = threadlog
+
 
 @pytest.fixture(autouse=True)
 def _clear():
@@ -108,9 +110,11 @@ def caplog(caplog):
     caplog.set_level(logging.NOTSET)
     return caplog
 
+
 @pytest.fixture
 def gentmp(request, tmpdir_factory):
     cache = []
+
     def gentmp(name=None):
         if not cache:
             prefix = re.sub(r"[\W]", "_", request.node.name)
@@ -122,6 +126,7 @@ def gentmp(request, tmpdir_factory):
             return basedir.mkdir(name)
         return py.path.local.make_numbered_dir(prefix="gentmp",
                 keep=0, rootdir=basedir, lock_timeout=None)
+
     return gentmp
 
 
@@ -129,7 +134,7 @@ def gentmp(request, tmpdir_factory):
 def auto_transact(request):
     names = request.fixturenames
     if ("xom" not in names and "keyfs" not in names) or (
-        request.node.get_closest_marker("notransaction")):
+            request.node.get_closest_marker("notransaction")):
         yield
         return
     keyfs = request.getfixturevalue("keyfs")
@@ -154,11 +159,13 @@ def xom(request, makexom):
 def speed_up_sqlite():
     from devpi_server.keyfs_sqlite import Storage
     old = Storage.ensure_tables_exist
+
     def make_unsynchronous(self, old=old):
         conn = old(self)
         with self.get_connection() as conn:
             conn._sqlconn.execute("PRAGMA synchronous=OFF")
         return
+
     Storage.ensure_tables_exist = make_unsynchronous
     yield
     Storage.ensure_tables_exist = old
@@ -168,11 +175,13 @@ def speed_up_sqlite():
 def speed_up_sqlite_fs():
     from devpi_server.keyfs_sqlite_fs import Storage
     old = Storage.ensure_tables_exist
+
     def make_unsynchronous(self, old=old):
         conn = old(self)
         with self.get_connection() as conn:
             conn._sqlconn.execute("PRAGMA synchronous=OFF")
         return
+
     Storage.ensure_tables_exist = make_unsynchronous
     yield
     Storage.ensure_tables_exist = old
@@ -292,6 +301,7 @@ def maketestapp(request):
         return mt
     return maketestapp
 
+
 @pytest.fixture
 def makemapp(request, maketestapp, makexom):
     def makemapp(testapp=None, options=()):
@@ -306,6 +316,7 @@ def makemapp(request, maketestapp, makexom):
 @pytest.fixture
 def httpget(pypiurls):
     from .simpypi import make_simple_pkg_info
+
     class MockHTTPGet:
         def __init__(self):
             self.url2response = {}
@@ -367,6 +378,7 @@ def httpget(pypiurls):
 def keyfs(xom):
     return xom.keyfs
 
+
 @pytest.fixture
 def model(xom):
     return xom.model
@@ -380,6 +392,7 @@ def pypistage(devpiserver_makepypistage, xom):
 def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
     PyPIStage.url2response = httpget.url2response
+
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
         self.cache_retrieve_times.expire(name)
         return self.httpget.mock_simple(name,
@@ -403,12 +416,15 @@ def add_pypistage_mocks(monkeypatch, httpget):
                                          headers=headers, **kw)
     monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)
 
+
 @pytest.fixture
 def pypiurls():
     from devpi_server.main import _pypi_ixconfig_default
+
     class PyPIURL:
         def __init__(self):
             self.simple = _pypi_ixconfig_default['mirror_url']
+
     return PyPIURL()
 
 
@@ -758,12 +774,14 @@ from webtest import TestResponse
 @pytest.yield_fixture
 def noiter(monkeypatch, request):
     l = []
+
     @property
     def body(self):
         if self.headers["Content-Type"] != "application/octet-stream":
             return self.body_old
         if self.app_iter:
             l.append(self.app_iter)
+
     monkeypatch.setattr(TestResponse, "body_old", TestResponse.body,
                         raising=False)
     monkeypatch.setattr(TestResponse, "body", body)
@@ -1181,13 +1199,14 @@ def simpypi(simpypiserver):
     return simpypiserver.simpypi
 
 
-### incremental testing
+# incremental testing
 
 def pytest_runtest_makereport(item, call):
     if "incremental" in item.keywords:
         if call.excinfo is not None:
             parent = item.parent
             parent._previousfailed = item
+
 
 def pytest_runtest_setup(item):
     if "incremental" in item.keywords:
@@ -1199,6 +1218,7 @@ def pytest_runtest_setup(item):
 @pytest.fixture
 def gen():
     return Gen()
+
 
 class Gen:
     def __init__(self):
@@ -1233,8 +1253,10 @@ def dummyrequest(pyramidconfig):
 @pytest.fixture
 def blank_request():
     from pyramid.request import Request
+
     def blank_request(*args, **kwargs):
         return Request.blank("/blankpath", *args, **kwargs)
+
     return blank_request
 
 

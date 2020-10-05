@@ -6,8 +6,10 @@ import tarfile
 import zipfile
 import py
 
+
 class UnsupportedArchive(ValueError):
     pass
+
 
 def Archive(path_or_file):
     """ return in-memory Archive object, wrapping ZipArchive or TarArchive
@@ -62,6 +64,7 @@ class BaseArchive(object):
     def __exit__(self, *args):
         self.close()
 
+
 class TarArchive(BaseArchive):
     def __init__(self, file):
         super(TarArchive, self).__init__(file)
@@ -90,6 +93,7 @@ class TarArchive(BaseArchive):
                 raise ValueError("archive name %r out of bound"
                                  %(member.name,))
         self._archive.extractall(str(to_path))
+
 
 class ZipArchive(BaseArchive):
     def __init__(self, file):
@@ -124,6 +128,7 @@ class ZipArchive(BaseArchive):
                 with fpath.open("wb") as f:
                     f.write(unzipfile.read(name))
 
+
 def zip_dir(basedir, dest=None):
     if dest is None:
         f = py.io.BytesIO()
@@ -137,6 +142,7 @@ def zip_dir(basedir, dest=None):
     if dest is None:
         return f.getvalue()
 
+
 def _writezip(zip, basedir):
     for p in basedir.visit():
         if p.check(dir=1):
@@ -148,12 +154,14 @@ def _writezip(zip, basedir):
             path = p.relto(basedir)
             zip.writestr(path, p.read("rb"))
 
+
 def zip_dict(contentdict):
     f = py.io.BytesIO()
     zip = zipfile.ZipFile(f, "w")
     _writezip_fromdict(zip, contentdict)
     zip.close()
     return f.getvalue()
+
 
 def _writezip_fromdict(zip, contentdict, prefixes=()):
     for name, val in contentdict.items():

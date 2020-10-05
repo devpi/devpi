@@ -17,11 +17,13 @@ def getnewpass(hub, username):
             return password
         hub.error("passwords did not match")
 
+
 def user_create(hub, user, kvdict):
     if "password" not in kvdict and "pwhash" not in kvdict:
         kvdict["password"] = getnewpass(hub, user)
     hub.http_api("put", hub.current.get_user_url(user), kvdict)
     hub.info("user created: %s" % user)
+
 
 def user_modify(hub, user, kvdict):
     url = hub.current.get_user_url(user)
@@ -40,12 +42,14 @@ def user_modify(hub, user, kvdict):
     hub.http_api("patch", url, reply.result)
     hub.info("user modified: %s" % user)
 
+
 def user_delete(hub, user):
     url = hub.current.get_user_url(user)
     hub.info("About to remove: %s" % url)
     if hub.ask_confirm("Are you sure"):
         hub.http_api("delete", url, None)
         hub.info("user deleted: %s" % user)
+
 
 def user_list(hub):
     r = hub.http_api("get", hub.current.rooturl)

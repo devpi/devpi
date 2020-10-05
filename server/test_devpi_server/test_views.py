@@ -116,6 +116,7 @@ def test_make_uuid_headers(nodeinfo, expected):
     output = make_uuid_headers(nodeinfo)
     assert output == expected
 
+
 def test_simple_project(pypistage, testapp):
     name = "qpwoei"
     r = testapp.get("/root/pypi/+simple/%s/" % name)
@@ -132,7 +133,8 @@ def test_simple_project(pypistage, testapp):
     links = getlinks(r.text)
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
-    assert links[0].get("data-requires-python") == None
+    assert links[0].get("data-requires-python") is None
+
 
 def test_simple_project_requires_python(pypistage, testapp):
     name = "django"
@@ -144,6 +146,7 @@ def test_simple_project_requires_python(pypistage, testapp):
     assert len(links) == 1
     assert links[0].get("href").endswith(path)
     assert links[0].get("data-requires-python") == '>=3.4'
+
 
 def test_simple_project_requires_python_empty(pypistage, testapp):
     name = "django"
@@ -174,11 +177,13 @@ def test_simple_list_all_redirect(pypistage, testapp):
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/")
 
+
 def test_simple_project_redirect(pypistage, testapp):
     project = "py"
     r = testapp.get("/root/pypi/+simple/" + project, follow=False)
     assert r.status_code == 302
     assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % project)
+
 
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
 def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testapp):
@@ -278,9 +283,11 @@ def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     with pytest.raises(HTTPClientError):
         view.simple_list_project()
 
+
 def test_simple_url_longer_triggers_404(testapp):
     assert testapp.get("/root/pypi/+simple/pytest/1.0/").status_code == 404
     assert testapp.get("/root/pypi/+simple/pytest/1.0").status_code == 404
+
 
 def test_simple_project_pypi_egg(pypistage, testapp):
     pypistage.mock_simple("py",
@@ -291,6 +298,7 @@ def test_simple_project_pypi_egg(pypistage, testapp):
     assert len(links) == 1
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
+
 
 @pytest.mark.nomockprojectsremote
 def test_simple_list(pypistage, testapp):
@@ -315,6 +323,7 @@ def test_simple_list(pypistage, testapp):
     hrefs = [a.get("href") for a in links]
     assert hrefs == ["hello1/", "hello2/"]
 
+
 def test_correct_resolution_order(pypistage, mapp, testapp):
     pypistage.mock_simple("hello", pkgver="hello-1.0.tar.gz")
     index1 = mapp.create_and_use()
@@ -328,6 +337,7 @@ def test_correct_resolution_order(pypistage, mapp, testapp):
     # the package should be found in our internal index, not on root/pypi
     r = testapp.get("/%s/+simple/hello" % index3.stagename)
     assert index1.stagename in r.text
+
 
 def test_simple_page_pypi_serial(pypistage, testapp):
     # test with no header
@@ -343,6 +353,7 @@ def test_simple_page_pypi_serial(pypistage, testapp):
     pypistage.mock_simple("hello3", text="qwe", pypiserial='foo')
     r = testapp.get("/root/pypi/+simple/hello3/", expect_errors=False)
     assert "X-PYPI-LAST-SERIAL" not in r.headers
+
 
 def test_simple_refresh(mapp, model, pypistage, testapp):
     pypistage.mock_simple("hello", "<html/>")
@@ -552,12 +563,13 @@ def test_pkgserv_remote_failure(httpget, pypistage, testapp):
     r = testapp.get(url)
     assert r.status_code == 502
 
+
 def test_apiconfig(testapp):
     r = testapp.get_json("/user/name/+api", status=404)
     assert r.status_code == 404
     r = testapp.get_json("/root/pypi/+api")
     assert r.status_code == 200
-    assert not "pypisubmit" in r.json["result"]
+    assert "pypisubmit" not in r.json["result"]
 
 
 def test_apiconfig_features(testapp):
@@ -600,6 +612,7 @@ def test_root_pypi(testapp):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
 
+
 def test_set_versiondata_and_get_description(mapp, testapp):
     api = mapp.create_and_use("user/name")
     metadata = {"name": "pkg1", "version": "1.0", ":action": "submit",
@@ -616,6 +629,7 @@ def test_set_versiondata_and_get_description(mapp, testapp):
     r = testapp.get_json("/user/name/pkg1")
     assert r.status_code == 200
     assert "1.0" in r.json["result"]
+
 
 class TestSubmitValidation:
     @pytest.fixture
@@ -1019,6 +1033,7 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 401
 
+
 def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     mapp.create_and_login_user("user1", "1")
@@ -1245,6 +1260,7 @@ def test_upload_and_delete_project(mapp, testapp):
     mapp.getjson(api.index + "/pkg1", code=404)
     mapp.getjson(api.index + "/pkg1/2.7", code=404)
 
+
 def test_upload_with_acl(mapp):
     mapp.login("root")
     mapp.change_password("root", "123")
@@ -1284,11 +1300,13 @@ class TestPluginPermissions:
     def plugin(self):
         class Plugin:
             groups = ['plugingroup']
+
             @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):
                 if username == 'pluginuser':
                     return dict(status="ok", groups=self.groups)
                 return dict(status="unknown")
+
         return Plugin()
 
     @pytest.fixture
@@ -1367,6 +1385,7 @@ def test_upload_and_access_releasefile_meta(mapp, testapp, proj):
     assert pkgmeta["type"] == "releasefilemeta"
     hash_spec = pkgmeta["result"]["hash_spec"]
     assert hash_spec_matches(hash_spec, content)
+
 
 def test_upload_and_delete_project_version(mapp):
     api = mapp.create_and_use()
@@ -2052,9 +2071,11 @@ class Test_getjson:
     @pytest.fixture
     def abort_calls(self, monkeypatch):
         l = []
+
         def recorder(*args, **kwargs):
             l.append((args, kwargs))
             raise SystemExit(1)
+
         monkeypatch.setattr(devpi_server.views, "abort", recorder)
         return l
 
@@ -2078,28 +2099,35 @@ class Test_getjson:
 class TestTweenKeyfsTransaction:
     def test_nowrite(self, xom, blank_request):
         cur_serial = xom.keyfs.get_current_serial()
-        wrapped_handler = lambda r: Response("")
+
+        def wrapped_handler(r):
+            return Response("")
+
         handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
         response = handler(blank_request())
         assert response.headers.get("X-DEVPI-SERIAL") == str(cur_serial)
 
     def test_write(self, xom, blank_request):
         cur_serial = xom.keyfs.get_current_serial()
+
         def wrapped_handler(request):
             with xom.keyfs.USER(user="hello").update():
                 pass
             return Response("")
+
         handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
         response = handler(blank_request(method="PUT"))
         assert response.headers.get("X-DEVPI-SERIAL") == str(cur_serial + 1)
 
     def test_restart(self, xom, blank_request):
         cur_serial = xom.keyfs.get_current_serial()
+
         def wrapped_handler(request):
             xom.keyfs.restart_as_write_transaction()
             with xom.keyfs.USER(user="hello").update():
                 pass
             return Response("")
+
         handler = tween_keyfs_transaction(wrapped_handler, {"xom": xom})
         response = handler(blank_request())
         assert response.headers.get("X-DEVPI-SERIAL") == str(cur_serial + 1)

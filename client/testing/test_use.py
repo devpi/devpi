@@ -19,9 +19,11 @@ def test_ask_confirm(makehub, monkeypatch):
     monkeypatch.setattr(devpi.main, "raw_input", lambda msg: l.pop())
     assert hub.ask_confirm("hello")
 
+
 def test_ask_confirm_delete_args_yes(makehub):
     hub = makehub(["remove", "-y", "whatever"])
     assert hub.ask_confirm("hello")
+
 
 class TestUnit:
     def test_write_and_read(self, tmpdir):
@@ -153,8 +155,10 @@ class TestUnit:
     def test_use_with_nonexistent_domain(self, capfd, cmd_devpi, Exc,
                                          monkeypatch):
         from requests.sessions import Session
+
         def raise_(*args, **kwargs):
             raise Exc("qwe")
+
         monkeypatch.setattr(Session, "request", raise_)
         cmd_devpi("use", "http://qlwkejqlwke", code=-1)
         out, err = capfd.readouterr()
@@ -359,7 +363,7 @@ class TestUnit:
         # test via env for activated venv
         monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
         hub = cmd_devpi("use")
-        assert hub.current.venvdir == None, \
+        assert hub.current.venvdir is None, \
             "When --venv is not given, hub.current shouldn't be set"
         res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
@@ -529,10 +533,12 @@ def test_getparse_keyvalues_kvdict(input, expected):
 def test_user_no_index(loghub):
     out_index_list(loghub, {"user": {"username": "user"}})
 
+
 def test_pipcfg_default_location(tmpdir, monkeypatch):
     path = PipCfg().path
     monkeypatch.setenv('PIP_CONFIG_FILE', tmpdir.join("cfg").strpath)
     assert path != PipCfg().path
+
 
 class TestCfgParsing:
     @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg, BuildoutCfg])

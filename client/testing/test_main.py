@@ -1,10 +1,12 @@
 import pytest
 from devpi.main import verify_reply_version, initmain
 
+
 def test_initmain():
     with pytest.raises(SystemExit) as excinfo:
         initmain(["devpi"])
     assert excinfo.value.args == (0,)
+
 
 class TestVerifyAPIVersion:
     def test_noversion(self, loghub):
@@ -71,7 +73,8 @@ def test_subcommands_hook(capsys):
 
 @pytest.mark.skipif("sys.version_info < (2,7)")
 def test_main_devpi_invocation():
-    import sys, subprocess
+    import subprocess
+    import sys
     subprocess.check_call([sys.executable,
                            "-m", "devpi", "--version"])
 

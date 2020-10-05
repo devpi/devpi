@@ -45,6 +45,7 @@ def test_simple_install_new_venv_workflow(create_and_upload,
         installed_folder_found |= "example-1.2.3.dist-info" in dirnames
     assert installed_folder_found
 
+
 def test_simple_install_venv_workflow_index_option(create_and_upload,
                                                    create_venv,
                                                    devpi, out_devpi):

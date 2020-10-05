@@ -68,11 +68,13 @@ def get_pyversion_filetype(basename):
         return ("any", "bdist_dumb")
     pyversion, ext = m.groups()
     if pyversion == "2.py3":  # "universal" wheel with no C
-        pyversion = "2.7"  # arbitrary but pypi/devpi makes no special use
-                           # of "pyversion" anyway?!
+        # arbitrary but pypi/devpi makes no special use
+        # of "pyversion" anyway?!
+        pyversion = "2.7"
     elif "." not in pyversion:
         pyversion = ".".join(pyversion)
     return (pyversion, _ext2type[ext])
+
 
 def splitbasename(path, checkarch=True):
     nameversion, ext = splitext_archive(path)
@@ -108,6 +110,8 @@ def splitbasename(path, checkarch=True):
 
 
 DOCZIPSUFFIX = ".doc.zip"
+
+
 def splitext_archive(basename):
     basename = getattr(basename, "basename", basename)
     if basename.lower().endswith(DOCZIPSUFFIX):
@@ -119,6 +123,7 @@ def splitext_archive(basename):
             ext = base[-4:] + ext
             base = base[:-4]
     return base, ext
+
 
 class Version(CompareMixin):
     def __init__(self, versionstring):
@@ -169,6 +174,7 @@ def sorted_sameproject_links(links):
     s = sorted((BasenameMeta(link, sameproject=True)
                      for link in links), reverse=True)
     return [x.obj for x in s]
+
 
 def get_latest_version(seq, stable=False):
     if not seq:

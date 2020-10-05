@@ -87,7 +87,6 @@ class TestStreaming(object):
             sleep(0.1)
         assert pkg_file.exists()
 
-
     @pytest.mark.parametrize("size_factor,pkg_version", [
         (2, '1.2'), (0.5, '1.3')])
     def test_streaming_differing_content_size(self, content_digest, files_directory, pkg_version, server_url_session, simpypi, size_factor, storage_info):

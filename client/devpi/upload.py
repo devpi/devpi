@@ -10,6 +10,7 @@ from devpi_common.archive import zip_dir
 from devpi_common.types import CompareMixin
 from .main import HTTPReply, set_devpi_auth_header
 
+
 def main(hub, args):
     # for now we use distutils/setup.py for register/upload commands.
 
@@ -52,6 +53,7 @@ def main(hub, args):
         uploader.pypisubmit = hub.current.get_index_url(args.index).url
     uploader.do_upload_paths(archives)
 
+
 def filter_latest(path_pkginfo):
     name_version_path = {}
     for archivepath, pkginfo in path_pkginfo.items():
@@ -64,6 +66,7 @@ def filter_latest(path_pkginfo):
     for x in name_version_path.values():
         retval[x[2]] = x[1]
     return retval
+
 
 def main_fromfiles(hub, args):
     paths = []
@@ -79,6 +82,7 @@ def main_fromfiles(hub, args):
     if args.index:
         uploader.pypisubmit = hub.current.get_index_url(args.index).url
     uploader.do_upload_paths(paths)
+
 
 class Uploader:
     def __init__(self, hub, args, name_version=None):
@@ -115,7 +119,6 @@ class Uploader:
             self.upload_release_file(archivepath, pkginfo)
         for archivepath, pkginfo in doczip2pkginfo.items():
             self.upload_doc(archivepath, pkginfo)
-
 
     def upload_doc(self, path, pkginfo):
         if self.name_version:
@@ -180,8 +183,11 @@ class Uploader:
         meta["pyversion"], meta["filetype"] = pyver
         self.post("file_upload", path, meta=meta)
 
+
 # taken from devpi-server/extpypi.py
 ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
+
+
 def get_archive_files(path):
     if path.isfile():
         yield path
@@ -337,6 +343,7 @@ class Checkout:
         setupdir_newrepo = newrepo.join(self.setupdir.relto(self.rootpath))
         return Exported(self.hub, setupdir_newrepo, self.setupdir)
 
+
 class Exported:
     def __init__(self, hub, rootpath, origrepo):
         self.hub = hub
@@ -465,8 +472,6 @@ sdistformat2option = {
     "tbz": "bztar",  # bzip2'ed tar-file
 }
 
-#def getallformats():
-#    return set(sdistformat2option) + set(sdistformat2option.values())
 
 def sdistformat(format):
     """ return sdist format option. """

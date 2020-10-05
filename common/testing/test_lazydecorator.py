@@ -1,9 +1,10 @@
-from devpi_common.types  import lazydecorator
+from devpi_common.types import lazydecorator
 from textwrap import dedent
 
 
 def test_simpler():
     dec = lazydecorator()
+
     class A:
         @dec(5)
         @dec(1, kw=3)
@@ -13,6 +14,7 @@ def test_simpler():
     a = A()
 
     l2 = []
+
     def anotherdec(arg, kw=None):
         def wrapped(func):
             l2.append((func, arg, kw))
@@ -24,12 +26,14 @@ def test_simpler():
     assert l2[0] == (a.f, 1, 3)
     assert l2[1] == (a.f, 5, None)
 
+
 def test_simpler_dict():
     dec = lazydecorator()
 
     @dec()
     def f():
         pass
+
     @dec(x=1)
     def g():
         pass
@@ -39,15 +43,19 @@ def test_simpler_dict():
     assert l[0] == (f, (), {})
     assert l[1] == (g, (), dict(x=1))
 
+
 def test_multi():
     dec = lazydecorator()
+
     class A:
         @dec(1)
         def c(self):
             pass
+
         @dec(2)
         def b(self):
             pass
+
         @dec(3)
         def a(self):
             pass
@@ -55,6 +63,7 @@ def test_multi():
     a = A()
 
     l2 = []
+
     def anotherdec(arg, kw=None):
         def wrapped(func):
             l2.append((func, arg))

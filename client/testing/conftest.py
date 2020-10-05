@@ -31,6 +31,7 @@ def print_info(*args, **kwargs):
     kwargs.setdefault("file", sys.stderr)
     return py.builtin.print_(*args, **kwargs)
 
+
 class PopenFactory:
     def __init__(self, addfinalizer):
         self.addfinalizer = addfinalizer
@@ -38,28 +39,33 @@ class PopenFactory:
     def __call__(self, args, pipe=False, **kwargs):
         args = [str(x) for x in args]
         if pipe:
-            print ("$ %s [piped]" %(" ".join(args),))
+            print("$ %s [piped]" %(" ".join(args),))
             popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         else:
             showkwargs = " ".join(["%s=%s"] % (x,y) for x,y in kwargs.items())
-            print ("$ %s %s" %(" ".join(args), showkwargs))
+            print("$ %s %s" %(" ".join(args), showkwargs))
             popen = subprocess.Popen(args, **kwargs)
+
         def fin():
             try:
                 popen.kill()
                 popen.wait()
             except OSError:
-                print ("could not kill %s" % popen.pid)
+                print("could not kill %s" % popen.pid)
+
         self.addfinalizer(fin)
         return popen
+
 
 @pytest.fixture(scope="session")
 def Popen_session(request):
     return PopenFactory(request.addfinalizer)
 
+
 @pytest.fixture(scope="module")
 def Popen_module(request):
     return PopenFactory(request.addfinalizer)
+
 
 @pytest.fixture(scope="function")
 def Popen(request):
@@ -419,6 +425,7 @@ def create_and_upload(request, devpi, initproj, Popen):
 def gen():
     return Gen()
 
+
 class Gen:
     def __init__(self):
         import hashlib
@@ -516,6 +523,7 @@ def ext_devpi(request, tmpdir, devpi):
         return result
     return doit
 
+
 @pytest.fixture
 def out_devpi(devpi):
     def out_devpi_func(*args, **kwargs):
@@ -538,6 +546,7 @@ def out_devpi(devpi):
         return RunResult(0, out.split("\n"), None, time.time()-now)
     return out_devpi_func
 
+
 @pytest.fixture
 def cmd_devpi(tmpdir, monkeypatch):
     """ execute devpi subcommand in-process (with fresh init) """
@@ -545,6 +554,7 @@ def cmd_devpi(tmpdir, monkeypatch):
         print("%s: yes" % msg)
         return True
     clientdir = tmpdir.join("client")
+
     def run_devpi(*args, **kwargs):
         callargs = []
         for arg in ["devpi", "--clientdir", clientdir] + list(args):
@@ -559,7 +569,7 @@ def cmd_devpi(tmpdir, monkeypatch):
             method(hub, hub.args)
         except SystemExit as sysex:
             hub.sysex = sysex
-            if expected == None or expected < 0 or expected >= 400:
+            if expected is None or expected < 0 or expected >= 400:
                 # we expected an error or nothing, don't raise
                 pass
             else:
@@ -581,9 +591,11 @@ def cmd_devpi(tmpdir, monkeypatch):
     run_devpi.clientdir = clientdir
     return run_devpi
 
+
 @pytest.fixture
 def runproc():
     return runprocess
+
 
 def runprocess(tmpdir, cmdargs):
     from _pytest.pytester import RunResult
@@ -606,10 +618,12 @@ def mockhtml(monkeypatch):
     def mockhtml(cache, mockurl, content):
         mockurl = cache._getsimpleurl(mockurl)
         old = cache.http.gethtml
+
         def newgethtml(url):
             if url == mockurl:
                 return content
             return old(url)
+
         monkeypatch.setattr(cache.http, "gethtml", newgethtml)
     return mockhtml
 
@@ -641,19 +655,24 @@ def create_venv(request, tmpdir_factory, monkeypatch):
 @pytest.fixture
 def loghub(tmpdir):
     from _pytest.pytester import LineMatcher
+
     class args:
         debug = True
         clientdir = tmpdir.join("clientdir")
         yes = False
         verbose = False
         settrusted = False
+
     out = py.io.TextIO()
     hub = Hub(args, file=out)
+
     def _getmatcher():
         lines = out.getvalue().split("\n")
         return LineMatcher(lines)
+
     hub._getmatcher = _getmatcher
     return hub
+
 
 @pytest.fixture(scope="session")
 def makehub(tmpdir_factory):
@@ -670,6 +689,7 @@ def makehub(tmpdir_factory):
         with tmp.as_cwd():
             return Hub(args)
     return mkhub
+
 
 @pytest.fixture
 def mock_http_api(monkeypatch):
@@ -697,8 +717,10 @@ def mock_http_api(monkeypatch):
                 class R:
                     status_code = reply_data["status"]
                     reason = reply_data.get("reason", "OK")
+
                     def json(self):
                         return reply_data["json"]
+
                 return main.HTTPReply(R())
             pytest.fail("http_api call to %r is not mocked" % (url,))
 
@@ -708,4 +730,3 @@ def mock_http_api(monkeypatch):
     mockapi = MockHTTPAPI()
     monkeypatch.setattr(main.Hub, "http_api", mockapi)
     return mockapi
-

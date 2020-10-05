@@ -7,9 +7,11 @@ try:
 except ImportError:
     from urllib.parse import quote as url_quote
 
+
 class API:
     def __init__(self, d):
         self.__dict__ = d
+
 
 class MappMixin:
     _usercount = 0

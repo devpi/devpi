@@ -17,6 +17,7 @@ def normalize_name(name):
     name = ensure_unicode(name)
     return safe_name_rex.sub('-', name).lower()
 
+
 def safe_version(version):
     """Convert an arbitrary string to a standard version string
 
@@ -26,8 +27,10 @@ def safe_version(version):
     version = version.replace(' ','.')
     return safe_name_rex.sub('-', version)
 
+
 def is_valid_archive_name(filename):
     return safe_filenames.match(filename)
+
 
 def validate_metadata(data):
     # from https://bitbucket.org/pypa/pypi/src/1e31fd3cc7a72e4aa54a2bd79d50be5c8c0a3b1e/webui.py?at=default#cl-2124
@@ -68,14 +71,12 @@ def validate_metadata(data):
         raise ValueError("Invalid package name. Names must end with "
                          "an ASCII letter or digit")
 
-
     # Traditionally, package names are restricted only for
     # technical reasons; / is not allowed because it may be
     # possible to break path names for file and documentation
     # uploads
     if '/' in data['name']:
         raise ValueError("Invalid package name")
-
 
     # again, this is a restriction required by the implementation and not
     # mentiond in documentation; ensure name and version are valid for URLs
@@ -113,4 +114,3 @@ def validate_metadata(data):
 #            if d.has_key(entry):
 #                continue
 #            raise ValueError, 'Invalid classifier "%s"'%entry
-

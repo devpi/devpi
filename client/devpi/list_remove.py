@@ -15,6 +15,7 @@ def out_index(hub, projects):
             out += "-" + str(maxversion)
         hub.info(out)
 
+
 def out_project(hub, reply, req):
     data = reply.result
     index = hub.current.index[len(hub.current.rooturl):]
@@ -101,6 +102,7 @@ def show_commands(hub, view_result):
                 hub.error("    %s" % line)
             break
         hub.info("    OK:  %s" % shellcommand)
+
 
 def main_list(hub, args):
     hub.require_valid_current_with_index()

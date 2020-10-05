@@ -161,6 +161,7 @@ def get_raw_changelog_entry(xom, serial):
     with xom.keyfs._storage.get_connection() as conn:
         return conn.get_raw_changelog_entry(serial)
 
+
 class TestReplicaThread:
     @pytest.fixture
     def rt(self, makexom):
@@ -298,8 +299,10 @@ class TestReplicaThread:
 
     def test_thread_run_try_again(self, rt, mockchangelog, caplog):
         l = [1]
+
         def exit_if_shutdown():
             l.pop()
+
         rt.thread.exit_if_shutdown = exit_if_shutdown
         mockchangelog(0, code=202)
         with pytest.raises(IndexError):
@@ -571,7 +574,6 @@ class TestFileReplication:
         with pytest.raises(replica_xom.keyfs.ReadOnly):
             with replica_xom.keyfs.transaction():
                 replica_xom.keyfs.restart_as_write_transaction()
-
 
     def test_transaction_api(self, replica_xom, xom):
         with xom.keyfs.transaction(write=True):

@@ -179,7 +179,6 @@ class TestIndexParsing:
         result = parse_index(simple, '<a href="http:" />')
         assert len(result.releaselinks) == 0
 
-
     def test_parse_index_ftp_ignored_for_now(self):
         result = parse_index(self.simplepy,
             """<a href="http://bb.org/download/py-1.0.zip" />
@@ -224,7 +223,6 @@ class TestIndexParsing:
                   rel="download">whatever2</a> """)
         assert len(result.releaselinks) == 0
 
-
     def test_releasefile_md5_matching_and_ordering(self):
         """ check that md5-links win over non-md5 links anywhere.
         And otherwise the links from the index page win over scraped ones.
@@ -248,10 +246,12 @@ class TestIndexParsing:
         assert link2.url == "http://pylib.org/py-1.4.11.zip#md5=1111"
         assert link3.url == "https://pypi.org/pkg/py-1.4.10.zip#md5=2222"
 
+
 def test_get_updated(pypistage):
     c = pypistage.cache_retrieve_times
     c2 = pypistage.cache_retrieve_times
     return c == c2
+
 
 class TestExtPYPIDB:
     def test_parse_project_nomd5(self, pypistage):
@@ -548,6 +548,7 @@ def raise_ValueError():
 @pytest.mark.nomocking
 def test_requests_httpget_negative_status_code(xom, monkeypatch):
     l = []
+
     def r(*a, **k):
         l.append(1)
         raise requests.exceptions.RequestException()

@@ -10,6 +10,7 @@ from devpi_server.main import tween_request_profiling
 import devpi_server
 import os
 
+
 @pytest.fixture
 def ground_wsgi_run(monkeypatch):
     monkeypatch.setattr(mythread.ThreadPool, "live", lambda *args: 0 / 0)
@@ -32,11 +33,13 @@ def test_pkgresources_version_matches_init():
     ver = devpi_server.__version__
     assert pkg_resources.get_distribution("devpi_server").version == ver
 
+
 def test_version(capfd):
     main(["devpi-server", "--version"])
     out, err = capfd.readouterr()
     assert not err  # not logging output
     assert devpi_server.__version__ in out.strip()
+
 
 def test_check_compatible_version_earlier(config, monkeypatch):
     monkeypatch.setattr("devpi_server.main.get_state_version", lambda cfg: "1.0")
@@ -79,10 +82,12 @@ def test_check_incompatible_version_raises(config):
 
 def test_pyramid_configure_called(makexom):
     l = []
+
     class Plugin:
         @hookimpl
         def devpiserver_pyramid_configure(self, config, pyramid_config):
             l.append((config, pyramid_config))
+
     xom = makexom(plugins=[Plugin()])
     xom.create_app()
     assert len(l) == 1
@@ -105,11 +110,13 @@ def test_run_commands_called(tmpdir):
     from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
     l = []
+
     class Plugin:
         @hookimpl
         def devpiserver_cmdline_run(self, xom):
             l.append(xom)
             return 1
+
     pm = get_pluginmanager()
     pm.register(Plugin())
     result = init(
@@ -154,10 +161,12 @@ def test_main_starts_server_if_run_commands_returns_none(tmpdir):
     from devpi_server.init import init
     from devpi_server.main import _main, get_pluginmanager
     l = []
+
     class Plugin:
         @hookimpl
         def devpiserver_cmdline_run(self, xom):
             l.append(xom)
+
     pm = get_pluginmanager()
     pm.register(Plugin())
     init(
@@ -222,6 +231,7 @@ def test_offline_mode_httpget_returns_server_error(makexom, url, allowRedirect):
 @pytest.mark.nomocking
 def test_replica_max_retries_option(makexom, monkeypatch):
     from devpi_server.main import new_requests_session as orig_new_requests_session
+
     def new_requests_session(*args, **kwargs):
         _max_retries = None
         if 'max_retries' in kwargs:
