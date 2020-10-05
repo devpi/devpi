@@ -18,6 +18,7 @@ from devpi_common.url import URL
 
 import devpi_server
 
+
 def make_export(tmpdir, xom):
     xom.config.init_nodeinfo()
     return do_export(tmpdir, xom)
@@ -54,10 +55,12 @@ def test_not_exists(tmpdir, xom):
     with pytest.raises(Fatal):
         do_import(p, xom)
 
+
 def test_import_wrong_dumpversion(tmpdir, xom):
     tmpdir.join("dataindex.json").write('{"dumpversion": "0"}')
     with pytest.raises(Fatal):
         do_import(tmpdir, xom)
+
 
 def test_empty_export(tmpdir, xom):
     xom.config.init_nodeinfo()
@@ -685,7 +688,7 @@ class TestImportExport:
         with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             doccontent = zip_dict({"index.html": "<html><body>Hello"})
-            link1 = stage.store_doczip( name, "1.0", content=doccontent)
+            link1 = stage.store_doczip(name, "1.0", content=doccontent)
 
         impexp.export()
 

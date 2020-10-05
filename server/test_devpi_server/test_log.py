@@ -10,6 +10,7 @@ from .test_config import make_config
 
 pytestmark = pytest.mark.notransaction
 
+
 @pytest.fixture
 def taglogger(caplog):
     return TagLogger(logging.getLogger())
@@ -30,11 +31,13 @@ class TestTagLogger:
         assert len(rec) == 1
         assert rec[0].msg == "[hello] world"
 
+
 def test_taglogger_prefix(caplog):
     log = TagLogger(logging.getLogger(), prefix="hello")
     log.info("this")
 
     assert caplog.getrecords("hello this")
+
 
 def test_taglogger_exception(taglogger, caplog):
     try:
@@ -42,6 +45,7 @@ def test_taglogger_exception(taglogger, caplog):
     except Exception:
         taglogger.exception("this")
     assert caplog.getrecords()[0].exc_info
+
 
 def test_taglogger_push(caplog):
     log = thread_push_log("hello")
@@ -56,20 +60,24 @@ def test_taglogger_push(caplog):
     log.info("10")
     assert caplog.records[2].msg == "hello 10"
 
+
 def test_taglogger_default(caplog):
     log = TagLogger(prefix="hello")
     log.info("this")
     assert caplog.records[0].msg == "hello this"
+
 
 def test_taglogger_wrong_prefix(caplog):
     thread_push_log("hello")
     with pytest.raises(ValueError):
         thread_pop_log("this")
 
+
 def test_taglogger_context_empty(caplog):
     log = thread_current_log()
     log.info("hello")
     assert caplog.records[0].msg == "NOCTX hello"
+
 
 def test_threadlog(caplog):
     threadlog.info("hello")
@@ -77,6 +85,7 @@ def test_threadlog(caplog):
     thread_push_log("this")
     threadlog.info("hello")
     assert caplog.records[1].msg == "this hello"
+
 
 def test_threadlog_around(caplog):
     with threadlog.around("info", "hello") as log:

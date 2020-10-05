@@ -20,6 +20,7 @@ def propmapping(name, convert=None):
     fget.__name__ = name
     return property(fget)
 
+
 def canraise(Error):
     def wrap(func):
         func.Error = Error

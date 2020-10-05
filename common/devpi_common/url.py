@@ -225,7 +225,7 @@ class URL:
             prefix = "../" * (len(parts1)-i-1)
             return prefix + "/".join(parts2[i:])
         rest = parts2[len(parts1):]
-        if parts1[-1]: # ends not in slash
+        if parts1[-1]:  # ends not in slash
             rest.insert(0, parts1[-1])
         return "/".join(rest)
 

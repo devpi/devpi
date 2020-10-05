@@ -22,15 +22,18 @@ else:
 
 _nodefault = object()
 
+
 def get_default_hash_spec(content):
     #return "md5=" + hashlib.md5(content).hexdigest()
     return "sha256=" + hashlib.sha256(content).hexdigest()
+
 
 def make_splitdir(hash_spec):
     parts = hash_spec.split("=")
     assert len(parts) == 2
     hash_value = parts[1]
     return hash_value[:3], hash_value[3:16]
+
 
 def unicode_if_bytes(val):
     if isinstance(val, py.builtin.bytes):

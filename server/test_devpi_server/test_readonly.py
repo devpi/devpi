@@ -58,7 +58,6 @@ class TestSetReadonlyView:
         assert l == [1,2]
 
 
-
 class TestListReadonlyView:
     def test_nonzero(self):
         assert not ensure_deeply_readonly([])
@@ -109,7 +108,6 @@ class TestTupleReadonlyView:
         with pytest.raises(AttributeError):
             r[0].append(2)
         assert r[0] == [1]
-
 
 
 def test_is_sequence():

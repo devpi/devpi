@@ -1,5 +1,6 @@
 import json
 
+
 def main(hub, args=None):
     hub.set_quiet()
     current = hub.current
@@ -28,6 +29,7 @@ def main(hub, args=None):
     hub.out_json(r._json)
     return
 
+
 def main_patchjson(hub, args=None):
     hub.set_quiet()
     current = hub.current
@@ -46,4 +48,3 @@ def main_patchjson(hub, args=None):
     hub.line("PATCH REQUEST sent to %s" % url.url)
     hub.out_json(r._json)
     return
-

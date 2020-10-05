@@ -13,6 +13,7 @@ def pool():
 def test_basic_interact(pool, TimeoutQueue):
     queue1 = TimeoutQueue()
     queue2 = TimeoutQueue()
+
     class T:
         def thread_run(self):
             queue1.put(10)
@@ -32,8 +33,10 @@ def test_basic_interact(pool, TimeoutQueue):
     t.thread.join()
     assert not mythread.has_active_thread(t)
 
+
 def test_custom_shutdown(pool, TimeoutQueue):
     queue1 = TimeoutQueue()
+
     class T:
         def thread_shutdown(self):
             queue1.put(10)
@@ -50,6 +53,7 @@ def test_custom_shutdown(pool, TimeoutQueue):
     pool.shutdown()
     t.thread.join()
 
+
 def test_live(pool):
     class T:
         def thread_run(self):
@@ -60,6 +64,7 @@ def test_live(pool):
     with pool.live():
         assert mythread.has_active_thread(t)
     t.thread.join()
+
 
 def test_start_one(pool):
     class T:
@@ -72,29 +77,3 @@ def test_start_one(pool):
     assert mythread.has_active_thread(t)
     pool.shutdown()
     t.thread.join()
-
-
-#def test_sleep_shutdown_wait(self, xom, monkeypatch):
-#    l = []
-#    monkeypatch.setattr(xom._shutdown, "wait", lambda x: l.append(x))
-#    xom.sleep(10)
-#    assert l == [10]
-#
-#def test_shutdownfunc_lifo(self, xom, caplog):
-#    l = []
-#    xom.addshutdownfunc("hello", lambda: l.append(1))
-#    xom.addshutdownfunc("world", lambda: l.append(2))
-#    xom.shutdown()
-#    assert l == [2,1]
-#    assert caplog.getrecords(".*hello.*")
-#    assert caplog.getrecords(".*world.*")
-#
-#def test_spawn(self, xom, caplog):
-#    l = []
-#    thread = xom.spawn(lambda: l.append(1))
-#    thread.join()
-#    assert l == [1]
-#    recs = caplog.getrecords(msgrex="execut.*")
-#    assert len(recs) == 2
-#    assert "execution starts" in recs[0].msg
-####    assert "execution finished" in recs[1].msg

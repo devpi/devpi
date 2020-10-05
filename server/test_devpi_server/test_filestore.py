@@ -311,6 +311,7 @@ class TestFileStore:
         assert entry2.last_modified
         assert entry2.file_get_content() == content
 
+
 def test_maplink_nochange(filestore, gen):
     filestore.keyfs.restart_as_write_transaction()
     link = gen.pypi_package_link("pytest-1.2.zip")

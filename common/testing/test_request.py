@@ -34,6 +34,7 @@ def test_useragent():
     assert sys.version.split()[0] in ua
     assert "*" not in ua
 
+
 def test_exception_attributes():
     session = new_requests_session()
     assert isinstance(session.Errors, tuple)

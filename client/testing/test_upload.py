@@ -1,9 +1,9 @@
-
-import os, sys
 import json
+import os
 import py
 import pytest
 import re
+import sys
 from devpi.upload import Checkout
 from devpi.upload import find_parent_subpath
 from devpi.upload import filter_latest
@@ -20,6 +20,7 @@ from subprocess import check_output
 def datadir():
     return py.path.local(__file__).dirpath("data")
 
+
 def runproc(cmd):
     args = cmd.split()
     path0 = args[0]
@@ -28,6 +29,7 @@ def runproc(cmd):
         if not path0:
             pytest.skip("%r not found" % args[0])
     return check_output([str(path0)] + args[1:])
+
 
 @pytest.fixture
 def uploadhub(request, tmpdir):
@@ -178,11 +180,13 @@ class TestCheckout:
         # is called with the exported directory instead of he original
         l = []
         old_popen_output = exported.hub.popen_output
+
         def mock_popen_output(args, **kwargs):
             if "build_sphinx" in args:
                 l.append(kwargs)
             else:
                 return old_popen_output(args, **kwargs)
+
         exported.hub.popen_output = mock_popen_output
         # now we can make the call
         exported.setup_build_docs()
@@ -203,6 +207,7 @@ def test_setup_build_formats_setupcfg(uploadhub, tmpdir):
     assert cfg.get("formats") == "bdist_wheel,sdist.zip"
     assert cfg.get("no-vcs") == "1"
     assert cfg.get("setupdir-only") == "1"
+
 
 def test_setup_build_formats_setupcfg_nosection(uploadhub, tmpdir):
     tmpdir.join("setup.cfg").write(dedent("""
@@ -308,7 +313,7 @@ class TestUploadFunctional:
             file_upload of {projname_version}.zip*
             """.format(projname_version=projname_version))
 
-        print ("*"*80)
+        print("*"*80)
         out = out_devpi("upload", "--formats", "sdist.zip,bdist_wheel",
                         code=[200, 200, 200, 200])
         out.stdout.fnmatch_lines_random("""
@@ -400,7 +405,6 @@ class TestUploadFunctional:
         assert links["doczip"] == "%s.doc.zip" % name_version_str
 
 
-
 def test_getpkginfo(datadir):
     info = get_pkginfo(datadir.join("dddttt-0.1.dev45-py27-none-any.whl"))
     assert info.name == "dddttt"
@@ -408,6 +412,7 @@ def test_getpkginfo(datadir):
     info = get_pkginfo(datadir.join("ddd-1.0.doc.zip"))
     assert info.name == "ddd"
     assert info.version == "1.0"
+
 
 def test_filter_latest():
     class PkgInfo(object):
@@ -424,5 +429,3 @@ def test_filter_latest():
     filtered = d[path]
     assert filtered.name == 'test-abc'
     assert filtered.version == u'0.10'
-
-

@@ -325,8 +325,11 @@ def test_project_view_inherited_no_versions_on_stage(mapp, testapp):
 @pytest.mark.with_notifier
 def test_version_view(mapp, testapp, monkeypatch):
     import devpi_server.model
+
     # use fixed time
-    gmtime = lambda *x: struct_time((2014, 9, 15, 11, 11, 11, 0, 258, 0))
+    def gmtime(*x):
+        return struct_time((2014, 9, 15, 11, 11, 11, 0, 258, 0))
+
     monkeypatch.setattr('time.gmtime', gmtime)
     monkeypatch.setattr(devpi_server.model, 'gmtime', gmtime)
     api = mapp.create_and_use()

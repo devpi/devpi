@@ -237,10 +237,12 @@ class TestConfig:
 
     def test_add_parser_options_called(self):
         l = []
+
         class Plugin:
             @hookimpl
             def devpiserver_add_parser_options(self, parser):
                 l.append(parser)
+
         pm = get_pluginmanager()
         pm.register(Plugin())
         parseoptions(pm, ["devpi-server"])

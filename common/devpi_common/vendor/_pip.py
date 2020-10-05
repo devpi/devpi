@@ -14,15 +14,16 @@ except ImportError:
 
 from devpi_common.url import urljoin
 
+
 class HTMLPage(object):
     """Represents one page, along with its URL"""
 
-    ## FIXME: these regexes are horrible hacks:
+    # FIXME: these regexes are horrible hacks:
     _homepage_re = re.compile(r'<th>\s*home\s*page', re.I)
     _download_re = re.compile(r'<th>\s*download\s+url', re.I)
-    ## These aren't so aweful:
+    # These aren't so aweful:
     _rel_re = re.compile(r"""<[^>]*\srel\s*=\s*['"]?([^'">]+)[^>]*>""", re.I)
-    _href_re = re.compile('href=(?:"([^"]*)"|\'([^\']*)\'|([^>\\s\\n]*))', re.I|re.S)
+    _href_re = re.compile('href=(?:"([^"]*)"|\'([^\']*)\'|([^>\\s\\n]*))', re.I | re.S)
     _base_re = re.compile(r"""<base\s+href\s*=\s*['"]?([^'">]+)""", re.I)
 
     def __init__(self, content, url, headers=None):
@@ -32,7 +33,6 @@ class HTMLPage(object):
 
     def __str__(self):
         return self.url
-
 
     @property
     def base_url(self):
@@ -155,4 +155,3 @@ class Link(object):
 
     def __repr__(self):
         return '<Link %s>' % self
-

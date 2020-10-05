@@ -36,6 +36,7 @@ def index_delete(hub, url):
         hub.http_api("delete", url, None)
         hub.info("index deleted: %s" % url)
 
+
 def index_list(hub, indexname):
     hub.requires_login()
     url = hub.current.get_user_url()
@@ -43,6 +44,7 @@ def index_list(hub, indexname):
     name = res.result['username']
     for index in sorted(res.result.get('indexes', {})):
         hub.info("%s/%s" % (name, index))
+
 
 def index_show(hub, url):
     if not url:
@@ -61,6 +63,7 @@ def index_show(hub, url):
         if isinstance(value, list):
             value = ",".join(value)
         hub.line("  %s=%s" % (key, value))
+
 
 def parse_posargs(hub, args):
     indexname = args.indexname
@@ -102,4 +105,4 @@ def get_keyvalues_index(hub, keyvalues):
     try:
         return get_keyvalues(keyvalues)
     except ValueError:
-        hub.fatal("arguments must be format NAME=VALUE: %r" %( keyvalues,))
+        hub.fatal("arguments must be format NAME=VALUE: %r" % (keyvalues,))

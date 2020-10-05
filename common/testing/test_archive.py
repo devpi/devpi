@@ -10,9 +10,11 @@ import sys
 
 datadir = py.path.local(__file__).dirpath("data")
 
+
 def check_files(tmpdir):
     assert tmpdir.join("1").isfile()
     assert tmpdir.join("sub", "1").isfile()
+
 
 def _writedir(tmpdir, contentdict, prefixes=()):
     for name, val in contentdict.items():
@@ -25,6 +27,7 @@ def _writedir(tmpdir, contentdict, prefixes=()):
         else:
             tmpdir.ensure(*(prefixes + (name,))).write(val)
 
+
 def create_tarfile_fromdict(tmpdir, contentdict):
     tar = py.path.local.sysfind("tar")
     if not tar:
@@ -35,9 +38,10 @@ def create_tarfile_fromdict(tmpdir, contentdict):
     _writedir(tardir, contentdict)
     files = [x.relto(tardir) for x in tardir.visit(lambda x: x.isfile())]
     with tardir.as_cwd():
-        popen = Popen([str(tar), "cvf", "-" ] + files, stdout=PIPE)
+        popen = Popen([str(tar), "cvf", "-"] + files, stdout=PIPE)
         out, err = popen.communicate()
     return out
+
 
 @pytest.fixture(params=["tar", "zip"])
 def archive_path(request, tmpdir):
@@ -49,6 +53,7 @@ def archive_path(request, tmpdir):
     p = tmpdir.join("content.%s" % request.param)
     p.write(content, "wb")
     return p
+
 
 class TestArchive:
     @pytest.yield_fixture(params=["path", "file"])
@@ -95,15 +100,12 @@ class TestArchive:
         out, err = capsys.readouterr()
         assert "sub/1" in out
 
+
 def test_tarfile_outofbound(tmpdir):
     with Archive(datadir.join("slash.tar.gz")) as archive:
         with pytest.raises(ValueError):
             archive.extract(tmpdir)
 
-#def test_zipfile_outofbound(tmpdir):
-#    archive = get_archive(datadir.join("slash.zip").read())
-#    with pytest.raises(ValueError):
-#        archive.extract(tmpdir)
 
 def test_zip_dict(tmpdir):
     content = zip_dict({"one": {"nested": "1"}, "two": {}})
@@ -111,6 +113,7 @@ def test_zip_dict(tmpdir):
         archive.extract(tmpdir)
     assert tmpdir.join("one", "nested").read() == "1"
     assert tmpdir.join("two").isdir()
+
 
 def test_zip_dir(tmpdir):
     source = tmpdir.join("source")
@@ -129,4 +132,3 @@ def test_zip_dir(tmpdir):
         archive.extract(newdest)
     assert newdest.join("file").isfile()
     assert newdest.join("sub", "subfile").isfile()
-

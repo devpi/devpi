@@ -25,12 +25,15 @@ except ImportError:
                 "Couldn't import TestIndexPushThings from devpi server tests.")
 from .functional import MappMixin
 
+
 @pytest.fixture
 def mapp(request, devpi, out_devpi, tmpdir):
     return Mapp(request, devpi, out_devpi, tmpdir)
 
+
 class Mapp(MappMixin):
     _usercount = 10
+
     def __init__(self, request, devpi, out_devpi, tmpdir):
         self.devpi = devpi
         self.out_devpi = out_devpi
@@ -169,7 +172,7 @@ class Mapp(MappMixin):
 
     def modify_index(self, index, indexconfig, code=200):
         import json
-        jsonfile = self.tmpdir.join("jsonfile" )
+        jsonfile = self.tmpdir.join("jsonfile")
         jsonfile.write(json.dumps(indexconfig))
         self.devpi("patchjson", "/" + index, jsonfile, code=code)
 
@@ -216,7 +219,7 @@ class Mapp(MappMixin):
             parts = line.split("acl_upload=", 1)
             if len(parts) == 2:
                 return [x for x in parts[1].split(",") if x]
-        return  []
+        return []
 
     def get_mirror_whitelist(self, code=200, indexname=None):
         indexname = self._getindexname(indexname)

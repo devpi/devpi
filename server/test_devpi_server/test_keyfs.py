@@ -9,12 +9,12 @@ from devpi_server.readonly import is_deeply_readonly
 notransaction = pytest.mark.notransaction
 
 
-
 @pytest.yield_fixture
 def keyfs(gentmp, pool, storage):
     keyfs = KeyFS(gentmp(), storage)
     pool.register(keyfs.notifier)
     yield keyfs
+
 
 @pytest.fixture(params=["direct", "a/b/c", ])
 def key(request):
@@ -194,6 +194,7 @@ class Test_addkey_combinations:
         assert attr.exists()
         assert attr.get() == val
 
+
 class TestKey:
     def test_addkey_type_mismatch(self, keyfs):
         dictkey = keyfs.add_key("NAME1", "some", dict)
@@ -280,13 +281,16 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
         assert attr.get() == val
     # make sure keyfs doesn't write during the transaction and its commit
     orig_write = py.path.local.write
+
     def write_checker(path, content):
         assert not path.endswith(attr.relpath)
         orig_write(path, content)
+
     monkeypatch.setattr(py.path.local, "write", write_checker)
     with keyfs.transaction():
         x = attr.get()
     assert x == val
+
 
 @notransaction
 class TestTransactionIsolation:
@@ -302,6 +306,7 @@ class TestTransactionIsolation:
         import threading
         q1 = TimeoutQueue()
         q2 = TimeoutQueue()
+
         def trans1():
             with keyfs.transaction(write=True):
                 q1.put("write1")
@@ -329,6 +334,7 @@ class TestTransactionIsolation:
         q1 = TimeoutQueue()
         q2 = TimeoutQueue()
         q3 = TimeoutQueue()
+
         def trans1():
             with keyfs.transaction(write=True):
                 q1.put("write1")
@@ -351,7 +357,6 @@ class TestTransactionIsolation:
 
         q2.put("1")
         assert q1.get() == "write1b"
-
 
     def test_concurrent_tx_sees_original_value_on_write(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
@@ -501,6 +506,7 @@ class TestTransactionIsolation:
         with keyfs.transaction() as tx:
             assert tx.conn.get_raw_changelog_entry(10000) is None
 
+
 @notransaction
 class TestDeriveKey:
     def test_direct_from_file(self, keyfs):
@@ -543,11 +549,9 @@ class TestDeriveKey:
             assert key.params == params
 
 
-
 @pytest.fixture
 def queue(TimeoutQueue):
     return TimeoutQueue()
-
 
 
 @notransaction
@@ -567,9 +571,11 @@ class TestSubscriber:
 
     def test_change_subscription_fails(self, keyfs, queue, pool):
         key1 = keyfs.add_key("NAME1", "hello", int)
+
         def failing(event):
             queue.put("willfail")
             0/0
+
         keyfs.notifier.on_key_change(key1, failing)
         keyfs.notifier.on_key_change(key1, queue.put)
         pool.start()
@@ -631,9 +637,11 @@ class TestSubscriber:
     def test_wait_event_serial(self, keyfs, pool, queue, meth):
         pkey = keyfs.add_key("NAME1", "{name}", int)
         key = pkey(name="hello")
+
         class T:
             def __init__(self, num):
                 self.num = num
+
             def thread_run(self):
                 if meth == "wait_event_serial":
                     keyfs.notifier.wait_event_serial(self.num)
@@ -658,10 +666,12 @@ class TestSubscriber:
     def test_wait_tx_async(self, keyfs, pool, queue):
         # start a thread which waits for the next serial
         wait_serial = keyfs.get_next_serial()
+
         class T:
             def thread_run(self):
                 ret = keyfs.wait_tx_serial(wait_serial, recheck=0.01)
                 queue.put(ret)
+
         pool.register(T())
         pool.start()
 

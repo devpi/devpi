@@ -126,6 +126,7 @@ def apireturn(code, message=None, result=None, type=None):
     headers = {str("content-type"): str("application/json")}
     raise HTTPResponse(body=data, status=code, headers=headers)
 
+
 def json_preferred(request):
     # XXX do proper "best" matching
     return "application/json" in request.headers.get("Accept", "")
@@ -198,8 +199,7 @@ def tween_request_logging(handler, registry):
                       duration,
                       serial,
                       rheaders.get("content-length"),
-                      rheaders.get("content-type"),
-            )
+                      rheaders.get("content-type"))
         finally:
             thread_pop_log(tag)
         return response
@@ -1572,6 +1572,7 @@ def abort_if_invalid_filename(request, name, filename):
         return
     abort_submit(request, 400, "filename %r does not match project name %r"
                       %(filename, name))
+
 
 def abort_if_invalid_project(request, project):
     try:

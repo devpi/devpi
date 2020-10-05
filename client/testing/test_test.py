@@ -20,6 +20,7 @@ def test_post_tox_json_report(loghub, mock_http_api):
         *success*
     """)
 
+
 def test_post_tox_json_report_error(loghub, mock_http_api):
     mock_http_api.set("http://devpi.net/+tests", 404)
     post_tox_json_report(loghub, "http://devpi.net/+tests", {"hello": "123"})
@@ -28,11 +29,13 @@ def test_post_tox_json_report_error(loghub, mock_http_api):
         *could not post*http://devpi.net/+tests*
     """)
 
+
 @pytest.fixture
 def pseudo_current():
     class Current:
         simpleindex = "http://pseudo/user/index/"
     return Current
+
 
 def contains_sublist(list1, sublist):
     len_sublist = len(sublist)
@@ -41,6 +44,7 @@ def contains_sublist(list1, sublist):
         if list1[i:i+len_sublist] == sublist:
             return True
     return False
+
 
 def test_passthrough_args_toxargs(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "--tox-args", "-- -x", "somepkg"])
@@ -93,7 +97,7 @@ def test_download_and_unpack(makehub, tmpdir, pseudo_current, monkeypatch,
                 self.content = content
 
         def __init__(self):
-                self.last_get = None
+            self.last_get = None
 
         def get(self, *args, **kwargs):
             self.last_get = (args, kwargs)
@@ -146,6 +150,7 @@ def test_toxini(makehub, tmpdir, pseudo_current):
     args = index.get_tox_args(unpack_path=tmpdir)
     assert contains_sublist(args, ["-c", str(toxini)])
 
+
 def test_passthrough_args_env(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "-epy27", "somepkg"])
     index = DevIndex(hub, tmpdir, pseudo_current)
@@ -153,11 +158,13 @@ def test_passthrough_args_env(makehub, tmpdir, pseudo_current):
     args = index.get_tox_args(unpack_path=tmpdir)
     assert contains_sublist(args, ["-epy27"])
 
+
 def test_no_detox(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "-epy27", "somepkg"])
     index = DevIndex(hub, tmpdir, pseudo_current)
     runner = index.get_tox_runner()
     assert runner == tox.cmdline
+
 
 def test_detox(makehub, tmpdir, pseudo_current):
     pytest.importorskip("detox")
@@ -176,6 +183,7 @@ def test_fallback_ini(makehub, tmpdir, pseudo_current):
     p2 = tmpdir.ensure("tox.ini")
     args = index.get_tox_args(unpack_path=tmpdir)
     assert contains_sublist(args, ["-c", str(p2)])
+
 
 class TestWheel:
     def test_find_wheels_and_sdist(self, loghub):
@@ -321,7 +329,7 @@ class TestWheel:
 
     def test_wheels_and_sdist(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
-           "tox.ini": """
+            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"
             """,

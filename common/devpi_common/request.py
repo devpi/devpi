@@ -3,12 +3,14 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError, RequestException, BaseHTTPError, SSLError
 
+
 class RetrySession(Session):
     def __init__(self, max_retries):
         super(RetrySession, self).__init__()
         if max_retries is not None:
             self.mount('https://', HTTPAdapter(max_retries=max_retries))
             self.mount('http://', HTTPAdapter(max_retries=max_retries))
+
 
 def new_requests_session(agent=None, max_retries=None):
     if agent is None:

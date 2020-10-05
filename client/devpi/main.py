@@ -35,6 +35,7 @@ def main(argv=None):
     with closing(hub):
         return method(hub, hub.args)
 
+
 def initmain(argv):
     pm = get_pluginmanager()
     args = parse_args(argv, pm)
@@ -195,8 +196,6 @@ class Hub:
         out("%s%s %s%s" %(info, r.status_code, r.reason, message))
         return reply
 
-
-
     def requires_login(self):
         if not self.current.get_auth_user():
             self.fatal("you need to be logged in (use 'devpi login USER')")
@@ -280,7 +279,7 @@ class Hub:
             args = shlex.split(args)
         assert args[0], args
         args = [str(x) for x in args]
-        if cwd == None:
+        if cwd is None:
             cwd = self.cwd
         cmd = py.path.local.sysfind(args[0])
         if not cmd:
@@ -295,7 +294,7 @@ class Hub:
             args = shlex.split(args)
         assert args[0], args
         args = [str(x) for x in args]
-        if cwd == None:
+        if cwd is None:
             cwd = self.cwd
         self.report_popen(args, cwd)
         if dryrun is None:
@@ -422,6 +421,7 @@ def set_devpi_auth_header(headers, auth):
         auth = b64encode(auth.encode("ascii")).decode("ascii")
         headers["X-Devpi-Auth"] = auth
 
+
 class MyArgumentParser(argparse.ArgumentParser):
     class ArgumentError(Exception):
         """ and error from the argparse subsystem. """
@@ -429,12 +429,6 @@ class MyArgumentParser(argparse.ArgumentParser):
         """raise errors instead of printing and raising SystemExit"""
         raise self.ArgumentError(error)
 
-    #def __init__(self, *args, **kwargs):
-    #    kwargs["formatter_class"] = MyHelpFormatter
-    #    argparse.ArgumentParser.__init__(self, *args, **kwargs)
-
-#class MyHelpFormatter(argparse.HelpFormatter):
-#    pass
 
 def try_argcomplete(parser):
     if os.environ.get('_ARGCOMPLETE'):
@@ -485,6 +479,7 @@ def parse_args(argv, pm):
             return parser.parse_args(["-h"])
         parser.print_usage()
         parser.exit(2, "%s: error: %s\n" % (parser.prog, e.args[0]))
+
 
 def parse_docstring(txt):
     description = txt
@@ -539,6 +534,7 @@ def getbaseparser(prog):
             help="show program's version number and exit")
     add_generic_options(parser, defaults=True)
     return parser
+
 
 def add_generic_options(parser, defaults=False):
     group = parser.add_argument_group("generic options")
@@ -613,6 +609,7 @@ def use(parser):
              "in front of devpi-server, then use a url like this: "
              "https://username:password@example.com/USER/INDEXNAME")
 
+
 @subcommand("devpi.getjson")
 def getjson(parser):
     """ show remote server and index configuration.
@@ -623,6 +620,7 @@ def getjson(parser):
     parser.add_argument("path", action="store", metavar="path_or_url",
         help="path or url of a resource to show information on. "
              "examples: '/', '/user', '/user/index'.")
+
 
 @subcommand("devpi.getjson:main_patchjson")
 def patchjson(parser):
@@ -671,6 +669,7 @@ def list_(parser):
              "Example specs: pytest or 'pytest>=2.3.5'"
              " (Quotes are needed to prevent shell redirection)")
 
+
 @subcommand("devpi.list_remove:main_remove")
 def remove(parser):
     """\
@@ -686,7 +685,7 @@ def remove(parser):
         help="remove even on non-volatile index (with devpi-server >= 6.0.0)")
     parser.add_argument("spec_or_url",
         help="""\
-        describes project/version/release file(s) to release from the current index. 
+        describes project/version/release file(s) to release from the current index.
         If the spec starts with 'http://' or 'https://',
         it is considered as a request to delete a single file.""")
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
@@ -698,6 +697,7 @@ def remove(parser):
           devpi remove pytest>=2.3.5
 
           devpi remove https://mydevpi.org/dev/+f/1cf/3d6eaa6cbc5fa/pytest-1.0.zip""")
+
 
 @subcommand("devpi.user")
 def user(parser):
@@ -744,6 +744,7 @@ def login(parser):
                         help="password to use for login (prompt if not set)")
     parser.add_argument("username", action="store", default=None,
                         help="username to use for login")
+
 
 @subcommand("devpi.login:logoff")
 def logoff(parser):
@@ -792,6 +793,7 @@ def index(parser):
     parser.add_argument("keyvalues", nargs="*", type=str,
         help="key=value configuration item. Possible key=value are "
              "bases=CSV, volatile=True|False, acl_upload=CSV)")
+
 
 @subcommand("devpi.upload")
 def upload(parser):
@@ -857,6 +859,7 @@ def upload(parser):
     #    action="store_true", default=None,
     #    help="answer yes on interactive questions. ")
     #
+
 
 @subcommand("devpi.test")
 def test(parser):
@@ -934,7 +937,7 @@ def push(parser):
         default=None, action="store",
         help="release in format 'name==version'. of which the metadata and "
              "all release files are to be uploaded to the specified "
-             "external pypi repo." )
+             "external pypi repo.")
     parser.add_argument("target", metavar="TARGETSPEC", type=str,
         action="store",
         help="local or remote target index. local targets are of form "
@@ -963,8 +966,7 @@ def install(parser):
         help="Install from the given requirements file.")
     parser.add_argument("pkgspecs", metavar="pkg", type=str,
         action="store", default=None, nargs="*",
-        help="uri or package file for installation from current index. """
-    )
+        help="uri or package file for installation from current index. """)
 
 
 @subcommand("devpi.refresh")
@@ -996,5 +998,3 @@ def verify_reply_version(hub, reply):
     hub.fatal("devpi-client-%s got a reply with API-VERSION %s, "
               "acceptable are: %s" %(client_version, version,
                                      ",".join(acceptable_api_version)))
-
-
