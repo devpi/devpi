@@ -111,7 +111,7 @@ def test_export_import(tmpdir, capfd, monkeypatch):
         export_dir.strpath])
     assert ret == 0
     out, err = capfd.readouterr()
-    assert os.listdir(clean.strpath) == os.listdir(import_dir.strpath)
+    assert sorted(os.listdir(clean.strpath)) == sorted(os.listdir(import_dir.strpath))
     assert 'import_all: importing finished' in out
     assert err == ''
 
@@ -142,7 +142,7 @@ def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch):
         export_dir.strpath])
     assert ret == 0
     out, err = capfd.readouterr()
-    assert os.listdir(clean.strpath) == os.listdir(import_dir.strpath)
+    assert sorted(os.listdir(clean.strpath)) == sorted(os.listdir(import_dir.strpath))
     assert 'import_all: importing finished' in out
     assert err == ''
     # now we add --no-root-pypi
@@ -155,7 +155,7 @@ def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch):
         export_dir.strpath])
     assert ret == 0
     out, err = capfd.readouterr()
-    assert os.listdir(clean.strpath) == os.listdir(import_dir.strpath)
+    assert sorted(os.listdir(clean.strpath)) == sorted(os.listdir(import_dir.strpath))
     assert 'import_all: importing finished' in out
     assert err == ''
 
