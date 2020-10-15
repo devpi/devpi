@@ -1385,10 +1385,14 @@ def should_fetch_remote_file(entry, headers):
 
 
 def _headers_from_response(r):
+    content_type = r.headers.get('content-type')
+    if not content_type:
+        content_type = "application/octet-stream"
+    if isinstance(content_type, tuple):
+        content_type = content_type[0]
     headers = {
         str("X-Accel-Buffering"): str("no"),  # disable buffering in nginx
-        str("content-type"): (r.headers.get(
-            "content-type") or (str("application/octet-stream"), None))[0]}
+        "content-type": content_type}
     if "last-modified" in r.headers:
         headers[str("last-modified")] = r.headers["last-modified"]
     if "content-length" in r.headers:
