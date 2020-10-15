@@ -451,7 +451,6 @@ class PyPIView:
             IRootFactory, default=DefaultRootFactory)
         request_extensions = request.registry.queryUtility(IRequestExtensions)
         url = request.headers.get('x-original-uri', request.url)
-        threadlog.debug("Authcheck for %s", url)
         orig_request = Request.blank(url, headers=request.headers)
         orig_request.log = request.log
         orig_request.registry = request.registry
@@ -466,11 +465,23 @@ class PyPIView:
         hook = self.xom.config.hook
         result = hook.devpiserver_authcheck_always_ok(request=orig_request)
         if result and all(result):
+            threadlog.debug(
+                "Authcheck always OK for %s (%s)",
+                url, orig_request.matched_route.name)
             return HTTPOk()
         if hook.devpiserver_authcheck_forbidden(request=orig_request):
+            threadlog.debug(
+                "Authcheck Forbidden for %s (%s)",
+                url, orig_request.matched_route.name)
             return HTTPForbidden()
         if not hook.devpiserver_authcheck_unauthorized(request=orig_request):
+            threadlog.debug(
+                "Authcheck OK for %s (%s)",
+                url, orig_request.matched_route.name)
             return HTTPOk()
+        threadlog.debug(
+            "Authcheck Unauthorized for %s (%s)",
+            url, orig_request.matched_route.name)
         user_agent = request.user_agent or ""
         if 'devpi-client' in user_agent:
             # devpi-client needs to know for proper error messages
