@@ -436,18 +436,19 @@ class BaseStageCustomizer(object):
     def get_principals_for_pkg_read(self, restrict_modify=None):
         principals = self.hooks.devpiserver_stage_get_principals_for_pkg_read(
             ixconfig=self.stage.ixconfig)
-        if principals is not None:
+        if principals is None:
+            principals = {':ANONYMOUS:'}
+        else:
             principals = set(principals)
-            if self.stage.xom.is_master():
-                # replicas always need to be able to download packages
-                principals.add("+replica")
-            # admins should always be able to read the packages
-            if restrict_modify is None:
-                principals.add("root")
-            else:
-                principals.update(restrict_modify)
-            return principals
-        return [':ANONYMOUS:']
+        if self.stage.xom.is_master():
+            # replicas always need to be able to download packages
+            principals.add("+replica")
+        # admins should always be able to read the packages
+        if restrict_modify is None:
+            principals.add("root")
+        else:
+            principals.update(restrict_modify)
+        return principals
 
     def get_principals_for_pypi_submit(self, restrict_modify=None):
         return self.stage.ixconfig.get("acl_upload", [])
