@@ -199,6 +199,11 @@ def devpiserver_indexconfig_defaults(index_type):
     to avoid clashes between key names in different plugins."""
 
 
+@hookspec(firstresult=True)
+def devpiserver_sro_skip(stage, base_stage):
+    """For internal use only!"""
+
+
 @hookspec
 def devpiserver_on_upload_sync(log, application_url, stage, project, version):
     """Called after release upload.
