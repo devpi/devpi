@@ -339,3 +339,86 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
         xom.config.nodeinfo['role'] = 'master'
         assert set(stage.customizer.get_principals_for_pkg_read()) == {
             'root', 'someuser', REPLICA_USER_NAME}
+
+
+def test_sro_skip_plugin(makemapp, maketestapp, makexom, pypistage):
+    from devpi_common.url import URL
+    from devpi_server.model import ACLList
+    from pyramid.threadlocal import get_current_request
+
+    class Plugin:
+        calls = []
+
+        @hookimpl
+        def devpiserver_indexconfig_defaults(self, index_type):
+            return {"acl_pkg_read": ACLList([":ANONYMOUS:"])}
+
+        @hookimpl
+        def devpiserver_stage_get_principals_for_pkg_read(self, ixconfig):
+            return ixconfig.get("acl_pkg_read", None)
+
+        @hookimpl
+        def devpiserver_sro_skip(self, stage, base_stage):
+            result = None
+            request = get_current_request()
+            if not request.has_permission("pkg_read", base_stage):
+                result = True
+            self.calls.append((request.url, stage.name, base_stage.name, result))
+            return result
+
+    plugin = Plugin()
+    xom = makexom(plugins=[plugin])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+
+    pypistage.mock_simple(
+        "package",
+        '<a href="/package-1.1.zip#sha256=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3" />\n')
+    pypistage.mock_extfile("/package-1.1.zip", b"123")
+
+    api1 = mapp.create_and_use(
+        "someuser/dev",
+        indexconfig=dict(
+            acl_pkg_read="someuser",
+            bases=[pypistage.name]))
+    ixconfig = mapp.getjson(api1.index)["result"]
+    assert ixconfig["acl_pkg_read"] == ["someuser"]
+    assert ixconfig["bases"] == ["root/pypi"]
+    r = testapp.get(api1.index + "/+simple/package/")
+    assert r.status_code == 200
+    (link,) = [x.attrs['href'] for x in r.html.select('a')]
+    baseurl = URL(r.request.url)
+    r = testapp.get(baseurl.joinpath(link).url)
+    assert r.status_code == 200
+    assert r.body == b"123"
+    assert plugin.calls == [
+        (
+            'http://localhost/someuser/dev/+simple/package/',
+            'someuser/dev',
+            'root/pypi',
+            None),
+        (
+            'http://localhost/someuser/dev/+simple/package/',
+            'someuser/dev',
+            'root/pypi',
+            None)]
+    plugin.calls.clear()
+    api2 = mapp.create_and_use(
+        "otheruser/dev",
+        indexconfig=dict(bases=[api1.stagename]))
+    ixconfig = mapp.getjson(api2.index)["result"]
+    assert ixconfig["acl_pkg_read"] == [":ANONYMOUS:"]
+    assert ixconfig["bases"] == [api1.stagename]
+    r = testapp.get(api2.index + "/+simple/package/")
+    assert r.status_code == 404
+    assert plugin.calls == [
+        (
+            'http://localhost/otheruser/dev/+simple/package/',
+            'otheruser/dev',
+            'someuser/dev',
+            True),
+        (
+            'http://localhost/otheruser/dev/+simple/package/',
+            'otheruser/dev',
+            'someuser/dev',
+            True)]

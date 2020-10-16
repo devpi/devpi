@@ -998,6 +998,7 @@ class BaseStage(object):
         todo = [self]
         todo_mirrors = []
         seen = set()
+        devpiserver_sro_skip = self.xom.config.hook.devpiserver_sro_skip
         while todo:
             stage = todo.pop(0)
             yield stage
@@ -1007,6 +1008,11 @@ class BaseStage(object):
                 if current_stage is None:
                     threadlog.warn(
                         "Index %s refers to non-existing base %s.",
+                        self.name, base)
+                    continue
+                if devpiserver_sro_skip(stage=self, base_stage=current_stage):
+                    threadlog.warn(
+                        "Index %s base %s excluded via devpiserver_sro_skip.",
                         self.name, base)
                     continue
                 if base not in seen:
