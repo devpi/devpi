@@ -648,7 +648,7 @@ class FileReplicationThread:
             name = normalize_name(entry.project)
             try:
                 linkstore = stage.get_linkstore_perstage(name, entry.version)
-            except stage.UpstreamError:
+            except (stage.MissesRegistration, stage.UpstreamError):
                 if is_from_mirror:
                     return
                 raise
