@@ -185,7 +185,10 @@ jobs:
     - stage: test
       python: "pypy3.6-7.1.1"
       dist: "xenial"
-      env: PROJECT=postgresql
+      env:
+        - PROJECT=postgresql
+        - CRYPTOGRAPHY_ALLOW_OPENSSL_102=1
+        - TOX_TESTENV_PASSENV=CRYPTOGRAPHY_ALLOW_OPENSSL_102
       addons:
         apt:
           packages:
