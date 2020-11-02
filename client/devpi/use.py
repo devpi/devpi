@@ -306,6 +306,8 @@ class Current(object):
             user = self.get_auth_user()
             if not user:
                 raise ValueError("no current authenticated user")
+        if '/' in user:
+            raise ValueError("user name contains a slash")
         return URL(self.rooturl).addpath(user)
 
     def get_index_url(self, indexname=None, slash=True):
