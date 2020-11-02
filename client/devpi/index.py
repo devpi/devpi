@@ -85,6 +85,7 @@ def main(hub, args):
     if args.list:
         return index_list(hub, indexname)
 
+    hub.requires_login()
     url = hub.current.get_index_url(indexname, slash=False)
 
     if (args.delete or args.create) and not indexname:
