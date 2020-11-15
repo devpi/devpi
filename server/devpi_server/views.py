@@ -533,7 +533,7 @@ class PyPIView:
             index=self.context.index,
             project=self.context.project))
 
-    @view_config(route_name="/{user}/{index}/+simple/{project}/")
+    @view_config(route_name="/{user}/{index}/+simple/{project}/", permission="pkg_read")
     def simple_list_project(self):
         request = self.request
         abort_if_invalid_project(request, request.matchdict["project"])
@@ -1114,7 +1114,7 @@ class PyPIView:
             project=self.context.project))
 
     @view_config(route_name="/{user}/{index}/{project}",
-                 accept="application/json", request_method="GET")
+                 accept="application/json", request_method="GET", permission="pkg_read")
     def project_get(self):
         if not json_preferred(self.request):
             apireturn(415, "unsupported media type %s" %
