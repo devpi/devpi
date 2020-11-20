@@ -1389,9 +1389,6 @@ class PyPIView:
 
     @view_config(route_name="/", accept="application/json", request_method="GET")
     def user_list(self):
-        #accept = request.headers.get("accept")
-        #if accept is not None:
-        #    if accept.endswith("/json"):
         d = {}
         for user in self.model.get_userlist():
             d[user.name] = user.get()
