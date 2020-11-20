@@ -340,7 +340,7 @@ class User:
         pwhash = userconfig["pwhash"]
         valid, newhash = verify_and_update_password_hash(password, pwhash, salt)
         if valid:
-            if newhash:
+            if newhash and self.keyfs.tx.write:
                 self.modify(pwsalt=None, pwhash=newhash)
             return True
         return False
