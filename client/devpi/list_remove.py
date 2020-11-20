@@ -7,13 +7,20 @@ from functools import partial
 
 def out_index(hub, projects):
     for name in sorted(projects):
-        out = name
         if hub.args.verbose:
             url = hub.current.get_project_url(name)
+            if hub.args.ignore_bases:
+                url = url.replace(query=dict(ignore_bases=""))
             reply = hub.http_api("get", url, type="projectconfig")
-            maxversion = max(map(Version, reply.result))
-            out += "-" + str(maxversion)
-        hub.info(out)
+            versions = map(Version, reply.result)
+            if hub.args.all:
+                for version in sorted(versions):
+                    hub.info("%s-%s" % (name, version))
+            else:
+                maxversion = max(versions)
+                hub.info("%s-%s" % (name, maxversion))
+        else:
+            hub.info(name)
 
 
 def out_project(hub, reply, req):
