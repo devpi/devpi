@@ -691,6 +691,9 @@ class PyPIView:
             # we create a user object automatically. The user object may
             # not exist if the user was authenticated by a plugin.
             if self.request.authenticated_userid == username:
+                if not self.request.has_permission("user_create"):
+                    apireturn(403, "no permission to create user %s" % (
+                        self.context.username))
                 registry = self.request.registry
                 auth_policy = registry.queryUtility(IAuthenticationPolicy)
                 # we verify the credentials explicitly here, because the
