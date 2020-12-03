@@ -26,6 +26,15 @@ def permissionrequest(dummyrequest, model):
     policy = ACLAuthorizationPolicy()
     dummyrequest.registry.registerUtility(policy, IAuthorizationPolicy)
     dummyrequest.log = model.xom.log
+    try:
+        # for pyramid 2.0
+        from pyramid.interfaces import ISecurityPolicy
+        from pyramid.security import LegacySecurityPolicy
+    except ImportError:
+        pass
+    else:
+        security_policy = LegacySecurityPolicy()
+        dummyrequest.registry.registerUtility(security_policy, ISecurityPolicy)
     return dummyrequest
 
 

@@ -13,10 +13,9 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
+from html import escape
 from io import BytesIO
 from pluggy import HookimplMarker
-from pyramid.compat import escape
-from pyramid.compat import urlparse
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.interfaces import IRequestExtensions
 from pyramid.interfaces import IRootFactory
@@ -33,6 +32,7 @@ from pyramid.security import forget
 from pyramid.traversal import DefaultRootFactory
 from pyramid.view import exception_view_config
 from pyramid.view import view_config
+from urllib.parse import urlparse
 import itertools
 import json
 from devpi_common.request import new_requests_session
@@ -156,7 +156,7 @@ class OutsideURLMiddleware(object):
         if outside_url:
             # XXX memoize it for later access from replica thread
             # self.xom.current_outside_url = outside_url
-            outside_url = urlparse.urlparse(outside_url)
+            outside_url = urlparse(outside_url)
             environ['wsgi.url_scheme'] = outside_url.scheme
             environ['HTTP_HOST'] = outside_url.netloc
             if outside_url.path:
@@ -168,7 +168,7 @@ def route_url(self, *args, **kw):
     url = super(self.__class__, self).route_url(*args, **kw)
     # Unquote plus signs in path segment. The settings in pyramid for
     # the urllib quoting function are a bit too much on the safe side
-    url = urlparse.urlparse(url)
+    url = urlparse(url)
     url = url._replace(path=url.path.replace('%2B', '+'))
     return url.geturl()
 
@@ -421,7 +421,7 @@ class PyPIView:
             return ["fail", "", []]
         # this is accessing some pyramid internals, but they are pretty likely
         # to stay and the alternative was uglier
-        policy = self.request._get_authentication_policy()
+        policy = self.request.registry.queryUtility(IAuthenticationPolicy)
         credentials = policy._get_credentials(self.request)
         return self.auth.get_auth_status(credentials)
 

@@ -16,7 +16,14 @@ from devpi_web.main import navigation_version
 from email.utils import parsedate
 from operator import attrgetter, itemgetter
 from py.xml import html
-from pyramid.compat import decode_path_info
+try:
+    from pyramid.compat import decode_path_info
+except ImportError:
+    # pyramid is >= 2.0, which means we can assume Python 3
+    # see PEP 3333 for why we encode WSGI PATH_INFO to latin-1 before
+    # decoding it to utf-8
+    def decode_path_info(path):
+        return path.encode('latin-1').decode('utf-8')
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound

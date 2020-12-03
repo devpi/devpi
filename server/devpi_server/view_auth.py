@@ -6,8 +6,10 @@ from devpi_server.views import abort
 from devpi_server.model import UpstreamError
 from pyramid.authentication import CallbackAuthenticationPolicy
 from pyramid.decorator import reify
-from pyramid.security import Allow
-from pyramid.security import Everyone
+try:
+    from pyramid.authorization import Allow, Everyone
+except ImportError:
+    from pyramid.security import Allow, Everyone
 
 
 class RootFactory(object):
