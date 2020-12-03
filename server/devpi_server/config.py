@@ -849,7 +849,7 @@ class Config(object):
         if self.secretfile is None:
             log.warn(
                 "No secret file provided, creating a new random secret. "
-                "Login tokens issued before are invalidate. "
+                "Login tokens issued before are invalid. "
                 "Use --secretfile option to provide a persistent secret. "
                 "You can create a proper secret with the "
                 "devpi-gen-secret command.")
