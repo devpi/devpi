@@ -15,6 +15,10 @@ try:
     from itertools import zip_longest
 except ImportError:
     from itertools import izip_longest as zip_longest
+try:
+    from pyramid.authorization import Allow, Authenticated, Everyone
+except ImportError:
+    from pyramid.security import Allow, Authenticated, Everyone
 from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl
@@ -407,7 +411,6 @@ class InvalidIndexconfig(Exception):
 
 
 def get_principals(value):
-    from pyramid.security import Authenticated, Everyone
     principals = set(value)
     if ':AUTHENTICATED:' in principals:
         principals.remove(':AUTHENTICATED:')
@@ -1009,8 +1012,6 @@ class BaseStage(object):
             yield stage
 
     def __acl__(self):
-        from pyramid.security import Allow
-
         permissions = (
             'pkg_read',
             'pypi_submit',
