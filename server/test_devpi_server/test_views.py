@@ -1303,7 +1303,7 @@ class TestPluginPermissions:
 
             @hookimpl
             def devpiserver_auth_request(self, request, userdict, username, password):
-                if username == 'pluginuser':
+                if username == 'pluginuser' and password == 'pluginpassword':
                     return dict(status="ok", groups=self.groups)
                 return None
 
@@ -1318,13 +1318,13 @@ class TestPluginPermissions:
         mapp.login("root")
         mapp.create_and_use()  # new context and login
         mapp.set_versiondata(dict(name="pkg1", version="1.0"))
-        mapp.login("pluginuser")
+        mapp.login("pluginuser", "pluginpassword")
         # pluginuser cannot write to index now
         mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
         # now we change the acl
         mapp.login("root")
         mapp.set_acl([":plugingroup"])
-        mapp.login("pluginuser")
+        mapp.login("pluginuser", "pluginpassword")
         # we need to skip setting the whitelist here, because the user may only
         # register and upload a package, but not modify the index
         mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6",
@@ -1332,11 +1332,11 @@ class TestPluginPermissions:
         # if we remove the user from the group (and login again, as the groups
         # are stored in the token) she can't upload anymore
         plugin.groups = []
-        mapp.login("pluginuser")
+        mapp.login("pluginuser", "pluginpassword")
         mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
 
     def test_plugin_user_create_index(self, mapp):
-        mapp.login("pluginuser")
+        mapp.login("pluginuser", "pluginpassword")
         assert "pluginuser" not in mapp.getuserlist()
         mapp.create_index("pluginuser/dev")
         assert "pluginuser" in mapp.getuserlist()

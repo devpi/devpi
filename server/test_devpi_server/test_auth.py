@@ -17,7 +17,8 @@ class TestAuth:
 
     def test_auth_direct(self, model, auth):
         model.create_user("user", password="world")
-        assert auth._get_auth_status("user", "world") == dict(status="ok")
+        result = auth._get_auth_status("user", "world")
+        assert result == dict(status="ok", from_user_object=True)
 
     def test_proxy_auth(self, model, auth):
         model.create_user("user", password="world")
