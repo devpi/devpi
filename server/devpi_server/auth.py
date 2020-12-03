@@ -72,16 +72,20 @@ class Auth:
             if result is not None:
                 if result["status"] != "ok":
                     return dict(status="reject")
+                # plugins may never return from_user_object
+                result.pop('from_user_object', None)
                 return result
         result = self._legacy_auth(authuser, authpassword, is_root, user)
         if result is not None:
+            # plugins may never return from_user_object
+            result.pop('from_user_object', None)
             return result
         if user is None:
             # we got no user model
             return dict(status="nouser")
         # none of the plugins returned valid groups, check our own data
         if user.validate(authpassword):
-            return dict(status="ok")
+            return dict(status="ok", from_user_object=True)
         return dict(status="reject")
 
     def _get_auth_status(self, authuser, authpassword, request=None):
@@ -93,16 +97,27 @@ class Auth:
             # check if we got user/password direct authentication
             return self._validate(authuser, authpassword, request=request)
         else:
-            if not isinstance(val, list) or len(val) != 2 or val[0] != authuser:
-                threadlog.debug("mismatch credential for user %r", authuser)
+            if not isinstance(val, list):
+                threadlog.debug("invalid auth token type for user %r", authuser)
+                return dict(status="nouser")
+            if len(val) != 3:
+                threadlog.debug("missing auth token info for user %r", authuser)
+                return dict(status="nouser")
+            if val[0] != authuser:
+                threadlog.debug("auth token username mismatch for user %r", authuser)
+                return dict(status="nouser")
+            if val[2] and self.model.get_user(authuser) is None:
+                threadlog.debug("missing user object for user %r", authuser)
                 return dict(status="nouser")
             return dict(status="ok", groups=val[1])
 
     def new_proxy_auth(self, username, password, request=None):
         result = self._validate(username, password, request=request)
         if result["status"] == "ok":
-            pseudopass = self.serializer.dumps(
-                (username, result.get("groups", [])))
+            pseudopass = self.serializer.dumps([
+                username,
+                result.get("groups", []),
+                result.get("from_user_object", False)])
             assert py.builtin._totext(pseudopass, 'ascii')
             return {"password": pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}

@@ -197,7 +197,7 @@ class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
     def verify_credentials(self, request):
         credentials = self._get_credentials(request)
         if credentials:
-            status = self.auth._validate(*credentials, request=request)
+            status = self.auth._get_auth_status(*credentials, request=request)
             if status.get("status") == "ok":
                 return True
         return False
