@@ -27,8 +27,9 @@ def test_ask_confirm_delete_args_yes(makehub):
 
 class TestUnit:
     def test_write_and_read(self, tmpdir):
-        path=tmpdir.join("current")
-        current = PersistentCurrent(path)
+        auth_path = tmpdir.join("auth")
+        current_path = tmpdir.join("current")
+        current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -36,15 +37,16 @@ class TestUnit:
                 login="/login",
         ))
         assert current.simpleindex
-        newcurrent = PersistentCurrent(path)
+        newcurrent = PersistentCurrent(auth_path, current_path)
         assert newcurrent.pypisubmit == current.pypisubmit
         assert newcurrent.simpleindex == current.simpleindex
         assert newcurrent.venvdir == current.venvdir
         assert newcurrent.login == current.login
 
     def test_write_and_read_always_setcfg(self, tmpdir):
-        path=tmpdir.join("current")
-        current = PersistentCurrent(path)
+        auth_path = tmpdir.join("auth")
+        current_path = tmpdir.join("current")
+        current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -53,10 +55,10 @@ class TestUnit:
         ))
         assert current.simpleindex
         current.reconfigure(dict(always_setcfg=True))
-        newcurrent = PersistentCurrent(path)
+        newcurrent = PersistentCurrent(auth_path, current_path)
         assert newcurrent.always_setcfg == True
         newcurrent.reconfigure(data=dict(simpleindex="/index2"))
-        current = PersistentCurrent(path)
+        current = PersistentCurrent(auth_path, current_path)
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
 
@@ -329,12 +331,13 @@ class TestUnit:
         current.set_auth("user", "password")
         assert current.get_auth() == ("user", "password")
         temp = current.switch_to_temporary(hub, "http://foo")
+        assert temp.get_auth("http://l") == ("user", "password")
         temp.set_auth("user1", "password1")
         assert temp.get_auth() == ("user1", "password1")
         # original is unaffected
         assert current.get_auth() == ("user", "password")
         assert temp._currentdict is not current._currentdict
-        assert temp._currentdict['auth'] is not current._currentdict['auth']
+        assert temp._authdict is not current._authdict
 
     def test_main(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world/this/+api", 200,
@@ -407,7 +410,7 @@ class TestUnit:
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
-        current = PersistentCurrent(hub.current.path)
+        current = PersistentCurrent(hub.current.auth_path, hub.current.current_path)
         assert current.venvdir == str(venvdir)
         cmd_devpi("use", "--venv=%s" % venvdir)
         res = out_devpi("use")
@@ -437,7 +440,7 @@ class TestUnit:
         assert not venvdir.exists()
         monkeypatch.chdir(tmpdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
-        current = PersistentCurrent(hub.current.path)
+        current = PersistentCurrent(hub.current.auth_path, hub.current.current_path)
         assert current.venvdir == str(venvdir)
         cmd_devpi("use", "--venv=%s" % venvdir)
         res = out_devpi("use")

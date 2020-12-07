@@ -221,11 +221,12 @@ class Hub:
     @cached_property
     def current(self):
         self.clientdir.ensure(dir=1)
-        path = self.clientdir.join("current.json")
+        auth_path = self.clientdir.join("auth.json")
+        current_path = self.clientdir.join("current.json")
         url = os.environ.get("DEVPI_INDEX")
-        current = PersistentCurrent(path)
+        current = PersistentCurrent(auth_path, current_path)
         if url is not None:
-            current = current.switch_to_temporary(self, url)
+            current = current.switch_to_local(self, url, None)
         return current
 
     def get_existing_file(self, arg):

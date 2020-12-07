@@ -26,20 +26,31 @@ def currentproperty(name):
     return property(propget, propset)
 
 
+def authproperty(name):
+    def propget(self):
+        return self._authdict.get(name, None)
+
+    def propset(self, val):
+        self._authdict[name] = val
+
+    return property(propget, propset)
+
+
 class Current(object):
     index = currentproperty("index")
     simpleindex = currentproperty("simpleindex")
     pypisubmit = currentproperty("pypisubmit")
     login = currentproperty("login")
     venvdir = currentproperty("venvdir")
-    _auth = currentproperty("auth")
-    _basic_auth = currentproperty("basic_auth")
-    _client_cert = currentproperty("client_cert")
+    _auth = authproperty("auth")
+    _basic_auth = authproperty("basic_auth")
+    _client_cert = authproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
     settrusted = currentproperty("settrusted")
     features = currentproperty("features")
 
     def __init__(self):
+        self._authdict = {}
         self._currentdict = {}
 
     @property
@@ -187,8 +198,18 @@ class Current(object):
             url = URL(self.simpleindex, url.url).url
         return url
 
+    def switch_to_local(self, hub, url, current_path):
+        current = PersistentCurrent(self.auth_path, current_path)
+        current._authdict = self._authdict
+        current._currentdict = deepcopy(self._currentdict)
+        # we make sure to remove legacy auth data
+        current._currentdict.pop("auth", None)
+        current.configure_fromurl(hub, url)
+        return current
+
     def switch_to_temporary(self, hub, url):
         current = Current()
+        current._authdict = deepcopy(self._authdict)
         current._currentdict = deepcopy(self._currentdict)
         current.configure_fromurl(hub, url)
         return current
@@ -334,28 +355,39 @@ class Current(object):
 
 
 class PersistentCurrent(Current):
-    def __init__(self, path):
+    def __init__(self, auth_path, current_path):
         Current.__init__(self)
-        self.path = path
-        if self.path.check():
-            self._currentdict.update(json.loads(self.path.read()))
+        self.auth_path = auth_path
+        self.current_path = current_path
+        if self.auth_path.check():
+            self._authdict.update(json.loads(self.auth_path.read()))
+        if self.current_path and self.current_path.check():
+            self._currentdict.update(json.loads(self.current_path.read()))
 
     def exists(self):
-        return self.path and self.path.check()
+        return self.current_path and self.current_path.check()
+
+    def _persist(self, data, path):
+        if path is None:
+            return
+        try:
+            olddata = json.loads(path.read())
+        except Exception:
+            olddata = {}
+        if data != olddata:
+            oldumask = os.umask(7 * 8 + 7)
+            try:
+                path.write(
+                    json.dumps(data, indent=2, sort_keys=True))
+            finally:
+                os.umask(oldumask)
 
     def reconfigure(self, data):
         Current.reconfigure(self, data)
-        try:
-            olddata = json.loads(self.path.read())
-        except Exception:
-            olddata = {}
-        if self._currentdict != olddata:
-            oldumask = os.umask(7 * 8 + 7)
-            try:
-                self.path.write(
-                    json.dumps(self._currentdict, indent=2, sort_keys=True))
-            finally:
-                os.umask(oldumask)
+        self._persist(self._authdict, self.auth_path)
+        # we make sure to remove legacy auth data
+        self._currentdict.pop("auth", None)
+        self._persist(self._currentdict, self.current_path)
 
 
 def out_index_list(hub, data):
@@ -388,11 +420,11 @@ def main(hub, args=None):
     if args.delete:
         if not hub.current.exists():
             hub.error_and_out("NO configuration found")
-        hub.current.path.remove()
-        hub.info("REMOVED configuration at", hub.current.path)
+        hub.current.current_path.remove()
+        hub.info("REMOVED configuration at", hub.current.current_path)
         return
     if current.exists():
-        hub.debug("current: %s" % current.path)
+        hub.debug("current: %s" % current.current_path)
     else:
         hub.debug("no current file, using defaults")
 
