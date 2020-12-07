@@ -82,6 +82,23 @@ class TestUnit:
         cmd_devpi("use", "-l")
         assert mtime == path.mtime()
 
+    def test_use_list_with_url_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="foo/bar",
+                bases="root/pypi",
+                login="/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set(
+            "http://devpi/", 200, result=dict(
+                foo=dict(username="foo", indexes=dict(
+                    bar=dict(bases=("root/pypi",), volatile=False)))))
+        path = tmpdir.join("client", "current.json")
+        cmd_devpi("use", "-l", "http://devpi/foo/bar")
+        assert not path.exists()
+
     def test_normalize_url(self):
         current = Current()
         current.reconfigure(dict(simpleindex="http://my.serv/index1"))

@@ -386,6 +386,8 @@ def main(hub, args=None):
     url = None
     if args.url:
         url = args.url
+        if args.list or args.urls:
+            current = hub.current.switch_to_temporary(hub, url)
     if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
