@@ -328,13 +328,24 @@ class TestUnit:
                    ))
 
         cmd_devpi("use", "http://world/")
-        mock_http_api.set("http://world/", 200, result=dict(
-            user1=dict(indexes={"dev": {"bases": ["x"],
-                "volatile": False}})
-        ))
+        mock_http_api.set(
+            "http://world/", 200, result=dict(
+                user1=dict(indexes={
+                    "dev": {"bases": ["x"], "volatile": False}}),
+                user2=dict(indexes={
+                    "foo": {"bases": ["x"], "volatile": False}})))
         out = out_devpi("use", "-l")
         out.stdout.fnmatch_lines("""
             user1/dev*x*False*
+            user2/foo*x*False*
+        """)
+        mock_http_api.set(
+            "http://world/user2", 200, result=dict(
+                indexes={
+                    "foo": {"bases": ["x"], "volatile": False}}))
+        out = out_devpi("use", "-l", "-u", "user2")
+        out.stdout.fnmatch_lines("""
+            user2/foo*x*False*
         """)
 
     def test_main_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
