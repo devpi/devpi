@@ -1,0 +1,1 @@
+fix #437: when the ``DEVPI_INDEX`` environment variable is set, it temporarily overwrites the current index.

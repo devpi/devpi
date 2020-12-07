@@ -179,7 +179,7 @@ class Current(object):
                 setattr(self, name, newval)
 
     def exists(self):
-        return self.path and self.path.check()
+        return False
 
     def _normalize_url(self, url):
         url = URL(url, asdir=1)
@@ -339,6 +339,9 @@ class PersistentCurrent(Current):
         self.path = path
         if self.path.check():
             self._currentdict.update(json.loads(self.path.read()))
+
+    def exists(self):
+        return self.path and self.path.check()
 
     def reconfigure(self, data):
         Current.reconfigure(self, data)

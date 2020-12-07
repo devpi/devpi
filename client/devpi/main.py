@@ -222,7 +222,11 @@ class Hub:
     def current(self):
         self.clientdir.ensure(dir=1)
         path = self.clientdir.join("current.json")
-        return PersistentCurrent(path)
+        url = os.environ.get("DEVPI_INDEX")
+        current = PersistentCurrent(path)
+        if url is not None:
+            current = current.switch_to_temporary(self, url)
+        return current
 
     def get_existing_file(self, arg):
         p = py.path.local(arg, expanduser=True)
