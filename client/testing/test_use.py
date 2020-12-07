@@ -586,6 +586,60 @@ class TestUnit:
         hub = cmd_devpi("use", "--always-set-cfg=no", "--pip-set-trusted=no")
         assert not hub.current.settrusted
 
+    def test_environment_without_current(self, capfd, cmd_devpi, mock_http_api, monkeypatch):
+        (out, err) = capfd.readouterr()
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "no server:" in out
+        monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
+        mock_http_api.set(
+            "http://devpi/user/dev/+api", 200, result=dict(
+                pypisubmit="http://devpi/user/dev/",
+                simpleindex="http://devpi/user/dev/+simple/",
+                index="http://devpi/user/dev",
+                login="http://devpi/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "index: http://devpi/user/dev" in out
+        assert "simpleindex: http://devpi/user/dev/+simple/" in out
+        assert "pypisubmit: http://devpi/user/dev/" in out
+        assert "login: http://devpi/+login" in out
+
+    def test_environment_with_current(self, capfd, cmd_devpi, mock_http_api, monkeypatch):
+        mock_http_api.set(
+            "http://world/user/dev/+api", 200, result=dict(
+                pypisubmit="http://world/user/dev/",
+                simpleindex="http://world/user/dev/+simple/",
+                index="http://world/user/dev",
+                login="http://world/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set("http://world/user/dev?no_projects=", 200, result=dict())
+        cmd_devpi("use", "http://world/user/dev")
+        (out, err) = capfd.readouterr()
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "index: http://world/user/dev" in out
+        assert "simpleindex: http://world/user/dev/+simple/" in out
+        assert "pypisubmit: http://world/user/dev/" in out
+        assert "login: http://world/+login" in out
+        monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
+        mock_http_api.set(
+            "http://devpi/user/dev/+api", 200, result=dict(
+                pypisubmit="http://devpi/user/dev/",
+                simpleindex="http://devpi/user/dev/+simple/",
+                index="http://devpi/user/dev",
+                login="http://devpi/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "index: http://devpi/user/dev" in out
+        assert "simpleindex: http://devpi/user/dev/+simple/" in out
+        assert "pypisubmit: http://devpi/user/dev/" in out
+        assert "login: http://devpi/+login" in out
+
 
 def test_getparse_keyvalues_invalid():
     with pytest.raises(ValueError):
