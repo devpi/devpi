@@ -390,10 +390,16 @@ def main(hub, args=None):
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
 
     if args.list:
-        if not current.rooturl:
+        rooturl = current.root_url
+        if not rooturl:
             hub.fatal("not connected to any server")
-        r = hub.http_api("GET", current.rooturl, {}, quiet=True)
-        out_index_list(hub, r.result)
+        if args.user:
+            rooturl = rooturl.joinpath(args.user)
+        r = hub.http_api("GET", rooturl.url, {}, quiet=True)
+        result = r.result
+        if args.user:
+            result = {args.user: result}
+        out_index_list(hub, result)
         return 0
 
     showurls = args.urls or args.debug

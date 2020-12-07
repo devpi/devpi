@@ -592,8 +592,10 @@ def use(parser):
              "Note: an activated virtualenv will be used without needing this.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
-    parser.add_argument("-l", action="store_true", dest="list",
+    parser.add_argument("--list", "-l", action="store_true",
         help="show all available indexes at the remote server")
+    parser.add_argument("--user", "-u", action="store",
+        help="when listing indexes, limit to the specified user")
     parser.add_argument("--delete", action="store_true",
         help="delete current association with server")
     parser.add_argument("--client-cert", action="store", default=None,
