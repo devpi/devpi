@@ -233,7 +233,7 @@ def _liveserver(clientdir, indexer_backend_option, server_executable, server_ver
     return (p, URL("http://%s:%s" % (host, port)))
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def url_of_liveserver(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
@@ -249,7 +249,7 @@ def url_of_liveserver(request, indexer_backend_option, server_executable, server
         p.wait()
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def url_of_liveserver2(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")

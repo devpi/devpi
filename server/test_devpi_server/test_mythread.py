@@ -3,7 +3,7 @@ from devpi_server import mythread
 import pytest
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def pool():
     pool = mythread.ThreadPool()
     yield pool

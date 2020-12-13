@@ -9,7 +9,7 @@ from devpi_server.readonly import is_deeply_readonly
 notransaction = pytest.mark.notransaction
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def keyfs(gentmp, pool, storage):
     keyfs = KeyFS(gentmp(), storage)
     pool.register(keyfs.notifier)
@@ -21,7 +21,7 @@ def key(request):
     return request.param
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def pool():
     pool = ThreadPool()
     yield pool

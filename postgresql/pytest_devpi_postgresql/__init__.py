@@ -42,7 +42,7 @@ def pytest_addoption(parser):
         help="make SSL connections to PostgreSQL")
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def devpipostgresql_postgresql(request):
     tmpdir = py.path.local(
         tempfile.mkdtemp(prefix='test-', suffix='-devpi-postgresql'))
@@ -172,7 +172,7 @@ class Storage(main.Storage):
         return result
 
 
-@pytest.yield_fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True, scope="class")
 def devpipostgresql_db_cleanup():
     # this fixture is doing cleanups after tests, so it doesn't yield anything
     yield

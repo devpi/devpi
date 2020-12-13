@@ -5,7 +5,7 @@ from .functional import TestMirrorIndexThings as BaseTestMirrorIndexThings
 import pytest
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def mapp(makemapp, nginx_host_port, secretfile):
     app = makemapp(options=[
         '--master', 'http://%s:%s' % nginx_host_port,
