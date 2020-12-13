@@ -130,7 +130,7 @@ def gentmp(request, tmpdir_factory):
     return gentmp
 
 
-@pytest.yield_fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def auto_transact(request):
     names = request.fixturenames
     if ("xom" not in names and "keyfs" not in names) or (
@@ -155,7 +155,7 @@ def xom(request, makexom):
     return xom
 
 
-@pytest.yield_fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="session")
 def speed_up_sqlite():
     from devpi_server.keyfs_sqlite import Storage
     old = Storage.ensure_tables_exist
@@ -171,7 +171,7 @@ def speed_up_sqlite():
     Storage.ensure_tables_exist = old
 
 
-@pytest.yield_fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="session")
 def speed_up_sqlite_fs():
     from devpi_server.keyfs_sqlite_fs import Storage
     old = Storage.ensure_tables_exist
@@ -778,7 +778,7 @@ from webtest import TestApp as TApp
 from webtest import TestResponse
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def noiter(monkeypatch, request):
     l = []
 
@@ -947,7 +947,7 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.fixture(scope="class")
 def server_directory():
     import tempfile
     srvdir = py.path.local(
@@ -1017,7 +1017,7 @@ def secretfile(server_directory):
     return secretfile
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.fixture(scope="class")
 def master_host_port(request, call_devpi_in_dir, master_serverdir, server_directory, secretfile, storage_info):
     host = 'localhost'
     port = get_open_port(host)
@@ -1058,7 +1058,7 @@ def replica_serverdir(server_directory):
     return server_directory.join("replica")
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.fixture(scope="class")
 def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir, secretfile, storage_info):
     host = 'localhost'
     port = get_open_port(host)
@@ -1154,7 +1154,7 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
     return (p, nginx_port)
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.fixture(scope="class")
 def nginx_host_port(request, call_devpi_in_dir, server_directory):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
@@ -1169,7 +1169,7 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory):
         p.wait()
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.fixture(scope="class")
 def nginx_replica_host_port(request, call_devpi_in_dir, server_directory):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
@@ -1241,7 +1241,7 @@ class Gen:
         return URL(link)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def pyramidconfig():
     from pyramid.testing import setUp, tearDown
     config = setUp()
@@ -1249,7 +1249,7 @@ def pyramidconfig():
     tearDown()
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def dummyrequest(pyramidconfig):
     from pyramid.testing import DummyRequest
     request = DummyRequest()

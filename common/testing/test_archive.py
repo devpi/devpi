@@ -56,7 +56,7 @@ def archive_path(request, tmpdir):
 
 
 class TestArchive:
-    @pytest.yield_fixture(params=["path", "file"])
+    @pytest.fixture(params=["path", "file"])
     def archive(self, request, archive_path):
         if request.param == "path":
             arch = Archive(archive_path)
