@@ -52,8 +52,44 @@ class TestAuth:
         username, password = "user", "world"
         model.create_user(username, password)
         proxy = auth.new_proxy_auth(username, password)
-        assert auth.get_auth_status((username, proxy["password"])) == \
-               ["ok", username, []]
+        result = auth.get_auth_status((username, proxy["password"]))
+        assert result == ["ok", username, []]
+
+    def test_auth_status_cached(self, auth, model, monkeypatch):
+        from devpi_server.model import User
+        username, password = "user", "world"
+        model.create_user(username, password)
+        orig_validate = User.validate
+
+        def validate(self, authpassword):
+            result = orig_validate(self, authpassword)
+            # block original to error on second use
+            User.validate = lambda s, a: 0 / 0
+            return result
+
+        monkeypatch.setattr(User, "validate", validate)
+        assert auth._validate(username, password) == dict(
+            status="ok",
+            from_user_object=True)
+        # with no request there is no caching, so the second call errors
+        with pytest.raises(ZeroDivisionError):
+            assert auth._validate(username, password) == dict(
+                status="ok",
+                from_user_object=True)
+
+        # patch again and use a fake request
+        class Request:
+            pass
+
+        request = Request()
+        monkeypatch.setattr(User, "validate", validate)
+        assert auth._validate(username, password, request=request) == dict(
+            status="ok",
+            from_user_object=True)
+        assert getattr(request, '__devpiserver_user_validate_result') is True
+        assert auth._validate(username, password, request=request) == dict(
+            status="ok",
+            from_user_object=True)
 
 
 def test_newsalt():

@@ -9,6 +9,9 @@ from passlib.context import CryptContext
 from passlib.utils.handlers import MinimalHandler
 
 
+notset = object()
+
+
 class AuthException(Exception):
     """ Raised by external plugins in case of an error. """
 
@@ -84,7 +87,15 @@ class Auth:
             # we got no user model
             return dict(status="nouser")
         # none of the plugins returned valid groups, check our own data
-        if user.validate(authpassword):
+        # first get a potentially cached value
+        result = getattr(request, '__devpiserver_user_validate_result', notset)
+        if result is notset:
+            result = user.validate(authpassword)
+            # cache result on request if available
+            if request is not None:
+                # we have to use setattr to avoid name mangling of prefix dunder
+                setattr(request, '__devpiserver_user_validate_result', result)
+        if result:
             return dict(status="ok", from_user_object=True)
         return dict(status="reject")
 
