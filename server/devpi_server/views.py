@@ -31,6 +31,7 @@ from pyramid.request import Request
 from pyramid.request import apply_request_extensions
 from pyramid.response import Response
 from pyramid.security import forget
+from pyramid.threadlocal import RequestContext
 from pyramid.traversal import DefaultRootFactory
 from pyramid.view import exception_view_config
 from pyramid.view import view_config
@@ -443,6 +444,33 @@ class PyPIView:
                     "/{user}/{index}/", user=stage.username, index=stage.index)
         apireturn(200, type="apiconfig", result=api)
 
+    def _auth_check_request(self, request):
+        hook = self.xom.config.hook
+        result = hook.devpiserver_authcheck_always_ok(request=request)
+        if result and all(result):
+            threadlog.debug(
+                "Authcheck always OK for %s (%s)",
+                request.url, request.matched_route.name)
+            return HTTPOk()
+        if hook.devpiserver_authcheck_forbidden(request=request):
+            threadlog.debug(
+                "Authcheck Forbidden for %s (%s)",
+                request.url, request.matched_route.name)
+            return HTTPForbidden()
+        if not hook.devpiserver_authcheck_unauthorized(request=request):
+            threadlog.debug(
+                "Authcheck OK for %s (%s)",
+                request.url, request.matched_route.name)
+            return HTTPOk()
+        threadlog.debug(
+            "Authcheck Unauthorized for %s (%s)",
+            request.url, request.matched_route.name)
+        user_agent = request.user_agent or ""
+        if 'devpi-client' in user_agent:
+            # devpi-client needs to know for proper error messages
+            return HTTPForbidden()
+        return HTTPUnauthorized()
+
     @view_config(route_name="/+authcheck")
     def authcheck_view(self):
         request = self.request
@@ -462,31 +490,8 @@ class PyPIView:
             info['match'], info['route'])
         root_factory = orig_request.matched_route.factory or root_factory
         orig_request.context = root_factory(orig_request)
-        hook = self.xom.config.hook
-        result = hook.devpiserver_authcheck_always_ok(request=orig_request)
-        if result and all(result):
-            threadlog.debug(
-                "Authcheck always OK for %s (%s)",
-                url, orig_request.matched_route.name)
-            return HTTPOk()
-        if hook.devpiserver_authcheck_forbidden(request=orig_request):
-            threadlog.debug(
-                "Authcheck Forbidden for %s (%s)",
-                url, orig_request.matched_route.name)
-            return HTTPForbidden()
-        if not hook.devpiserver_authcheck_unauthorized(request=orig_request):
-            threadlog.debug(
-                "Authcheck OK for %s (%s)",
-                url, orig_request.matched_route.name)
-            return HTTPOk()
-        threadlog.debug(
-            "Authcheck Unauthorized for %s (%s)",
-            url, orig_request.matched_route.name)
-        user_agent = request.user_agent or ""
-        if 'devpi-client' in user_agent:
-            # devpi-client needs to know for proper error messages
-            return HTTPForbidden()
-        return HTTPUnauthorized()
+        with RequestContext(orig_request):
+            return self._auth_check_request(orig_request)
 
     #
     # attach test results to release files
