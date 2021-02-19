@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+5.2.2 (2021-02-19)
+==================
+
+Bug Fixes
+---------
+
+- fix #406: support ``--all`` to show all versions when listing more than one project.
+
+- Pin tox to <4dev. The next major version of devpi-client will use tox as a binary to support newer versions.
+
+
 5.2.1 (2020-09-13)
 ==================
 

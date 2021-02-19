@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.6 (2021-02-19)
+==================
+
+Bug Fixes
+---------
+
+- Fix trying to import fcntl on Windows.
+
+
 4.0.5 (2020-07-16)
 ==================
 
