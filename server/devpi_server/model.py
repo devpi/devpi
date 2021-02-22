@@ -27,6 +27,9 @@ from .log import threadlog, thread_current_log
 from .readonly import get_mutable_deepcopy
 
 
+notset = object()
+
+
 def join_links_data(links, requires_python, yanked):
     # build list of (key, href, require_python, yanked) tuples
     result = []
@@ -127,6 +130,7 @@ class RootModel:
                 "username '%s' contains characters that aren't allowed. "
                 "Any ascii symbol besides -.@_ is blocked." % username)
         user = User(self, username)
+        kwargs.update(created=strftime("%Y-%m-%dT%H:%M:%SZ", gmtime()))
         user._modify(password=password, **kwargs)
         userlist.add(username)
         self.keyfs.USERLIST.set(userlist)
@@ -251,15 +255,20 @@ class InvalidUserconfig(Exception):
 class User:
     # ignored_keys are skipped on create and modify
     ignored_keys = frozenset(('indexes', 'username'))
+    # info keys are updated on create and modify and input is ignored
+    info_keys = frozenset(('created', 'modified'))
     hidden_keys = frozenset((
         "password", "pwhash", "pwsalt"))
     public_keys = frozenset((
         "custom_data", "description", "email", "title"))
     # allowed_keys can be modified
     allowed_keys = hidden_keys.union(public_keys)
-    known_keys = allowed_keys.union(ignored_keys)
+    known_keys = allowed_keys.union(ignored_keys, info_keys)
+    # modification update keys control which changed keys will trigger
+    # an update of the modified key
+    modification_update_keys = known_keys - info_keys.union(ignored_keys)
     # visible_keys are returned via json
-    visible_keys = ignored_keys.union(public_keys)
+    visible_keys = ignored_keys.union(info_keys, public_keys)
 
     def __init__(self, parent, name):
         self.__parent__ = parent
@@ -272,10 +281,6 @@ class User:
         return self.keyfs.USER(user=self.name)
 
     def get_cleaned_config(self, **kwargs):
-        unknown_keys = set(kwargs) - self.known_keys
-        if unknown_keys:
-            raise InvalidUserconfig(
-                "Unknown keys in user config: %s" % ", ".join(unknown_keys))
         result = {}
         for key in self.allowed_keys:
             if key not in kwargs:
@@ -283,34 +288,49 @@ class User:
             result[key] = kwargs[key]
         return result
 
+    def validate_config(self, **kwargs):
+        unknown_keys = set(kwargs) - self.known_keys
+        if unknown_keys:
+            raise InvalidUserconfig(
+                "Unknown keys in user config: %s" % ", ".join(unknown_keys))
+
     def _set(self, newuserconfig):
         with self.key.update() as userconfig:
             userconfig.update(newuserconfig)
             threadlog.info("internal: set user information %r", self.name)
 
     def _modify(self, password=None, pwhash=None, **kwargs):
-        kwargs = self.get_cleaned_config(**kwargs)
-        modified = []
+        self.validate_config(**kwargs)
+        modified = {}
         with self.key.update() as userconfig:
             if password is not None or pwhash:
                 self._setpassword(userconfig, password, pwhash=pwhash)
-                modified.append("password=*******")
+                modified["password"] = "*******"
                 kwargs['pwsalt'] = None
             for key, value in kwargs.items():
                 key = ensure_unicode(key)
-                if key == 'username':
-                    continue
                 if value:
-                    userconfig[key] = value
+                    if userconfig.get(key, notset) != value:
+                        userconfig[key] = value
+                        if key in self.hidden_keys:
+                            value = "*******"
+                        modified[key] = value
                 elif key in userconfig:
                     del userconfig[key]
-                if key in User.hidden_keys and value:
-                    value = "*******"
-                modified.append("%s=%s" % (key, value))
+                    modified[key] = None
             userconfig.setdefault("indexes", {})
-        return modified
+            if self.modification_update_keys.intersection(modified):
+                if "created" not in userconfig:
+                    # old data will be set to epoch
+                    modified["created"] = userconfig["created"] = "1970-01-01T00:00:00Z"
+                if "created" not in kwargs:
+                    # only set modified if not created at the same time
+                    modified_ts = strftime("%Y-%m-%dT%H:%M:%SZ", gmtime())
+                    modified["modified"] = userconfig["modified"] = modified_ts
+        return ["%s=%s" % (k, v) for k, v in sorted(modified.items())]
 
     def modify(self, **kwargs):
+        kwargs = self.get_cleaned_config(**kwargs)
         modified = self._modify(**kwargs)
         threadlog.info("modified user %r: %s", self.name,
                        ", ".join(modified))
@@ -351,7 +371,7 @@ class User:
             return d
         if not credentials:
             for key in list(d):
-                if key not in User.visible_keys:
+                if key not in self.visible_keys:
                     del d[key]
         d["username"] = self.name
         return d
