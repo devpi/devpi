@@ -1404,6 +1404,62 @@ class TestUsers:
         assert user.validate("password")
         assert not user.validate("password2")
 
+    def test_created_and_modified(self, mock, model, monkeypatch):
+        from time import strftime
+        import datetime
+        gmtime_mock = mock.Mock()
+        monkeypatch.setattr("devpi_server.model.gmtime", gmtime_mock)
+        creation_time = datetime.datetime(2021, 2, 22, 10, 51, 51).timetuple()
+        gmtime_mock.return_value = creation_time
+        user = model.create_user("user", "password")
+        assert user
+        userconfig = user.get()
+        assert userconfig["created"] == strftime("%Y-%m-%dT%H:%M:%SZ", creation_time)
+        assert "modified" not in userconfig
+        assert "email" not in userconfig
+        modification_time1 = datetime.datetime(2021, 2, 22, 10, 52, 0).timetuple()
+        gmtime_mock.return_value = modification_time1
+        user.modify(email="some@email.com")
+        userconfig = user.get()
+        assert userconfig["created"] == strftime("%Y-%m-%dT%H:%M:%SZ", creation_time)
+        assert userconfig["modified"] == strftime("%Y-%m-%dT%H:%M:%SZ", modification_time1)
+        assert userconfig["email"] == "some@email.com"
+        # we don't change the email value, but supply created,
+        # which should be ignored
+        gmtime_mock.return_value = datetime.datetime(2021, 2, 22, 10, 52, 1).timetuple()
+        user.modify(created=strftime("%Y-%m-%dT%H:%M:%SZ", modification_time1), email="some@email.com")
+        userconfig = user.get()
+        assert userconfig["created"] == strftime("%Y-%m-%dT%H:%M:%SZ", creation_time)
+        assert userconfig["modified"] == strftime("%Y-%m-%dT%H:%M:%SZ", modification_time1)
+        assert userconfig["email"] == "some@email.com"
+        # we don't change the email value, but supply modified,
+        # which should be ignored
+        gmtime_mock.return_value = datetime.datetime(2021, 2, 22, 10, 52, 1).timetuple()
+        user.modify(modified=strftime("%Y-%m-%dT%H:%M:%SZ", creation_time), email="some@email.com")
+        userconfig = user.get()
+        assert userconfig["created"] == strftime("%Y-%m-%dT%H:%M:%SZ", creation_time)
+        assert userconfig["modified"] == strftime("%Y-%m-%dT%H:%M:%SZ", modification_time1)
+        assert userconfig["email"] == "some@email.com"
+        # we change the email value and supply created and modified
+        # the email should change and modified should be set to gmtime_mock value
+        modification_time2 = datetime.datetime(2021, 2, 22, 10, 52, 1).timetuple()
+        gmtime_mock.return_value = modification_time2
+        user.modify(
+            created=strftime("%Y-%m-%dT%H:%M:%SZ", modification_time1),
+            modified=strftime("%Y-%m-%dT%H:%M:%SZ", creation_time),
+            email="other@email.com")
+        userconfig = user.get()
+        assert userconfig["created"] == strftime("%Y-%m-%dT%H:%M:%SZ", creation_time)
+        assert userconfig["modified"] == strftime("%Y-%m-%dT%H:%M:%SZ", modification_time2)
+        assert userconfig["email"] == "other@email.com"
+        # creating a stage doesn't update modification time
+        assert userconfig["indexes"] == {}
+        user.create_stage("dev")
+        userconfig = user.get()
+        assert userconfig["created"] == strftime("%Y-%m-%dT%H:%M:%SZ", creation_time)
+        assert userconfig["modified"] == strftime("%Y-%m-%dT%H:%M:%SZ", modification_time2)
+        assert "dev" in userconfig["indexes"]
+
     def test_migrate_hash(self, caplog, model):
         from devpi_server.auth import newsalt, getpwhash
         user = model.create_user("user", "password", email="some@email.com")

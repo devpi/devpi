@@ -419,6 +419,8 @@ class Importer:
                     user = self.xom.model.get_user(username)
                 if user is None:
                     user = self.xom.model.create_user(username, password="")
+                    # missing creation time is set to epoch for regular users
+                    userconfig.setdefault("created", "1970-01-01T00:00:00Z")
                 user._set(userconfig)
 
         # memorize index inheritance structure

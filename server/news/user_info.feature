@@ -1,0 +1,1 @@
+The user creation and modification time is now stored. Adding or removing an index doesn't count as a modification.

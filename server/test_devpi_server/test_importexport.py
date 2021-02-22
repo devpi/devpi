@@ -255,6 +255,49 @@ class TestImportExport:
     def impexp(self, makeimpexp):
         return makeimpexp()
 
+    def test_created_and_modified_old_data(self, impexp, mock, monkeypatch):
+        from time import strftime
+        import datetime
+        gmtime_mock = mock.Mock()
+        monkeypatch.setattr("devpi_server.model.gmtime", gmtime_mock)
+        import_time = datetime.datetime(2021, 2, 22, 10, 51, 51).timetuple()
+        gmtime_mock.return_value = import_time
+        mapp = impexp.import_testdata('nocreatedmodified')
+        users = mapp.getuserlist()
+        # the import time is used for root
+        assert users["root"]["created"] == strftime("%Y-%m-%dT%H:%M:%SZ", import_time)
+        assert "modified" not in users["root"]
+        # the epoch is used for users
+        assert users["user1"]["created"] == "1970-01-01T00:00:00Z"
+        assert "modified" not in users["user1"]
+
+    def test_created_and_modified_existing_data(self, impexp):
+        mapp = impexp.import_testdata('createdmodified')
+        users = mapp.getuserlist()
+        # the time from the import data is used
+        assert users["root"]["created"] == "2020-01-01T11:11:00Z"
+        assert users["root"]["modified"] == "2020-01-02T12:12:00Z"
+
+    def test_created_and_modified_roundtrip(self, impexp):
+        mapp1 = impexp.mapp1
+        mapp1.create_and_use()
+        first_user = mapp1.api.user
+        mapp1.modify_user(first_user, email='foo@example.com')
+        mapp1.create_and_use()
+        second_user = mapp1.api.user
+        users1 = mapp1.getuserlist()
+        impexp.export()
+        mapp2 = impexp.new_import()
+        users2 = mapp2.getuserlist()
+        assert users1["root"]["created"] == users2["root"]["created"]
+        assert "modified" not in users1["root"]
+        assert "modified" not in users2["root"]
+        assert users1[first_user]["created"] == users2[first_user]["created"]
+        assert users1[first_user]["modified"] == users2[first_user]["modified"]
+        assert users1[second_user]["created"] == users2[second_user]["created"]
+        assert "modified" not in users1[second_user]
+        assert "modified" not in users2[second_user]
+
     def test_importing_multiple_indexes_with_releases(self, impexp):
         mapp1 = impexp.mapp1
         api1 = mapp1.create_and_use()

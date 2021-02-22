@@ -1,0 +1,21 @@
+{
+  "users": {
+    "root": {
+      "created": "2020-01-01T11:11:00Z",
+      "modified": "2020-01-02T12:12:00Z",
+      "pwhash": "$argon2id$v=19$m=102400,t=2,p=8$0noPYaw1Zqy1traW0nrvvQ$Xle8OjVpx6ZNHsNgAoEhww",
+      "username": "root"
+    }
+  },
+  "indexes": {},
+  "dumpversion": "2",
+  "pythonversion": [
+    3,
+    6,
+    8,
+    "final",
+    0
+  ],
+  "devpi_server": "5.3.1",
+  "uuid": "b63921e918684b23ae62b9a66095e382"
+}

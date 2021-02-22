@@ -1,0 +1,23 @@
+{
+  "users": {
+    "root": {
+      "pwhash": "$argon2id$v=19$m=102400,t=2,p=8$0noPYaw1Zqy1traW0nrvvQ$Xle8OjVpx6ZNHsNgAoEhww",
+      "username": "root"
+    },
+    "user1": {
+      "pwhash": "$argon2id$v=19$m=102400,t=2,p=8$0noPYaw1Zqy1traW0nrvvQ$Xle8OjVpx6ZNHsNgAoEhww",
+      "username": "user1"
+    }
+  },
+  "indexes": {},
+  "dumpversion": "2",
+  "pythonversion": [
+    3,
+    6,
+    8,
+    "final",
+    0
+  ],
+  "devpi_server": "5.3.1",
+  "uuid": "b63921e918684b23ae62b9a66095e382"
+}

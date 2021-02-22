@@ -91,18 +91,30 @@ def test_user_patch_keeps_missing_keys(testapp):
     testapp.put_json("/foo", dict(password="123"))
     testapp.set_auth('foo', '123')
     r = testapp.get("/foo")
-    assert r.json['result'] == {'username': 'foo', 'indexes': {}}
+    result = r.json['result']
+    result.pop('created', None)
+    result.pop('modified', None)
+    assert result == {'username': 'foo', 'indexes': {}}
     testapp.patch_json("/foo", dict(title="foo"))
     r = testapp.get("/foo")
-    assert r.json['result'] == {
+    result = r.json['result']
+    result.pop('created', None)
+    result.pop('modified', None)
+    assert result == {
         'username': 'foo', 'title': 'foo', 'indexes': {}}
     testapp.patch_json("/foo", dict(description="bar"))
     r = testapp.get("/foo")
-    assert r.json['result'] == {
+    result = r.json['result']
+    result.pop('created', None)
+    result.pop('modified', None)
+    assert result == {
         'username': 'foo', 'title': 'foo', 'description': 'bar', 'indexes': {}}
     testapp.patch_json("/foo", dict(description=""))
     r = testapp.get("/foo")
-    assert r.json['result'] == {
+    result = r.json['result']
+    result.pop('created', None)
+    result.pop('modified', None)
+    assert result == {
         'username': 'foo', 'title': 'foo', 'indexes': {}}
 
 
