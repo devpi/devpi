@@ -96,9 +96,7 @@ class IndexParser:
 
     @property
     def releaselinks(self):
-        """ return sorted releaselinks list """
-        l = sorted(map(BasenameMeta, self.basename2link.values()),
-                   reverse=True)
+        l = map(BasenameMeta, self.basename2link.values())
         return [x.obj for x in l]
 
     def parse_index(self, disturl, html):
