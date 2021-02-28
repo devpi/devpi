@@ -68,6 +68,7 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
 
 
 INSTALLER_USER_AGENT = r"([^ ]* )*(distribute|setuptools|pip|pex)/.*"
+INSTALLER_USER_AGENT_REGEXP = re.compile(INSTALLER_USER_AGENT)
 
 
 def abort(request, code, body):
@@ -547,10 +548,10 @@ class PyPIView:
         project = self.context.project
         # we only serve absolute links so we don't care about the route's slash
         stage = self.context.stage
-        requested_by_pip = re.match(INSTALLER_USER_AGENT,
+        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
             request.user_agent or "")
         try:
-            result = stage.get_simplelinks(project, sorted_links=not requested_by_pip)
+            result = stage.get_simplelinks(project, sorted_links=not requested_by_installer)
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
@@ -558,7 +559,7 @@ class PyPIView:
         if not result:
             self.request.context.verified_project  # access will trigger 404 if not found
 
-        if requested_by_pip:
+        if requested_by_installer:
             # we don't need the extra stuff on the simple page for pip
             embed_form = False
             blocked_index = None
