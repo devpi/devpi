@@ -255,7 +255,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
         headers=headers)
 
 
-@pytest.mark.parametrize(
+user_agent_parameter_args = (
     "user_agent",
     [
         'pip/1.4.1',
@@ -263,8 +263,12 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
         'Python-urllib/3.5 setuptools/6.1',
         'setuptools/6.1 Python-urllib/3.5',
         'pex/1.0.1',
-        'pip/6.0.dev1 {"cpu":"x86_64","distro":{"name":"OS X","version":"10.9.5"},"implementation":{"name":"CPython","version":"2.7.8"},"installer":{"name":"pip","version":"6.0.dev1"},"python":"2.7.8","system":{"name":"Darwin","release":"13.4.0"}}'],
+        'pip/6.0.dev1 {"cpu":"x86_64","distro":{"name":"OS X","version":"10.9.5"},"implementation":{"name":"CPython","version":"2.7.8"},"installer":{"name":"pip","version":"6.0.dev1"},"python":"2.7.8","system":{"name":"Darwin","release":"13.4.0"}}'])
+user_agent_parameter_kw = dict(
     ids=['pip', 'setuptools', 'urllib-setuptools', 'setuptools-urllib', 'pex', 'pip6'])
+
+
+@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
 def test_project_redirect(pypistage, testapp, user_agent):
     name = "qpwoei"
     headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
@@ -280,6 +284,35 @@ def test_project_redirect(pypistage, testapp, user_agent):
     r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
     assert r.status_code == 302
     assert r.headers["location"] == "http://example.com/path/root/pypi/+simple/%s/" % name
+
+
+@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
+def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testapp, user_agent):
+    from devpi_server.model import BaseStage
+    pypistage.mock_simple(
+        "py",
+        """<a href="/py-2.0.zip" /><a href="/py-3.0.zip" /><a href="/py-1.0.zip" />""")
+    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    # fail if called
+    monkeypatch.setattr(
+        BaseStage, "get_mirror_whitelist_info", lambda s, p: 0 / 0)
+    orig_get_simplelinks = BaseStage.get_simplelinks
+    calls = []
+
+    def get_simplelinks(self, project, sorted_links=True):
+        calls.append((self, project, sorted_links))
+        return orig_get_simplelinks(self, project, sorted_links=sorted_links)
+
+    # let original be called, but we can inspect the call now
+    monkeypatch.setattr(BaseStage, "get_simplelinks", get_simplelinks)
+
+    r = testapp.get("/root/pypi/+simple/py/", headers=headers)
+    ((stage, name, sorted_links),) = calls
+    assert stage.name == pypistage.name
+    assert name == "py"
+    assert sorted_links is False
+    assert "<form" not in r.text
+    assert "<input" not in r.text
 
 
 def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
