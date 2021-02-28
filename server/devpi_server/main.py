@@ -419,7 +419,11 @@ class XOM:
         pyramid_config.add_route("/{user}/{index}/{project}/{version}",
                                  "/{user}/{index}/{project}/{version:[^/]+/?}")
         pyramid_config.add_route(
-            "simple_redirect", "/{user}/{index}/{project:[^/]+/?}",
+            "installer_simple", "/{user}/{index:[^/]+/?}",
+            header="User-Agent:" + INSTALLER_USER_AGENT,
+            accept="text/html")
+        pyramid_config.add_route(
+            "installer_simple_project", "/{user}/{index}/{project:[^/]+/?}",
             header="User-Agent:" + INSTALLER_USER_AGENT,
             accept="text/html",
         )
