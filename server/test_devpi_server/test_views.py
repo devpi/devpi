@@ -289,6 +289,7 @@ def test_project_redirect(pypistage, testapp, user_agent):
 @pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
 def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testapp, user_agent):
     from devpi_server.model import BaseStage
+    import os.path
     pypistage.mock_simple(
         "py",
         """<a href="/py-2.0.zip" /><a href="/py-3.0.zip" /><a href="/py-1.0.zip" />""")
@@ -308,6 +309,8 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
 
     r = testapp.get("/root/pypi/+simple/py/", headers=headers)
     ((stage, name, sorted_links),) = calls
+    links = [os.path.basename(x.attrs["href"]) for x in getlinks(r.text)]
+    assert links == ["py-2.0.zip", "py-3.0.zip", "py-1.0.zip"]
     assert stage.name == pypistage.name
     assert name == "py"
     assert sorted_links is False
