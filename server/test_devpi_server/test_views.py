@@ -268,22 +268,65 @@ user_agent_parameter_kw = dict(
     ids=['pip', 'setuptools', 'urllib-setuptools', 'setuptools-urllib', 'pex', 'pip6'])
 
 
+@pytest.mark.nomockprojectsremote
 @pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
-def test_project_redirect(pypistage, testapp, user_agent):
-    name = "qpwoei"
+def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
+    # installers should get the simple projects info directly without redirect
+    pypistage.mock_simple_projects(["hello1", "hello2"])
+    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    r = testapp.get("/root/pypi", headers=headers, follow=False)
+    assert r.status_code == 200
+    assert 'href="hello1/"' in r.text
+    assert 'href="hello2/"' in r.text
+    r = testapp.get("/root/pypi/", headers=headers, follow=False)
+    assert r.status_code == 200
+    assert 'href="hello1/"' in r.text
+    assert 'href="hello2/"' in r.text
+
+
+def test_projects_redirect(pypistage, testapp):
+    # test non installer html requests which should go nowhere,
+    # because devpi-server only returns json
+    headers = {"Accept": str("text/html")}
+    r = testapp.get("/root/pypi", headers=headers, follow=False)
+    assert r.status_code == 404
+    r = testapp.get("/root/pypi/", headers=headers, follow=False)
+    assert r.status_code == 404
+
+
+@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
+def test_project_simple_results_for_installers(pypistage, testapp, user_agent):
+    import os.path
+    # installers should get the simple page info directly without redirect
+    pypistage.mock_simple(
+        "py",
+        """<a href="/py-2.0.zip" /><a href="/py-3.0.zip" /><a href="/py-1.0.zip" />""")
     headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
 
+    r = testapp.get("/root/pypi/py", headers=headers, follow=False)
+    assert r.status_code == 200
+    links = [os.path.basename(x.attrs["href"]) for x in getlinks(r.text)]
+    assert links == ["py-2.0.zip", "py-3.0.zip", "py-1.0.zip"]
+    r = testapp.get("/root/pypi/py/", headers=headers, follow=False)
+    assert r.status_code == 200
+    links = [os.path.basename(x.attrs["href"]) for x in getlinks(r.text)]
+    assert links == ["py-2.0.zip", "py-3.0.zip", "py-1.0.zip"]
+    r = testapp.get("/root/pypi/+simple/py", headers=headers, follow=False)
+    assert r.status_code == 200
+    links = [os.path.basename(x.attrs["href"]) for x in getlinks(r.text)]
+    assert links == ["py-2.0.zip", "py-3.0.zip", "py-1.0.zip"]
+
+
+def test_project_redirect(pypistage, testapp):
+    name = "qpwoei"
+    # test non installer html requests which should go nowhere,
+    # because devpi-server only returns json
+    headers = {"Accept": str("text/html")}
+
     r = testapp.get("/root/pypi/%s" % name, headers=headers, follow=False)
-    assert r.status_code == 302
-    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
+    assert r.status_code == 404
     r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
-    assert r.status_code == 302
-    assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % name)
-    # check with x-outside-url
-    headers['X-Outside-Url'] = str('http://example.com/path')
-    r = testapp.get("/root/pypi/%s/" % name, headers=headers, follow=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "http://example.com/path/root/pypi/+simple/%s/" % name
+    assert r.status_code == 404
 
 
 @pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)

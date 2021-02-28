@@ -535,6 +535,12 @@ class PyPIView:
         """
         request = self.request
         abort_if_invalid_project(request, request.matchdict["project"])
+        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
+            request.user_agent or "")
+        if requested_by_installer:
+            # for performance reasons we return results directly for
+            # known installers
+            return self.simple_list_project()
         return HTTPFound(location=self.request.route_url(
             "/{user}/{index}/+simple/{project}/",
             user=self.context.username,
@@ -638,7 +644,14 @@ class PyPIView:
         the repository SHOULD redirect the URLs without a /
         to add a / to the end
         """
-        return HTTPFound(location=self.request.route_url(
+        request = self.request
+        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
+            request.user_agent or "")
+        if requested_by_installer:
+            # for performance reasons we return results directly for
+            # known installers
+            return self.simple_list_project()
+        return HTTPFound(location=request.route_url(
             "/{user}/{index}/+simple/",
             user=self.context.username,
             index=self.context.index))
@@ -1113,18 +1126,21 @@ class PyPIView:
     #  per-project and version data
     #
 
-    @view_config(route_name="simple_redirect")
-    def simple_redirect(self):
+    @view_config(route_name="installer_simple")
+    def installer_simple(self):
         """
-        PEP 503:
-        the repository SHOULD redirect the URLs without a /
-        to add a / to the end
+        When an installer accesses a project without the /+simple part we
+        return the links directly to avoid a redirect.
         """
-        return HTTPFound(location=self.request.route_url(
-            "/{user}/{index}/+simple/{project}/",
-            user=self.context.username,
-            index=self.context.index,
-            project=self.context.project))
+        return self.simple_list_all()
+
+    @view_config(route_name="installer_simple_project")
+    def installer_simple_project(self):
+        """
+        When an installer accesses a project without the /+simple part we
+        return the links directly to avoid a redirect.
+        """
+        return self.simple_list_project()
 
     @view_config(route_name="/{user}/{index}/{project}",
                  accept="application/json", request_method="GET")
