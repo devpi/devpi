@@ -32,7 +32,7 @@ if __name__ == "__main__":
                         "devpi_common<4,>=3.3.0",
                         "itsdangerous>=0.24",
                         "execnet>=1.2",
-                        "pyramid>=1.8<2",
+                        "pyramid>=1.8,<2",
                         "waitress>=1.0.1",
                         "repoze.lru>=0.6",
                         "passlib[argon2]",
