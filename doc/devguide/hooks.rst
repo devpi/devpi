@@ -32,6 +32,23 @@ To get the username and password from the request, the following hook is used::
         calls is undefined.
         """
 
+To get a custom identity for a request, the following hook can be implemented::
+
+    def devpiserver_get_identity(request, credentials):
+        """Extracts identity from request.
+
+        The credentials are either a tuple with username and password, or None.
+
+        Returns an object with the following attributes, or None if no identity
+        could be determined.
+
+            ``username`` - username this identity belongs to
+            ``groups`` - a potentially empty list of groups names this identity
+            is a member of
+
+        The first plugin to return an identity is used.
+        """
+
 There is one hook to enable authentication from external sources::
 
     def devpiserver_auth_request(request, userdict, username, password):

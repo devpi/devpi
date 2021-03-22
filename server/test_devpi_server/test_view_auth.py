@@ -115,8 +115,12 @@ class TestDevpiSecurityPolicy:
         return DevpiSecurityPolicy(xom)
 
     @pytest.fixture
-    def blank_request(self, blank_request, xom):
+    def blank_request(self, blank_request, policy, pyramidconfig, xom):
+        from pyramid.interfaces import ISecurityPolicy
+        from pyramid.threadlocal import get_current_registry
         request = blank_request()
+        request.registry = get_current_registry()
+        request.registry.registerUtility(policy, ISecurityPolicy)
         request.log = xom.log
         request.route_url = lambda x: x
         return request
