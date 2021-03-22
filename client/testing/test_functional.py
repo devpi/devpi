@@ -323,9 +323,18 @@ class TestUserManagement:
     def test_create_new_user(self, mapp, new_user_id):
         """ Verifies that a new user can be created"""
 
-        mapp.create_user(user=new_user_id, password=1234,
-                         email=new_user_id + "@example.com", code=201)
-        mapp.out_devpi('user', '-l').stdout.fnmatch_lines(new_user_id)
+        result = mapp.out_devpi(
+            'user', '-c',
+            new_user_id, 'password=1234',
+            'email=%s@example.com' % new_user_id)
+        assert result.ret == 0
+        result.stdout.fnmatch_lines('user created: %s' % new_user_id)
+        result = mapp.out_devpi('user', '-l')
+        assert result.ret == 0
+        result.stdout.fnmatch_lines(new_user_id)
+        result = mapp.out_devpi('user', new_user_id)
+        assert result.ret == 0
+        result.stdout.fnmatch_lines('*email=%s@example.com' % new_user_id)
 
     def test_duplicate_user(self, mapp, existing_user_id):
         """ Verifies that a new user can be created"""
