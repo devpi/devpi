@@ -18,7 +18,6 @@ from io import BytesIO
 from lazy import lazy
 from pluggy import HookimplMarker
 from pyramid.authentication import b64encode
-from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.interfaces import IRequestExtensions
 from pyramid.interfaces import IRootFactory
 from pyramid.interfaces import IRoutesMapper
@@ -412,11 +411,10 @@ class PyPIView:
         self.log = request.log
 
     def get_auth_status(self):
-        # this is accessing some pyramid internals, but they are pretty likely
-        # to stay and the alternative was uglier
-        policy = self.request.registry.queryUtility(IAuthenticationPolicy)
-        credentials = policy._get_credentials(self.request)
-        return self.auth.get_auth_status(credentials, request=self.request)
+        identity = self.request.identity
+        if identity is None:
+            return ["noauth", "", []]
+        return ["ok", identity.username, identity.groups]
 
     #
     # supplying basic API locations for all services
@@ -715,17 +713,9 @@ class PyPIView:
                 if not self.request.has_permission("user_create"):
                     apireturn(403, "no permission to create user %s" % (
                         self.context.username))
-                registry = self.request.registry
-                auth_policy = registry.queryUtility(IAuthenticationPolicy)
-                # we verify the credentials explicitly here, because the
-                # provided token may belong to a deleted user
-                if auth_policy.verify_credentials(self.request):
-                    try:
-                        user = self.model.create_user(username, password=None)
-                        lazy.invalidate(self.context, '_user')
-                        lazy.invalidate(self.context, 'user')
-                    except InvalidUser as e:
-                        apireturn(400, "%s" % e)
+                user = self.model.create_user(username, password=None)
+                lazy.invalidate(self.context, '_user')
+                lazy.invalidate(self.context, 'user')
         stage = self.context.user.getstage(self.context.index)
         if stage is not None:
             apireturn(409, "index %r exists" % stage.name)

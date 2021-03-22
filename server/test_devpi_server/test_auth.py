@@ -40,20 +40,16 @@ class TestAuth:
         monkeypatch.setattr(auth.serializer, "loads", r)
 
         assert auth._get_auth_status(username, proxy["password"]) == dict(status="expired")
-        assert auth.get_auth_status((username, proxy["password"])) == ["expired", username, []]
-
-    def test_auth_status_no_auth(self, auth):
-        assert auth.get_auth_status(None) == ["noauth", "", []]
 
     def test_auth_status_no_user(self, auth):
-        assert auth.get_auth_status(("user1", "123")) == ["nouser", "user1", []]
+        assert auth._get_auth_status("user1", "123") == dict(status="nouser")
 
     def test_auth_status_proxy_user(self, model, auth):
         username, password = "user", "world"
         model.create_user(username, password)
         proxy = auth.new_proxy_auth(username, password)
-        result = auth.get_auth_status((username, proxy["password"]))
-        assert result == ["ok", username, []]
+        result = auth._get_auth_status(username, proxy["password"])
+        assert result == dict(status="ok", groups=[])
 
     def test_auth_status_cached(self, auth, model, monkeypatch):
         from devpi_server.model import User
@@ -134,45 +130,47 @@ class TestAuthPlugin:
     def test_auth_plugin_no_user(self, auth, plugin):
         plugin.results = [None]
         username, password = "user", "world"
-        assert auth.get_auth_status((username, password)) == ['nouser', 'user', []]
+        assert auth._get_auth_status(username, password) == dict(status='nouser')
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_no_user_pass_through(self, auth, model, plugin):
         plugin.results = [None]
         username, password = "user", "world"
         model.create_user(username, password)
-        assert auth.get_auth_status((username, password)) == ['ok', username, []]
+        assert auth._get_auth_status(username, password) == dict(
+            status='ok', from_user_object=True)
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_invalid_credentials(self, auth, model, plugin):
         plugin.results = [dict(status="reject")]
         username, password = "user", "world"
         model.create_user(username, password)
-        assert auth.get_auth_status((username, password)) == ['reject', username, []]
+        assert auth._get_auth_status(username, password) == dict(status='reject')
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_root_internal(self, auth, plugin):
         plugin.results = [dict(status="reject")]
-        assert auth.get_auth_status(("root", "")) == ['ok', 'root', []]
+        assert auth._get_auth_status("root", "") == dict(
+            status='ok', from_user_object=True)
         # the plugin should not have been called
         assert plugin.results == [dict(status="reject")]
 
     def test_auth_plugin_groups(self, auth, plugin):
         plugin.results = [dict(status="ok", groups=['group'])]
         username, password = "user", "world"
-        assert auth.get_auth_status((username, password)) == ['ok', username, ['group']]
+        assert auth._get_auth_status(username, password) == dict(status='ok', groups=['group'])
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_no_groups(self, auth, plugin):
         plugin.results = [dict(status="ok")]
         username, password = "user", "world"
-        assert auth.get_auth_status((username, password)) == ['ok', username, []]
+        assert auth._get_auth_status(username, password) == dict(status='ok')
         assert plugin.results == []  # all results used
 
     def test_auth_plugin_invalid_status(self, auth, plugin):
         plugin.results = [dict(status="siotheiasoehn")]
         username, password = "user", "world"
-        assert auth.get_auth_status((username, password)) == ['reject', username, []]
+        assert auth._get_auth_status(username, password) == dict(status='reject')
         assert plugin.results == []  # all results used
 
 
@@ -207,8 +205,8 @@ class TestAuthPlugins:
         plugin1.results = [dict(status="ok", groups=['group1', 'common'])]
         plugin2.results = [dict(status="ok", groups=['group2', 'common'])]
         username, password = "user", "world"
-        assert auth.get_auth_status((username, password)) == [
-            'ok', username, ['common', 'group1', 'group2']]
+        assert auth._get_auth_status(username, password) == dict(
+            status='ok', groups=['common', 'group1', 'group2'])
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
 
@@ -217,13 +215,13 @@ class TestAuthPlugins:
         plugin2.results = [dict(status="reject")]
         username, password = "user", "world"
         # one failed authentication in any plugin is enough to stop
-        assert auth.get_auth_status((username, password)) == ['reject', username, []]
+        assert auth._get_auth_status(username, password) == dict(status='reject')
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
         plugin1.results = [dict(status="reject")]
         plugin2.results = [dict(status="ok", groups=['group1', 'common'])]
         # one failed authentication in any plugin is enough to stop
-        assert auth.get_auth_status((username, password)) == ['reject', username, []]
+        assert auth._get_auth_status(username, password) == dict(status='reject')
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
 
@@ -231,7 +229,7 @@ class TestAuthPlugins:
         plugin1.results = [None]
         plugin2.results = [dict(status="ok", groups=['group2', 'common'])]
         username, password = "user", "world"
-        assert auth.get_auth_status((username, password)) == [
-            'ok', username, ['common', 'group2']]
+        assert auth._get_auth_status(username, password) == dict(
+            status='ok', groups=['common', 'group2'])
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used

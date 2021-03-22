@@ -991,7 +991,7 @@ def test_replica_user_auth_before_other_plugins(makexom):
     with xom.keyfs.transaction(write=False):
         # because the replica auth has tryfirst our plugin shouldn't be called
         with pytest.raises(HTTPForbidden):
-            auth.get_auth_status((replica.REPLICA_USER_NAME, ''))
+            auth._get_auth_status(replica.REPLICA_USER_NAME, '')
 
 
 class TestFileReplicationSharedData:

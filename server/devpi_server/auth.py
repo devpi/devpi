@@ -133,13 +133,6 @@ class Auth:
             return {"password": pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
 
-    def get_auth_status(self, userpassword, request=None):
-        if userpassword is None:
-            return ["noauth", "", []]
-        username, password = userpassword
-        status = self._get_auth_status(username, password, request=request)
-        return [status["status"], username, status.get("groups", [])]
-
 
 def getpwhash(password, salt):
     hash = hashlib.sha256()
