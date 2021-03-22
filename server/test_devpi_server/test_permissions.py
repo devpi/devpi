@@ -17,24 +17,11 @@ def stage(request, model):
 
 @pytest.fixture
 def permissionrequest(dummyrequest, model):
-    from devpi_server.view_auth import DevpiAuthenticationPolicy
-    from pyramid.authorization import ACLAuthorizationPolicy
-    from pyramid.interfaces import IAuthenticationPolicy
-    from pyramid.interfaces import IAuthorizationPolicy
-    policy = DevpiAuthenticationPolicy(model.xom)
-    dummyrequest.registry.registerUtility(policy, IAuthenticationPolicy)
-    policy = ACLAuthorizationPolicy()
-    dummyrequest.registry.registerUtility(policy, IAuthorizationPolicy)
+    from devpi_server.view_auth import DevpiSecurityPolicy
+    from pyramid.interfaces import ISecurityPolicy
+    policy = DevpiSecurityPolicy(model.xom)
+    dummyrequest.registry.registerUtility(policy, ISecurityPolicy)
     dummyrequest.log = model.xom.log
-    try:
-        # for pyramid 2.0
-        from pyramid.interfaces import ISecurityPolicy
-        from pyramid.security import LegacySecurityPolicy
-    except ImportError:
-        pass
-    else:
-        security_policy = LegacySecurityPolicy()
-        dummyrequest.registry.registerUtility(security_policy, ISecurityPolicy)
     return dummyrequest
 
 
@@ -58,6 +45,7 @@ def xom(makexom, plugin):
 
 def with_user(request, user):
     from pyramid.authentication import b64encode
+    from pyramid.security import ISecurityPolicy
     if user is None:
         request.headers.pop('Authorization', None)
     else:
@@ -67,6 +55,8 @@ def with_user(request, user):
             auth = "%s:123" % user
         request.headers['Authorization'] = 'Basic %s' % b64encode(
             auth.encode('utf-8')).decode('ascii')
+    policy = request.registry.queryUtility(ISecurityPolicy)
+    policy.identity_cache.clear(request)
     return request
 
 

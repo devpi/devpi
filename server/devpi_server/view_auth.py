@@ -5,11 +5,8 @@ from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
 from devpi_server.views import abort
 from devpi_server.model import UpstreamError
-from pyramid.authentication import CallbackAuthenticationPolicy
-try:
-    from pyramid.authorization import Allow, Deny, Everyone
-except ImportError:
-    from pyramid.security import Allow, Deny, Everyone
+from pyramid.authorization import ACLHelper, Allow, Authenticated, Deny, Everyone
+from pyramid.request import RequestLocalCache
 
 
 class RootFactory(object):
@@ -177,49 +174,57 @@ class RootFactory(object):
         return self.matchdict.get('user')
 
 
-class DevpiAuthenticationPolicy(CallbackAuthenticationPolicy):
+class CredentialsIdentity:
+    def __init__(self, username, groups):
+        self.username = username
+        self.groups = groups
+
+
+class DevpiSecurityPolicy:
     def __init__(self, xom):
         self.realm = "pypi"
         self.auth = Auth(xom.model, xom.config.get_auth_secret())
         self.hook = xom.config.hook
+        self.identity_cache = RequestLocalCache(self.load_identity)
 
-    def unauthenticated_userid(self, request):
-        """ The userid parsed from the ``Authorization`` request header."""
-        credentials = self._get_credentials(request)
-        if credentials:
-            return credentials[0]
-
-    def remember(self, request, principal, **kw):
-        """ A no-op. Devpi authentication does not provide a protocol for
-        remembering the user. Credentials are sent on every request.
-        """
+    def remember(self, request, userid, **kw):
+        # A no-op. Devpi authentication does not provide a protocol for
+        # remembering the user. Credentials are sent on every request.
         return []
 
-    def forget(self, request):
-        """ Returns challenge headers. This should be attached to a response
-        to indicate that credentials are required."""
+    def forget(self, request, **kw):
         return [('WWW-Authenticate', 'Basic realm="%s"' % self.realm)]
-
-    def callback(self, username, request):
-        # Username arg is ignored.  Unfortunately _get_credentials winds up
-        # getting called twice when authenticated_userid is called.  Avoiding
-        # that, however, winds up duplicating logic from the superclass.
-        credentials = self._get_credentials(request)
-        if credentials:
-            status, auth_user, groups = self.auth.get_auth_status(
-                credentials, request=request)
-            request.log.debug("got auth status %r for user %r" % (status, auth_user))
-            if status == "ok":
-                return [":%s" % g for g in groups]
-            return None
 
     def _get_credentials(self, request):
         return self.hook.devpiserver_get_credentials(request=request)
 
-    def verify_credentials(self, request):
+    def load_identity(self, request):
         credentials = self._get_credentials(request)
-        if credentials:
-            status = self.auth._get_auth_status(*credentials, request=request)
-            if status.get("status") == "ok":
-                return True
-        return False
+        if credentials is None:
+            return
+        result = self.auth._get_auth_status(*credentials, request=request)
+        status = result["status"]
+        if status != "ok":
+            return
+        return CredentialsIdentity(credentials[0], result.get("groups", []))
+
+    def identity(self, request):
+        return self.identity_cache.get_or_create(request)
+
+    def authenticated_userid(self, request):
+        # defer to the identity logic to determine if the user id logged in
+        # and return None if they are not
+        identity = request.identity
+        if identity is not None:
+            return identity.username
+
+    def permits(self, request, context, permission):
+        # use the identity to build a list of principals, and pass them
+        # to the ACLHelper to determine allowed/denied
+        identity = request.identity
+        principals = set([Everyone])
+        if identity is not None:
+            principals.add(Authenticated)
+            principals.add(identity.username)
+            principals.update(":" + g for g in identity.groups)
+        return ACLHelper().permits(context, principals, permission)

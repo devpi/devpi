@@ -3,9 +3,9 @@ import pytest
 
 
 @pytest.fixture
-def dap(xom):
-    from devpi_server.view_auth import DevpiAuthenticationPolicy
-    return DevpiAuthenticationPolicy(xom)
+def dsp(xom):
+    from devpi_server.view_auth import DevpiSecurityPolicy
+    return DevpiSecurityPolicy(xom)
 
 
 class TestCredentialPlugin:
@@ -22,15 +22,15 @@ class TestCredentialPlugin:
         xom = makexom(plugins=[plugin])
         return xom
 
-    def test_credential_plugin_no_credentials(self, blank_request, dap, plugin):
+    def test_credential_plugin_no_credentials(self, blank_request, dsp, plugin):
         plugin.results = [None]
         request = blank_request()
-        assert dap._get_credentials(request) is None
+        assert dsp._get_credentials(request) is None
 
-    def test_credential_plugin_got_credentials(self, blank_request, dap, plugin):
+    def test_credential_plugin_got_credentials(self, blank_request, dsp, plugin):
         plugin.results = [('foo', 'bar')]
         request = blank_request()
-        assert dap._get_credentials(request) == ('foo', 'bar')
+        assert dsp._get_credentials(request) == ('foo', 'bar')
 
 
 class TestCredentialPlugins:
@@ -58,30 +58,30 @@ class TestCredentialPlugins:
         xom = makexom(plugins=plugins)
         return xom
 
-    def test_credential_plugins_no_credentials(self, blank_request, dap, plugin1, plugin2):
+    def test_credential_plugins_no_credentials(self, blank_request, dsp, plugin1, plugin2):
         plugin1.results = [None]
         plugin2.results = [None]
         request = blank_request()
-        assert dap._get_credentials(request) is None
+        assert dsp._get_credentials(request) is None
 
-    def test_credential_plugins_got_one_credential(self, blank_request, dap, plugin1, plugin2):
+    def test_credential_plugins_got_one_credential(self, blank_request, dsp, plugin1, plugin2):
         plugin1.results = [('foo', 'bar')]
         plugin2.results = [None]
         request = blank_request()
-        assert dap._get_credentials(request) == ('foo', 'bar')
+        assert dsp._get_credentials(request) == ('foo', 'bar')
 
-    def test_credential_plugins_got_another_credential(self, blank_request, dap, plugin1, plugin2):
+    def test_credential_plugins_got_another_credential(self, blank_request, dsp, plugin1, plugin2):
         plugin1.results = [None]
         plugin2.results = [('foo', 'bar')]
         request = blank_request()
-        assert dap._get_credentials(request) == ('foo', 'bar')
+        assert dsp._get_credentials(request) == ('foo', 'bar')
 
-    def test_credential_plugins_got_two_credential(self, blank_request, dap, plugin1, plugin2):
+    def test_credential_plugins_got_two_credential(self, blank_request, dsp, plugin1, plugin2):
         plugin1.results = [('ham', 'egg')]
         plugin2.results = [('foo', 'bar')]
         request = blank_request()
         # one of them wins, depends on entry point order and is undefined
-        assert dap._get_credentials(request) in [('ham', 'egg'), ('foo', 'bar')]
+        assert dsp._get_credentials(request) in [('ham', 'egg'), ('foo', 'bar')]
 
 
 class TestHeaderCredentialPlugin:
@@ -98,21 +98,21 @@ class TestHeaderCredentialPlugin:
     def xom(self, makexom, plugin):
         return makexom(plugins=[plugin])
 
-    def test_credential_plugin_no_credentials(self, blank_request, dap, plugin):
+    def test_credential_plugin_no_credentials(self, blank_request, dsp, plugin):
         request = blank_request()
-        assert dap._get_credentials(request) is None
+        assert dsp._get_credentials(request) is None
 
-    def test_credential_plugin_got_credentials(self, blank_request, dap, plugin):
+    def test_credential_plugin_got_credentials(self, blank_request, dsp, plugin):
         request = blank_request()
         request.headers['X-Devpi-User'] = 'foo'
-        assert dap._get_credentials(request) == ('foo', '')
+        assert dsp._get_credentials(request) == ('foo', '')
 
 
-class TestDevpiAuthenticationPolicy:
+class TestDevpiSecurityPolicy:
     @pytest.fixture
     def policy(self, xom):
-        from devpi_server.view_auth import DevpiAuthenticationPolicy
-        return DevpiAuthenticationPolicy(xom)
+        from devpi_server.view_auth import DevpiSecurityPolicy
+        return DevpiSecurityPolicy(xom)
 
     @pytest.fixture
     def blank_request(self, blank_request, xom):
@@ -124,7 +124,7 @@ class TestDevpiAuthenticationPolicy:
     def test_nouser_basic(self, blank_request, policy, xom):
         from pyramid.authentication import b64encode
         blank_request.headers['Authorization'] = 'BASIC ' + b64encode('foo:bar').decode("ascii")
-        assert policy.callback('foo', blank_request) is None
+        assert policy.identity(blank_request) is None
 
     def test_expired(self, blank_request, mock, policy, xom):
         from pyramid.authentication import b64encode
@@ -132,4 +132,4 @@ class TestDevpiAuthenticationPolicy:
             timemock.return_code = 0.0
             passwd = policy.auth.serializer.dumps(('foo', []))
         blank_request.headers['X-Devpi-Auth'] = b64encode('foo:%s' % passwd).decode("ascii")
-        assert policy.callback('foo', blank_request) is None
+        assert policy.identity(blank_request) is None
