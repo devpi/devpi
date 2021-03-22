@@ -55,10 +55,16 @@ def log_replica_token_error(request, msg):
         request.__devpi_replica_token_warned = True
 
 
-@hookimpl
-def devpiserver_get_credentials(request):
+class ReplicaIdentity:
+    def __init__(self):
+        self.username = REPLICA_USER_NAME
+        self.groups = []
+
+
+@hookimpl(tryfirst=True)
+def devpiserver_get_identity(request, credentials):
     # the DummyRequest class used in testing doesn't have the attribute
-    authorization = getattr(request, 'authorization', None)
+    authorization = request.authorization
     if not authorization:
         return None
     if authorization.authtype != 'Bearer':
@@ -69,28 +75,25 @@ def devpiserver_get_credentials(request):
         log_replica_token_error(
             request, "Replica token detected, but role isn't master.")
         return None
-    return (REPLICA_USER_NAME, authorization.params)
-
-
-@hookimpl(tryfirst=True)
-def devpiserver_auth_request(request, userdict, username, password):
-    if username != REPLICA_USER_NAME:
-        return None
-    # no other plugin must be able to authenticate the special REPLICA_USER_NAME
-    # so instead of returning status unknown, we will raise HTTPForbidden
-    if request is None or H_REPLICA_UUID not in request.headers:
-        raise HTTPForbidden("Authorization malformed.")
     auth_serializer = get_auth_serializer(request.registry["xom"].config)
     try:
         sent_uuid = auth_serializer.loads(
-            password, max_age=REPLICA_AUTH_MAX_AGE)
+            authorization.params, max_age=REPLICA_AUTH_MAX_AGE)
     except itsdangerous.SignatureExpired:
         raise HTTPForbidden("Authorization expired.")
     except itsdangerous.BadData:
         raise HTTPForbidden("Authorization malformed.")
     if not secrets.compare_digest(request.headers[H_REPLICA_UUID], sent_uuid):
         raise HTTPForbidden("Wrong authorization value.")
-    return dict(status="ok")
+    return ReplicaIdentity()
+
+
+@hookimpl(tryfirst=True)
+def devpiserver_auth_request(request, userdict, username, password):
+    # no other plugin must be able to authenticate the special REPLICA_USER_NAME
+    # so instead of returning status unknown, we will raise HTTPForbidden
+    if username == REPLICA_USER_NAME:
+        raise HTTPForbidden("Authorization malformed.")
 
 
 class MasterChangelogRequest:
@@ -143,9 +146,10 @@ class MasterChangelogRequest:
             raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
                                  (master_uuid, expected_uuid))
 
-        if self.request.authenticated_userid != REPLICA_USER_NAME:
+        identity = self.request.identity
+        if identity is not None and not isinstance(identity, ReplicaIdentity):
             raise HTTPForbidden(
-                "Authenticated user name is not '%s'." % REPLICA_USER_NAME)
+                "Authenticated identity '%r' isn't from replica." % identity)
 
     @view_config(route_name="/+changelog/{serial}")
     def get_changes(self):

@@ -131,6 +131,25 @@ def devpiserver_get_credentials(request):
     """
 
 
+@hookspec(firstresult=True)
+def devpiserver_get_identity(request, credentials):
+    """Extracts identity from request.
+
+    The policy is the devpi security policy object.
+
+    The credentials are either a tuple with username and password, or None.
+
+    Returns an object with the following attributes, or None if no identity
+    could be determined.
+
+        ``username`` - username this identity belongs to
+        ``groups`` - a potentially empty list of groups names this identity
+        is a member of
+
+    The first plugin to return an identity is used.
+    """
+
+
 @hookspec(warn_on_impl="Use new devpiserver_auth_request hook instead")
 def devpiserver_auth_user(userdict, username, password):
     """return dict containing authentication validation results.

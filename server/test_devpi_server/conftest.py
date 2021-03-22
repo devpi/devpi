@@ -220,11 +220,15 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
         from devpi_server import auth_devpi
         from devpi_server import model
         from devpi_server import replica
+        from devpi_server import view_auth
         from devpi_server import views
         plugins = [
             plugin[0] if isinstance(plugin, tuple) else plugin
             for plugin in plugins]
-        for plugin in [auth_basic, auth_devpi, extpypi, model, replica, views, storage_info["_test_plugin"]]:
+        default_plugins = [
+            auth_basic, auth_devpi, extpypi, model, replica, view_auth, views,
+            storage_info["_test_plugin"]]
+        for plugin in default_plugins:
             if plugin not in plugins:
                 plugins.append(plugin)
         pm = get_pluginmanager(load_entrypoints=False)

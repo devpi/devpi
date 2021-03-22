@@ -3,9 +3,11 @@ from devpi_common.types import cached_property
 from devpi_common.types import ensure_unicode
 from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
+from devpi_server.config import hookimpl
 from devpi_server.views import abort
 from devpi_server.model import UpstreamError
 from pyramid.authorization import ACLHelper, Allow, Authenticated, Deny, Everyone
+from pyramid.interfaces import ISecurityPolicy
 from pyramid.request import RequestLocalCache
 
 
@@ -200,13 +202,8 @@ class DevpiSecurityPolicy:
 
     def load_identity(self, request):
         credentials = self._get_credentials(request)
-        if credentials is None:
-            return
-        result = self.auth._get_auth_status(*credentials, request=request)
-        status = result["status"]
-        if status != "ok":
-            return
-        return CredentialsIdentity(credentials[0], result.get("groups", []))
+        return self.hook.devpiserver_get_identity(
+            request=request, credentials=credentials)
 
     def identity(self, request):
         return self.identity_cache.get_or_create(request)
@@ -228,3 +225,16 @@ class DevpiSecurityPolicy:
             principals.add(identity.username)
             principals.update(":" + g for g in identity.groups)
         return ACLHelper().permits(context, principals, permission)
+
+
+@hookimpl(trylast=True)
+def devpiserver_get_identity(request, credentials):
+    if credentials is None:
+        return
+    policy = request.registry.getUtility(ISecurityPolicy)
+    result = policy.auth._get_auth_status(*credentials, request=request)
+    status = result["status"]
+    if status != "ok":
+        return
+    return CredentialsIdentity(
+        credentials[0], result.get("groups", []))
