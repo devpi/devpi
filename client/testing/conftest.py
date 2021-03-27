@@ -21,6 +21,10 @@ print_ = py.builtin.print_
 
 
 def pytest_addoption(parser):
+    parser.addoption(
+        "--devpi-server-requirements",
+        help="devpi-server requirements to install in virtualenv",
+        action="append")
     parser.addoption("--fast", help="skip functional/slow tests", default=False,
                      action="store_true")
     parser.addoption("--live-url", help="run tests against live devpi server",
@@ -119,19 +123,25 @@ def find_python3():
         "C:\\Python36-x64\\python.exe",
         "C:\\Python36\\python.exe",
         "C:\\Python37-x64\\python.exe",
-        "C:\\Python37\\python.exe"]
+        "C:\\Python37\\python.exe",
+        "C:\\Python38-x64\\python.exe",
+        "C:\\Python38\\python.exe",
+        "C:\\Python39-x64\\python.exe",
+        "C:\\Python39\\python.exe"]
     for location in locations:
         if not os.path.exists(location):
             continue
         try:
             output = subprocess.check_output([location, '--version'])
-            if output.strip().startswith('Python 3'):
+            if output.strip().startswith(b'Python 3'):
                 return location
         except subprocess.CalledProcessError:
             continue
     names = [
         'python3.6',
         'python3.7',
+        'python3.8',
+        'python3.9',
         'python3']
     for name in names:
         path = py.path.local.sysfind(name)
@@ -140,7 +150,7 @@ def find_python3():
         path = str(path)
         try:
             output = subprocess.check_output([path, '--version'])
-            if output.strip().startswith('Python 3'):
+            if output.strip().startswith(b'Python 3'):
                 return path
         except subprocess.CalledProcessError:
             continue
@@ -161,10 +171,13 @@ def get_venv_script(venv_path, script_names):
 def server_executable(request, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
-    # first try installed devpi-server for quick runs during development
-    path = py.path.local.sysfind("devpi-server")
-    if path:
-        return str(path)
+    requirements = request.config.option.devpi_server_requirements
+    if not requirements:
+        requirements = ['devpi-server']
+        # first try installed devpi-server for quick runs during development
+        path = py.path.local.sysfind("devpi-server")
+        if path:
+            return str(path)
     # there is no devpi-server installed
     python3 = find_python3()
     # prepare environment for subprocess call
@@ -181,7 +194,7 @@ def server_executable(request, tmpdir_factory):
     # install devpi-server
     venv_pip = get_venv_script(venv_path, ('pip', 'pip.exe'))
     subprocess.check_call(
-        [venv_pip, 'install', 'devpi-server'],
+        [venv_pip, 'install'] + requirements,
         env=env)
     return get_venv_script(venv_path, ('devpi-server', 'devpi-server.exe'))
 
