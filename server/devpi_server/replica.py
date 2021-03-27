@@ -593,6 +593,20 @@ def devpiserver_metrics(request):
     return result
 
 
+def includeme(config):
+    # config.add_request_method(devpi_token_utility, reify=True)
+    config.add_route("/+changelog/{serial}", r"/+changelog/{serial:\d+}")
+    config.add_route("/+changelog/{serial}-", r"/+changelog/{serial:\d+}-")
+    config.scan("devpi_server.replica")
+
+
+@hookimpl
+def devpiserver_pyramid_configure(config, pyramid_config):
+    # by using include, the package name doesn't need to be set explicitly
+    # for registrations of static views etc
+    pyramid_config.include("devpi_server.replica")
+
+
 @devpiweb_hookimpl
 def devpiweb_get_status_info(request):
     xom = request.registry['xom']
