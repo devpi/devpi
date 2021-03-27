@@ -11,18 +11,15 @@ def devpiserver_get_credentials(request):
     extracted, or None if no credentials were found.
     """
     # support basic authentication for setup.py upload/register
-    authorization = request.headers.get('Authorization')
+    # the DummyRequest class used in testing doesn't have the attribute
+    authorization = request.authorization
     if not authorization:
         return None
-    try:
-        authmeth, auth = authorization.split(' ', 1)
-    except ValueError:  # not enough values to unpack
-        return None
-    if authmeth.lower() != 'basic':
+    if request.authorization.authtype.lower() != 'basic':
         return None
 
     try:
-        authbytes = b64decode(auth.strip())
+        authbytes = b64decode(request.authorization.params)
     except (TypeError, binascii.Error):  # can't decode
         return None
 

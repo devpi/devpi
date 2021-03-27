@@ -16,10 +16,14 @@ def stage(request, model):
 
 
 @pytest.fixture
-def permissionrequest(dummyrequest, model):
+def permissionrequest(model):
     from devpi_server.view_auth import DevpiSecurityPolicy
     from pyramid.interfaces import ISecurityPolicy
+    from pyramid.request import Request
+    from pyramid.threadlocal import get_current_registry
     policy = DevpiSecurityPolicy(model.xom)
+    dummyrequest = Request.blank('/')
+    dummyrequest.registry = get_current_registry()
     dummyrequest.registry.registerUtility(policy, ISecurityPolicy)
     dummyrequest.log = model.xom.log
     return dummyrequest
