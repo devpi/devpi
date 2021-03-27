@@ -396,10 +396,6 @@ class XOM:
         pyramid_config.add_view_deriver(self.view_deriver, under=INGRESS)
         pyramid_config.add_view_predicate('content_type', ContentTypePredicate)
 
-        pyramid_config.add_route("/+changelog/{serial}",
-                                 r"/+changelog/{serial:\d+}")
-        pyramid_config.add_route("/+changelog/{serial}-",
-                                 r"/+changelog/{serial:\d+}-")
         pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
         pyramid_config.add_route("/{user}/+api", "/{user}/+api", accept="application/json")
@@ -449,7 +445,7 @@ class XOM:
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
         # XXX end hack
-        pyramid_config.scan()
+        pyramid_config.scan("devpi_server.views")
         app = pyramid_config.make_wsgi_app()
         return OutsideURLMiddleware(app, self)
 
