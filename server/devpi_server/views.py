@@ -152,9 +152,9 @@ class OutsideURLMiddleware(object):
         self.xom = xom
 
     def __call__(self, environ, start_response):
-        outside_url = self.xom.config.args.outside_url
+        outside_url = environ.get('HTTP_X_OUTSIDE_URL')
         if not outside_url:
-            outside_url = environ.get('HTTP_X_OUTSIDE_URL')
+            outside_url = self.xom.config.args.outside_url
         if outside_url:
             # XXX memoize it for later access from replica thread
             # self.xom.current_outside_url = outside_url

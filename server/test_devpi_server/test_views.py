@@ -2076,13 +2076,14 @@ def test_wrong_login_format(testapp, mapp):
     (
         {"Host": "outside3.com:3141"}, {'wsgi.url_scheme': 'https'},
         None, "https://outside3.com:3141"),
-    # outside url takes precedence over headers
+    # x-outside-url header takes precedence over outside url option
     (
         {"X-outside-url": "http://outside.com"}, {},
-        "http://outside2.com", "http://outside2.com"),
+        "http://outside2.com", "http://outside.com"),
     (
         {"X-outside-url": "http://outside.com"}, {},
-        "http://outside2.com/foo", "http://outside2.com/foo"),
+        "http://outside2.com/foo", "http://outside.com"),
+    # outside url option takes precedence over host and environ
     (
         {"Host": "outside3.com"}, {},
         "http://out.com", "http://out.com"),
