@@ -111,6 +111,14 @@ def add_web_options(parser, pluginmanager):
         help="port to listen for http requests.")
 
     parser.addoption(
+        "--listen", type=str, action="append",
+        help="host:port combination to listen to for http requests. "
+             "When using * for host bind to all interfaces. "
+             "Use square brackets for ipv6 like [::1]:8080. "
+             "You can specify more than one host:port combination "
+             "with multiple --listen arguments.")
+
+    parser.addoption(
         "--unix-socket", type=str,
         help="path to unix socket to bind to.")
 
@@ -554,6 +562,42 @@ class Config(object):
         self.pluginmanager = pluginmanager
         self.hook = pluginmanager.hook
         self._key_cache = {}
+
+    @cached_property
+    def waitress_info(self):
+        from .main import fatal
+        host = self.args.host
+        port = self.args.port
+        default_host_port = (host == 'localhost') and (port == 3141)
+        addresses = []
+        kwargs = dict(
+            threads=self.args.threads,
+            max_request_body_size=self.args.max_request_body_size)
+        unix_socket = self.args.unix_socket
+        if unix_socket is not None:
+            kwargs['unix_socket'] = unix_socket
+            if self.args.unix_socket_perms is not None:
+                kwargs['unix_socket_perms'] = self.args.unix_socket_perms
+            if default_host_port:
+                host = None
+                port = None
+        if self.args.listen:
+            if not default_host_port:
+                fatal("You can use either --listen or --host/--port, not both together.")
+            host = None
+            port = None
+            for listen in self.args.listen:
+                kwargs.setdefault("listen", []).append(listen)
+                addresses.append("http://%s" % listen)
+        if host or port:
+            kwargs['host'] = host
+            kwargs['port'] = port
+            hostaddr = "http://%s:%s" % (host, port)
+            hostaddr6 = "http://[%s]:%s" % (host, port)
+            addresses.append("%s (might be %s for IPv6)" % (hostaddr, hostaddr6))
+        if "listen" in kwargs:
+            kwargs["listen"] = " ".join(kwargs["listen"])
+        return dict(kwargs=kwargs, addresses=addresses)
 
     @cached_property
     def serverdir(self):

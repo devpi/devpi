@@ -290,6 +290,36 @@ class TestConfig:
         makexom(plugins=(plugin,), opts=options)
         assert plugin.settings == {"bar": "ham"}
 
+    @pytest.mark.parametrize('opts, expected', [
+        # defaults
+        ((), dict(host='localhost', port=3141)),
+        # host/port
+        (('--host', 'foo'), dict(host='foo', port=3141)),
+        (('--port', '1234'), dict(host='localhost', port=1234)),
+        (('--host', 'foo', '--port', '1234'), dict(host='foo', port=1234)),
+        # listen
+        (('--listen', '*:3141'), dict(listen='*:3141')),
+        (('--listen', '127.0.0.1:3141'), dict(listen='127.0.0.1:3141')),
+        (('--listen', '[::1]:3141'), dict(listen='[::1]:3141')),
+        (('--listen', '127.0.0.1:3141', '--listen', '[::1]:3142'), dict(listen='127.0.0.1:3141 [::1]:3142')),
+        (('--host', 'foo', '--listen', '127.0.0.1:3141'), Fatal('You can use either --listen or --host/--port, not both together.')),
+        (('--port', '1234', '--listen', '127.0.0.1:3141'), Fatal('You can use either --listen or --host/--port, not both together.')),
+        (('--host', 'foo', '--port', '1234', '--listen', '127.0.0.1:3141'), Fatal('You can use either --listen or --host/--port, not both together.')),
+    ])
+    def test_waitress_info_listen_host_port(self, expected, opts):
+        config = make_config(("devpi-server",) + opts)
+        try:
+            result = {
+                k: v
+                for k, v in config.waitress_info['kwargs'].items()
+                if k in ('host', 'port', 'listen')}
+        except Exception as e:
+            if not isinstance(e, expected.__class__):
+                raise
+            assert e.args == expected.args
+        else:
+            assert result == expected
+
 
 class TestConfigFile:
     @pytest.fixture(params=(True, False))

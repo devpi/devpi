@@ -132,30 +132,16 @@ def make_application():
 
 def wsgi_run(xom, app):
     from waitress import serve
-    host = xom.config.args.host
-    port = xom.config.args.port
-    unix_socket = xom.config.args.unix_socket
-    kwargs = dict(
-        threads=xom.config.args.threads,
-        max_request_body_size=xom.config.args.max_request_body_size)
-    if unix_socket is not None:
-        kwargs['unix_socket'] = unix_socket
-        if xom.config.args.unix_socket_perms is not None:
-            kwargs['unix_socket_perms'] = xom.config.args.unix_socket_perms
-        if host == 'localhost':
-            host = None
-        if port == 3141:
-            port = None
-    if host or port:
-        kwargs['host'] = host
-        kwargs['port'] = port
     log = xom.log
+    kwargs = xom.config.waitress_info["kwargs"]
+    addresses = xom.config.waitress_info["addresses"]
     log.info("devpi-server version: %s", server_version)
     log.info("serverdir: %s" % xom.config.serverdir)
     log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
-    hostaddr = "http://%s:%s" % (host, port)
-    hostaddr6 = "http://[%s]:%s" % (host, port)
-    log.info("serving at url: %s (might be %s for IPv6)", hostaddr, hostaddr6)
+    if len(addresses) == 1:
+        log.info("serving at url: %s", addresses[0])
+    else:
+        log.info("serving at urls: %s", ", ".join(addresses))
     log.info("using %s threads", kwargs['threads'])
     log.info("bug tracker: https://github.com/devpi/devpi/issues")
     log.info("IRC: #devpi on irc.freenode.net")
