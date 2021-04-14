@@ -50,7 +50,13 @@ if __name__ == "__main__":
       description="devpi-server: reliable private and pypi.org caching server",
       keywords="pypi realtime cache server",
       long_description="\n\n".join([README, CHANGELOG]),
-      url="http://doc.devpi.net",
+      url="https://devpi.net",
+      project_urls={
+        'Bug Tracker': 'https://github.com/devpi/devpi/issues',
+        'Changelog': 'https://github.com/devpi/devpi/blob/main/server/CHANGELOG',
+        'Documentation': 'https://doc.devpi.net',
+        'Source Code': 'https://github.com/devpi/devpi'
+      },
       version='6.0.0.dev27',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",

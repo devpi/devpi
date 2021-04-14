@@ -31,7 +31,13 @@ setup(
     name="devpi-postgresql",
     description="devpi-postgresql: a PostgreSQL storage backend for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
-    url="http://doc.devpi.net",
+    url="https://devpi.net",
+    project_urls={
+        'Bug Tracker': 'https://github.com/devpi/devpi/issues',
+        'Changelog': 'https://github.com/devpi/devpi/blob/main/postgresql/CHANGELOG',
+        'Documentation': 'https://doc.devpi.net',
+        'Source Code': 'https://github.com/devpi/devpi'
+    },
     version='2.0.0',
     maintainer="Florian Schulze, Holger Krekel",
     maintainer_email="florian.schulze@gmx.net",

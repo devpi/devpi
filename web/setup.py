@@ -27,7 +27,13 @@ setup(
     name="devpi-web",
     description="devpi-web: a web view for devpi-server",
     long_description="\n\n".join([README, CHANGELOG]),
-    url="http://doc.devpi.net",
+    url="https://devpi.net",
+    project_urls={
+        'Bug Tracker': 'https://github.com/devpi/devpi/issues',
+        'Changelog': 'https://github.com/devpi/devpi/blob/main/web/CHANGELOG',
+        'Documentation': 'https://doc.devpi.net',
+        'Source Code': 'https://github.com/devpi/devpi'
+    },
     version='4.0.6',
     maintainer="Holger Krekel, Florian Schulze",
     maintainer_email="holger@merlinux.eu",
