@@ -44,7 +44,13 @@ if __name__ == "__main__":
       packages=['devpi'],
       install_requires=install_requires,
       extras_require=extras_require,
-      url="https://github.com/devpi/devpi",
+      url="https://devpi.net",
+      project_urls={
+          'Bug Tracker': 'https://github.com/devpi/devpi/issues',
+          'Changelog': 'https://github.com/devpi/devpi/blob/main/client/CHANGELOG',
+          'Documentation': 'https://doc.devpi.net',
+          'Source Code': 'https://github.com/devpi/devpi'
+      },
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
       license="MIT",
