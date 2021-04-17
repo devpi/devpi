@@ -1,1 +1,1 @@
-Dropped support for Python 2.7, 3.4 and 3.5.
+Dropped support for Python 2.7, 3.4 and 3.5. Python 3.x versions will be supported until their EOL (see https://devguide.python.org/#status-of-python-branches). After that, any release might break support for EOLed versions.
