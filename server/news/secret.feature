@@ -1,1 +1,1 @@
-Do some sanity checks on the secret provided by ``--secretfile``.
+Do some validity and security checks on the secret provided by ``--secretfile``.
