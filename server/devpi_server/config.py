@@ -132,6 +132,18 @@ def add_web_options(parser, pluginmanager):
         help="number of threads to start for serving clients.")
 
     parser.addoption(
+        "--trusted-proxy", type=str,
+        help="IP address of proxy we trust. See waitress documentation.")
+
+    parser.addoption(
+        "--trusted-proxy-count", type=int,
+        help="how many proxies we trust when chained. See waitress documentation.")
+
+    parser.addoption(
+        "--trusted-proxy-headers", type=str,
+        help="headers to trust from proxy. See waitress documentation.")
+
+    parser.addoption(
         "--max-request-body-size", type=int,
         default=1073741824,
         help="maximum number of bytes in request body. "
@@ -597,6 +609,12 @@ class Config(object):
             addresses.append("%s (might be %s for IPv6)" % (hostaddr, hostaddr6))
         if "listen" in kwargs:
             kwargs["listen"] = " ".join(kwargs["listen"])
+        if self.args.trusted_proxy is not None:
+            kwargs["trusted_proxy"] = self.args.trusted_proxy
+        if self.args.trusted_proxy_count is not None:
+            kwargs["trusted_proxy_count"] = self.args.trusted_proxy_count
+        if self.args.trusted_proxy_headers is not None:
+            kwargs["trusted_proxy_headers"] = self.args.trusted_proxy_headers
         return dict(kwargs=kwargs, addresses=addresses)
 
     @cached_property
