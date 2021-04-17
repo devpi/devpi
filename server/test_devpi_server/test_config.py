@@ -320,6 +320,17 @@ class TestConfig:
         else:
             assert result == expected
 
+    def test_waitress_info_trusted_proxy(self):
+        config = make_config((
+            "devpi-server",
+            "--trusted-proxy", "127.0.0.1",
+            "--trusted-proxy-count", "2",
+            "--trusted-proxy-headers", "x-forwarded-for x-forwarded-host x-forwarded-proto x-forwarded-port"))
+        kwargs = config.waitress_info['kwargs']
+        assert kwargs["trusted_proxy"] == "127.0.0.1"
+        assert kwargs["trusted_proxy_count"] == 2
+        assert kwargs["trusted_proxy_headers"] == "x-forwarded-for x-forwarded-host x-forwarded-proto x-forwarded-port"
+
 
 class TestConfigFile:
     @pytest.fixture(params=(True, False))
