@@ -1716,7 +1716,11 @@ class EventSubscribers:
         with keyfs.transaction(at_serial=ev.at_serial) as tx:
 
             if ev.back_serial > -1:
-                old = tx.get_value_at(ev.typedkey, ev.back_serial)
+                try:
+                    old = tx.get_value_at(ev.typedkey, ev.back_serial)
+                except KeyError:
+                    # the user was previously deleted
+                    old = {}
                 old_indexes = set(old.get("indexes", {}))
             else:
                 old_indexes = set()
