@@ -122,6 +122,49 @@ def test_indexer_relative_path():
         get_indexer_from_config(config)
 
 
+@pytest.mark.nomocking
+def test_dont_index_deleted_mirror(mapp, monkeypatch, simpypi, testapp):
+    from devpi_web.main import get_indexer
+    xom = mapp.xom
+    indexer = get_indexer(xom)
+    indexer_thread = indexer.indexer_thread
+    calls = []
+    monkeypatch.setattr(
+        indexer, "_update_project",
+        lambda *a, **kw: calls.append("update"))
+    monkeypatch.setattr(
+        indexer, "_delete_project",
+        lambda *a, **kw: calls.append("delete"))
+    simpypi.add_release("pkg", pkgver="pkg-1.0.zip")
+    mapp.login("root", "")
+    api = mapp.use("root/pypi")
+    mapp.modify_index(
+        "root/pypi",
+        indexconfig=dict(type="mirror", mirror_url=simpypi.simpleurl, volatile=True))
+    # fetching the index json triggers project names loading patched above
+    r = testapp.get_json(api.index)
+    assert r.status_code == 200
+    assert r.json["result"]["type"] == "mirror"
+    assert r.json["result"]["projects"] == ["pkg"]
+    (link,) = mapp.getreleaseslist("pkg")
+    assert "pkg-1.0.zip" in link
+    r = testapp.delete(api.index)
+    assert r.status_code == 201
+    r = testapp.get_json(api.index)
+    assert r.status_code == 404
+    # so far no events should have run
+    assert xom.keyfs.notifier.read_event_serial() == -1
+    # now start the event handler thread
+    xom.thread_pool.start_one(xom.keyfs.notifier)
+    serial = xom.keyfs.get_current_serial()
+    xom.keyfs.notifier.wait_event_serial(serial)
+    assert xom.keyfs.notifier.read_event_serial() == serial
+    # now start the indexer
+    xom.thread_pool.start_one(indexer_thread)
+    indexer_thread.wait()
+    assert calls == ["delete"]
+
+
 class FakeStage(object):
     def __init__(self, index_type):
         self.ixconfig = dict(type=index_type)
