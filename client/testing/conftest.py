@@ -149,6 +149,7 @@ def find_python3():
             continue
         path = str(path)
         try:
+            print("Checking %s at %s" % (name, path))
             output = subprocess.check_output([path, '--version'])
             if output.strip().startswith(b'Python 3'):
                 return path
