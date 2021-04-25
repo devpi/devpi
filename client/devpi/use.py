@@ -479,6 +479,14 @@ def main(hub, args=None):
     if user:
         if args.user and user != current.username:
             current.reconfigure(dict(username=user))
+        r = hub.http_api("GET", current.root_url.joinpath("+api"))
+        if r.status_code == 200:
+            authstatus = r.json().get("result", {}).get("authstatus")
+            if authstatus and authstatus[0] != "ok":
+                # update login status
+                current.del_auth()
+                user = None
+    if user:
         login_status = "logged in as %s" % user
     else:
         login_status = "not logged in"
