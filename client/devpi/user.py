@@ -52,7 +52,7 @@ def user_delete(hub, user):
 
 
 def user_list(hub):
-    r = hub.http_api("get", hub.current.rooturl)
+    r = hub.http_api("get", hub.current.root_url)
     for name in sorted(r.result or []):
         hub.line(name)
 

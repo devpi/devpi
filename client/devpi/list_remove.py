@@ -25,7 +25,7 @@ def out_index(hub, projects):
 
 def out_project(hub, reply, req):
     data = reply.result
-    index = hub.current.index[len(hub.current.rooturl):]
+    index = hub.current.indexname
     num = 0
     maxshow = 2
     for version in get_sorted_versions(data):

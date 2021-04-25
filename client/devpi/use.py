@@ -74,6 +74,10 @@ class Current(object):
         return indexserver.url
 
     @property
+    def indexname(self):
+        return self.index[len(self.root_url.url):]
+
+    @property
     def index_url(self):
         if self.index:
             return URL(self.index)
@@ -97,9 +101,10 @@ class Current(object):
 
     def set_auth(self, user, password):
         auth = self._get_auth_dict()
-        auth_users = dict(auth.get(self.rooturl, []))
+        rooturl = self.root_url.url
+        auth_users = dict(auth.get(rooturl, []))
         auth_users.pop(user, None)
-        auth[self.rooturl] = list(itertools.chain(
+        auth[rooturl] = list(itertools.chain(
             [(user, password)], sorted(auth_users.items())))
         self.username = user
         self.reconfigure(data=dict(_auth=auth))
@@ -107,11 +112,12 @@ class Current(object):
     def del_auth(self):
         user = self.get_auth_user()
         auth = self._get_auth_dict()
-        auth_users = dict(auth.get(self.rooturl, []))
+        rooturl = self.root_url.url
+        auth_users = dict(auth.get(rooturl, []))
         if user not in auth_users:
             return False
         del auth_users[user]
-        auth[self.rooturl] = list(sorted(auth_users.items()))
+        auth[rooturl] = list(sorted(auth_users.items()))
         self.reconfigure(data=dict(_auth=auth))
         return True
 
@@ -130,7 +136,7 @@ class Current(object):
         return username
 
     def get_auth(self, url=None, username=None):
-        url = url if url is not None else self.rooturl
+        url = url if url is not None else self.root_url
         username = username if username is not None else self.username
         auth = self._value_from_dict_by_url(self._get_auth_dict(), url)
         if not auth:
@@ -334,17 +340,11 @@ class Current(object):
         if glob:
             return py.path.local.sysfind(name)
 
-    # url helpers
-    #
-    @property
-    def rooturl(self):
-        if self.login:
-            return self.root_url.url
-
     @property
     def root_url(self):
         if self.login:
             return URL(self.login, ".")
+        return URL()
 
     def get_user_url(self, user=None):
         if user is None:
@@ -353,7 +353,7 @@ class Current(object):
                 raise ValueError("no current authenticated user")
         if '/' in user:
             raise ValueError("user name contains a slash")
-        return URL(self.rooturl).addpath(user)
+        return self.root_url.addpath(user)
 
     def get_index_url(self, indexname=None, slash=True):
         if indexname is None:
@@ -364,7 +364,7 @@ class Current(object):
             return self.get_user_url().addpath(indexname)
         if not slash:
             indexname = indexname.rstrip("/")
-        return URL(self.rooturl).joinpath(indexname, asdir=slash)
+        return self.root_url.joinpath(indexname, asdir=slash)
 
     def get_project_url(self, name, indexname=None):
         return self.get_index_url(indexname=indexname).addpath(name, asdir=1)
@@ -466,7 +466,7 @@ def main(hub, args=None):
             hub.fatal("not connected to any server")
         if args.user:
             rooturl = rooturl.joinpath(args.user)
-        r = hub.http_api("GET", rooturl.url, {}, quiet=True)
+        r = hub.http_api("GET", rooturl, {}, quiet=True)
         result = r.result
         if args.user:
             result = {args.user: result}
@@ -482,7 +482,7 @@ def main(hub, args=None):
         login_status = "logged in as %s" % user
     else:
         login_status = "not logged in"
-    if current.rooturl:
+    if current.root_url:
         if current.index:
             if showurls:
                 for name in devpi_endpoints:
@@ -493,7 +493,7 @@ def main(hub, args=None):
                     hub.info("supported features: %s" % ", ".join(sorted(current.features)))
             hub.validate_index_access()
         else:
-            hub.info("using server: %s (%s)" % (current.rooturl, login_status))
+            hub.info("using server: %s (%s)" % (current.root_url, login_status))
             hub.error("no current index: type 'devpi use -l' "
                       "to discover indices")
     else:
