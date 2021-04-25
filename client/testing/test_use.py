@@ -1,7 +1,6 @@
 from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
 from devpi.use import Current, PersistentCurrent
 from devpi.use import get_keyvalues, out_index_list
-from devpi_common.url import URL
 import pytest
 import re
 import requests.exceptions
@@ -140,18 +139,18 @@ class TestUnit:
             "login": "http://l/login",
         }
         current.reconfigure(data=d)
-        assert current.rooturl
+        assert current.root_url
         current.set_auth("user", "password")
         assert current.get_auth() == ("user", "password")
 
         # ok response
         d["authstatus"] = ["ok", "user"]
-        current._configure_from_server_api(d, URL(current.rooturl))
+        current._configure_from_server_api(d, current.root_url)
         assert current.get_auth() == ("user", "password")
 
         # invalidation response
         d["authstatus"] = ["nouser", "user"]
-        current._configure_from_server_api(d, URL(current.rooturl))
+        current._configure_from_server_api(d, current.root_url)
         assert not current.get_auth()
 
     def test_rooturl_on_outside_url(self, loghub):
@@ -161,7 +160,7 @@ class TestUnit:
             "login": "http://l/subpath/login",
         }
         current.reconfigure(data=d)
-        assert current.rooturl == "http://l/subpath/"
+        assert current.root_url == "http://l/subpath/"
 
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
@@ -306,11 +305,11 @@ class TestUnit:
 
         hub = cmd_devpi("use", "http://world.com")
         assert hub.current.index == "http://world.com/index"
-        assert hub.current.rooturl == "http://world.com/"
+        assert hub.current.root_url == "http://world.com/"
 
         hub = cmd_devpi("use", "http://world2.com")
         assert not hub.current.index
-        assert hub.current.rooturl == "http://world2.com/"
+        assert hub.current.root_url == "http://world2.com/"
 
     def test_switch_to_temporary(self, makehub, mock_http_api):
         hub = makehub(['use'])

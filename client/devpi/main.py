@@ -492,8 +492,8 @@ def try_argcomplete(parser):
 
 def print_version(hub):
     hub.line("devpi-client %s\n" % client_version)
-    if hub.current.rooturl is not None:
-        url = URL(hub.current.rooturl).addpath('+status').url
+    if hub.current.root_url is not None:
+        url = hub.current.root_url.addpath('+status').url
         try:
             r = HTTPReply(hub.http.get(
                 url, headers=dict(accept='application/json')))
@@ -503,7 +503,7 @@ def print_version(hub):
             status = r.json_get('result')
             if r.status_code == 200 and status is not None:
                 hub.info(
-                    "current devpi server: %s" % hub.current.rooturl)
+                    "current devpi server: %s" % hub.current.root_url)
                 versioninfo = status.get('versioninfo', {})
                 for name, version in sorted(versioninfo.items()):
                     hub.line("    %s %s" % (name, version))
