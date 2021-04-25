@@ -116,6 +116,8 @@ class Current(object):
         return True
 
     def get_auth_user(self, username=None):
+        if "DEVPI_USER" in os.environ:
+            username = os.environ["DEVPI_USER"]
         if username is None:
             username = self.username
         if username is None:
@@ -475,7 +477,7 @@ def main(hub, args=None):
 
     user = current.get_auth_user(args.user)
     if user:
-        if user != current.username:
+        if args.user and user != current.username:
             current.reconfigure(dict(username=user))
         login_status = "logged in as %s" % user
     else:
