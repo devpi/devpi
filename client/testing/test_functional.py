@@ -309,6 +309,33 @@ def test_switching_user_preserves_auth(existing_user_id, out_devpi, url_of_lives
     result.stdout.fnmatch_lines("*(logged in as %s)" % existing_user_id)
 
 
+def test_devpi_user_environment_variable(existing_user_id, monkeypatch, out_devpi, url_of_liveserver):
+    import re
+    result = out_devpi("use", url_of_liveserver)
+    (user1,) = re.search(
+        r'\(logged in as (.+?)\)', result.stdout.str()).groups()
+    assert user1 != existing_user_id
+    result = out_devpi("login", existing_user_id, "--password", "1234")
+    (user2,) = re.search(
+        r"logged in '(.+?)'", result.stdout.str()).groups()
+    assert user1 != user2
+    assert user2 == existing_user_id
+    monkeypatch.setenv("DEVPI_USER", user1)
+    result = out_devpi("use", url_of_liveserver)
+    result.stdout.fnmatch_lines("*(logged in as %s)" % user1)
+    # check that username is still the same
+    monkeypatch.delenv("DEVPI_USER")
+    result = out_devpi("use", url_of_liveserver)
+    result.stdout.fnmatch_lines("*(logged in as %s)" % existing_user_id)
+    monkeypatch.setenv("DEVPI_USER", existing_user_id)
+    result = out_devpi("use", url_of_liveserver)
+    result.stdout.fnmatch_lines("*(logged in as %s)" % existing_user_id)
+    # check that username is still the same
+    monkeypatch.delenv("DEVPI_USER")
+    result = out_devpi("use", url_of_liveserver)
+    result.stdout.fnmatch_lines("*(logged in as %s)" % existing_user_id)
+
+
 @pytest.fixture
 def new_user_id(gen, mapp):
     """Create a new user id.
