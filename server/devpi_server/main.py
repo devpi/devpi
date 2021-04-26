@@ -425,6 +425,7 @@ class XOM:
         pyramid_config.add_request_method(stage_url)
         pyramid_config.add_request_method(simpleindex_url)
         pyramid_config.add_request_method(apifatal)
+        pyramid_config.add_request_method(apireturn_for_request, "apireturn")
 
         # overwrite route_url method with our own
         pyramid_config.add_request_method(route_url)
@@ -482,6 +483,10 @@ def simpleindex_url(request, *args):
 
 def apifatal(request, *args, **kwargs):
     request.registry["xom"].keyfs.tx.doom()
+    apireturn(*args, **kwargs)
+
+
+def apireturn_for_request(request, *args, **kwargs):
     apireturn(*args, **kwargs)
 
 
