@@ -873,7 +873,6 @@ class MyTestApp(TApp):
     def get_json(self, *args, **kwargs):
         headers = kwargs.setdefault("headers", {})
         headers["Accept"] = "application/json"
-        self.x = 1
         return self.get(*args, **kwargs)
 
 
