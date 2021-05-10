@@ -401,12 +401,11 @@ class XOM:
         pyramid_config.add_route(
             "installer_simple", "/{user}/{index:[^/]+/?}",
             header="User-Agent:" + INSTALLER_USER_AGENT,
-            accept="text/html")
+            accept="text/html", request_method="GET")
         pyramid_config.add_route(
             "installer_simple_project", "/{user}/{index}/{project:[^/]+/?}",
             header="User-Agent:" + INSTALLER_USER_AGENT,
-            accept="text/html",
-        )
+            accept="text/html", request_method="GET")
         pyramid_config.add_route("/{user}/{index}/{project}",
                                  "/{user}/{index}/{project:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
