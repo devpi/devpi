@@ -844,7 +844,7 @@ devpi command reference (server)
 
 ::
 
-    $ devpi-web-clear-index -h
+    $ devpi-clear-search-index -h
     usage: devpi-web-clear-index [-h] [-c CONFIGFILE] [--serverdir DIR]
                                  [--storage NAME] [--keyfs-cache-size NUM]
                                  [--indexer-backend NAME]
