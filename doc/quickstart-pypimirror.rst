@@ -69,7 +69,7 @@ see :ref:`quickstart-server` for more details::
     $ supervisord -c gen-config/supervisord.conf
 
 ..
-    $ sleep 3
+    $ sleep 6
 
 You now have a server listening on ``http://localhost:3141``.
 

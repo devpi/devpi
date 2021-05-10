@@ -71,7 +71,7 @@ see :ref:`quickstart-server` for more details::
     $ supervisord -c gen-config/supervisord.conf
 
 ..
-    $ sleep 3
+    $ sleep 6
 
 Then we point the devpi client to it::
 

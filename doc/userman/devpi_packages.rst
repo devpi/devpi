@@ -96,7 +96,7 @@ Then we install a package from PyPI::
    
 From there::
 
-   $ pwd 
+   pysober $ pwd
    /home/hpk/p/devpi/doc/userman
 
 .. _devpi_um_packages_rf_upload:
