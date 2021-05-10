@@ -41,9 +41,11 @@ class ThreadPool:
         assert not isinstance(obj, threading.Thread)
         assert hasattr(obj, "thread_run")
         assert not hasattr(obj, "thread")
-        thread = MyThread(target=obj.thread_run, kwargs=kwargs or {},
-                          name=obj.__class__.__name__)
-        thread.setDaemon(daemon)
+        thread = MyThread(
+            target=obj.thread_run,
+            kwargs=kwargs or {},
+            name=obj.__class__.__name__,
+            daemon=daemon)
         thread.pool = self
         obj.thread = thread
         self._objects.append(obj)
