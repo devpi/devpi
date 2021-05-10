@@ -90,27 +90,6 @@ Let's install the ``simplejson`` package as a test from our cache::
     Installing collected packages: simplejson
     Successfully installed simplejson-3.17.0
 
-Let's uninstall it::
-
-    $ pip uninstall -y simplejson
-    Uninstalling simplejson-3.17.0:
-      Successfully uninstalled simplejson-3.17.0
-
-and then re-install it with ``easy_install``::
-
-    $ easy_install -i http://localhost:3141/root/pypi/+simple/ simplejson
-    Searching for simplejson
-    Reading http://localhost:3141/root/pypi/+simple/simplejson/
-    Downloading http://localhost:3141/root/pypi/+f/86a/fc5b5cbd42d70/simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl#sha256=86afc5b5cbd42d706efd33f280fec7bd7e2772ef54e3f34cf6b30777cd19a614
-    Best match: simplejson 3.17.0
-    Processing simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl
-    Installing simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl to /private/tmp/docenv/lib/python3.6/site-packages
-    Adding simplejson 3.17.0 to easy-install.pth file
-    
-    Installed /private/tmp/docenv/lib/python3.6/site-packages/simplejson-3.17.0-py3.6-macosx-10.14-x86_64.egg
-    Processing dependencies for simplejson
-    Finished processing dependencies for simplejson
-
 Feel free to install any other package.  If you encounter lookup/download
 issues when installing a public pypi package, please report the offending
 package name to the `devpi issue tracker`_, at best including
