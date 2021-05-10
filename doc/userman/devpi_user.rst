@@ -27,7 +27,7 @@ But before that, users must indicate to the devpi client which server to use::
    no current index: type 'devpi use -l' to discover indices
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
-   /tmp/docenv/pip.conf   : no config file exists
+   /tmp/docenv/pip.conf: no config file exists
    always-set-cfg: no
 
 In this case, we do not make use of a particular index. We could however
@@ -43,7 +43,7 @@ For instance, to use the ``pypi`` index, once could issue::
    supported features: server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
-   /tmp/docenv/pip.conf   : no config file exists
+   /tmp/docenv/pip.conf: no config file exists
    always-set-cfg: no
    
 More on the use command can be found :ref:`here <devpi_um_indices_use_section>`
@@ -75,6 +75,7 @@ Or inspect the server configuration::
    $ devpi getjson /emilie 
    {
        "result": {
+           "created": "2021-05-10T14:44:15Z",
            "email": "edoe@mydomain.net",
            "indexes": {},
            "username": "emilie"
@@ -146,7 +147,7 @@ credentials::
 ::
 
    $ devpi user mistake -y --delete  
-   About to remove: <URL 'http://localhost:3141/mistake'>
+   About to remove: http://localhost:3141/mistake
    Are you sure (yes/no)? yes (autoset from -y option)
    user deleted: mistake
 
