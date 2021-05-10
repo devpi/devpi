@@ -279,14 +279,14 @@ First initialize it::
 
     $ devpi-init
     INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    INFO  NOCTX generated uuid: 2b75a9e00bde45c4b0b3b37736dac2c2
+    INFO  NOCTX generated uuid: 446e22e0db5e41a5989fd671e98ec30b
     INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
     INFO  NOCTX DB: Creating schema
     INFO  [Wtx-1] setting password for user 'root'
-    INFO  [Wtx-1] created user 'root' with email None
+    INFO  [Wtx-1] created user 'root'
     INFO  [Wtx-1] created root user
     INFO  [Wtx-1] created root/pypi index
-    INFO  [Wtx-1] fswriter0: committed: keys: '.config','root/.config'
+    INFO  [Wtx-1] fswriter0: commited at 0
 
 Next we create configuration files for various process managers.
 Note that we set the port we want to use::
@@ -351,7 +351,7 @@ For purposes of this tutorial, we use the URL
     no current index: type 'devpi use -l' to discover indices
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
-    /tmp/docenv/pip.conf   : no config file exists
+    /tmp/docenv/pip.conf: no config file exists
     always-set-cfg: no
 
 At this point we are not connected to any index, just to the
@@ -406,6 +406,7 @@ Alice can now create her new ``dev`` index::
       acl_upload=alice
       acl_toxresult_upload=:ANONYMOUS:
       mirror_whitelist=
+      mirror_whitelist_inheritance=intersection
 
 and use it ::
 
@@ -414,7 +415,7 @@ and use it ::
     supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
-    /tmp/docenv/pip.conf   : no config file exists
+    /tmp/docenv/pip.conf: no config file exists
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi``
@@ -432,8 +433,8 @@ cause ``pip`` and ``easy_install`` to use our in-use index server::
     supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
-    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
-    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 This will modify or create common configuration files in your home directory
@@ -446,8 +447,8 @@ this configuration modification::
     supported features: server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
-    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
-    /tmp/docenv/pip.conf   : http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: yes
 
 This will imply ``--set-cfg`` on all subsequent ``devpi use ...`` operations.

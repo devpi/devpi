@@ -248,6 +248,7 @@ remove
 
     $ devpi remove -h
     usage: devpi remove [-h] [--debug] [-y] [-v] [--clientdir DIR] [--index INDEX]
+                        [-f]
                         spec_or_url
     
     removes project info/files from current index.
@@ -265,6 +266,8 @@ remove
     optional arguments:
       -h, --help       show this help message and exit
       --index INDEX    index to remove from (defaults to current index)
+      -f, --force      remove even on non-volatile index (with devpi-server >=
+                       6.0.0)
     
     generic options:
       --debug          show debug messages including more info on server requests
@@ -500,21 +503,25 @@ devpi command reference (server)
     usage: devpi-server [-h] [-c CONFIGFILE]
                         [--role {master,replica,standalone,auto}] [--version]
                         [--passwd USER] [--debug] [--logger-cfg LOGGER_CFG]
-                        [--host HOST] [--port PORT] [--unix-socket UNIX_SOCKET]
+                        [--host HOST] [--port PORT] [--listen LISTEN]
+                        [--unix-socket UNIX_SOCKET]
                         [--unix-socket-perms UNIX_SOCKET_PERMS]
-                        [--threads THREADS]
+                        [--threads THREADS] [--trusted-proxy TRUSTED_PROXY]
+                        [--trusted-proxy-count TRUSTED_PROXY_COUNT]
+                        [--trusted-proxy-headers TRUSTED_PROXY_HEADERS]
                         [--max-request-body-size MAX_REQUEST_BODY_SIZE]
                         [--outside-url URL] [--absolute-urls]
                         [--profile-requests NUM] [--mirror-cache-expiry SECS]
                         [--master-url MASTER_URL] [--replica-max-retries NUM]
                         [--replica-file-search-path PATH] [--hard-links]
-                        [--replica-cert pem_file] [--request-timeout NUM]
+                        [--replica-cert pem_file] [--file-replication-threads NUM]
+                        [--proxy-timeout NUM] [--request-timeout NUM]
                         [--offline-mode] [--serverdir DIR] [--storage NAME]
-                        [--keyfs-cache-size NUM] [--init] [--no-root-pypi]
-                        [--root-passwd ROOT_PASSWD]
-                        [--root-passwd-hash ROOT_PASSWD_HASH] [--import PATH]
-                        [--skip-import-type TYPE] [--no-events] [--export PATH]
-                        [--log] [--theme THEME]
+                        [--keyfs-cache-size NUM] [--secretfile path]
+                        [--argon2-memory-cost ARGON2_MEMORY_COST]
+                        [--argon2-parallelism ARGON2_PARALLELISM]
+                        [--argon2-time-cost ARGON2_TIME_COST] [--requests-only]
+                        [--restrict-modify SPEC] [--theme THEME]
                         [--documentation-path DOCUMENTATION_PATH]
                         [--indexer-backend NAME]
     
@@ -532,7 +539,7 @@ devpi command reference (server)
                             'standalone' by default and 'replica' if the --master-
                             url option is used. To enable the replication protocol
                             you have to explicitly set the 'master' role. [auto]
-      --version             show devpi_version (5.2.1.dev0) [False]
+      --version             show devpi_version (6.0.0) [False]
       --passwd USER         (DEPRECATED, use devpi-passwd command) set password
                             for user USER (interactive) [None]
     
@@ -547,12 +554,26 @@ devpi command reference (server)
                             you want to accept connections from anywhere.
                             [localhost]
       --port PORT           port to listen for http requests. [3141]
+      --listen LISTEN       host:port combination to listen to for http requests.
+                            When using * for host bind to all interfaces. Use
+                            square brackets for ipv6 like [::1]:8080. You can
+                            specify more than one host:port combination with
+                            multiple --listen arguments. [None]
       --unix-socket UNIX_SOCKET
                             path to unix socket to bind to. [None]
       --unix-socket-perms UNIX_SOCKET_PERMS
                             permissions for the unix socket if used, defaults to
                             '600'. [None]
       --threads THREADS     number of threads to start for serving clients. [50]
+      --trusted-proxy TRUSTED_PROXY
+                            IP address of proxy we trust. See waitress
+                            documentation. [None]
+      --trusted-proxy-count TRUSTED_PROXY_COUNT
+                            how many proxies we trust when chained. See waitress
+                            documentation. [None]
+      --trusted-proxy-headers TRUSTED_PROXY_HEADERS
+                            headers to trust from proxy. See waitress
+                            documentation. [None]
       --max-request-body-size MAX_REQUEST_BODY_SIZE
                             maximum number of bytes in request body. This controls
                             the max size of package that can be uploaded.
@@ -586,12 +607,17 @@ devpi command reference (server)
                             structure from inside +files. [None]
       --hard-links          use hard links during export, import or with
                             --replica-file-search-path instead of copying or
-      --version             show devpi_version (6.0.0) [False]
+                            downloading files. All limitations for hard links on
                             your OS apply. USE AT YOUR OWN RISK [False]
       --replica-cert pem_file
                             when running as a replica, use the given .pem file as
                             the SSL client certificate to authenticate to the
                             server (EXPERIMENTAL) [None]
+      --file-replication-threads NUM
+                            number of threads for file download from master [5]
+      --proxy-timeout NUM   Number of seconds to wait before proxied requests from
+                            the replica to the master time out (login, uploads
+                            etc). [30]
     
     request options:
       --request-timeout NUM
@@ -603,63 +629,38 @@ devpi command reference (server)
     
     storage options:
       --serverdir DIR       directory for server data. [~/.devpi/server]
-      --storage NAME        the storage backend to use. "pg8000": Postgresql
-                            backend, "sqlite": SQLite backend with files on the
-                            filesystem, "sqlite_db_files": SQLite backend with
-                            files in DB for testing only [None]
+      --storage NAME        the storage backend to use. "sqlite": SQLite backend
+                            with files on the filesystem, "sqlite_db_files":
+                            SQLite backend with files in DB for testing only
+                            [None]
       --keyfs-cache-size NUM
                             size of keyfs cache. If your devpi-server installation
                             gets a lot of writes, then increasing this might
                             improve performance. Each entry uses 1kb of memory on
                             average. So by default about 10MB are used. [10000]
     
-    initialization options:
-      --init                (DEPRECATED, use devpi-init command) initialize devpi-
-                            server state in an empty directory (also see
-                            --serverdir) [False]
-      --no-root-pypi        don't create root/pypi on server initialization.
-                            [False]
-      --root-passwd ROOT_PASSWD
-                            initial password for the root user. This option has no
-                            effect if the user 'root' already exist. []
-      --root-passwd-hash ROOT_PASSWD_HASH
-                            initial password hash for the root user. This option
-                            has no effect if the user 'root' already exist. [None]
-    
-    serverstate import options:
-      --import PATH         (DEPRECATED, use devpi-import command) import devpi-
-                            server database from PATH where PATH is a directory
-                            which was created by a 'devpi-server --export PATH'
-                            operation, using the same or an earlier devpi-server
-                            version. Note that you can only import into a fresh
-                            server state directory (positional argument to devpi-
-                            server). [None]
-      --skip-import-type TYPE
-                            skip the given index type during import. Used when the
-                            corresponding plugin isn't installed anymore. [None]
-      --no-events           no events will be run during import, instead they
-                            arepostponed to run on server start. This allows much
-                            faster start of the server after import, when devpi-
-                            web is used. When you start the server after the
-                            import, the search index and documentation will
-                            gradually update until the server has caught up with
-                            all events. [False]
-    
-    serverstate export options:
-      --export PATH         (DEPRECATED, use devpi-passwd command) export devpi-
-                            server database state into PATH. This will export all
-                            users, indices, release files (except for mirrors),
-                            test results and documentation. [None]
-    
     deployment options:
-      --gen-config          (DEPRECATED, use devpi-gen-config command) generate
-                            example config files for
-                            nginx/supervisor/crontab/systemd/launchd/windows-
-                            service, taking other passed options into account
-                            (e.g. port, host, etc.) [False]
       --secretfile path     file containing the server side secret used for user
                             validation. If not specified, a random secret is
                             generated on each start up. [None]
+      --argon2-memory-cost ARGON2_MEMORY_COST
+                            Argon2 memory cost parameter for key derivation. This
+                            is *not* for the user password hashes. There should be
+                            no need to touch this setting, except you really know
+                            what this is about! Replicas need to use the same
+                            parameters as the master. [524288]
+      --argon2-parallelism ARGON2_PARALLELISM
+                            Argon2 parallelism parameter for key derivation. This
+                            is *not* for the user password hashes. There should be
+                            no need to touch this setting, except you really know
+                            what this is about! Replicas need to use the same
+                            parameters as the master. [8]
+      --argon2-time-cost ARGON2_TIME_COST
+                            Argon2 time cost parameter for key derivation. This is
+                            *not* for the user password hashes. There should be no
+                            need to touch this setting, except you really know
+                            what this is about! Replicas need to use the same
+                            parameters as the master. [16]
       --requests-only       only start as a worker which handles read/write web
                             requests but does not run an event processing or
                             replication thread. [False]
@@ -694,7 +695,8 @@ devpi command reference (server)
 
     $ devpi-export -h
     usage: devpi-export [-h] [-c CONFIGFILE] [--serverdir DIR] [--storage NAME]
-                        [--keyfs-cache-size NUM] [--hard-links]
+                        [--keyfs-cache-size NUM] [--include-mirrored-files]
+                        [--hard-links]
                         directory
     
     Export the data of a devpi-server instance.
@@ -707,15 +709,18 @@ devpi command reference (server)
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
-      --storage NAME        the storage backend to use. "pg8000": Postgresql
-                            backend, "sqlite": SQLite backend with files on the
-                            filesystem, "sqlite_db_files": SQLite backend with
-                            files in DB for testing only [None]
+      --storage NAME        the storage backend to use. "sqlite": SQLite backend
+                            with files on the filesystem, "sqlite_db_files":
+                            SQLite backend with files in DB for testing only
+                            [None]
       --keyfs-cache-size NUM
                             size of keyfs cache. If your devpi-server installation
                             gets a lot of writes, then increasing this might
                             improve performance. Each entry uses 1kb of memory on
                             average. So by default about 10MB are used. [10000]
+      --include-mirrored-files
+                            include downloaded files from mirror indexes in dump.
+                            [False]
       --hard-links          use hard links during export, import or with
                             --replica-file-search-path instead of copying or
                             downloading files. All limitations for hard links on
@@ -741,10 +746,10 @@ devpi command reference (server)
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
-      --storage NAME        the storage backend to use. "pg8000": Postgresql
-                            backend, "sqlite": SQLite backend with files on the
-                            filesystem, "sqlite_db_files": SQLite backend with
-                            files in DB for testing only [None]
+      --storage NAME        the storage backend to use. "sqlite": SQLite backend
+                            with files on the filesystem, "sqlite_db_files":
+                            SQLite backend with files in DB for testing only
+                            [None]
       --keyfs-cache-size NUM
                             size of keyfs cache. If your devpi-server installation
                             gets a lot of writes, then increasing this might
@@ -761,8 +766,8 @@ devpi command reference (server)
       --skip-import-type TYPE
                             skip the given index type during import. Used when the
                             corresponding plugin isn't installed anymore. [None]
-      --no-events           no events will be run during import, instead they
-                            arepostponed to run on server start. This allows much
+      --no-events           no events will be run during import, instead they are
+                            postponed to run on server start. This allows much
                             faster start of the server after import, when devpi-
                             web is used. When you start the server after the
                             import, the search index and documentation will
@@ -797,10 +802,10 @@ devpi command reference (server)
       --master-url MASTER_URL
                             run as a replica of the specified master server [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
-      --storage NAME        the storage backend to use. "pg8000": Postgresql
-                            backend, "sqlite": SQLite backend with files on the
-                            filesystem, "sqlite_db_files": SQLite backend with
-                            files in DB for testing only [None]
+      --storage NAME        the storage backend to use. "sqlite": SQLite backend
+                            with files on the filesystem, "sqlite_db_files":
+                            SQLite backend with files in DB for testing only
+                            [None]
       --keyfs-cache-size NUM
                             size of keyfs cache. If your devpi-server installation
                             gets a lot of writes, then increasing this might
@@ -832,10 +837,10 @@ devpi command reference (server)
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
-      --storage NAME        the storage backend to use. "pg8000": Postgresql
-                            backend, "sqlite": SQLite backend with files on the
-                            filesystem, "sqlite_db_files": SQLite backend with
-                            files in DB for testing only [None]
+      --storage NAME        the storage backend to use. "sqlite": SQLite backend
+                            with files on the filesystem, "sqlite_db_files":
+                            SQLite backend with files in DB for testing only
+                            [None]
       --keyfs-cache-size NUM
                             size of keyfs cache. If your devpi-server installation
                             gets a lot of writes, then increasing this might
@@ -845,9 +850,9 @@ devpi command reference (server)
 ::
 
     $ devpi-clear-search-index -h
-    usage: devpi-web-clear-index [-h] [-c CONFIGFILE] [--serverdir DIR]
-                                 [--storage NAME] [--keyfs-cache-size NUM]
-                                 [--indexer-backend NAME]
+    usage: devpi-clear-search-index [-h] [-c CONFIGFILE] [--serverdir DIR]
+                                    [--storage NAME] [--keyfs-cache-size NUM]
+                                    [--indexer-backend NAME]
     
     Clear project search index.
     
@@ -856,10 +861,10 @@ devpi command reference (server)
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
-      --storage NAME        the storage backend to use. "pg8000": Postgresql
-                            backend, "sqlite": SQLite backend with files on the
-                            filesystem, "sqlite_db_files": SQLite backend with
-                            files in DB for testing only [None]
+      --storage NAME        the storage backend to use. "sqlite": SQLite backend
+                            with files on the filesystem, "sqlite_db_files":
+                            SQLite backend with files in DB for testing only
+                            [None]
       --keyfs-cache-size NUM
                             size of keyfs cache. If your devpi-server installation
                             gets a lot of writes, then increasing this might

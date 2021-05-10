@@ -37,14 +37,14 @@ To initialize ``devpi-server`` issue::
 
     $ devpi-init
     INFO  NOCTX Loading node info from /tmp/home/.devpi/server/.nodeinfo
-    INFO  NOCTX generated uuid: cfd8cd68eb384f349935a210670415fb
+    INFO  NOCTX generated uuid: 446e22e0db5e41a5989fd671e98ec30b
     INFO  NOCTX wrote nodeinfo to: /tmp/home/.devpi/server/.nodeinfo
     INFO  NOCTX DB: Creating schema
     INFO  [Wtx-1] setting password for user 'root'
-    INFO  [Wtx-1] created user 'root' with email None
+    INFO  [Wtx-1] created user 'root'
     INFO  [Wtx-1] created root user
     INFO  [Wtx-1] created root/pypi index
-    INFO  [Wtx-1] fswriter0: committed: keys: '.config','root/.config'
+    INFO  [Wtx-1] fswriter0: commited at 0
 
 start background devpi-server process
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -86,9 +86,9 @@ Let's install the ``simplejson`` package as a test from our cache::
     $ pip install -i http://localhost:3141/root/pypi/+simple/ simplejson
     Looking in indexes: http://localhost:3141/root/pypi/+simple/
     Collecting simplejson
-      Downloading http://localhost:3141/root/pypi/%2Bf/86a/fc5b5cbd42d70/simplejson-3.17.0-cp36-cp36m-macosx_10_13_x86_64.whl (74kB)
+      Downloading http://localhost:3141/root/pypi/%2Bf/c94/dc64b1a389a41/simplejson-3.17.2-cp38-cp38-macosx_10_14_x86_64.whl (74 kB)
     Installing collected packages: simplejson
-    Successfully installed simplejson-3.17.0
+    Successfully installed simplejson-3.17.2
 
 Feel free to install any other package.  If you encounter lookup/download
 issues when installing a public pypi package, please report the offending
