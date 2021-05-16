@@ -1,1 +1,0 @@
-Add ``--trusted-proxy``, ``--trusted-proxy-count`` and ``--trusted-proxy-headers`` to support proxy headers with waitress.

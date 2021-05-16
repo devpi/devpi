@@ -1,1 +1,0 @@
-The ``X-Outside-URL`` header now takes precedence over the ``--outside-url`` option. This allows the option to be the fallback when there is no proxy in front, instead of overwriting the header.

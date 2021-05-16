@@ -1,1 +1,0 @@
-Replicas will no longer proxy to the master to determine the authentication status now that the secret must be shared between master and replicas.

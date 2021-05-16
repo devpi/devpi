@@ -1,1 +1,0 @@
-Much faster mirror project names parsing. For PyPI the speedup can be about 30x.

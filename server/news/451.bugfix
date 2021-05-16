@@ -1,1 +1,0 @@
-fix #451: packages not on mirror_whitelist no longer query the mirror

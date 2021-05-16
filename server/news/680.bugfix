@@ -1,1 +1,0 @@
-fix #680: indexes with multiple mirror bases now work correctly with default secure whitelist settings.

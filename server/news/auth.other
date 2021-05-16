@@ -1,1 +1,0 @@
-Add new ``devpiserver_auth_request`` hook and deprecate ``devpiserver_auth_user`` hook.

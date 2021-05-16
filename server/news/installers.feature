@@ -1,1 +1,0 @@
-Installers will get simple results directly instead of a redirect when an index is used without /+simple or without a trailing slash.
