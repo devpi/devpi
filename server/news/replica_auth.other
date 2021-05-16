@@ -1,1 +1,0 @@
-Replicas need to use the same secret as the master for the ``--secretfile`` option to be able to authenticate with the master.

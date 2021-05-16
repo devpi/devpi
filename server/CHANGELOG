@@ -2,6 +2,85 @@
 
 .. towncrier release notes start
 
+6.0.0 (2021-05-16)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- Remove deprecated command line options which were replaced by separate scripts.
+
+- Dropped support for Python 2.7, 3.4 and 3.5. Python 3.x versions will be supported until their EOL (see https://devguide.python.org/#status-of-python-branches). After that, any release might break support for EOLed versions.
+
+- Removed deprecated ``--start``, ``--stop`` and ``--status`` options.
+
+
+Features
+--------
+
+- fix #140: support ``force`` flag for deletion on non-volatile indexes.
+
+- fix #725: new option ``mirror_whitelist_inheritance`` for indexes.
+  The ``union`` setting is the old behaviour and used for existing indexes to not break existing installations.
+  With it the whitelist of each index in the inheritance order is merged into the current whitelist.
+  This could lead to unexpected whitelisting.
+  The new ``intersection`` setting is used for all new indexes and it intersects the whitelist at each step in the inheritance order which is more secure and never causes unexpected whitelisting.
+
+- fix #792: support data-yanked attribute from PEP 592 for mirror indexes.
+
+- fix #827: add ``--listen`` option corresponding to ``listen`` kwarg of waitress server.
+
+- Replicas download files asynchronously from the metadata and will do so with multiple parallel requests. This means the metadata will be in sync faster and downloads will process quicker. Missing files will be downloaded on demand if they haven't been fetched yet. The new ``--file-replication-threads`` option allows controlling the amount of parallel downloads. Event processing waits until files for that serial are available. Since newest files are downloaded first, event processing might wait until all files are downloaded.
+
+- Add ``devpi-gen-secret`` script to generate a file with a random secret and proper permissions.
+
+- Installers will get simple results directly instead of a redirect when an index is used without /+simple or without a trailing slash.
+
+- Much faster mirror project names parsing. For PyPI the speedup can be about 30x.
+
+- Do some validity and security checks on the secret provided by ``--secretfile``.
+
+- The server secret for token signing is now derived via argon2 from the data provided by ``--secretfile``. Existing login tokens are invalidated by this.
+
+- Add ``--trusted-proxy``, ``--trusted-proxy-count`` and ``--trusted-proxy-headers`` to support proxy headers with waitress.
+
+- The user creation and modification time is now stored. Adding or removing an index doesn't count as a modification.
+
+
+Bug Fixes
+---------
+
+- fix #210: the original fix was incomplete and the test for it was subtly wrong.
+
+- fix #451: packages not on mirror_whitelist no longer query the mirror
+
+- fix #680: indexes with multiple mirror bases now work correctly with default secure whitelist settings.
+
+- Handle cases where the ``Content-Type`` header from a mirror can be an empty string.
+
+
+Other Changes
+-------------
+
+- The ``X-Outside-URL`` header now takes precedence over the ``--outside-url`` option. This allows the option to be the fallback when there is no proxy in front, instead of overwriting the header.
+
+- Warning! Once you used 6.0.0 with a replica you have to check that all files have been downloaded with ``devpi-fsck`` before attempting to downgrade to 5.x.y, as those older versions have no mechanism to re-download those.
+
+- Add new ``devpiserver_auth_request`` hook and deprecate ``devpiserver_auth_user`` hook.
+
+- Require pyramid>=2.
+
+- Use secrets.token_bytes instead of os.urandom for salts and server secrets.
+
+- Replicas need to use the same secret as the master for the ``--secretfile`` option to be able to authenticate with the master.
+
+- Replicas will no longer proxy to the master to determine the authentication status now that the secret must be shared between master and replicas.
+
+- When using ``--restrict-modify`` those users can't delete their own user object to prevent lockout.
+
+- The secret file must be user accessible only, devpi-server will not start if it is not.
+
+
 5.5.1 (2021-03-01)
 ==================
 

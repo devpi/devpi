@@ -1,1 +1,0 @@
-Warning! Once you used 6.0.0 with a replica you have to check that all files have been downloaded with ``devpi-fsck`` before attempting to downgrade to 5.x.y, as those older versions have no mechanism to re-download those.

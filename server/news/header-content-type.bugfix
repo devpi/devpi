@@ -1,1 +1,0 @@
-Handle cases where the ``Content-Type`` header from a mirror can be an empty string.

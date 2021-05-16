@@ -1,1 +1,0 @@
-fix #827: add ``--listen`` option corresponding to ``listen`` kwarg of waitress server.
