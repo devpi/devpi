@@ -234,7 +234,8 @@ class Current(object):
         current._currentdict = deepcopy(self._currentdict)
         # we make sure to remove legacy auth data
         current._currentdict.pop("auth", None)
-        current.configure_fromurl(hub, url)
+        if url is not None:
+            current.configure_fromurl(hub, url)
         return current
 
     def switch_to_temporary(self, hub, url):
@@ -395,14 +396,14 @@ class PersistentCurrent(Current):
     def exists(self):
         return self.current_path and self.current_path.check()
 
-    def _persist(self, data, path):
+    def _persist(self, data, path, force_write=False):
         if path is None:
             return
         try:
             olddata = json.loads(path.read())
         except Exception:
             olddata = {}
-        if data != olddata:
+        if force_write or data != olddata:
             oldumask = os.umask(7 * 8 + 7)
             try:
                 path.write(
@@ -410,12 +411,12 @@ class PersistentCurrent(Current):
             finally:
                 os.umask(oldumask)
 
-    def reconfigure(self, data):
+    def reconfigure(self, data, force_write=False):
         Current.reconfigure(self, data)
-        self._persist(self._authdict, self.auth_path)
+        self._persist(self._authdict, self.auth_path, force_write=force_write)
         # we make sure to remove legacy auth data
         self._currentdict.pop("auth", None)
-        self._persist(self._currentdict, self.current_path)
+        self._persist(self._currentdict, self.current_path, force_write=force_write)
 
 
 def out_index_list(hub, data):
@@ -443,6 +444,17 @@ def active_venv():
 
 def main(hub, args=None):
     args = hub.args
+    if args.local:
+        if hub.local_current_path is None:
+            hub.fatal("Using --local is only valid in an active virtualenv.")
+        if not hub.local_current_path.exists():
+            current = hub.current
+            hub.info("Creating local configuration at %s" % hub.local_current_path)
+            hub.local_current_path.ensure()
+            current = current.switch_to_local(
+                hub, current.index, hub.local_current_path)
+            # now store existing data in new location
+            current.reconfigure({}, force_write=True)
     current = hub.current
 
     if args.delete:

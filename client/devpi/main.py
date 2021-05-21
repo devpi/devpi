@@ -99,6 +99,23 @@ class Hub:
     def clientdir(self):
         return py.path.local(self.args.clientdir)
 
+    @property
+    def auth_path(self):
+        return self.clientdir.join("auth.json")
+
+    @property
+    def local_current_path(self):
+        venv = self.active_venv()
+        if venv is not None:
+            return venv.join('devpi.json')
+
+    @property
+    def current_path(self):
+        local_path = self.local_current_path
+        if local_path is not None and local_path.exists():
+            return local_path
+        return self.clientdir.join("current.json")
+
     def require_valid_current_with_index(self):
         current = self.current
         if not current.index:
@@ -221,10 +238,8 @@ class Hub:
     @cached_property
     def current(self):
         self.clientdir.ensure(dir=1)
-        auth_path = self.clientdir.join("auth.json")
-        current_path = self.clientdir.join("current.json")
         url = os.environ.get("DEVPI_INDEX")
-        current = PersistentCurrent(auth_path, current_path)
+        current = PersistentCurrent(self.auth_path, self.current_path)
         if url is not None:
             current = current.switch_to_local(self, url, None)
         return current
@@ -618,6 +633,11 @@ def use(parser):
     for installation activities.
     """
 
+    parser.add_argument(
+        "--local", action="store_true", default=None,
+        help="create devpi settings in active virtualenv. "
+             "All future invocations will use that location instead of the "
+             "default as long as the virtualenv is active.")
     parser.add_argument("--set-cfg", action="store_true", default=None,
         dest="setcfg",
         help="create or modify pip/setuptools config files so "

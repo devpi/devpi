@@ -68,6 +68,72 @@ class TestUnit:
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
 
+    def test_local_config(self, capfd, cmd_devpi, create_venv, mock_http_api, monkeypatch):
+        import json
+        venvdir = create_venv()
+        (out, err) = capfd.readouterr()
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        current_path = hub.current_path
+        assert current_path.strpath.endswith('client/current.json')
+        local_current_path = hub.local_current_path
+        assert venvdir.strpath in local_current_path.strpath
+        assert local_current_path.strpath.endswith('devpi.json')
+        assert not local_current_path.exists()
+        assert venvdir.strpath in out
+        hub = cmd_devpi("use", "--local")
+        (out, err) = capfd.readouterr()
+        assert hub.current_path.strpath == local_current_path.strpath
+        assert local_current_path.exists()
+        mock_http_api.set(
+            "http://devpi/foo/ham/+api", 200, result=dict(
+                index="/foo/ham",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/ham?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/ham")
+        (out, err) = capfd.readouterr()
+        with current_path.open("r") as f:
+            current_config = json.load(f)
+        with local_current_path.open("r") as f:
+            local_current_config = json.load(f)
+        assert current_config['index'] == 'http://devpi/foo/bar'
+        assert local_current_config['index'] == 'http://devpi/foo/ham'
+        hub = cmd_devpi("use")
+        (out, err) = capfd.readouterr()
+        assert 'current devpi index: http://devpi/foo/ham' in out
+        local_current_path.remove()
+        hub = cmd_devpi("use")
+        (out, err) = capfd.readouterr()
+        assert 'current devpi index: http://devpi/foo/bar' in out
+
+    def test_local_config_no_auth_key(self, cmd_devpi, create_venv, monkeypatch):
+        # test that the legacy ``auth`` key is removed
+        import json
+        venvdir = create_venv()
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
+        hub = cmd_devpi("use")
+        current_path = hub.current_path
+        assert current_path.strpath.endswith('client/current.json')
+        local_current_path = hub.local_current_path
+        assert not local_current_path.exists()
+        with current_path.open("w") as f:
+            json.dump(dict(auth=[]), f)
+        hub = cmd_devpi("use", "--local")
+        assert local_current_path.exists()
+        with local_current_path.open("r") as f:
+            local_current_config = json.load(f)
+        assert 'auth' not in local_current_config
+
     @pytest.mark.skipif("config.option.fast")
     def test_use_list_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
         import time
