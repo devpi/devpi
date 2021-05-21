@@ -384,9 +384,13 @@ class PersistentCurrent(Current):
         self.auth_path = auth_path
         self.current_path = current_path
         if self.auth_path.check():
-            self._authdict.update(json.loads(self.auth_path.read()))
+            auth_data = self.auth_path.read().strip()
+            if auth_data:
+                self._authdict.update(json.loads(auth_data))
         if self.current_path and self.current_path.check():
-            self._currentdict.update(json.loads(self.current_path.read()))
+            current_data = self.current_path.read().strip()
+            if current_data:
+                self._currentdict.update(json.loads(current_data))
 
     def exists(self):
         return self.current_path and self.current_path.check()

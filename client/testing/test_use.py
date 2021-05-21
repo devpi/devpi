@@ -42,6 +42,13 @@ class TestUnit:
         assert newcurrent.venvdir == current.venvdir
         assert newcurrent.login == current.login
 
+    def test_read_empty(self, tmpdir):
+        auth_path = tmpdir.join("auth").ensure()
+        current_path = tmpdir.join("current").ensure()
+        current = PersistentCurrent(auth_path, current_path)
+        assert current._authdict == {}
+        assert current._currentdict == {}
+
     def test_write_and_read_always_setcfg(self, tmpdir):
         auth_path = tmpdir.join("auth")
         current_path = tmpdir.join("current")
