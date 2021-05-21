@@ -492,13 +492,14 @@ def main(hub, args=None):
         login_status = "not logged in"
     if current.root_url:
         if current.index:
+            hub.info("current devpi index: %s (%s)" % (current.index, login_status))
             if showurls:
                 for name in devpi_endpoints:
-                    hub.info("%16s: %s" %(name, getattr(current, name)))
-            else:
-                hub.info("current devpi index: %s (%s)" % (current.index, login_status))
-                if current.features:
-                    hub.info("supported features: %s" % ", ".join(sorted(current.features)))
+                    if name == 'index':
+                        continue
+                    hub.info("%19s: %s" %(name, getattr(current, name)))
+            if current.features:
+                hub.info("supported features: %s" % ", ".join(sorted(current.features)))
             hub.validate_index_access()
         else:
             hub.info("using server: %s (%s)" % (current.root_url, login_status))
