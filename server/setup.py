@@ -40,7 +40,7 @@ if __name__ == "__main__":
                         "passlib[argon2]",
                         "pluggy>=0.6.0,<1.0",
                         'python2-secrets;python_version<"3.6"',
-                        'ruamel.yaml<=0.15.94;python_version=="3.4"',
+                        'ruamel.yaml!=0.17.5',
                         "strictyaml",
                         ]
     extras_require = {}
