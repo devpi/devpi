@@ -1,0 +1,498 @@
+---
+name: "CI"
+
+on:
+  push:
+  schedule:
+    - cron: '10 3 * * 1'
+
+jobs:
+  packages:
+    name: "Create packages"
+    runs-on: "ubuntu-latest"
+    env:
+      PY_COLORS: 1
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "3.6"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel devpi-client towncrier check-manifest
+      - name: "Create packages"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          devpi use https://m.devpi.net/devpi-github
+          devpi login devpi-github --password ${{ secrets.DEVPI_GITHUB_PASSWORD }}
+          python .ci/cleanup_devpi_indices.py
+          .ci/upload-packages.sh
+
+  common-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    strategy:
+      matrix:
+        include:
+          - project: "common"
+            python-version: "2.7"
+            os: "ubuntu-latest"
+            tox-envs: "py27"
+          - project: "common"
+            python-version: "pypy-2.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy"
+          - project: "common"
+            python-version: "3.4.10"
+            os: "ubuntu-18.04"
+            tox-envs: "py34"
+          - project: "common"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39"
+          - project: "common"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  bbb-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    strategy:
+      matrix:
+        include:
+          - project: "client"
+            python-version: "2.7"
+            os: "ubuntu-latest"
+            tox-envs: "py27-server4"
+          - project: "web"
+            python-version: "3.4.10"
+            os: "ubuntu-18.04"
+            tox-envs: "py34-server520"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  client-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: "packages"
+    strategy:
+      matrix:
+        include:
+          - project: "client"
+            python-version: "2.7"
+            os: "ubuntu-latest"
+            tox-envs: "py27,py27-version,py27-lin"
+          - project: "client"
+            python-version: "pypy-2.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy"
+          - project: "client"
+            python-version: "3.4.10"
+            os: "ubuntu-18.04"
+            tox-envs: "py34"
+          - project: "client"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39"
+          - project: "client"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  server-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: "packages"
+    strategy:
+      matrix:
+        include:
+          - project: "server"
+            python-version: "3.6"
+            os: "ubuntu-latest"
+            tox-envs: "py36"
+          - project: "server"
+            python-version: "3.6"
+            os: "ubuntu-latest"
+            tox-envs: "py36-keyfs_sqlite"
+          - project: "server"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39"
+          - project: "server"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  web-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: "packages"
+    strategy:
+      matrix:
+        include:
+          - project: "web"
+            python-version: "3.6"
+            os: "ubuntu-latest"
+            tox-envs: "py36"
+          - project: "web"
+            python-version: "3.6"
+            os: "ubuntu-latest"
+            tox-envs: "py36-keyfs"
+          - project: "web"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39"
+          - project: "web"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  nightly-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["client-tests", "server-tests", "web-tests"]
+    strategy:
+      matrix:
+        include:
+          - project: "common"
+            python-version: "3.10.0-alpha - 3.10.99"
+            os: "ubuntu-latest"
+            tox-envs: "py310"
+          - project: "client"
+            python-version: "3.10.0-alpha - 3.10.99"
+            os: "ubuntu-latest"
+            tox-envs: "py310"
+          - project: "server"
+            python-version: "3.10.0-alpha - 3.10.99"
+            os: "ubuntu-latest"
+            tox-envs: "py310"
+          - project: "web"
+            python-version: "3.10.0-alpha - 3.10.99"
+            os: "ubuntu-latest"
+            tox-envs: "py310"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        continue-on-error: true
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  postgresql-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["server-tests"]
+    strategy:
+      matrix:
+        include:
+          - project: "postgresql"
+            python-version: "3.6"
+            os: "ubuntu-latest"
+            tox-envs: "py36-postgresql"
+          - project: "postgresql"
+            python-version: "3.6"
+            os: "ubuntu-latest"
+            tox-envs: "py36-server"
+          # - project: "postgresql"
+          #   python-version: "3.6"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py36-server_postgresql_ssl"
+          - project: "postgresql"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39-postgresql"
+          - project: "postgresql"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39-server"
+          # - project: "postgresql"
+          #   python-version: "3.9"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py39-server_postgresql_ssl"
+          - project: "postgresql"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3-postgresql"
+          - project: "postgresql"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3-server"
+          # - project: "postgresql"
+          #   python-version: "pypy-3.7"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "pypy3-server_postgresql_ssl"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          export POSTGRESQL_BIN_DIR=$(ls -d /usr/lib/postgresql/*/bin)
+          ls $POSTGRESQL_BIN_DIR
+          export PATH=$PATH:$POSTGRESQL_BIN_DIR
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  postgresql-web-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["server-tests", "web-tests"]
+    strategy:
+      matrix:
+        include:
+          - project: "postgresql"
+            python-version: "3.6"
+            os: "ubuntu-latest"
+            tox-envs: "py36-web"
+          - project: "postgresql"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39-web"
+          - project: "postgresql"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3-web"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          export POSTGRESQL_BIN_DIR=$(ls -d /usr/lib/postgresql/*/bin)
+          ls $POSTGRESQL_BIN_DIR
+          export PATH=$PATH:$POSTGRESQL_BIN_DIR
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  postgresql-nightly-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["postgresql-tests", "postgresql-web-tests"]
+    strategy:
+      matrix:
+        include:
+          - project: "postgresql"
+            python-version: "3.10.0-alpha - 3.10.99"
+            os: "ubuntu-latest"
+            tox-envs: "py310-postgresql"
+          - project: "postgresql"
+            python-version: "3.10.0-alpha - 3.10.99"
+            os: "ubuntu-latest"
+            tox-envs: "py310-server"
+          - project: "postgresql"
+            python-version: "3.10.0-alpha - 3.10.99"
+            os: "ubuntu-latest"
+            tox-envs: "py310-web"
+          # - project: "postgresql"
+          #   python-version: "3.10.0-alpha - 3.10.99"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py310-server_postgresql_ssl"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        continue-on-error: true
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          export POSTGRESQL_BIN_DIR=$(ls -d /usr/lib/postgresql/*/bin)
+          ls $POSTGRESQL_BIN_DIR
+          export PATH=$PATH:$POSTGRESQL_BIN_DIR
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes

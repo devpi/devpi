@@ -39,7 +39,7 @@ def get_release_dates(baseurl, username, indexname, projectname):
 
 def run():
     baseurl = "https://m.devpi.net/"
-    username = "devpi-travis"
+    username = "devpi-github"
     for indexname in get_indexes(baseurl, username):
         projectnames = get_projectnames(baseurl, username, indexname)
         all_dates = set()
