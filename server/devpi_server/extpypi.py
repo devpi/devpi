@@ -7,6 +7,7 @@ toxresult storage.
 
 from __future__ import unicode_literals
 
+import asyncio
 import time
 
 import re
@@ -138,7 +139,7 @@ class PyPIStage(BaseStage):
         # used to log about stale projects only once
         self._offline_logging = set()
 
-    def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
+    def _get_extra_headers(self, extra_headers):
         if self.xom.is_replica():
             if extra_headers is None:
                 extra_headers = {}
@@ -147,6 +148,16 @@ class PyPIStage(BaseStage):
             token = rt.auth_serializer.dumps(uuid)
             extra_headers[rt.H_REPLICA_UUID] = uuid
             extra_headers[str('Authorization')] = 'Bearer %s' % token
+        return extra_headers
+
+    async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
+        extra_headers = self._get_extra_headers(extra_headers)
+        return await self.xom.async_httpget(
+            url=url, allow_redirects=allow_redirects, timeout=timeout,
+            extra_headers=extra_headers)
+
+    def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
+        extra_headers = self._get_extra_headers(extra_headers)
         return self.xom.httpget(
             url=url, allow_redirects=allow_redirects, timeout=timeout,
             extra_headers=extra_headers)

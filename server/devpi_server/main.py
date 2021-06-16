@@ -4,6 +4,7 @@ a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
 from __future__ import unicode_literals
+import aiohttp
 import inspect
 import os
 import asyncio
@@ -211,6 +212,7 @@ class XOM:
         self.thread_pool.register(self.async_thread)
         if httpget is not None:
             self.httpget = httpget
+            self.async_httpget = httpget.async_httpget
         self.log = threadlog
         self.polling_replicas = {}
         self._stagecache = {}
@@ -338,6 +340,18 @@ class XOM:
     def _httpsession(self):
         max_retries = self.config.replica_max_retries
         return self.new_http_session("server", max_retries=max_retries)
+
+    async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
+        timeout = aiohttp.ClientTimeout(total=timeout)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(
+                url, allow_redirects=allow_redirects, headers=extra_headers
+            ) as response:
+                if response.status < 300:
+                    text = await response.text()
+                else:
+                    text = None
+                return (response, text)
 
     def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         if self.config.offline_mode:
