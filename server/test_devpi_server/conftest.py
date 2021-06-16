@@ -276,6 +276,9 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             xom.thread_pool.start()
         elif request.node.get_closest_marker("with_notifier"):
             xom.thread_pool.start_one(xom.keyfs.notifier)
+        if not request.node.get_closest_marker("start_threads"):
+            # we always need the async_thread
+            xom.thread_pool.start_one(xom.async_thread)
         request.addfinalizer(xom.thread_pool.shutdown)
         return xom
     return makexom

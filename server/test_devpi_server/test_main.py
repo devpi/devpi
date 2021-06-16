@@ -98,11 +98,13 @@ def test_pyramid_configure_called(makexom):
 def test_requests_only(makexom):
     xom = makexom(opts=["--requests-only"])
     xom.create_app()
-    assert not xom.thread_pool._objects
+    assert len(xom.thread_pool._objects) == 1
+    assert hasattr(xom.thread_pool._objects[0], "loop")
 
     xom = makexom(opts=["--requests-only", "--master=http://localhost:3140"])
     xom.create_app()
-    assert not xom.thread_pool._objects
+    assert len(xom.thread_pool._objects) == 1
+    assert hasattr(xom.thread_pool._objects[0], "loop")
 
 
 @wsgi_run_throws
