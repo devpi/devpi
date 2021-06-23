@@ -1,0 +1,1 @@
+fix #843: add explicit ruamel.yaml dependency declaration after strictyaml vendored it.
