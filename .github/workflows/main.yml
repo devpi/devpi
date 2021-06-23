@@ -174,7 +174,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   server-tests:
     if: true
@@ -223,7 +223,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   web-tests:
     if: true
@@ -272,7 +272,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   nightly-tests:
     if: true
@@ -322,7 +322,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-tests:
     if: true
@@ -394,7 +394,7 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-web-tests:
     if: true
@@ -442,7 +442,7 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-nightly-tests:
     if: true
@@ -495,4 +495,4 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox -v -i ${DEVPI_INDEX_URL} -e ${{ matrix.tox-envs }} -- -v --color=yes
+          python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
