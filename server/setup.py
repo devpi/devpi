@@ -56,7 +56,7 @@ if __name__ == "__main__":
         'Documentation': 'https://doc.devpi.net',
         'Source Code': 'https://github.com/devpi/devpi'
       },
-      version='6.0.1',
+      version='6.0.2.dev0',
       maintainer="Holger Krekel, Florian Schulze",
       maintainer_email="holger@merlinux.eu",
       packages=[
