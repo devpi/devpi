@@ -471,9 +471,11 @@ class Mapp(MappMixin):
 
     def login(self, user="root", password="", code=200):
         api = self.getapi()
-        r = self.testapp.post_json(api.login,
-                                  {"user": user, "password": password},
-                                  expect_errors=True)
+        r = self.testapp.post_json(
+            api.login,
+            {"user": user, "password": password},
+            expect_errors=True,
+            headers={'Accept': 'application/json'})
         assert r.status_code == code
         if code == 200:
             password = r.json.get("result", r.json)["password"]
