@@ -174,7 +174,7 @@ def server_executable(request, tmpdir_factory):
         pytest.skip("not running functional tests in --fast mode")
     requirements = request.config.option.devpi_server_requirements
     if not requirements:
-        requirements = ['devpi-server']
+        requirements = ['devpi-server>=6dev']
         # first try installed devpi-server for quick runs during development
         path = py.path.local.sysfind("devpi-server")
         if path:
