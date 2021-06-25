@@ -416,20 +416,20 @@ class PyPIStage(BaseStage):
         self.key_projsimplelinks(project).set({})
         threadlog.debug("cleared cache for %s", project)
 
-    def _fetch_releaselinks(self, project, cache_serial):
+    async def _async_fetch_releaselinks(self, project, cache_serial, _key_from_link):
         # get the simple page for the project
         url = self.mirror_url + project + "/"
         threadlog.debug("reading index %s", url)
-        response = self.httpget(url, allow_redirects=True, timeout=self.timeout)
-        if response.status_code != 200:
-            if response.status_code == 404:
+        (response, text) = await self.async_httpget(url, allow_redirects=True)
+        if response.status != 200:
+            if response.status == 404:
                 self.cache_retrieve_times.refresh(project)
                 raise self.UpstreamNotFoundError(
                     "not found on GET %s" % url)
 
             # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %s" % (
-                response.status_code, url))
+                response.status, url))
 
         # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
         # devpi-master may provide a 200 but not supply the header
@@ -454,18 +454,15 @@ class PyPIStage(BaseStage):
         threadlog.debug("%s: got response with serial %s", project, serial)
 
         # check returned url has the same normalized name
-        ret_project = response.url.strip("/").split("/")[-1]
+        ret_project = URL(response.url).path.strip("/").split("/")[-1]
         assert project == normalize_name(ret_project)
 
         # parse simple index's link
-        assert response.text is not None, response.text
-        releaselinks = parse_index(response.url, response.text).releaselinks
+        releaselinks = parse_index(response.url, text).releaselinks
         num_releaselinks = len(releaselinks)
         key_hrefs = [None] * num_releaselinks
         requires_python = [None] * num_releaselinks
         yanked = [None] * num_releaselinks
-        _key_from_link = partial(
-            key_from_link, self.keyfs, user=self.user.name, index=self.index)
         for index, releaselink in enumerate(releaselinks):
             key = _key_from_link(releaselink)
             href = key.relpath
@@ -548,8 +545,23 @@ class PyPIStage(BaseStage):
             raise self.UpstreamNotFoundError(
                 "cached not found for project %s" % project)
 
+        # we need to set this up here, as these access the database and
+        # the async loop has no transaction
+        _key_from_link = partial(
+            key_from_link, self.keyfs, user=self.user.name, index=self.index)
         try:
-            info = self._fetch_releaselinks(project, cache_serial)
+            info = self.xom.run_coroutine_threadsafe(
+                self._async_fetch_releaselinks(
+                    project, cache_serial, _key_from_link),
+                timeout=self.timeout)
+        except asyncio.TimeoutError:
+            if links is not None:
+                threadlog.warn(
+                    "serving stale links for %r, getting data timed out after %s seconds",
+                    project, self.timeout)
+                return links
+            raise self.UpstreamError(
+                f"timeout after {self.timeout} seconds while getting data for {project!r}")
         except (self.UpstreamNotFoundError, self.UpstreamError) as e:
             # if we have and old result, return it. While this will
             # miss the rare event of actual project deletions it allows
