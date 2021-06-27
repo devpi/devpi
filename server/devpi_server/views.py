@@ -1575,7 +1575,8 @@ def iter_fetch_remote_file(xom, entry):
     filestore = xom.filestore
     keyfs = xom.keyfs
     if not xom.is_replica():
-        keyfs.restart_as_write_transaction()
+        if not keyfs.tx.write:
+            keyfs.restart_as_write_transaction()
         entry = filestore.get_file_entry(entry.relpath, readonly=False)
         for part in iter_cache_remote_file(xom, entry):
             yield part
