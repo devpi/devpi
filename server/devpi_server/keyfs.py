@@ -354,13 +354,16 @@ class KeyFS(object):
         if self._readonly:
             raise self.ReadOnly()
         tx = self.tx
+        if tx.write:
+            raise RuntimeError("Can't restart a write transaction.")
         thread_pop_log()
         tx.restart(write=True)
         thread_push_log("[Wtx%s]" %(tx.at_serial))
 
     def restart_read_transaction(self):
         tx = self.tx
-        assert not tx.write, "can only restart from read transaction"
+        if tx.write:
+            raise RuntimeError("Can only restart a read transaction.")
         thread_pop_log()
         tx.restart(write=False)
         thread_push_log("[Rtx%s]" %(tx.at_serial))

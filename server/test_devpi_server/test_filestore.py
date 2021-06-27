@@ -171,57 +171,6 @@ class TestFileStore:
         entry.delete()
         assert not entry.file_exists()
 
-    def test_cache_remote_file(self, filestore, httpget, gen, xom):
-        link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
-        entry = filestore.maplink(link, "root", "pypi", "pytest")
-        assert not entry.hash_spec and not entry.file_exists()
-        filestore.keyfs.restart_as_write_transaction()
-        headers = ResponseHeaders({
-            "content-length": "3",
-            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT"})
-        httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, raw = BytesIO(b"123"))
-        for part in iter_cache_remote_file(xom, entry):
-            pass
-        rheaders = entry.gethttpheaders()
-        assert rheaders["content-length"] == "3"
-        assert rheaders["content-type"] in zip_types
-        assert rheaders["last-modified"] == headers["last-modified"]
-        bytes = entry.file_get_content()
-        assert bytes == b"123"
-
-        # reget entry and check about content
-        filestore.keyfs.restart_as_write_transaction()
-        entry = filestore.get_file_entry(entry.relpath)
-        assert entry.file_exists()
-        assert entry.hash_value == getdigest(bytes, entry.hash_type)
-        assert entry.file_size() == 3
-        rheaders = entry.gethttpheaders()
-        assert entry.file_get_content() == b"123"
-
-    @pytest.mark.storage_with_filesystem
-    @pytest.mark.parametrize("mode", ("commit", "rollback"))
-    def test_file_tx(self, filestore, gen, mode, xom):
-        assert filestore.keyfs.tx
-        link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
-        entry = filestore.maplink(link, "root", "pypi", "pytest")
-        assert not entry.file_exists()
-        entry.file_set_content(b'123')
-        assert entry.file_exists()
-        assert not xom.config.serverdir.join(entry._storepath).exists()
-        assert entry.file_get_content() == b'123'
-        if mode == "commit":
-            filestore.keyfs.restart_as_write_transaction()
-            assert xom.config.serverdir.join(entry._storepath).exists()
-            entry.file_delete()
-            assert xom.config.serverdir.join(entry._storepath).exists()
-            assert not entry.file_exists()
-            filestore.keyfs.commit_transaction_in_thread()
-            assert not xom.config.serverdir.join(entry._storepath).exists()
-        elif mode == "rollback":
-            filestore.keyfs.rollback_transaction_in_thread()
-            assert not xom.config.serverdir.join(entry._storepath).exists()
-
     def test_iterfile_remote_no_headers(self, filestore, httpget, gen, xom):
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
@@ -298,12 +247,74 @@ class TestFileStore:
                 pass
         assert not entry.file_exists()
 
-    def test_store_and_iter(self, filestore):
+
+@pytest.mark.notransaction
+def test_cache_remote_file(filestore, httpget, gen, xom):
+    with filestore.keyfs.transaction(write=True):
+        link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
+        entry = filestore.maplink(link, "root", "pypi", "pytest")
+        assert not entry.hash_spec and not entry.file_exists()
+        headers = ResponseHeaders({
+            "content-length": "3",
+            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT"})
+        httpget.url2response[link.url] = dict(
+            status_code=200,
+            headers=headers,
+            raw=BytesIO(b"123"))
+        for part in iter_cache_remote_file(xom, entry):
+            pass
+        rheaders = entry.gethttpheaders()
+        assert rheaders["content-length"] == "3"
+        assert rheaders["content-type"] in zip_types
+        assert rheaders["last-modified"] == headers["last-modified"]
+        bytes = entry.file_get_content()
+        assert bytes == b"123"
+
+    # reget entry and check about content
+    with filestore.keyfs.transaction(write=False):
+        entry = filestore.get_file_entry(entry.relpath)
+        assert entry.file_exists()
+        assert entry.hash_value == getdigest(bytes, entry.hash_type)
+        assert entry.file_size() == 3
+        rheaders = entry.gethttpheaders()
+        assert entry.file_get_content() == b"123"
+
+
+@pytest.mark.notransaction
+@pytest.mark.storage_with_filesystem
+@pytest.mark.parametrize("mode", ("commit", "rollback"))
+def test_file_tx(filestore, gen, mode, xom):
+    filestore.keyfs.begin_transaction_in_thread(write=True)
+    link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
+    entry = filestore.maplink(link, "root", "pypi", "pytest")
+    assert not entry.file_exists()
+    entry.file_set_content(b'123')
+    assert entry.file_exists()
+    assert not xom.config.serverdir.join(entry._storepath).exists()
+    assert entry.file_get_content() == b'123'
+    if mode == "commit":
+        # commit existing data and start new transaction
+        filestore.keyfs.commit_transaction_in_thread()
+        filestore.keyfs.begin_transaction_in_thread(write=True)
+        assert xom.config.serverdir.join(entry._storepath).exists()
+        entry.file_delete()
+        assert xom.config.serverdir.join(entry._storepath).exists()
+        assert not entry.file_exists()
+        filestore.keyfs.commit_transaction_in_thread()
+        assert not xom.config.serverdir.join(entry._storepath).exists()
+    elif mode == "rollback":
+        filestore.keyfs.rollback_transaction_in_thread()
+        assert not xom.config.serverdir.join(entry._storepath).exists()
+
+
+@pytest.mark.notransaction
+def test_store_and_iter(filestore):
+    with filestore.keyfs.transaction(write=True):
         content = b"hello"
         entry = filestore.store("user", "index", "something-1.0.zip", content)
         assert entry.hash_spec.endswith("="+getdigest(content, entry.hash_type))
         assert entry.file_exists()
-        filestore.keyfs.restart_as_write_transaction()
+    with filestore.keyfs.transaction(write=False):
         entry2 = filestore.get_file_entry(entry.relpath)
         assert entry2.basename == "something-1.0.zip"
         assert entry2.file_exists()
