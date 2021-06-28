@@ -849,7 +849,7 @@ class PyPIView:
             auth_user = request.authenticated_userid
             self.log.debug("targetindex %r, auth_user %r", targetindex,
                            auth_user)
-            if not request.has_permission("pypi_submit", context=target_stage):
+            if not request.has_permission("upload", context=target_stage):
                 apireturn(401, message="user %r cannot upload to %r"
                                       %(auth_user, targetindex))
             self._set_versiondata_dict(target_stage, metadata)
@@ -982,7 +982,7 @@ class PyPIView:
         stage = self.context.stage
         if not hasattr(stage, "store_releasefile"):
             abort_submit(request, 404, "cannot submit to mirror index")
-        if not request.has_permission("pypi_submit"):
+        if not request.has_permission("upload"):
             # if there is no authenticated user, then issue a basic auth challenge
             if not request.authenticated_userid:
                 response = HTTPUnauthorized()
