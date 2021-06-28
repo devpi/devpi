@@ -5,6 +5,7 @@ import sys
 import py
 import re
 import json
+import warnings
 from devpi_common.metadata import get_latest_version
 from devpi_common.metadata import CompareMixin
 from devpi_common.metadata import splitbasename, parse_version
@@ -449,7 +450,7 @@ class BaseStageCustomizer(object):
         self.hooks = self.stage.xom.config.hook
 
     # get_principals_for_* methods for each of the following permissions:
-    # pypi_submit, toxresult_upload, index_delete, index_modify,
+    # upload, toxresult_upload, index_delete, index_modify,
     # del_entry, del_project, del_verdata
     # also see __acl__ method of BaseStage
 
@@ -470,7 +471,7 @@ class BaseStageCustomizer(object):
             principals.update(restrict_modify)
         return principals
 
-    def get_principals_for_pypi_submit(self, restrict_modify=None):
+    def get_principals_for_upload(self, restrict_modify=None):
         return self.stage.ixconfig.get("acl_upload", [])
 
     def get_principals_for_toxresult_upload(self, restrict_modify=None):
@@ -567,7 +568,7 @@ class UnknownCustomizer(BaseStageCustomizer):
     def get_principals_for_index_modify(self, restrict_modify=None):
         return []
 
-    get_principals_for_pypi_submit = get_principals_for_index_modify
+    get_principals_for_upload = get_principals_for_index_modify
     get_principals_for_toxresult_upload = get_principals_for_index_modify
     get_principals_for_del_entry = get_principals_for_index_modify
     get_principals_for_del_project = get_principals_for_index_modify
@@ -1046,8 +1047,8 @@ class BaseStage(object):
     def __acl__(self):
         permissions = (
             'pkg_read',
-            'pypi_submit',
             'toxresult_upload',
+            'upload',
             'index_delete',
             'index_modify',
             'del_entry',
@@ -1056,9 +1057,25 @@ class BaseStage(object):
         restrict_modify = self.xom.config.restrict_modify
         acl = []
         for permission in permissions:
-            method = getattr(self.customizer, 'get_principals_for_%s' % permission)
+            method_name = 'get_principals_for_%s' % permission
+            method = getattr(self.customizer, method_name, None)
+            if not callable(method) and permission == 'upload':
+                method = getattr(
+                    self.customizer, 'get_principals_for_pypi_submit', None)
+                if callable(method):
+                    warnings.warn(
+                        "The 'get_principals_for_pypi_submit' method is deprecated, "
+                        "you should use 'get_principals_for_upload'. "
+                        "If you want to support older devpi-server versions, add an alias.")
+            if not callable(method):
+                raise AttributeError(
+                    "The attribute %s with value %r of %r is not callable." % (
+                        method_name, method, self.customizer))
             for principal in get_principals(method(restrict_modify=restrict_modify)):
                 acl.append((Allow, principal, permission))
+                if permission == 'upload':
+                    # add pypi_submit alias for BBB
+                    acl.append((Allow, principal, 'pypi_submit'))
         return acl
 
 
@@ -1370,7 +1387,6 @@ class PrivateStage(BaseStage):
 
     # BBB old name for backward compatibility, remove with 6.0.0
     def get_last_change_serial(self, at_serial=None):
-        import warnings
         warnings.warn(
             "The get_last_change_serial method is deprecated, "
             "use get_last_change_serial_perstage instead",
