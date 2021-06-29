@@ -411,22 +411,28 @@ class TestExtPYPIDB:
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz"</a>')
         assert pypistage.has_project_perstage("foo")
 
+    @pytest.mark.notransaction
     def test_requires_python_caching(self, pypistage):
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-requires-python="&lt;3"></a>')
-        (link,) = pypistage.get_releaselinks("foo")
+        with pypistage.keyfs.transaction(write=False):
+            (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
         # make sure we get the cached data, if not throw an error
         pypistage.httpget = None
-        (link,) = pypistage.get_releaselinks("foo")
+        with pypistage.keyfs.transaction(write=False):
+            (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
 
+    @pytest.mark.notransaction
     def test_yanked_caching(self, pypistage):
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-yanked=""></a>')
-        (link,) = pypistage.get_releaselinks("foo")
+        with pypistage.keyfs.transaction(write=False):
+            (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked is True
         # make sure we get the cached data, if not throw an error
         pypistage.httpget = None
-        (link,) = pypistage.get_releaselinks("foo")
+        with pypistage.keyfs.transaction(write=False):
+            (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked is True
 
     @pytest.mark.nomocking
@@ -509,22 +515,26 @@ class TestPyPIStageprojects:
         x = pypistage._get_remote_projects()
         assert x == set(["devpi-server"])
 
+    @pytest.mark.notransaction
     def test_single_project_access_updates_projects(self, pypistage):
         pypistage.xom.httpget.mockresponse(
             pypistage.mirror_url, code=200, text="""
             <body>
                 <a href='django'>Django</a><br/>
             </body>""")
-        assert pypistage.list_projects_perstage() == set(["django"])
+        with pypistage.keyfs.transaction(write=False):
+            assert pypistage.list_projects_perstage() == set(["django"])
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
         pypistage.url2response["https://pypi.org/simple/proj3/"] = dict(
             status_code=404)
-        assert len(pypistage.get_releaselinks("proj1")) == 1
-        assert len(pypistage.get_releaselinks("proj2")) == 1
-        assert not pypistage.has_project_perstage("proj3")
-        assert not pypistage.get_releaselinks("proj3")
-        assert pypistage.list_projects_perstage() == set(["proj1", "proj2", "django"])
+        with pypistage.keyfs.transaction(write=False):
+            assert len(pypistage.get_releaselinks("proj1")) == 1
+            assert len(pypistage.get_releaselinks("proj2")) == 1
+            assert not pypistage.has_project_perstage("proj3")
+            assert not pypistage.get_releaselinks("proj3")
+        with pypistage.keyfs.transaction(write=False):
+            assert pypistage.list_projects_perstage() == set(["proj1", "proj2", "django"])
 
     def test_name_cache_expiration_updated_when_no_names_changed(self, httpget, pypistage):
         pypistage.xom.httpget.mockresponse(
@@ -597,52 +607,50 @@ def test_is_project_cached(httpget, pypistage):
     assert pypistage.is_project_cached("abc")
 
 
+@pytest.mark.notransaction
 def test_404_on_pypi_cached(httpget, pypistage):
     # remember current serial to check later
     serial = pypistage.keyfs.get_current_serial()
     retrieve_times = pypistage.cache_retrieve_times
     retrieve_times.expire('foo')
-    assert not pypistage.has_project_perstage("foo")
+    with pypistage.keyfs.transaction(write=False):
+        assert not pypistage.has_project_perstage("foo")
     updated_at = retrieve_times.get_timestamp("foo")
     assert updated_at > 0
     # if we check again, we should get a cached result and no change in the
     # updated_at time
-    assert not pypistage.has_project_perstage("foo")
+    with pypistage.keyfs.transaction(write=False):
+        assert not pypistage.has_project_perstage("foo")
     assert retrieve_times.get_timestamp('foo') == updated_at
-
-    pypistage.keyfs.commit_transaction_in_thread()
-    pypistage.keyfs.begin_transaction_in_thread()
 
     # we trigger a fresh check
     retrieve_times.expire('foo')
-    assert not pypistage.has_project_perstage("foo")
+    with pypistage.keyfs.transaction(write=False):
+        assert not pypistage.has_project_perstage("foo")
 
     # verify that no new commit took place
-    pypistage.keyfs.commit_transaction_in_thread()
-    pypistage.keyfs.begin_transaction_in_thread()
     assert serial == pypistage.keyfs.get_current_serial()
     updated_at = retrieve_times.get_timestamp('foo')
     assert updated_at > 0
 
     # make the project exist on pypi, and verify we still get cached result
     httpget.mock_simple("foo", text="", pypiserial=2)
-    assert not pypistage.has_project_perstage("foo")
+    with pypistage.keyfs.transaction(write=False):
+        assert not pypistage.has_project_perstage("foo")
     assert retrieve_times.get_timestamp('foo') == updated_at
 
     # check that no writes were triggered
-    pypistage.keyfs.commit_transaction_in_thread()
-    pypistage.keyfs.begin_transaction_in_thread()
     assert serial == pypistage.keyfs.get_current_serial()
 
     # if we reset the cache time, we should get a result
     retrieve_times.expire('foo')
     time.sleep(0.01)  # to make sure we get a new timestamp
-    assert pypistage.has_project_perstage("foo")
-    assert len(pypistage.get_releaselinks('foo')) == 0
+    with pypistage.keyfs.transaction(write=False):
+        assert pypistage.has_project_perstage("foo")
+        assert len(pypistage.get_releaselinks('foo')) == 0
     assert retrieve_times.get_timestamp('foo') > updated_at
 
     # verify that there was a write this time
-    pypistage.keyfs.commit_transaction_in_thread()
     assert pypistage.keyfs.get_current_serial() == (serial + 1)
 
 

@@ -517,6 +517,7 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
         self.doomed = False
+        self._listeners = []
 
     @cached_property
     def conn(self):
@@ -699,7 +700,12 @@ class Transaction(object):
         finally:
             self._close()
         self.commit_serial = commit_serial
+        for listener in self._listeners:
+            listener()
         return commit_serial
+
+    def on_commit_success(self, callback):
+        self._listeners.append(callback)
 
     def _close(self):
         if self.closed:
