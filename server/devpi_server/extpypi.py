@@ -360,12 +360,15 @@ class PyPIStage(BaseStage):
             # maintain list of currently cached project names to enable
             # deletion and offline mode
             self.add_project_name(project)
-        # XXX if the transaction fails the links are still marked
-        # as refreshed but the data was not persisted.  It's a rare
-        # enough event (tm) to not worry too much, though.
-        # (we can, however, easily add a
-        # keyfs.tx.on_commit_success(callback) method.
-        self.cache_retrieve_times.refresh(project)
+
+        def on_commit():
+            threadlog.info("setting projects cache for %r", project)
+            self.cache_retrieve_times.refresh(project)
+            # make project appear in projects list even
+            # before we next check up the full list with remote
+            self.cache_projectnames.get_inplace().add(project)
+
+        self.keyfs.tx.on_commit_success(on_commit)
 
     def _load_cache_links(self, project):
         is_expired, links_with_data, serial = True, None, -1
@@ -495,10 +498,6 @@ class PyPIStage(BaseStage):
             requires_python = [link.requires_python for link in releaselinks]
             yanked = [link.yanked for link in releaselinks]
             self._save_cache_links(project, links, requires_python, yanked, serial)
-            # make project appear in projects list even
-            # before we next check up the full list with remote
-            threadlog.info("setting projects cache for %r", project)
-            self.cache_projectnames.get_inplace().add(project)
             return join_links_data(links, requires_python, yanked)
 
         try:
