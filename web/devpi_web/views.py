@@ -191,7 +191,7 @@ def doc_show(context, request):
 
 @notfound_view_config(renderer="templates/notfound.pt")
 def notfound(request):
-    if request.method == 'POST':
+    if request.method not in ('GET', 'HEAD'):
         request.response.status = 404
         return dict(msg=request.exception)
     path = decode_path_info(request.environ['PATH_INFO'] or '/')
