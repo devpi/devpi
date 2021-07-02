@@ -702,6 +702,8 @@ class PyPIView:
 
     @view_config(
         route_name="/{user}/{index}", request_method="PUT")
+    @view_config(
+        route_name="/{user}/{index}/", request_method="PUT")
     def index_create(self):
         username = self.context.username
         user = self.model.get_user(username)
@@ -747,6 +749,9 @@ class PyPIView:
 
     @view_config(
         route_name="/{user}/{index}", request_method="PATCH",
+        permission="index_modify")
+    @view_config(
+        route_name="/{user}/{index}/", request_method="PATCH",
         permission="index_modify")
     def index_modify(self):
         stage = self.context.stage
@@ -798,6 +803,9 @@ class PyPIView:
     @view_config(
         route_name="/{user}/{index}", request_method="DELETE",
         permission="index_delete")
+    @view_config(
+        route_name="/{user}/{index}/", request_method="DELETE",
+        permission="index_delete")
     def index_delete(self):
         stage = self.context.stage
         if not stage.ixconfig["volatile"]:
@@ -807,6 +815,7 @@ class PyPIView:
         apireturn(201, "index %s deleted" % stage.name)
 
     @view_config(route_name="/{user}/{index}", request_method=("POST", "PUSH"))
+    @view_config(route_name="/{user}/{index}/", request_method=("POST", "PUSH"))
     def pushrelease(self):
         request = self.request
         if request.POST.get(':action'):
@@ -1298,6 +1307,7 @@ class PyPIView:
         apireturn(200, "package %r deleted" % relpath)
 
     @view_config(route_name="/{user}/{index}", accept="application/json", request_method="GET")
+    @view_config(route_name="/{user}/{index}/", accept="application/json", request_method="GET")
     def index_get(self):
         stage = self.context.stage
         result = dict(stage.ixconfig)
@@ -1339,6 +1349,9 @@ class PyPIView:
     @view_config(
         route_name="/{user}", request_method="PATCH",
         permission="user_modify")
+    @view_config(
+        route_name="/{user}/", request_method="PATCH",
+        permission="user_modify")
     def user_patch(self):
         request = self.request
         kvdict = getjson(request)
@@ -1357,6 +1370,9 @@ class PyPIView:
 
     @view_config(
         route_name="/{user}", request_method="PUT",
+        permission="user_create")
+    @view_config(
+        route_name="/{user}/", request_method="PUT",
         permission="user_create")
     def user_create(self):
         username = self.context.username
@@ -1378,6 +1394,9 @@ class PyPIView:
     @view_config(
         route_name="/{user}", request_method="DELETE",
         permission="user_delete")
+    @view_config(
+        route_name="/{user}/", request_method="DELETE",
+        permission="user_delete")
     def user_delete(self):
         context = self.context
         if not context.user:
@@ -1393,6 +1412,7 @@ class PyPIView:
         apireturn(200, "user %r deleted" % context.username)
 
     @view_config(route_name="/{user}", accept="application/json", request_method="GET")
+    @view_config(route_name="/{user}/", accept="application/json", request_method="GET")
     def user_get(self):
         if self.context.user is None:
             apireturn(404, "user %r does not exist" % self.context.username)
