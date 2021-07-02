@@ -208,6 +208,18 @@ def test_simple_project_redirect(pypistage, testapp):
     assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % project)
 
 
+def test_index_get_json_patch_json_roundtrip(mapp, testapp):
+    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    r = testapp.get(api.index)
+    assert r.status_code == 200
+    assert r.json['type'] == 'indexconfig'
+    result = r.json['result']
+    result.pop('projects', None)
+    r = testapp.patch_json(api.index, r.json)
+    assert r.status_code == 200
+    assert r.json['result'] == result
+
+
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
 def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testapp):
     api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))

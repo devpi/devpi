@@ -780,6 +780,8 @@ class PyPIView:
                 else:
                     raise ValueError("Unknown operator '%s'." % op)
             json = ixconfig
+        if json.get('type') == 'indexconfig' and 'result' in json:
+            json = json['result']
         oldconfig = dict(stage.ixconfig)
         try:
             ixconfig = stage.modify(**json)
