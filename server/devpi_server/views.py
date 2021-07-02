@@ -748,6 +748,9 @@ class PyPIView:
     @view_config(
         route_name="/{user}/{index}", request_method="PATCH",
         permission="index_modify")
+    @view_config(
+        route_name="/{user}/{index}/", request_method="PATCH",
+        permission="index_modify")
     def index_modify(self):
         stage = self.context.stage
         json = getjson(self.request)
@@ -1338,6 +1341,9 @@ class PyPIView:
 
     @view_config(
         route_name="/{user}", request_method="PATCH",
+        permission="user_modify")
+    @view_config(
+        route_name="/{user}/", request_method="PATCH",
         permission="user_modify")
     def user_patch(self):
         request = self.request

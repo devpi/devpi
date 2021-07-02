@@ -410,6 +410,7 @@ class XOM:
                                  "/{user}/{index}/{project:[^/]+/?}")
         pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
         pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
+        pyramid_config.add_route("/{user}/", "/{user}/")
         pyramid_config.add_route("/{user}", "/{user}")
         pyramid_config.add_route("/", "/")
 
