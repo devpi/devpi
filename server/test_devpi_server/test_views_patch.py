@@ -51,6 +51,18 @@ def test_index_patch(testapp):
     assert r.json['message'] == "The 'mirror_whitelist' setting doesn't have value 'foo'"
 
 
+def test_index_patch_trailing_slash(testapp):
+    # add and login user
+    testapp.put_json("/foo", dict(password="123"))
+    testapp.set_auth('foo', '123')
+    # add index
+    testapp.put_json("/foo/dev/", dict())
+    # remove unknown from mirror_whitelist
+    r = testapp.patch_json("/foo/dev/", ["mirror_whitelist-=foo"], expect_errors=True)
+    assert r.status_code == 400
+    assert r.json['message'] == "The 'mirror_whitelist' setting doesn't have value 'foo'"
+
+
 def test_mirror_index_patch(testapp):
     # add and login user
     testapp.put_json("/foo", dict(password="123"))
