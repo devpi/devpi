@@ -2,6 +2,29 @@
 
 .. towncrier release notes start
 
+6.1.0 (2021-07-11)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- Renamed 'pypi_submit' permission to 'upload'. The old permission still works, but will be removed in a later major release.
+
+
+Features
+--------
+
+- Allow patching index with same json layout as the output of fetching json for an index.
+
+- Allow user and index URLs to work with a trailing slash.
+
+
+Bug Fixes
+---------
+
+- fix #631: race condition in fetching project links from mirrors.
+
+
 6.0.1 (2021-06-23)
 ==================
 

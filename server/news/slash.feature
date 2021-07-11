@@ -1,1 +1,0 @@
-Allow user and index URLs to work with a trailing slash.
