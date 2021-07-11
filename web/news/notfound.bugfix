@@ -1,0 +1,1 @@
+The "Not Found" view now works correctly with request methods other than GET, HEAD and POST.
