@@ -1,1 +1,0 @@
-Renamed 'pypi_submit' permission to 'upload'. The old permission still works, but will be removed in a later major release.

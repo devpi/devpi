@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.7 (2021-07-11)
+==================
+
+Bug Fixes
+---------
+
+- The "Not Found" view now works correctly with request methods other than GET, HEAD and POST.
+
+
 4.0.6 (2021-02-19)
 ==================
 
