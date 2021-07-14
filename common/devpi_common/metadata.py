@@ -152,6 +152,8 @@ class Version(CompareMixin):
 class BasenameMeta(CompareMixin):
     def __init__(self, obj, sameproject=False):
         self.obj = obj
+        # none of the below should be done lazily, as devpi_server.extpypi
+        # essentially uses this to validate parsed links
         basename = getattr(obj, "basename", obj)
         if not isinstance(basename, py.builtin._basestring):
             raise ValueError("need object with basename attribute")

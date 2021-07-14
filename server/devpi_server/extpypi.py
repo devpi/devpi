@@ -96,8 +96,8 @@ class IndexParser:
 
     @property
     def releaselinks(self):
-        l = map(BasenameMeta, self.basename2link.values())
-        return [x.obj for x in l]
+        # the BasenameMeta wrapping essentially does link validation
+        return [BasenameMeta(x).obj for x in self.basename2link.values()]
 
     def parse_index(self, disturl, html):
         p = HTMLPage(html, disturl.url)
@@ -480,7 +480,7 @@ class PyPIStage(BaseStage):
         # parse simple index's link
         assert response.text is not None, response.text
         result = parse_index(response.url, response.text)
-        releaselinks = list(result.releaselinks)
+        releaselinks = result.releaselinks
 
         # first we try to process mirror links without an explicit write transaction.
         # if all links already exist in storage we might then return our already
