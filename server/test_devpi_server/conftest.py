@@ -155,10 +155,8 @@ def xom(request, makexom):
     return xom
 
 
-@pytest.fixture(autouse=True, scope="session")
-def speed_up_sqlite():
-    from devpi_server.keyfs_sqlite import Storage
-    old = Storage.ensure_tables_exist
+def _speed_up_sqlite(cls):
+    old = cls.ensure_tables_exist
 
     def make_unsynchronous(self, old=old):
         conn = old(self)
@@ -166,7 +164,14 @@ def speed_up_sqlite():
             conn._sqlconn.execute("PRAGMA synchronous=OFF")
         return
 
-    Storage.ensure_tables_exist = make_unsynchronous
+    cls.ensure_tables_exist = make_unsynchronous
+    return old
+
+
+@pytest.fixture(autouse=True, scope="session")
+def speed_up_sqlite():
+    from devpi_server.keyfs_sqlite import Storage
+    old = _speed_up_sqlite(Storage)
     yield
     Storage.ensure_tables_exist = old
 
@@ -174,15 +179,7 @@ def speed_up_sqlite():
 @pytest.fixture(autouse=True, scope="session")
 def speed_up_sqlite_fs():
     from devpi_server.keyfs_sqlite_fs import Storage
-    old = Storage.ensure_tables_exist
-
-    def make_unsynchronous(self, old=old):
-        conn = old(self)
-        with self.get_connection() as conn:
-            conn._sqlconn.execute("PRAGMA synchronous=OFF")
-        return
-
-    Storage.ensure_tables_exist = make_unsynchronous
+    old = _speed_up_sqlite(Storage)
     yield
     Storage.ensure_tables_exist = old
 
