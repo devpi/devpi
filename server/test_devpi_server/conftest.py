@@ -203,6 +203,8 @@ def storage_info(request):
     if backend is None:
         backend = 'devpi_server.keyfs_sqlite_fs'
     plugin = locate(backend)
+    if plugin is None:
+        raise RuntimeError("Couldn't find storage backend '%s'" % backend)
     result = plugin.devpiserver_storage_backend(settings=None)
     result["_test_plugin"] = plugin
     return result
