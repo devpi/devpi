@@ -2,6 +2,7 @@ from devpi_common.types import cached_property
 from .config import hookimpl
 from .fileutil import dumps, loads
 from .interfaces import IStorageConnection2
+from .keyfs import RelpathInfo
 from .keyfs import get_relpath_at
 from .log import threadlog, thread_push_log, thread_pop_log
 from .readonly import ReadonlyView
@@ -25,6 +26,35 @@ class BaseConnection:
         self.dirty_files = {}
         self.storage = storage
         self._changelog_cache = storage._changelog_cache
+
+    def _explain(self, query, *args):
+        # for debugging
+        c = self._sqlconn.cursor()
+        r = c.execute("EXPLAIN " + query, *args)
+        return r.fetchall()
+
+    def _explain_query_plan(self, query, *args):
+        # for debugging
+        c = self._sqlconn.cursor()
+        r = c.execute("EXPLAIN QUERY PLAN " + query, *args)
+        return r.fetchall()
+
+    def fetchall(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # pprint(self._explain(query, *args))
+        # for row in self._explain_query_plan(query, *args):
+        #     print(row)
+        r = c.execute(query, *args)
+        return r.fetchall()
+
+    def iterall(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # pprint(self._explain(query, *args))
+        # for row in self._explain_query_plan(query, *args):
+        #     print(row)
+        return c.execute(query, *args)
 
     def close(self):
         self._sqlconn.close()
@@ -93,6 +123,32 @@ class BaseConnection:
             result = get_relpath_at(self, relpath, serial)
         self._changelog_cache.put((serial, relpath), result)
         return result
+
+    def iter_relpaths_at(self, typedkeys, at_serial):
+        keynames = frozenset(k.name for k in typedkeys)
+        keyname_id_values = {"keynameid%i" % i: k for i, k in enumerate(keynames)}
+        q = """
+            SELECT key, keyname, serial
+            FROM kv
+            WHERE serial=:serial AND keyname IN (:keynames)
+        """
+        q = q.replace(':keynames', ", ".join(':' + x for x in keyname_id_values))
+        for serial in range(at_serial, -1, -1):
+            rows = self.fetchall(q, dict(
+                serial=serial,
+                **keyname_id_values))
+            if not rows:
+                continue
+            changes = self._changelog_cache.get(serial, absent)
+            if changes is absent:
+                changes = loads(
+                    self.get_raw_changelog_entry(serial))[0]
+            for relpath, keyname, serial in rows:
+                (keyname, back_serial, val) = changes[relpath]
+                yield RelpathInfo(
+                    relpath=relpath, keyname=keyname,
+                    serial=serial, back_serial=back_serial,
+                    value=val)
 
 
 @implementer(IStorageConnection2)
@@ -288,6 +344,10 @@ class Storage(BaseStorage):
     Connection = Connection
     db_filename = ".sqlite_db"
     expected_schema = dict(
+        index=dict(
+            kv_serial_idx="""
+                CREATE INDEX kv_serial_idx ON kv (serial);
+            """),
         table=dict(
             changelog="""
                 CREATE TABLE changelog (

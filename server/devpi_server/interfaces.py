@@ -27,6 +27,11 @@ class IStorageConnection2(IStorageConnection):
             at given serial.
             Raises KeyError if not found. """
 
+    def iter_relpaths_at(typedkeys, at_serial):
+        """ Iterate over all relpaths of the given typed keys starting
+            from at_serial until the first serial in the database.
+            Yields RelpathInfo objects."""
+
 
 # some adapters for legacy plugins
 
@@ -62,12 +67,14 @@ def adapt(iface, obj):
         return obj
     elif iface is IStorageConnection2:
         from .keyfs import get_relpath_at
+        from .keyfs import iter_relpaths_at
         # first make sure the old connection interface is implemented
         obj = IStorageConnection(obj)
         _obj = unwrap_connection_obj(obj)
         cls = get_connection_class(_obj)
         # now add fallback method directly to the class
         cls.get_relpath_at = get_relpath_at
+        cls.iter_relpaths_at = iter_relpaths_at
         # and add the interface
         classImplements(cls, IStorageConnection2)
         # make sure the object now actually provides this interface

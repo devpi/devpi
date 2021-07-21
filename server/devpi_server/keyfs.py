@@ -540,6 +540,23 @@ def iter_serial_and_value_backwards(conn, relpath, last_serial):
     return
 
 
+def iter_relpaths_at(self, typedkeys, at_serial):
+    keynames = frozenset(k.name for k in typedkeys)
+    seen = set()
+    for serial in range(at_serial, -1, -1):
+        raw_entry = self.get_raw_changelog_entry(serial)
+        changes = loads(raw_entry)[0]
+        for relpath, (keyname, back_serial, val) in changes.items():
+            if keyname not in keynames:
+                continue
+            if relpath not in seen:
+                seen.add(relpath)
+                yield RelpathInfo(
+                    relpath=relpath, keyname=keyname,
+                    serial=serial, back_serial=back_serial,
+                    value=val)
+
+
 class Transaction(object):
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
@@ -564,20 +581,7 @@ class Transaction(object):
             write=self.write, closing=False)
 
     def iter_relpaths_at(self, typedkeys, at_serial):
-        keynames = frozenset(k.name for k in typedkeys)
-        seen = set()
-        for serial in range(at_serial, -1, -1):
-            raw_entry = self.conn.get_raw_changelog_entry(serial)
-            changes = loads(raw_entry)[0]
-            for relpath, (keyname, back_serial, val) in changes.items():
-                if keyname not in keynames:
-                    continue
-                if relpath not in seen:
-                    seen.add(relpath)
-                    yield RelpathInfo(
-                        relpath=relpath, keyname=keyname,
-                        serial=serial, back_serial=back_serial,
-                        value=val)
+        return self.conn.iter_relpaths_at(typedkeys, at_serial)
 
     def iter_serial_and_value_backwards(self, relpath, last_serial):
         while last_serial >= 0:

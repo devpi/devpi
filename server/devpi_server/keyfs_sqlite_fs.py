@@ -134,6 +134,10 @@ class Storage(BaseStorage):
     Connection = Connection
     db_filename = ".sqlite"
     expected_schema = dict(
+        index=dict(
+            kv_serial_idx="""
+                CREATE INDEX kv_serial_idx ON kv (serial);
+            """),
         table=dict(
             changelog="""
                 CREATE TABLE changelog (
