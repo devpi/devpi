@@ -1,0 +1,1 @@
+Optimized some database access patterns. A new index is added to the database on first startup. For large databases that can take a while.
