@@ -249,41 +249,69 @@ class BaseStorage(object):
             return contextlib.closing(conn)
         return conn
 
+    def _reflect_schema(self):
+        result = {}
+        with self.get_connection(write=False) as conn:
+            c = conn._sqlconn.cursor()
+            rows = c.execute("""
+                SELECT type, name, sql FROM sqlite_master""")
+            for row in rows:
+                result.setdefault(row[0], {})[row[1]] = row[2]
+        return result
+
+    def ensure_tables_exist(self):
+        schema = self._reflect_schema()
+        missing = dict()
+        for kind, objs in self.expected_schema.items():
+            for name, q in objs.items():
+                if name not in schema.get(kind, set()):
+                    missing.setdefault(kind, dict())[name] = q
+        if not missing:
+            return
+        with self.get_connection(write=True) as conn:
+            if not schema:
+                threadlog.info("DB: Creating schema")
+            else:
+                threadlog.info("DB: Updating schema")
+            c = conn._sqlconn.cursor()
+            for kind in ('table', 'index'):
+                objs = missing.pop(kind, {})
+                for name in list(objs):
+                    q = objs.pop(name)
+                    c.execute(q)
+                assert not objs
+            conn.commit()
+        assert not missing
+
 
 class Storage(BaseStorage):
     Connection = Connection
     db_filename = ".sqlite_db"
-
-    def perform_crash_recovery(self):
-        pass
-
-    def ensure_tables_exist(self):
-        if self.sqlpath.exists():
-            return
-        with self.get_connection(write=True) as conn:
-            threadlog.info("DB: Creating schema")
-            c = conn._sqlconn.cursor()
-            c.execute("""
+    expected_schema = dict(
+        table=dict(
+            changelog="""
+                CREATE TABLE changelog (
+                    serial INTEGER PRIMARY KEY,
+                    data BLOB NOT NULL
+                )
+            """,
+            kv="""
                 CREATE TABLE kv (
                     key TEXT NOT NULL PRIMARY KEY,
                     keyname TEXT,
                     serial INTEGER
                 )
-            """)
-            c.execute("""
-                CREATE TABLE changelog (
-                    serial INTEGER PRIMARY KEY,
-                    data BLOB NOT NULL
-                )
-            """)
-            c.execute("""
+            """,
+            files="""
                 CREATE TABLE files (
                     path TEXT PRIMARY KEY,
                     size INTEGER NOT NULL,
                     data BLOB NOT NULL
                 )
-            """)
-            conn.commit()
+            """))
+
+    def perform_crash_recovery(self):
+        pass
 
 
 @hookimpl
