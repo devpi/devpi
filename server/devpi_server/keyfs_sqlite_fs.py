@@ -133,6 +133,21 @@ class Connection(BaseConnection):
 class Storage(BaseStorage):
     Connection = Connection
     db_filename = ".sqlite"
+    expected_schema = dict(
+        table=dict(
+            changelog="""
+                CREATE TABLE changelog (
+                    serial INTEGER PRIMARY KEY,
+                    data BLOB NOT NULL
+                )
+            """,
+            kv="""
+                CREATE TABLE kv (
+                    key TEXT NOT NULL PRIMARY KEY,
+                    keyname TEXT,
+                    serial INTEGER
+                )
+            """))
 
     def perform_crash_recovery(self):
         # get last changes and verify all renames took place
@@ -142,27 +157,6 @@ class Storage(BaseStorage):
             data = conn.get_raw_changelog_entry(conn.last_changelog_serial)
         changes, rel_renames = loads(data)
         check_pending_renames(str(self.basedir), rel_renames)
-
-    def ensure_tables_exist(self):
-        if self.sqlpath.exists():
-            return
-        with self.get_connection(write=True) as conn:
-            threadlog.info("DB: Creating schema")
-            c = conn._sqlconn.cursor()
-            c.execute("""
-                CREATE TABLE kv (
-                    key TEXT NOT NULL PRIMARY KEY,
-                    keyname TEXT,
-                    serial INTEGER
-                )
-            """)
-            c.execute("""
-                CREATE TABLE changelog (
-                    serial INTEGER PRIMARY KEY,
-                    data BLOB NOT NULL
-                )
-            """)
-            conn.commit()
 
 
 @hookimpl
