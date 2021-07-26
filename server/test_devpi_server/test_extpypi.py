@@ -344,8 +344,8 @@ class TestExtPYPIDB:
         ret = pypistage.get_releaselinks("pytest")
         assert len(ret) == 1
         pypistage.mock_simple("pytest", text="", pypiserial=9)
-        assert len(pypistage.get_releaselinks("pytest")) == 1
-        recs = caplog.getrecords(".*serving cached links.*")
+        (link,) = pypistage.get_releaselinks("pytest")
+        recs = caplog.getrecords(".*serving stale links.*")
         assert len(recs) >= 1
 
     def test_get_releaselinks_cache_no_fresh_write(self, pypistage):

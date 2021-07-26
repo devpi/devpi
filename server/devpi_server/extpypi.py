@@ -18,8 +18,10 @@ from devpi_common.validation import normalize_name
 from functools import partial
 from html.parser import HTMLParser
 from .config import hookimpl
+from .exceptions import lazy_format_exception
+from .filestore import key_from_link
 from .model import BaseStageCustomizer
-from .model import BaseStage, make_key_and_href, SimplelinkMeta
+from .model import BaseStage, SimplelinkMeta
 from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
@@ -403,6 +405,112 @@ class PyPIStage(BaseStage):
         self.key_projsimplelinks(project).set({})
         threadlog.debug("cleared cache for %s", project)
 
+    def _fetch_releaselinks(self, project, cache_serial):
+        # get the simple page for the project
+        url = self.mirror_url + project + "/"
+        threadlog.debug("reading index %s", url)
+        response = self.httpget(url, allow_redirects=True, timeout=self.timeout)
+        if response.status_code != 200:
+            if response.status_code == 404:
+                self.cache_retrieve_times.refresh(project)
+                raise self.UpstreamNotFoundError(
+                    "not found on GET %s" % url)
+
+            # we don't have an old result and got a non-404 code.
+            raise self.UpstreamError("%s status on GET %s" % (
+                response.status_code, url))
+
+        # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
+        # devpi-master may provide a 200 but not supply the header
+        # (it's really a 404 in disguise and we should change
+        # devpi-server behaviour since pypi.org serves 404
+        # on non-existing projects for a longer time now).
+        # Returning a 200 with "no such project" was originally meant to
+        # provide earlier versions of easy_install/pip to request the full
+        # simple page.
+        try:
+            serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL")))
+        except (TypeError, ValueError):
+            # handle missing or invalid X-PYPI-LAST-SERIAL header
+            serial = -1
+
+        if serial < cache_serial:
+            raise self.UpstreamError(
+                "serial mismatch on GET %s, "
+                "cache_serial %s is newer than returned serial %s" % (
+                    url, cache_serial, serial))
+
+        threadlog.debug("%s: got response with serial %s", project, serial)
+
+        # check returned url has the same normalized name
+        ret_project = response.url.strip("/").split("/")[-1]
+        assert project == normalize_name(ret_project)
+
+        # parse simple index's link
+        assert response.text is not None, response.text
+        releaselinks = parse_index(response.url, response.text).releaselinks
+        num_releaselinks = len(releaselinks)
+        key_hrefs = [None] * num_releaselinks
+        requires_python = [None] * num_releaselinks
+        yanked = [None] * num_releaselinks
+        _key_from_link = partial(
+            key_from_link, self.keyfs, user=self.user.name, index=self.index)
+        for index, releaselink in enumerate(releaselinks):
+            key = _key_from_link(releaselink)
+            href = key.relpath
+            if releaselink.hash_spec:
+                href = f"{href}#{releaselink.hash_spec}"
+            key_hrefs[index] = (releaselink.basename, href)
+            requires_python[index] = releaselink.requires_python
+            yanked[index] = releaselink.yanked
+        return dict(
+            serial=serial,
+            releaselinks=releaselinks,
+            key_hrefs=key_hrefs,
+            requires_python=requires_python,
+            yanked=yanked,
+            devpi_serial=response.headers.get("X-DEVPI-SERIAL"))
+
+    def _update_simplelinks(self, project, info, newlinks):
+        if self.xom.is_replica():
+            # on the replica we wait for the changes to arrive (changes were
+            # triggered by our http request above) because we have no direct
+            # writeaccess to the db other than through the replication thread
+            # and we need the current data of the new entries
+            devpi_serial = int(info["devpi_serial"])
+            threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
+                            devpi_serial)
+            if self.keyfs.wait_tx_serial(devpi_serial, timeout=self.timeout):
+                threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
+                                devpi_serial)
+                # XXX raise TransactionRestart to get a consistent clean view
+                self.keyfs.restart_read_transaction()
+                is_expired, links, cache_serial = self._load_cache_links(project)
+            if links is not None:
+                self.cache_retrieve_times.refresh(project)
+                return links
+            raise self.UpstreamError("no cache links from master for %s" %
+                                     project)
+        else:
+            # on the master we need to write the updated links.
+            if not self.keyfs.tx.write:
+                # we are in a read-only transaction so we need to start a
+                # write transaction.
+                self.keyfs.restart_as_write_transaction()
+
+            maplink = partial(
+                self.filestore.maplink,
+                user=self.user.name, index=self.index, project=project)
+            # calling maplink on the links creates the entries in the database
+            for x in info["releaselinks"]:
+                maplink(x)
+            # this stores the simple links info
+            self._save_cache_links(
+                project,
+                info["key_hrefs"], info["requires_python"], info["yanked"],
+                info["serial"])
+            return newlinks
+
     def get_simplelinks_perstage(self, project):
         """ return all releaselinks from the index, returning cached entries
         if we have a recent enough request stored locally.
@@ -429,111 +537,27 @@ class PyPIStage(BaseStage):
             raise self.UpstreamNotFoundError(
                 "cached not found for project %s" % project)
 
-        # get the simple page for the project
-        url = self.mirror_url + project + "/"
-        threadlog.debug("reading index %s", url)
-        response = self.httpget(url, allow_redirects=True, timeout=self.timeout)
-        if response.status_code != 200:
+        try:
+            info = self._fetch_releaselinks(project, cache_serial)
+        except (self.UpstreamNotFoundError, self.UpstreamError) as e:
             # if we have and old result, return it. While this will
             # miss the rare event of actual project deletions it allows
             # to stay resilient against server misconfigurations.
             if links is not None:
                 threadlog.warn(
-                    "serving stale links for %r, url %r responded %s %s",
-                    project, url, response.status_code, response.reason)
+                    "serving stale links, because of exception %s",
+                    lazy_format_exception(e))
                 return links
-            if response.status_code == 404:
-                self.cache_retrieve_times.refresh(project)
-                raise self.UpstreamNotFoundError(
-                    "not found on GET %s" % url)
+            raise
 
-            # we don't have an old result and got a non-404 code.
-            raise self.UpstreamError("%s status on GET %s" % (
-                response.status_code, url))
-
-        # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
-        # devpi-master may provide a 200 but not supply the header
-        # (it's really a 404 in disguise and we should change
-        # devpi-server behaviour since pypi.org serves 404
-        # on non-existing projects for a longer time now).
-        # Returning a 200 with "no such project" was originally meant to
-        # provide earlier versions of easy_install/pip to request the full
-        # simple page.
-        try:
-            serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL")))
-        except (TypeError, ValueError):
-            # handle missing or invalid X-PYPI-LAST-SERIAL header
-            serial = -1
-
-        if serial < cache_serial:
-            threadlog.warn("serving cached links for %s "
-                           "because returned serial %s, cache_serial %s is better!",
-                           response.url, serial, cache_serial)
+        newlinks = join_links_data(
+            info["key_hrefs"], info["requires_python"], info["yanked"])
+        if links is not None and set(links) == set(newlinks):
+            # no changes
+            self.cache_retrieve_times.refresh(project)
             return links
 
-        threadlog.debug("%s: got response with serial %s", project, serial)
-
-        # check returned url has the same normalized name
-        ret_project = response.url.strip("/").split("/")[-1]
-        assert project == normalize_name(ret_project)
-
-        # parse simple index's link
-        assert response.text is not None, response.text
-        result = parse_index(response.url, response.text)
-        releaselinks = result.releaselinks
-
-        # first we try to process mirror links without an explicit write transaction.
-        # if all links already exist in storage we might then return our already
-        # cached information about them.  Note that _save_cache_links() will
-        # implicitely update non-persisted cache timestamps.
-        def map_and_dump():
-            # both maplink() and _save_cache_links() will not modify
-            # storage if there are no changes so they operate fine within a
-            # read-transaction if nothing changed.
-            maplink = partial(
-                self.filestore.maplink,
-                user=self.user.name, index=self.index, project=project)
-            entries = [maplink(link) for link in releaselinks]
-            links = [make_key_and_href(entry) for entry in entries]
-            requires_python = [link.requires_python for link in releaselinks]
-            yanked = [link.yanked for link in releaselinks]
-            self._save_cache_links(project, links, requires_python, yanked, serial)
-            return join_links_data(links, requires_python, yanked)
-
-        try:
-            return map_and_dump()
-        except self.keyfs.ReadOnly:
-            pass
-
-        # we know that some links changed in this simple page.
-        # On the master we need to write-update, on the replica
-        # we wait for the changes to arrive (changes were triggered
-        # by our http request above) because have no direct write
-        # access to the db other than through the replication thread.
-        if self.xom.is_replica():
-            # we have already triggered the master above
-            # and now need to wait until the parsed new links are
-            # transferred back to the replica
-            devpi_serial = int(response.headers["X-DEVPI-SERIAL"])
-            threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
-                            devpi_serial)
-            if self.keyfs.wait_tx_serial(devpi_serial, timeout=self.timeout):
-                threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
-                                devpi_serial)
-                # XXX raise TransactionRestart to get a consistent clean view
-                self.keyfs.restart_read_transaction()
-                is_expired, links, cache_serial = self._load_cache_links(project)
-            if links is not None:
-                self.cache_retrieve_times.refresh(project)
-                return links
-            raise self.UpstreamError("no cache links from master for %s" %
-                                     project)
-        else:
-            # we are on the master and something changed and we are
-            # in a readonly-transaction so we need to start a write
-            # transaction and perform map_and_dump.
-            self.keyfs.restart_as_write_transaction()
-            return map_and_dump()
+        return self._update_simplelinks(project, info, newlinks)
 
     def has_project_perstage(self, project):
         if self.is_project_cached(project):
