@@ -31,7 +31,7 @@ def configure_logging(config_args):
             if config_args.logger_cfg.endswith(".json"):
                 logger_cfg = json.loads(f.read())
             else:
-                logger_cfg = yaml.safe_load(f.read())
+                logger_cfg = yaml.YAML(typ='safe', pure=True).load(f.read())
         logging.config.dictConfig(logger_cfg)
 
 
