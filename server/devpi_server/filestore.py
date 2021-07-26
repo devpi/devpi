@@ -9,16 +9,11 @@ import mimetypes
 from wsgiref.handlers import format_date_time
 import py
 import re
-import sys
 from devpi_common.metadata import splitbasename
 from devpi_common.types import cached_property, parse_hash_spec
 from .log import threadlog
+from urllib.parse import unquote
 
-
-if sys.version_info >= (3, 0):
-    from urllib.parse import unquote
-else:
-    from urllib import unquote
 
 _nodefault = object()
 
@@ -35,6 +30,27 @@ def make_splitdir(hash_spec):
     return hash_value[:3], hash_value[3:16]
 
 
+def key_from_link(keyfs, link, user, index):
+    if link.hash_spec:
+        # we can only create 32K entries per directory
+        # so let's take the first 3 bytes which gives
+        # us a maximum of 16^3 = 4096 entries in the root dir
+        a, b = make_splitdir(link.hash_spec)
+        return keyfs.STAGEFILE(
+            user=user, index=index,
+            hashdir_a=a, hashdir_b=b,
+            filename=link.basename)
+    else:
+        parts = link.torelpath().split("/")
+        assert parts
+        dirname = "_".join(parts[:-1])
+        dirname = re.sub('[^a-zA-Z0-9_.-]', '_', dirname)
+        return keyfs.PYPIFILE_NOMD5(
+            user=user, index=index,
+            dirname=unquote(dirname),
+            basename=link.basename)
+
+
 def unicode_if_bytes(val):
     if isinstance(val, py.builtin.bytes):
         val = py.builtin._totext(val)
@@ -48,24 +64,7 @@ class FileStore:
         self.keyfs = keyfs
 
     def maplink(self, link, user, index, project):
-        parts = link.torelpath().split("/")
-        assert parts
-        basename = unquote(parts[-1])
-        if link.hash_spec:
-            # we can only create 32K entries per directory
-            # so let's take the first 3 bytes which gives
-            # us a maximum of 16^3 = 4096 entries in the root dir
-            a, b = make_splitdir(link.hash_spec)
-            key = self.keyfs.STAGEFILE(user=user, index=index,
-                                       hashdir_a=a, hashdir_b=b,
-                                       filename=link.basename)
-        else:
-            dirname = "_".join(parts[:-1])
-            dirname = re.sub('[^a-zA-Z0-9_.-]', '_', dirname)
-            key = self.keyfs.PYPIFILE_NOMD5(
-                user=user, index=index,
-                dirname=unquote(dirname),
-                basename=basename)
+        key = key_from_link(self.keyfs, link, user, index)
         entry = FileEntry(key, readonly=False)
         entry.url = link.geturl_nofragment().url
         # verify checksum if the entry is fresh, a file exists
@@ -82,7 +81,7 @@ class FileStore:
         entry.project = project
         version = None
         try:
-            (projectname, version, ext) = splitbasename(basename)
+            (projectname, version, ext) = splitbasename(link.basename)
         except ValueError:
             pass
         # only store version on entry if we can determine it
