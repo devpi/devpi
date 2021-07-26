@@ -416,7 +416,7 @@ class PyPIStage(BaseStage):
         self.key_projsimplelinks(project).set({})
         threadlog.debug("cleared cache for %s", project)
 
-    async def _async_fetch_releaselinks(self, project, cache_serial, _key_from_link):
+    async def _async_fetch_releaselinks(self, newlinks_future, project, cache_serial, _key_from_link):
         # get the simple page for the project
         url = self.mirror_url + project + "/"
         threadlog.debug("reading index %s", url)
@@ -471,13 +471,13 @@ class PyPIStage(BaseStage):
             key_hrefs[index] = (releaselink.basename, href)
             requires_python[index] = releaselink.requires_python
             yanked[index] = releaselink.yanked
-        return dict(
+        newlinks_future.set_result(dict(
             serial=serial,
             releaselinks=releaselinks,
             key_hrefs=key_hrefs,
             requires_python=requires_python,
             yanked=yanked,
-            devpi_serial=response.headers.get("X-DEVPI-SERIAL"))
+            devpi_serial=response.headers.get("X-DEVPI-SERIAL")))
 
     def _update_simplelinks(self, project, info, newlinks):
         if self.xom.is_replica():
@@ -519,6 +519,24 @@ class PyPIStage(BaseStage):
                 info["serial"])
             return newlinks
 
+    async def _update_simplelinks_in_future(self, newlinks_future, project):
+        threadlog.debug("Awaiting simple links for %r", project)
+        info = await newlinks_future
+        threadlog.debug("Got simple links for %r", project)
+
+        newlinks = join_links_data(
+            info["key_hrefs"], info["requires_python"], info["yanked"])
+        with self.keyfs.transaction(write=True):
+            # fetch current links
+            (is_expired, links, cache_serial) = self._load_cache_links(project)
+            if links is None or set(links) != set(newlinks):
+                # we got changes, so store them
+                self._update_simplelinks(project, info, newlinks)
+                threadlog.debug(
+                    "Updated simplelinks for %r in background", project)
+            else:
+                threadlog.debug("Unchanged simplelinks for %r", project)
+
     def get_simplelinks_perstage(self, project):
         """ return all releaselinks from the index, returning cached entries
         if we have a recent enough request stored locally.
@@ -545,16 +563,22 @@ class PyPIStage(BaseStage):
             raise self.UpstreamNotFoundError(
                 "cached not found for project %s" % project)
 
+        newlinks_future = self.xom.create_future()
         # we need to set this up here, as these access the database and
         # the async loop has no transaction
         _key_from_link = partial(
             key_from_link, self.keyfs, user=self.user.name, index=self.index)
         try:
-            info = self.xom.run_coroutine_threadsafe(
+            self.xom.run_coroutine_threadsafe(
                 self._async_fetch_releaselinks(
-                    project, cache_serial, _key_from_link),
+                    newlinks_future, project, cache_serial, _key_from_link),
                 timeout=self.timeout)
         except asyncio.TimeoutError:
+            # we process the future in the background
+            self.xom.create_task(
+                self._update_simplelinks_in_future(newlinks_future, project))
+            # to prevent a buildup of updates we mark the project as fresh
+            self.cache_retrieve_times.refresh(project)
             if links is not None:
                 threadlog.warn(
                     "serving stale links for %r, getting data timed out after %s seconds",
@@ -572,6 +596,8 @@ class PyPIStage(BaseStage):
                     lazy_format_exception(e))
                 return links
             raise
+
+        info = newlinks_future.result()
 
         newlinks = join_links_data(
             info["key_hrefs"], info["requires_python"], info["yanked"])
