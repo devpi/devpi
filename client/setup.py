@@ -30,7 +30,7 @@ if __name__ == "__main__":
                       "devpi_common<4,>=3.6.0",
                       "pkginfo>=1.4.2",
                       "check-manifest>=0.28",
-                      "pluggy>=0.6.0,<1.0",
+                      "pluggy>=0.6.0,<2.0",
                       "py>=1.4.31"]
 
     extras_require = {}
