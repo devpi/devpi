@@ -38,7 +38,7 @@ if __name__ == "__main__":
                         "waitress>=1.0.1",
                         "repoze.lru>=0.6",
                         "passlib[argon2]",
-                        "pluggy>=0.6.0,<1.0",
+                        "pluggy>=0.6.0,<2.0",
                         'ruamel.yaml',
                         "strictyaml",
                         ]
