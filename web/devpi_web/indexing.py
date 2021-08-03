@@ -77,18 +77,28 @@ class ProjectIndexingInfo(object):
         return self.stage.ixconfig['type'] == 'mirror'
 
 
-def iter_projects(xom):
+def iter_indexes(xom):
+    mirrors = []
     for user in xom.model.get_userlist():
         username = ensure_unicode(user.name)
         user_info = user.get(user)
         for index, index_info in user_info.get('indexes', {}).items():
             index = ensure_unicode(index)
-            stage = xom.model.getstage(username, index)
-            if stage is None:  # this is async, so the stage may be gone
-                continue
-            names = stage.list_projects_perstage()
-            for name in names:
-                name = ensure_unicode(name)
-                yield ProjectIndexingInfo(
-                    stage=stage,
-                    name=name)
+            if index_info['type'] == 'mirror':
+                mirrors.append((username, index))
+            else:
+                yield (username, index)
+    yield from mirrors
+
+
+def iter_projects(xom):
+    for username, index in iter_indexes(xom):
+        stage = xom.model.getstage(username, index)
+        if stage is None:  # this is async, so the stage may be gone
+            continue
+        names = stage.list_projects_perstage()
+        for name in names:
+            name = ensure_unicode(name)
+            yield ProjectIndexingInfo(
+                stage=stage,
+                name=name)
