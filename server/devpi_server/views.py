@@ -572,8 +572,11 @@ class PyPIView:
             whitelist_info = stage.get_mirror_whitelist_info(project)
             embed_form = whitelist_info['has_mirror_base']
             blocked_index = whitelist_info['blocked_by_mirror_whitelist']
-        response = Response(body=b"".join(self._simple_list_project(
-            stage, project, result, embed_form, blocked_index)))
+        body = b"".join(self._simple_list_project(
+            stage, project, result, embed_form, blocked_index))
+        response = Response(
+            content_length=len(body),
+            body=body)
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial > 0:
@@ -581,9 +584,6 @@ class PyPIView:
         return response
 
     def _simple_list_project(self, stage, project, result, embed_form, blocked_index):
-        response = self.request.response
-        response.content_type = "text/html ; charset=utf-8"
-
         title = "%s: links for %s" % (stage.name, project)
         yield ("<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1>\n" %
                (title, title)).encode("utf-8")
@@ -659,17 +659,20 @@ class PyPIView:
         self.log.info("starting +simple")
         stage = self.context.stage
         try:
+            # list is called to force iteration over all results in this
+            # try/except block
             stage_results = list(stage.list_projects())
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(self.request, 502, e.msg)
         # at this point we are sure we can produce the data without
         # depending on remote networks
-        return Response(body=b"".join(self._simple_list_all(stage, stage_results)))
+        body = b"".join(self._simple_list_all(stage, stage_results))
+        return Response(
+            content_length=len(body),
+            body=body)
 
     def _simple_list_all(self, stage, stage_results):
-        response = self.request.response
-        response.content_type = "text/html ; charset=utf-8"
         title = "%s: simple list (including inherited indices)" % (stage.name)
         yield ("<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1>" %(
               title, title)).encode("utf-8")
