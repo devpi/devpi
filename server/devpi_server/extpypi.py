@@ -366,7 +366,7 @@ class PyPIStage(BaseStage):
             self.cache_retrieve_times.refresh(project)
             # make project appear in projects list even
             # before we next check up the full list with remote
-            self.cache_projectnames.get_inplace().add(project)
+            self.cache_projectnames.add(project)
 
         self.keyfs.tx.on_commit_success(on_commit)
 
@@ -600,7 +600,7 @@ class ProjectNamesCache:
     """ Helper class for maintaining project names from a mirror. """
     def __init__(self):
         self._timestamp = -1
-        self._data = set()
+        self._data = frozenset()
 
     def exists(self):
         return self._timestamp != -1
@@ -610,16 +610,20 @@ class ProjectNamesCache:
 
     def get(self):
         """ Get a copy of the cached data. """
-        return set(self._data)
-
-    def get_inplace(self):
-        """ Get cached data in-place. """
         return self._data
+
+    def add(self, project):
+        """ Add project to cache. """
+        self._data = self._data.union({project})
+
+    def discard(self, project):
+        """ Remove project from cache. """
+        self._data = self._data.difference({project})
 
     def set(self, data):
         """ Set data and update timestamp. """
         if data is not self._data:
-            self._data = data.copy()
+            self._data = frozenset(data)
         self.mark_current()
 
     def mark_current(self):

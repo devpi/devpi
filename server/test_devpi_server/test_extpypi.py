@@ -665,9 +665,10 @@ class TestProjectNamesCache:
         cache.set(s)
         s.add(4)
         assert cache.get() != s
-        s2 = cache.get_inplace()
-        s2.add(5)
+        cache.add(5)
         assert 5 in cache.get()
+        cache.discard(5)
+        assert 5 not in cache.get()
 
     def test_is_expired(self, cache, monkeypatch):
         expiry_time = 100
