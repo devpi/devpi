@@ -5,6 +5,12 @@ from test_devpi_server.conftest import dummyrequest, pypiurls, testapp  # noqa
 from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
 from test_devpi_server.conftest import storage_info  # noqa
 from test_devpi_server.conftest import mock, pyramidconfig  # noqa
+from test_devpi_server.conftest import speed_up_sqlite  # noqa
+from test_devpi_server.conftest import speed_up_sqlite_fs  # noqa
+try:
+    from test_devpi_server.conftest import lower_argon2_parameters  # noqa
+except ImportError:
+    pass
 import pytest
 
 
@@ -20,9 +26,6 @@ def pytest_addoption(parser):
 def xom(request, makexom):
     import devpi_web.main
     xom = makexom(plugins=[(devpi_web.main, None)])
-    from devpi_server.main import set_default_indexes
-    with xom.keyfs.transaction(write=True):
-        set_default_indexes(xom.model)
     return xom
 
 
