@@ -135,10 +135,6 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py27,py27-version,py27-lin"
           - project: "client"
-            python-version: "pypy-2.7"
-            os: "ubuntu-latest"
-            tox-envs: "pypy"
-          - project: "client"
             python-version: "3.4.10"
             os: "ubuntu-18.04"
             tox-envs: "py34"
@@ -146,10 +142,6 @@ jobs:
             python-version: "3.9"
             os: "ubuntu-latest"
             tox-envs: "py39"
-          - project: "client"
-            python-version: "pypy-3.7"
-            os: "ubuntu-latest"
-            tox-envs: "pypy3"
 
     env:
       PY_COLORS: 1
@@ -195,10 +187,6 @@ jobs:
             python-version: "3.9"
             os: "ubuntu-latest"
             tox-envs: "py39"
-          - project: "server"
-            python-version: "pypy-3.7"
-            os: "ubuntu-latest"
-            tox-envs: "pypy3"
 
     env:
       PY_COLORS: 1
@@ -244,10 +232,6 @@ jobs:
             python-version: "3.9"
             os: "ubuntu-latest"
             tox-envs: "py39"
-          - project: "web"
-            python-version: "pypy-3.7"
-            os: "ubuntu-latest"
-            tox-envs: "pypy3"
 
     env:
       PY_COLORS: 1
@@ -440,6 +424,55 @@ jobs:
           export POSTGRESQL_BIN_DIR=$(ls -d /usr/lib/postgresql/*/bin)
           ls $POSTGRESQL_BIN_DIR
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  pypy-tests:
+    if: true
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["client-tests", "server-tests", "web-tests"]
+    strategy:
+      matrix:
+        include:
+          - project: "client"
+            python-version: "pypy-2.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy"
+          - project: "client"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3"
+          - project: "server"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3"
+          - project: "web"
+            python-version: "pypy-3.7"
+            os: "ubuntu-latest"
+            tox-envs: "pypy3"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
