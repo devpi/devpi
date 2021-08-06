@@ -39,19 +39,9 @@ def uploadhub(request, tmpdir):
                            "upload"])
     return hub
 
-#@pytest.fixture(autouse=True)
-#def extpypi_404(monkeypatch):
-#    from devpi_server import extpypi  # this is only client side
-#    monkeypatch.setattr(extpypi.ExtDB, "get_releaselinks", lambda *args: 404)
-
 
 @pytest.mark.skipif("config.option.fast")
 class TestCheckout:
-    @pytest.fixture(autouse=True)
-    def no_sys_executable(self, monkeypatch):
-        """ make sure sys.executable is not used accidentally. """
-        monkeypatch.setattr(sys, "executable", None)
-
     @pytest.fixture(scope="class", params=[".", "setupdir"])
     def setupdir_rel(self, request):
         return request.param
