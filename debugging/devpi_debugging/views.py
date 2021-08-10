@@ -2,6 +2,7 @@ from devpi_server.fileutil import loads
 from difflib import SequenceMatcher
 from functools import partial
 from itertools import chain
+from pyramid.httpexceptions import HTTPForbidden
 from pyramid.view import view_config
 import json
 
@@ -11,7 +12,10 @@ import json
     request_method="GET",
     renderer="templates/keyfs.pt")
 def keyfs_view(request):
-    storage = request.registry['xom'].keyfs._storage
+    xom = request.registry['xom']
+    if not xom.config.args.debug_keyfs:
+        raise HTTPForbidden("+keyfs views disabled")
+    storage = xom.keyfs._storage
     query = request.params.get('query')
     serials = []
     if query:
@@ -59,8 +63,11 @@ def diff(prev, current):
     request_method="GET",
     renderer="templates/keyfs_changelog.pt")
 def keyfs_changelog_view(request):
+    xom = request.registry['xom']
+    if not xom.config.args.debug_keyfs:
+        raise HTTPForbidden("+keyfs views disabled")
     pformat = partial(json.dumps, indent=4, default=sorted, sort_keys=True)
-    storage = request.registry['xom'].keyfs._storage
+    storage = xom.keyfs._storage
     serial = request.matchdict['serial']
     query = request.params.get('query')
     with storage.get_connection() as conn:
