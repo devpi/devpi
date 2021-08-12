@@ -1,1 +1,0 @@
-On startup loop over mirror indexes last to avoid filling up the indexing queue, which processes non mirror indexes first.

@@ -2,6 +2,21 @@
 
 .. towncrier release notes start
 
+6.2.0 (2021-08-12)
+==================
+
+Bug Fixes
+---------
+
+- Optimized some database access patterns. A new index is added to the database on first startup. For large databases that can take a while.
+
+- Improved performance of loads from database.
+
+- Optimized memory and cache use for database access.
+
+- Use frozenset for project name cache of mirror indexes. This mitigates memory fragmentation on some Linux distributions.
+
+
 6.1.0 (2021-07-11)
 ==================
 

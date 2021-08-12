@@ -1,1 +1,0 @@
-Use frozenset for project name cache of mirror indexes. This mitigates memory fragmentation on some Linux distributions.
