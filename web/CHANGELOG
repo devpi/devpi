@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.8 (2021-08-12)
+==================
+
+Bug Fixes
+---------
+
+- On startup loop over mirror indexes last to avoid filling up the indexing queue, which processes non mirror indexes first.
+
+
 4.0.7 (2021-07-11)
 ==================
 
