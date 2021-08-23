@@ -407,8 +407,11 @@ class PyPIView:
         xom = request.registry['xom']
         self.xom = xom
         self.model = xom.model
-        self.auth = Auth(self.model, xom.config.get_auth_secret())
         self.log = request.log
+
+    @lazy
+    def auth(self):
+        return Auth(self.model, self.xom.config.get_auth_secret())
 
     def get_auth_status(self):
         identity = self.request.identity
