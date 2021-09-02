@@ -31,7 +31,7 @@ Overview
 
 The `devpi`_ consists of two parts:
 
-   - A ``devpi server`` responsible for providing a PyPI index cache and to manager sub-indices.
+   - A ``devpi server`` responsible for providing a PyPI index cache and to manage sub-indices.
      The ``devpi server`` is compatible with most python installer tools. 
      
    - The ``devpi client`` provides the user interface (command line) to interface with the ``devpi server``.
