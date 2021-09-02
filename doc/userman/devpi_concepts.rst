@@ -124,7 +124,7 @@ Indexes
 
 - A index is **volatile** if packages can be overridden with the same version 
   (which would make sense for a development index). Otherwise, attempting to 
-  *upload* [#f2]_ a package with the same version would result in an error. 
+  *upload* [#f1]_ a package with the same version would result in an error. 
   See the :ref:`non_volatile_indexes` for rules specific to this index type. 
    
 - A user can have/create as many indices as he/she wants. 
@@ -133,7 +133,7 @@ Indexes
 
    Suppose that Sophie has the same index hierarchy as Emilie (*/sophie/prod* -> */sophie/dev*) 
    but wants to experiment with a package Emilie is currently working on and stored in */emilie/dev*, 
-   Sophie could create a sub index */sophie/fiddle*, using both her and Emilie's dev index [#f3]_,
+   Sophie could create a sub index */sophie/fiddle*, using both her and Emilie's dev index [#f2]_,
    which would look like::
    
       $ devpi getjson http://localhost:3141/sophie
@@ -234,13 +234,11 @@ Server End Points
 
 .. rubric:: Footnotes
 
-.. [#f1] this is true, when you run devpi and the ``devpi server`` on you local machine. 
-
-.. [#f2] **Uploading** refers to storing a package in an index whereas **pushing** refers to *transferring* 
+.. [#f1] **Uploading** refers to storing a package in an index whereas **pushing** refers to *transferring* 
          a package from one index to another. In the example above, Emilie would **upload** package 
          *foo* to */emilie/dev* and later on **push** the package from */emilie/dev* to */emilie/prod*.
          
-.. [#f3] A preferred option in this case would be to temporarily modify the base of sophie's dev index:
+.. [#f2] A preferred option in this case would be to temporarily modify the base of sophie's dev index:
 
             ``devpi index -m dev bases=/sophie/prod,/emilie/dev volatile=True``       
 
