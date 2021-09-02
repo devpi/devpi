@@ -154,7 +154,7 @@ We can verify that we uploaded two versions of our release file::
 Removing A Release File (or project)
 ------------------------------------
 
-.. note:: The following only work from :term:`volatile` indexes. This is a safeguard
+.. note:: The following only works from :term:`volatile` indexes. This is a safeguard
           to prevent deleting production indexes. 
    
 If the :term:`release file` version 0.0.2 was uploaded by error, it can easily be 
