@@ -53,7 +53,7 @@ More on the use command can be found :ref:`here <devpi_um_indices_use_section>`
 Creating a User
 ---------------
 
-If the do not already have a user ID he or she must create one::
+If the user does not already have a user ID he or she must create one::
 
    $ devpi user -c emilie email=edoe@mydomain.net password=1234
    user created: emilie
