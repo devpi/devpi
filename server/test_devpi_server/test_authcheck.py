@@ -56,3 +56,18 @@ def test_authcheck_always_ok(testapp):
         200, 'http://localhost/+authcheck',
         headers=ResponseHeaders({
             'X-Original-URI': 'http://localhost/+login'}))
+
+
+def test_authcheck_404(testapp):
+    testapp.xget(
+        403, 'http://localhost/+authcheck',
+        headers=ResponseHeaders({
+            'X-Original-URI': 'http://localhost/+unavailable_route/'}))
+    testapp.xget(
+        403, 'http://localhost/+authcheck',
+        headers=ResponseHeaders({
+            'X-Original-URI': 'http://localhost/user/+unavailable_route/'}))
+    testapp.xget(
+        403, 'http://localhost/+authcheck',
+        headers=ResponseHeaders({
+            'X-Original-URI': 'http://localhost/user/index/+unavailable_route/'}))
