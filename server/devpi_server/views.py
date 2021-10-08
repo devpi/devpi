@@ -471,6 +471,8 @@ class PyPIView:
         info = routes_mapper(orig_request)
         (orig_request.matchdict, orig_request.matched_route) = (
             info['match'], info['route'])
+        if orig_request.matched_route is None:
+            return HTTPForbidden()
         root_factory = orig_request.matched_route.factory or root_factory
         orig_request.context = root_factory(orig_request)
         with RequestContext(orig_request):
