@@ -1343,6 +1343,17 @@ class TestStage:
             # and this time we can know when it was deleted
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 12)
 
+    def test_multi_path_to_mirror_sro(self, model, user):
+        stage1 = user.create_stage("stage1", bases=["root/pypi"])
+        stage2 = user.create_stage("stage2", bases=["root/pypi"])
+        stage3 = user.create_stage("stage3", bases=[stage1.name, stage2.name])
+        assert [x.name for x in stage1.sro()] == [
+            stage1.name, "root/pypi"]
+        assert [x.name for x in stage2.sro()] == [
+            stage2.name, "root/pypi"]
+        assert [x.name for x in stage3.sro()] == [
+            stage3.name, stage1.name, stage2.name, "root/pypi"]
+
 
 class TestLinkStore:
     @pytest.fixture

@@ -1,0 +1,1 @@
+fix #853: prevent duplicate mirror indexes in sro method when there are multiple inheritance chains to the same mirror
