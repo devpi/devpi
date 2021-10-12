@@ -1,0 +1,2 @@
+- Add missing `lazy` package dependency. Previously this was only a transitive
+dependency coming from the devpi-common package.
