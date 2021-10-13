@@ -41,6 +41,7 @@ if __name__ == "__main__":
                         "pluggy>=0.6.0,<2.0",
                         'ruamel.yaml',
                         "strictyaml",
+                        "lazy",
                         ]
     extras_require = {}
 
