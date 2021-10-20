@@ -44,6 +44,7 @@ if __name__ == "__main__":
       packages=['devpi'],
       install_requires=install_requires,
       extras_require=extras_require,
+      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
       url="https://devpi.net",
       project_urls={
           'Bug Tracker': 'https://github.com/devpi/devpi/issues',
@@ -63,7 +64,7 @@ if __name__ == "__main__":
         "Programming Language :: Python :: Implementation :: PyPy",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-            "2.7 3.4 3.5 3.6 3.7 3.8".split()],
+            "2.7 3.4 3.5 3.6 3.7 3.8 3.9 3.10".split()],
       entry_points = {
         'console_scripts': [
           "devpi = devpi.main:main"],
