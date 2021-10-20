@@ -81,7 +81,7 @@ if __name__ == "__main__":
         "Programming Language :: Python :: Implementation :: PyPy",
       ] + [
             ("Programming Language :: Python :: %s" % x)
-            for x in "3.6 3.7 3.8".split()],
+            for x in "3.6 3.7 3.8 3.9 3.10".split()],
       install_requires=install_requires,
       extras_require=extras_require,
       python_requires='>=3.6',

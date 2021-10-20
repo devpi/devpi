@@ -36,6 +36,7 @@ if __name__ == "__main__":
           "lazy",
           "py>=1.4.20",
           "requests>=2.3.0"],
+      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
       url="https://github.com/devpi/devpi",
       maintainer="Holger Krekel",
       maintainer_email="holger@merlinux.eu",
