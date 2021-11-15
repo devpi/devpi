@@ -53,6 +53,8 @@ def run():
                 all_dates = all_dates.union(dates)
         if all_dates:
             date = datetime.datetime(*max(all_dates))
+        else:
+            date = datetime.datetime.now()
         if (datetime.datetime.now() - date) > datetime.timedelta(days=MAXDAYS):
             assert username and indexname
             url = baseurl + username + "/" + indexname
