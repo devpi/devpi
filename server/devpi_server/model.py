@@ -1025,6 +1025,8 @@ class BaseStage(object):
             yield stage
             seen.add(stage.name)
             for base in stage.ixconfig.get("bases", ()):
+                if base in seen:
+                    continue
                 current_stage = self.model.getstage(base)
                 if current_stage is None:
                     threadlog.warn(
@@ -1036,11 +1038,13 @@ class BaseStage(object):
                         "Index %s base %s excluded via devpiserver_sro_skip.",
                         self.name, base)
                     continue
-                if base not in seen:
-                    if current_stage.ixconfig['type'] == 'mirror':
-                        todo_mirrors.append(current_stage)
-                    else:
-                        todo.append(current_stage)
+                if current_stage.ixconfig['type'] == 'mirror':
+                    todo_mirrors.append(current_stage)
+                    # mirrors are processed last,
+                    # but we need to prevent duplicates
+                    seen.add(base)
+                else:
+                    todo.append(current_stage)
         for stage in todo_mirrors:
             yield stage
 
