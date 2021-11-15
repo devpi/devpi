@@ -4,8 +4,10 @@ a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
 from __future__ import unicode_literals
+import aiohttp
 import inspect
 import os
+import asyncio
 import py
 import sys
 import traceback
@@ -15,6 +17,7 @@ from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
 from .log import configure_logging, threadlog
+from .log import thread_push_log
 from .model import BaseStage
 from .views import apireturn
 from . import mythread
@@ -167,6 +170,37 @@ def get_caller_location():
         caller_frame.f_code.co_name)
 
 
+class AsyncioLoopThread(object):
+
+    def __init__(self, xom):
+        self.xom = xom
+        self._started = mythread.threading.Event()
+
+    @property
+    def loop(self):
+        if self._started.wait(2):
+            return self._loop
+        fatal("Couldn't get async loop, was the thread not started?")
+
+    def thread_run(self):
+        thread_push_log("[ASYN]")
+        threadlog.info("Starting asyncio event loop")
+        self._loop = asyncio.new_event_loop()
+        self._started.set()
+        while 1:
+            try:
+                self.loop.run_forever()
+            except Exception:
+                threadlog.exception("Exception in asyncio event loop")
+            finally:
+                threadlog.info("The asyncio event loop stopped")
+                return
+
+    def thread_shutdown(self):
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self.thread.join()
+
+
 class XOM:
     class Exiting(SystemExit):
         pass
@@ -174,8 +208,11 @@ class XOM:
     def __init__(self, config, httpget=None):
         self.config = config
         self.thread_pool = mythread.ThreadPool()
+        self.async_thread = AsyncioLoopThread(self)
+        self.thread_pool.register(self.async_thread)
         if httpget is not None:
             self.httpget = httpget
+            self.async_httpget = httpget.async_httpget
         self.log = threadlog
         self.polling_replicas = {}
         self._stagecache = {}
@@ -194,6 +231,29 @@ class XOM:
             if not self.config.requests_only:
                 self.replica_thread = ReplicaThread(self)
                 self.thread_pool.register(self.replica_thread)
+
+    def create_future(self):
+        return self.async_thread.loop.create_future()
+
+    async def _with_timeout(self, coroutine, timeout):
+        return await asyncio.wait_for(asyncio.shield(coroutine), timeout)
+
+    def _run_coroutine_threadsafe(self, coroutine, timeout=None):
+        if timeout is not None:
+            coroutine = self._with_timeout(coroutine, timeout)
+        return asyncio.run_coroutine_threadsafe(
+            coroutine,
+            loop=self.async_thread.loop)
+
+    def run_coroutine_threadsafe(self, coroutine, timeout=None):
+        future = self._run_coroutine_threadsafe(coroutine, timeout=timeout)
+        exc = future.exception()
+        if exc:
+            raise exc
+        return future.result()
+
+    def create_task(self, coroutine):
+        asyncio.ensure_future(coroutine, loop=self.async_thread.loop)
 
     def get_singleton(self, indexpath, key):
         """ return a per-xom singleton for the given indexpath and key
@@ -280,6 +340,18 @@ class XOM:
     def _httpsession(self):
         max_retries = self.config.replica_max_retries
         return self.new_http_session("server", max_retries=max_retries)
+
+    async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
+        timeout = aiohttp.ClientTimeout(total=timeout)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(
+                url, allow_redirects=allow_redirects, headers=extra_headers
+            ) as response:
+                if response.status < 300:
+                    text = await response.text()
+                else:
+                    text = None
+                return (response, text)
 
     def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         if self.config.offline_mode:

@@ -1578,13 +1578,13 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
         assert not key.exists()
 
-    # patch httpget to simulate broken PyPI
-    def httpget(url, **kwargs):
+    # patch async_httpget to simulate broken PyPI
+    async def async_httpget(url, **kwargs):
         class Response:
-            status_code = 503
+            status = 503
             reason = "Service Unavailable"
-        return Response()
-    xom.httpget = httpget
+        return (Response(), None)
+    xom.async_httpget = async_httpget
 
     # to prove that all metadata is gone when deleting the stage,
     # we recreate the stage, block access to PyPI

@@ -344,8 +344,8 @@ class TestExtPYPIDB:
         ret = pypistage.get_releaselinks("pytest")
         assert len(ret) == 1
         pypistage.mock_simple("pytest", text="", pypiserial=9)
-        assert len(pypistage.get_releaselinks("pytest")) == 1
-        recs = caplog.getrecords(".*serving cached links.*")
+        (link,) = pypistage.get_releaselinks("pytest")
+        recs = caplog.getrecords(".*serving stale links.*")
         assert len(recs) >= 1
 
     def test_get_releaselinks_cache_no_fresh_write(self, pypistage):
@@ -554,6 +554,47 @@ class TestPyPIStageprojects:
         pypistage.list_projects_perstage()
         # now the timestamp should differ
         assert projectnames._timestamp > ts
+
+    @pytest.mark.notransaction
+    def test_simplelinks_timeout(self, pypistage):
+        import asyncio
+        # release files should be updated in background in case of timeout
+        pypistage.timeout = 0.1
+        orig_async_httpget = pypistage.async_httpget
+
+        async def sleeping_async_httpget(*args, **kw):
+            await asyncio.sleep(0.2)
+            return await orig_async_httpget(*args, **kw)
+
+        # first we need some releases in the db
+        pypistage.mock_simple("pkg", text='<a href="pkg-1.0.zip"</a>')
+        with pypistage.keyfs.transaction(write=False):
+            assert [
+                (x.project, x.version)
+                for x in pypistage.get_releaselinks("pkg")] == [
+                    ('pkg', '1.0')]
+
+        # now expire the cache, add a version on the mirror and fetch again with a timeout
+        pypistage.cache_retrieve_times.expire("pkg")
+        pypistage.mock_simple("pkg", text='<a href="pkg-1.0.zip"</a><a href="pkg-2.0.zip"</a>')
+        pypistage.async_httpget = sleeping_async_httpget
+        serial = pypistage.keyfs.get_current_serial()
+        # we should get stale results
+        with pypistage.keyfs.transaction(write=False):
+            assert pypistage.cache_retrieve_times.is_expired("pkg", pypistage.cache_expiry)
+            assert [
+                (x.project, x.version)
+                for x in pypistage.get_releaselinks("pkg")] == [
+                    ('pkg', '1.0')]
+        # now we wait for the new serial to arrive
+        pypistage.keyfs.wait_tx_serial(serial + 1)
+        # and we should see the new version
+        with pypistage.keyfs.transaction(write=False):
+            assert not pypistage.cache_retrieve_times.is_expired("pkg", pypistage.cache_expiry)
+            assert sorted([
+                (x.project, x.version)
+                for x in pypistage.get_releaselinks("pkg")]) == sorted([
+                    ('pkg', '1.0'), ('pkg', '2.0')])
 
 
 def raise_ValueError():

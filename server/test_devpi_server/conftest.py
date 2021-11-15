@@ -276,6 +276,9 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             xom.thread_pool.start()
         elif request.node.get_closest_marker("with_notifier"):
             xom.thread_pool.start_one(xom.keyfs.notifier)
+        if not request.node.get_closest_marker("start_threads"):
+            # we always need the async_thread
+            xom.thread_pool.start_one(xom.async_thread)
         request.addfinalizer(xom.thread_pool.shutdown)
         return xom
     return makexom
@@ -330,6 +333,14 @@ def httpget(pypiurls):
             self._md5 = hashlib.md5()
             self.call_log = []
 
+        async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
+            response = self.__call__(url, allow_redirects, extra_headers, timeout=timeout)
+            if response.status_code < 300:
+                text = response.text
+            else:
+                text = None
+            return (response, text)
+
         def __call__(self, url, allow_redirects=False, extra_headers=None, **kw):
             class mockresponse:
                 def __init__(xself, url):
@@ -344,6 +355,10 @@ def httpget(pypiurls):
                     xself.allow_redirects = allow_redirects
                     if "content" in fakeresponse:
                         xself.raw = py.io.BytesIO(fakeresponse["content"])
+
+                @property
+                def status(xself):
+                    return xself.status_code
 
                 def __repr__(xself):
                     return "<mockresponse %s url=%s>" % (xself.status_code,
