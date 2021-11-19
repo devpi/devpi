@@ -11,7 +11,6 @@ import py
 import re
 from devpi_common.metadata import splitbasename
 from devpi_common.types import cached_property, parse_hash_spec
-from .log import threadlog
 from urllib.parse import unquote
 
 
@@ -67,16 +66,6 @@ class FileStore:
         key = key_from_link(self.keyfs, link, user, index)
         entry = FileEntry(key, readonly=False)
         entry.url = link.geturl_nofragment().url
-        # verify checksum if the entry is fresh, a file exists
-        # and the link specifies a checksum.  It's a situation
-        # that shouldn't happen unless some manual file system
-        # intervention or corruption happened
-        if link.hash_spec and entry.file_exists() and not entry.hash_spec:
-            threadlog.debug("verifying checksum of %s", entry.relpath)
-            err = get_checksum_error(entry.file_get_content(), link.hash_spec)
-            if err:
-                threadlog.error(err)
-                entry.file_delete()
         entry.hash_spec = unicode_if_bytes(link.hash_spec)
         entry.project = project
         version = None
