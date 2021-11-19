@@ -135,11 +135,15 @@ class TestFileStore:
             f.write('othercontent')
         filestore.keyfs.rollback_transaction_in_thread()
         filestore.keyfs.begin_transaction_in_thread(write=True)
-        # now check if the file got replaced
+        # maplink doesn't validate the checksum (anymore)
         entry2 = filestore.maplink(link1, "root", "pypi", "pytest")
-        assert not entry2.file_exists()
+        assert entry2.file_exists()
+        content2 = entry2.file_get_content()
+        assert content1 != content2
+        assert isinstance(entry2.check_checksum(content2), ValueError)
+        assert entry2.check_checksum(content1) is None
         filestore.keyfs.commit_transaction_in_thread()
-        assert not py.path.local(filepath).exists()
+        assert py.path.local(filepath).exists()
 
     def test_file_delete(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip", md5=False)
