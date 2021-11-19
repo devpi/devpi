@@ -1,1 +1,0 @@
-Use aiohttp (asyncio) for fetching release links from mirrors to return stale links immediately in case of a timeout, but update the database in the background for the next request.

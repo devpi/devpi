@@ -2,6 +2,25 @@
 
 .. towncrier release notes start
 
+6.3.0 (2021-11-19)
+==================
+
+Features
+--------
+
+- Use aiohttp (asyncio) for fetching release links from mirrors to return stale links immediately in case of a timeout, but update the database in the background for the next request.
+
+
+Bug Fixes
+---------
+
+- fix #853: prevent duplicate mirror indexes in sro method when there are multiple inheritance chains to the same mirror
+
+- fix #860: don't check for existing files and validate them during mirror links update, the operation is way to expensive and there is a low possibility for errors.
+
+- Add missing `lazy` package dependency. Previously this was only a transitive dependency coming from the devpi-common package.
+
+
 6.2.0 (2021-08-12)
 ==================
 
