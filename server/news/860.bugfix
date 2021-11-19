@@ -1,1 +1,0 @@
-fix #860: don't check for existing files and validate them during mirror links update, the operation is way to expensive and there is a low possibility for errors.
