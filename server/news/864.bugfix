@@ -1,0 +1,1 @@
+Fix #864: enable settings from ``~/.netrc`` and ``HTTP_PROXY``/``HTTPS_PROXY`` env vars for aiohttp.

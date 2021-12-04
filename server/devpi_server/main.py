@@ -343,7 +343,7 @@ class XOM:
 
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         timeout = aiohttp.ClientTimeout(total=timeout)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
             async with session.get(
                 url, allow_redirects=allow_redirects, headers=extra_headers
             ) as response:
