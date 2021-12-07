@@ -312,7 +312,10 @@ class KeyFS(object):
         return self.get_current_serial() + 1
 
     def get_current_serial(self):
-        with self.get_connection() as conn:
+        tx = getattr(self._threadlocal, "tx", None)
+        if tx is not None:
+            return tx.conn.last_changelog_serial
+        with self.get_connection(write=False) as conn:
             return conn.last_changelog_serial
 
     def get_last_commit_timestamp(self):
