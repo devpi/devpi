@@ -14,6 +14,7 @@ from . import mythread
 from .fileutil import loads
 from .interfaces import IStorageConnection2
 from .log import threadlog, thread_push_log, thread_pop_log
+from .log import thread_change_log_prefix
 from .readonly import get_mutable_deepcopy, ensure_deeply_readonly, \
                       is_deeply_readonly
 from .filestore import FileEntry
@@ -348,17 +349,21 @@ class KeyFS(object):
             key = key(**key.extract_params(relpath))
         return key
 
+    def _tx_prefix(self):
+        tx = self._threadlocal.tx
+        return "[%stx%s]" % ("W" if tx.write else "R", tx.at_serial)
+
     def begin_transaction_in_thread(self, write=False, at_serial=None):
         if write and self._readonly:
             raise self.ReadOnly()
         assert not hasattr(self._threadlocal, "tx")
         tx = Transaction(self, write=write, at_serial=at_serial)
         self._threadlocal.tx = tx
-        thread_push_log("[%stx%s]" %("W" if write else "R", tx.at_serial))
+        thread_push_log(self._tx_prefix())
         return tx
 
     def clear_transaction(self):
-        thread_pop_log()
+        thread_pop_log(self._tx_prefix())
         del self._threadlocal.tx
 
     def restart_as_write_transaction(self):
@@ -367,17 +372,17 @@ class KeyFS(object):
         tx = self.tx
         if tx.write:
             raise RuntimeError("Can't restart a write transaction.")
-        thread_pop_log()
+        old_prefix = self._tx_prefix()
         tx.restart(write=True)
-        thread_push_log("[Wtx%s]" %(tx.at_serial))
+        thread_change_log_prefix(self._tx_prefix(), old_prefix)
 
     def restart_read_transaction(self):
         tx = self.tx
         if tx.write:
             raise RuntimeError("Can only restart a read transaction.")
-        thread_pop_log()
+        old_prefix = self._tx_prefix()
         tx.restart(write=False)
-        thread_push_log("[Rtx%s]" %(tx.at_serial))
+        thread_change_log_prefix(self._tx_prefix(), old_prefix)
 
     def rollback_transaction_in_thread(self):
         try:
