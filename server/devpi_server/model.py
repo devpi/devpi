@@ -1410,7 +1410,10 @@ def devpiserver_get_stage_customizer_classes():
 
 class ELink(object):
     """ model Link using entrypathes for referencing. """
+    __slots__ = ('_entry', 'basename', 'filestore', 'linkdict', 'project', 'version')
+
     def __init__(self, filestore, linkdict, project, version):
+        self._entry = notset
         self.filestore = filestore
         self.linkdict = linkdict
         self.basename = posixpath.basename(self.entrypath)
@@ -1450,9 +1453,11 @@ class ELink(object):
     def __repr__(self):
         return "<ELink rel=%r entrypath=%r>" % (self.rel, self.entrypath)
 
-    @cached_property
+    @property
     def entry(self):
-        return self.filestore.get_file_entry(self.entrypath)
+        if self._entry is notset:
+            self._entry = self.filestore.get_file_entry(self.entrypath)
+        return self._entry
 
     def add_log(self, what, who, **kw):
         d = {"what": what, "who": who, "when": gmtime()[:6]}

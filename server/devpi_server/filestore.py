@@ -10,7 +10,7 @@ from wsgiref.handlers import format_date_time
 import py
 import re
 from devpi_common.metadata import splitbasename
-from devpi_common.types import cached_property, parse_hash_spec
+from devpi_common.types import parse_hash_spec
 from urllib.parse import unquote
 
 
@@ -130,6 +130,7 @@ class BadGateway(Exception):
 
 
 class FileEntry(object):
+    __slots__ = ('_meta', '_storepath', 'basename', 'key', 'readonly', 'relpath')
     BadGateway = BadGateway
     hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
     # BBB keep this until devpi-server 6.0.0,
@@ -147,8 +148,9 @@ class FileEntry(object):
         self.basename = self.relpath.split("/")[-1]
         self.readonly = readonly
         self._storepath = "/".join(("+files", str(self.relpath)))
+        self._meta = _nodefault
         if meta is not _nodefault:
-            self.meta = meta or {}
+            self._meta = meta or {}
 
     @property
     def hash_value(self):
@@ -174,9 +176,11 @@ class FileEntry(object):
 
     md5 = property(None, None)
 
-    @cached_property
+    @property
     def meta(self):
-        return self.key.get(readonly=self.readonly)
+        if self._meta is _nodefault:
+            self._meta = self.key.get(readonly=self.readonly)
+        return self._meta
 
     def file_exists(self):
         return self.tx.conn.io_file_exists(self._storepath)
@@ -243,7 +247,7 @@ class FileEntry(object):
 
     def delete(self, **kw):
         self.key.delete()
-        self.meta = {}
+        self._meta = {}
         self.file_delete()
 
     def has_existing_metadata(self):
