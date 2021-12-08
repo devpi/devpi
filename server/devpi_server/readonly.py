@@ -61,6 +61,8 @@ def is_sequence(val):
 
 
 class ReadonlyView(object):
+    __slots__ = ('_data',)
+
     def __init__(self, data):
         self._data = data
 
@@ -81,6 +83,8 @@ class ReadonlyView(object):
 
 
 class DictViewReadonly(ReadonlyView):
+    __slots__ = ()
+
     def __iter__(self):
         return iter(self._data)
 
@@ -100,6 +104,8 @@ class DictViewReadonly(ReadonlyView):
 
 
 class SeqViewReadonly(ReadonlyView):
+    __slots__ = ()
+
     def __iter__(self):
         for x in self._data:
             yield ensure_deeply_readonly(x)
@@ -109,5 +115,7 @@ class SeqViewReadonly(ReadonlyView):
 
 
 class SetViewReadonly(ReadonlyView):
+    __slots__ = ()
+
     def __iter__(self):
         return iter(self._data)

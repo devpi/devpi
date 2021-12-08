@@ -409,6 +409,7 @@ class KeyFS(object):
 
 
 class PTypedKey:
+    __slots__ = ('keyfs', 'name', 'pattern', 'rex_reverse', 'type')
     rex_braces = re.compile(r'\{(.+?)\}')
 
     def __init__(self, keyfs, key, type, name):
@@ -452,19 +453,14 @@ class KeyChangeEvent:
 
 
 class TypedKey:
+    __slots__ = ('keyfs', 'name', 'params', 'relpath', 'type')
+
     def __init__(self, keyfs, relpath, type, name, params=None):
         self.keyfs = keyfs
         self.relpath = relpath
         self.type = type
         self.name = name
         self.params = params or {}
-
-    @cached_property
-    def params(self):
-        key = self.keyfs.get_key(self.name)
-        if isinstance(key, PTypedKey):
-            return key.extract_params(self.relpath)
-        return {}
 
     def __hash__(self):
         return hash(self.relpath)
