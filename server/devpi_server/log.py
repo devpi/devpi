@@ -102,14 +102,14 @@ def thread_push_log(prefix):
     return tlog
 
 
-def thread_pop_log(prefix=None):
-    if prefix and not threadlocal.taglogger._prefix.rstrip().endswith(prefix):
+def thread_pop_log(prefix):
+    if not threadlocal.taglogger._prefix.rstrip().endswith(prefix):
         raise ValueError("Wrong thread log order, expected %r, saw %r" %
                          (prefix, threadlocal.taglogger._prefix))
     threadlocal.taglogger = threadlocal.taglogger.last
 
 
-def thread_change_log_prefix(prefix, old_prefix=None):
+def thread_change_log_prefix(prefix, old_prefix):
     if old_prefix and not threadlocal.taglogger._prefix.rstrip().endswith(old_prefix):
         raise ValueError("Wrong thread log order, expected %r, saw %r" %
                          (old_prefix, threadlocal.taglogger._prefix))
