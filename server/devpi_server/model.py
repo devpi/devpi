@@ -24,7 +24,7 @@ from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl
 from .filestore import FileEntry
-from .log import threadlog, thread_current_log
+from .log import threadlog
 from .readonly import get_mutable_deepcopy
 
 
@@ -49,7 +49,7 @@ def apply_filter_iter(items, filter_iter):
 
 def run_passwd(root, username):
     user = root.get_user(username)
-    log = thread_current_log()
+    log = threadlog
     if user is None:
         log.error("user %r not found" % username)
         return 1

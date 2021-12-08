@@ -76,11 +76,11 @@ class TagLogger:
 
 class ThreadLog:
     def __getattr__(self, name):
-        return getattr(thread_current_log(), name)
+        return getattr(_thread_current_log(), name)
 
     @contextlib.contextmanager
     def around(self, level, msg, *args):
-        tlog = thread_current_log()
+        tlog = _thread_current_log()
         log = getattr(tlog, level)
         log(msg, *args)
         try:
@@ -123,7 +123,7 @@ def thread_clear_log():
         pass
 
 
-def thread_current_log():
+def _thread_current_log():
     taglogger = getattr(threadlocal, "taglogger", None)
     if taglogger is None:
         taglogger = TagLogger(prefix="NOCTX")

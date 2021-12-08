@@ -3,7 +3,6 @@ import logging
 import textwrap
 from devpi_server.log import TagLogger
 from devpi_server.log import configure_logging
-from devpi_server.log import thread_current_log
 from devpi_server.log import thread_pop_log, thread_push_log
 from devpi_server.log import threadlog
 from .test_config import make_config
@@ -56,8 +55,7 @@ def test_taglogger_push(caplog):
     log.info("17")
     assert caplog.records[1].msg == "hello world 17"
     thread_pop_log()
-    log = thread_current_log()
-    log.info("10")
+    threadlog.info("10")
     assert caplog.records[2].msg == "hello 10"
 
 
@@ -74,8 +72,7 @@ def test_taglogger_wrong_prefix(caplog):
 
 
 def test_taglogger_context_empty(caplog):
-    log = thread_current_log()
-    log.info("hello")
+    threadlog.info("hello")
     assert caplog.records[0].msg == "NOCTX hello"
 
 
