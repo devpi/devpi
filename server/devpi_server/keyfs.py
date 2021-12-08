@@ -363,8 +363,9 @@ class KeyFS(object):
         return tx
 
     def clear_transaction(self):
-        thread_pop_log(self._tx_prefix())
+        prefix = self._tx_prefix()
         del self._threadlocal.tx
+        thread_pop_log(prefix)
 
     def restart_as_write_transaction(self):
         if self._readonly:
