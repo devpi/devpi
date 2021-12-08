@@ -670,27 +670,44 @@ class PyPIView:
             abort(self.request, 502, e.msg)
         # at this point we are sure we can produce the data without
         # depending on remote networks
-        body = b"".join(self._simple_list_all(stage, stage_results))
+        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
+            self.request.user_agent or "")
+        if requested_by_installer:
+            body = b"".join(self._simple_list_all_installer(stage, stage_results))
+        else:
+            body = b"".join(self._simple_list_all(stage, stage_results))
         return Response(
             content_length=len(body),
             body=body)
 
     def _simple_list_all(self, stage, stage_results):
         title = "%s: simple list (including inherited indices)" % (stage.name)
-        yield ("<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1>" %(
-              title, title)).encode("utf-8")
-        all_names = set()
-        for stage, names in stage_results:
+        yield f"<!DOCTYPE html><html><head><title>{title}</title></head><body><h1>{title}</h1>".encode("utf-8")
+        last_index = len(stage_results) - 1
+        seen = set()
+        for index, (stage, names) in enumerate(stage_results):
             h2 = stage.name
             bases = getattr(stage, "ixconfig", {}).get("bases")
             if bases:
                 h2 += " (bases: %s)" % ",".join(bases)
-            yield ("<h2>" + h2 + "</h2>").encode("utf-8")
+            yield f"<h2>{h2}</h2>".encode("utf-8")
             for name in sorted(names):
-                if name not in all_names:
-                    anchor = '<a href="%s/">%s</a><br/>\n' % (name, name)
-                    yield anchor.encode("utf-8")
-                    all_names.add(name)
+                if name not in seen:
+                    yield f'<a href="{name}/">{name}</a><br/>\n'.encode("utf-8")
+                    if index != last_index:
+                        seen.add(name)
+        yield "</body></html>".encode("utf-8")
+
+    def _simple_list_all_installer(self, stage, stage_results):
+        yield "<!DOCTYPE html><html><body>".encode("utf-8")
+        last_index = len(stage_results) - 1
+        seen = set()
+        for index, (stage, names) in enumerate(stage_results):
+            for name in names:
+                if name not in seen:
+                    yield f'<a href="{name}/">{name}</a>\n'.encode("utf-8")
+                    if index != last_index:
+                        seen.add(name)
         yield "</body></html>".encode("utf-8")
 
     @view_config(
