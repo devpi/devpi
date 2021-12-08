@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 import getpass
 import posixpath
-import sys
 import py
 import re
 import json
@@ -1417,9 +1416,6 @@ class ELink(object):
         self.basename = posixpath.basename(self.entrypath)
         self.project = project
         self.version = version
-        if sys.version_info < (3,0):
-            for key in linkdict:
-                assert py.builtin._istext(key)
 
     @property
     def relpath(self):
@@ -1460,9 +1456,6 @@ class ELink(object):
 
     def add_log(self, what, who, **kw):
         d = {"what": what, "who": who, "when": gmtime()[:6]}
-        if sys.version_info < (3,0):
-            # make sure keys are unicode as they are on py3
-            kw = dict((py.builtin.text(name), value) for name, value in kw.items())
         d.update(kw)
         self._log.append(d)
 
