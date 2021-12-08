@@ -54,7 +54,7 @@ def test_taglogger_push(caplog):
     log = thread_push_log("world")
     log.info("17")
     assert caplog.records[1].msg == "hello world 17"
-    thread_pop_log()
+    thread_pop_log("world")
     threadlog.info("10")
     assert caplog.records[2].msg == "hello 10"
 
