@@ -109,6 +109,13 @@ def thread_pop_log(prefix=None):
     threadlocal.taglogger = threadlocal.taglogger.last
 
 
+def thread_change_log_prefix(prefix, old_prefix=None):
+    if old_prefix and not threadlocal.taglogger._prefix.rstrip().endswith(old_prefix):
+        raise ValueError("Wrong thread log order, expected %r, saw %r" %
+                         (old_prefix, threadlocal.taglogger._prefix))
+    threadlocal.taglogger._prefix = prefix.rstrip() + " "
+
+
 def thread_clear_log():
     try:
         del threadlocal.taglogger
