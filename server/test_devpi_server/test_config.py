@@ -106,8 +106,7 @@ class TestConfig:
         assert config.basesecret == secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 0
-        assert len(recwarn) == 1
-        warning = recwarn.pop(Warning)
+        (warning,) = [x for x in recwarn if not isinstance(x, ResourceWarning)]
         assert 'deprecated existing secret' in warning.message.args[0]
 
     def test_secret_complexity(self, tmpdir):
