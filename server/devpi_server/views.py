@@ -1281,26 +1281,17 @@ class PyPIView:
         # they can still recover the deleted release from the filesystem
         # manually in case they need it.
 
-        threadlog.info(f"relpath={relpath}")
         key = self.xom.filestore.get_key_from_relpath(relpath)
-        threadlog.info(f"key={key}")
         if not key.exists():
             abort(self.request, 404, "no such file")
         entry = self.xom.filestore.get_file_entry_from_key(key)
-        threadlog.info(f"hash={entry.hash_type}, val={entry.hash_value}")
         return self._pkgserv(entry)
 
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
     def stage_pkgserv(self):
         relpath = self._relpath_from_request()
         key = self.xom.filestore.get_key_from_relpath(relpath)
-        threadlog.info(f"kekey={key}")
-        threadlog.info(f"relpath={relpath}")
-        threadlog.info(str(type(self.xom)))
-        threadlog.info(str(type(self.xom.filestore)))
-        threadlog.info(str(type(self.xom.filestore.keyfs)))
         entry = self.xom.filestore.get_file_entry(relpath)
-        threadlog.info(f"hash={entry.hash_type}, val={entry.hash_value}")
         return self._pkgserv(entry)
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}",
