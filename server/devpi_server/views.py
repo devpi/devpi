@@ -1290,7 +1290,6 @@ class PyPIView:
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
     def stage_pkgserv(self):
         relpath = self._relpath_from_request()
-        key = self.xom.filestore.get_key_from_relpath(relpath)
         entry = self.xom.filestore.get_file_entry(relpath)
         return self._pkgserv(entry)
 
