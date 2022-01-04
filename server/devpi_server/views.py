@@ -1466,6 +1466,7 @@ def iter_cache_remote_file(xom, entry):
                 msg = "error %s getting %s" % (r.status_code, entry.url)
                 threadlog.error(msg)
                 raise BadGateway(msg, code=r.status_code, url=entry.url)
+
             content_type = r.headers.get("content-type")
             if content_type != "application/octet-stream":
                 threadlog.warn(f"upstream file not ready: {entry.relpath}")
@@ -1476,7 +1477,6 @@ def iter_cache_remote_file(xom, entry):
 
             threadlog.info("reading remote: %s, target %s", r.url, entry.relpath)
             content_size = r.headers.get("content-length")
-            threadlog.info(str(r.headers))
             err = None
 
             yield _headers_from_response(r)
