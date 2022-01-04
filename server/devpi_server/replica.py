@@ -969,6 +969,7 @@ class ImportFileReplica:
         token = self.auth_serializer.dumps(self.uuid)
         r = session.get(
             url, allow_redirects=False,
+            # auth = self.xom.config.master_auth,
             headers={
                 H_REPLICA_FILEREPL: str("YES"),
                 H_REPLICA_UUID: self.uuid,

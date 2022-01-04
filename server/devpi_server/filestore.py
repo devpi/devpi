@@ -18,7 +18,7 @@ _nodefault = object()
 
 
 def get_default_hash_spec(content):
-    #return "md5=" + hashlib.md5(content).hexdigest()
+    # return "md5=" + hashlib.md5(content).hexdigest()
     return "sha256=" + hashlib.sha256(content).hexdigest()
 
 

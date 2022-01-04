@@ -4,7 +4,7 @@ import os
 import py
 import re
 import traceback
-from time import time
+from time import time, sleep
 try:
     from collections.abc import Iterator
 except ImportError:
@@ -1280,16 +1280,27 @@ class PyPIView:
         # We want people to notice that condition by returning a 404, but
         # they can still recover the deleted release from the filesystem
         # manually in case they need it.
+
+        threadlog.info(f"relpath={relpath}")
         key = self.xom.filestore.get_key_from_relpath(relpath)
+        threadlog.info(f"key={key}")
         if not key.exists():
             abort(self.request, 404, "no such file")
         entry = self.xom.filestore.get_file_entry_from_key(key)
+        threadlog.info(f"hash={entry.hash_type}, val={entry.hash_value}")
         return self._pkgserv(entry)
 
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
     def stage_pkgserv(self):
         relpath = self._relpath_from_request()
+        key = self.xom.filestore.get_key_from_relpath(relpath)
+        threadlog.info(f"kekey={key}")
+        threadlog.info(f"relpath={relpath}")
+        threadlog.info(str(type(self.xom)))
+        threadlog.info(str(type(self.xom.filestore)))
+        threadlog.info(str(type(self.xom.filestore.keyfs)))
         entry = self.xom.filestore.get_file_entry(relpath)
+        threadlog.info(f"hash={entry.hash_type}, val={entry.hash_value}")
         return self._pkgserv(entry)
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}",
@@ -1458,24 +1469,32 @@ def _headers_from_response(r):
 
 def iter_cache_remote_file(xom, entry):
     # we get and cache the file and some http headers from remote
-    r = xom.httpget(entry.url, allow_redirects=True)
-    if r.status_code != 200:
-        msg = "error %s getting %s" % (r.status_code, entry.url)
-        threadlog.error(msg)
-        raise BadGateway(msg, code=r.status_code, url=entry.url)
-    threadlog.info("reading remote: %s, target %s", r.url, entry.relpath)
-    content_size = r.headers.get("content-length")
-    err = None
+    upstream_file_ready = False
+    while not upstream_file_ready:
+        with xom.httpget(entry.url, allow_redirects=True) as r:
+            if r.status_code != 200:
+                msg = "error %s getting %s" % (r.status_code, entry.url)
+                threadlog.error(msg)
+                raise BadGateway(msg, code=r.status_code, url=entry.url)
+            content_type = r.headers.get("content-type")
+            if content_type != "application/octet-stream":
+                threadlog.warn(f"upstream file not ready: {entry.relpath}")
+                sleep(5)
+                continue
+            else:
+                upstream_file_ready = True
 
-    yield _headers_from_response(r)
+            threadlog.info("reading remote: %s, target %s", r.url, entry.relpath)
+            content_size = r.headers.get("content-length")
+            threadlog.info(str(r.headers))
+            err = None
 
-    content = BytesIO()
-    while 1:
-        data = r.raw.read(10240)
-        if not data:
-            break
-        content.write(data)
-        yield data
+            yield _headers_from_response(r)
+
+            content = BytesIO()
+            for data in r.raw.stream(10240):
+                content.write(data)
+                yield data
 
     content = content.getvalue()
 
