@@ -1,1 +1,0 @@
-When an installer user agent is detected the full list of projects is returned unsorted and with less info to improve performance and reduce memory usage.
