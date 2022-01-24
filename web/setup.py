@@ -35,8 +35,8 @@ setup(
         'Source Code': 'https://github.com/devpi/devpi'
     },
     version='4.0.8',
-    maintainer="Holger Krekel, Florian Schulze",
-    maintainer_email="holger@merlinux.eu",
+    maintainer="Florian Schulze",
+    maintainer_email="mail@pyfidelity.com",
     license="MIT",
     classifiers=[
         "Development Status :: 5 - Production/Stable",

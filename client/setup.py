@@ -52,8 +52,8 @@ if __name__ == "__main__":
           'Documentation': 'https://doc.devpi.net',
           'Source Code': 'https://github.com/devpi/devpi'
       },
-      maintainer="Holger Krekel",
-      maintainer_email="holger@merlinux.eu",
+      maintainer="Florian Schulze",
+      maintainer_email="mail@pyfidelity.com",
       license="MIT",
       classifiers=[
         "Development Status :: 5 - Production/Stable",

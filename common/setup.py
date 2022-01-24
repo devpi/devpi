@@ -38,8 +38,8 @@ if __name__ == "__main__":
           "requests>=2.3.0"],
       python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
       url="https://github.com/devpi/devpi",
-      maintainer="Holger Krekel",
-      maintainer_email="holger@merlinux.eu",
+      maintainer="Florian Schulze",
+      maintainer_email="mail@pyfidelity.com",
       license="MIT",
       classifiers=[
         "Development Status :: 5 - Production/Stable",

@@ -39,8 +39,8 @@ setup(
         'Source Code': 'https://github.com/devpi/devpi'
     },
     version='2.0.0',
-    maintainer="Florian Schulze, Holger Krekel",
-    maintainer_email="florian.schulze@gmx.net",
+    maintainer="Florian Schulze",
+    maintainer_email="mail@pyfidelity.com",
     license="MIT",
     classifiers=[
         "Development Status :: 4 - Beta",
