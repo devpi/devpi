@@ -5,6 +5,12 @@
 6.4.0 (2022-01-24)
 ==================
 
+Deprecations and Removals
+-------------------------
+
+- As announced with 6.0.0, support for Python 3.6 has been dropped, because it has reached its end of life.
+
+
 Features
 --------
 
