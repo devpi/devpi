@@ -17,8 +17,6 @@ devpi: PyPI server and packaging/testing/release tool
    
    `repo of server/web/client <https://github.com/devpi/devpi/>`_
 
-   #devpi on freenode
-
 The MIT-licensed devpi system features a powerful PyPI-compatible server
 and a complementary command line tool to drive packaging, testing and
 release activities with Python.  Main features and usage scenarios:

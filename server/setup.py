@@ -59,8 +59,8 @@ if __name__ == "__main__":
         'Source Code': 'https://github.com/devpi/devpi'
       },
       version='6.4.0',
-      maintainer="Holger Krekel, Florian Schulze",
-      maintainer_email="holger@merlinux.eu",
+      maintainer="Florian Schulze",
+      maintainer_email="mail@pyfidelity.com",
       packages=[
         'devpi_server',
         'devpi_server.cfg',

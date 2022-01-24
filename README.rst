@@ -21,5 +21,4 @@ on the server and client side:
 For getting started, more docs see https://doc.devpi.net/
 
 Holger Krekel, Florian Schulze, April 2017
-(contact us at office at merlinux.eu for support contracts
-and paid help)
+(contact us at mail at pyfidelity.com for support contracts and paid help)

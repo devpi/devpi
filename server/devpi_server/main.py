@@ -147,7 +147,6 @@ def wsgi_run(xom, app):
         log.info("serving at urls: %s", ", ".join(addresses))
     log.info("using %s threads", kwargs['threads'])
     log.info("bug tracker: https://github.com/devpi/devpi/issues")
-    log.info("IRC: #devpi on irc.freenode.net")
     if "WEBTRACE" in os.environ and xom.config.args.debug:
         from weberror.evalexception import make_eval_exception
         app = make_eval_exception(app, {})
