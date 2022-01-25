@@ -4,7 +4,7 @@ Place the example net.devpi.plist file in ~/Library/LaunchAgents/
 
 Then use the following commands to initialize the service and start devpi-server:
 
-  launchctl load -w ~/Library/LaunchAgents/devpi-server.plist
+  launchctl load -w ~/Library/LaunchAgents/net.devpi.plist
   launchctl start net.devpi.devpi-server
 
 To stop devpi-server, use the following command:
