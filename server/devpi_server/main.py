@@ -10,6 +10,7 @@ import os
 import asyncio
 import py
 import sys
+import time
 import traceback
 
 from requests import Response, exceptions
@@ -196,8 +197,15 @@ class AsyncioLoopThread(object):
                 return
 
     def thread_shutdown(self):
-        self.loop.call_soon_threadsafe(self.loop.stop)
-        self.thread.join()
+        loop = self.loop
+        try:
+            loop.call_soon_threadsafe(loop.stop)
+        except RuntimeError:
+            # the shutdown function may have been called already
+            return
+        while loop.is_running():
+            time.sleep(0.1)
+        loop.close()
 
 
 class XOM:
