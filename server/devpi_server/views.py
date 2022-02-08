@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-
+import contextlib
 import os
 import py
 import re
@@ -907,59 +907,63 @@ class PyPIView:
             metadata["metadata_version"] = "2.1"
             self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
-            try:
-                r = session.post(posturl, data=metadata, auth=pypiauth)
-            except Exception as e:
-                exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
-                results.append((-1, "exception on register:", exc_msg))
-                apireturn(502, result=results, type="actionlog")
-            self.log.debug("register returned: %s", r.status_code)
-            results.append((r.status_code, "register", name, version))
-            ok_codes = (200, 201, 410)
-            proceed = (r.status_code in ok_codes)
-            if proceed:
-                for link in links["releasefile"]:
-                    entry = link.entry
-                    file_metadata = metadata.copy()
-                    file_metadata[":action"] = "file_upload"
-                    basename = link.basename
-                    pyver, filetype = get_pyversion_filetype(basename)
-                    file_metadata["filetype"] = filetype
-                    file_metadata["pyversion"] = pyver
-                    file_metadata["%s_digest" % link.hash_type] = link.hash_value
-                    content = entry.file_get_content()
-                    self.log.info("sending %s to %s, metadata %s",
-                             basename, posturl, file_metadata)
-                    try:
-                        r = session.post(
-                            posturl, data=file_metadata, auth=pypiauth,
-                            files={"content": (basename, content)})
-                    except Exception as e:
-                        exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
-                        results.append((-1, "exception on release upload:", exc_msg))
-                    else:
-                        self.log.debug("send finished, status: %s", r.status_code)
-                        results.append((r.status_code, "upload", entry.relpath,
-                                        r.text))
-                if links["doczip"]:
-                    doc_metadata = metadata.copy()
-                    doc_metadata[":action"] = "doc_upload"
-                    doczip = links["doczip"][0].entry.file_get_content()
-                    try:
-                        r = session.post(
-                            posturl, data=doc_metadata, auth=pypiauth,
-                            files={"content": (name + ".zip", doczip)})
-                    except Exception as e:
-                        exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
-                        results.append((-1, "exception on documentation upload:", exc_msg))
-                    else:
-                        self.log.debug("send finished, status: %s", r.status_code)
-                        results.append((r.status_code, "docfile", name))
-                #
-            if r.status_code in ok_codes:
-                apireturn(200, result=results, type="actionlog")
-            else:
-                apireturn(502, result=results, type="actionlog")
+            with contextlib.closing(session):
+                try:
+                    r = session.post(posturl, data=metadata, auth=pypiauth)
+                    r.close()
+                except Exception as e:
+                    exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
+                    results.append((-1, "exception on register:", exc_msg))
+                    apireturn(502, result=results, type="actionlog")
+                self.log.debug("register returned: %s", r.status_code)
+                results.append((r.status_code, "register", name, version))
+                ok_codes = (200, 201, 410)
+                proceed = (r.status_code in ok_codes)
+                if proceed:
+                    for link in links["releasefile"]:
+                        entry = link.entry
+                        file_metadata = metadata.copy()
+                        file_metadata[":action"] = "file_upload"
+                        basename = link.basename
+                        pyver, filetype = get_pyversion_filetype(basename)
+                        file_metadata["filetype"] = filetype
+                        file_metadata["pyversion"] = pyver
+                        file_metadata["%s_digest" % link.hash_type] = link.hash_value
+                        content = entry.file_get_content()
+                        self.log.info(
+                            "sending %s to %s, metadata %s",
+                            basename, posturl, file_metadata)
+                        try:
+                            r = session.post(
+                                posturl, data=file_metadata, auth=pypiauth,
+                                files={"content": (basename, content)})
+                        except Exception as e:
+                            exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
+                            results.append((-1, "exception on release upload:", exc_msg))
+                        else:
+                            self.log.debug("send finished, status: %s", r.status_code)
+                            results.append((r.status_code, "upload", entry.relpath,
+                                            r.text))
+                            r.close()
+                    if links["doczip"]:
+                        doc_metadata = metadata.copy()
+                        doc_metadata[":action"] = "doc_upload"
+                        doczip = links["doczip"][0].entry.file_get_content()
+                        try:
+                            r = session.post(
+                                posturl, data=doc_metadata, auth=pypiauth,
+                                files={"content": (name + ".zip", doczip)})
+                            r.close()
+                        except Exception as e:
+                            exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
+                            results.append((-1, "exception on documentation upload:", exc_msg))
+                        else:
+                            self.log.debug("send finished, status: %s", r.status_code)
+                            results.append((r.status_code, "docfile", name))
+                if r.status_code in ok_codes:
+                    apireturn(200, result=results, type="actionlog")
+                else:
+                    apireturn(502, result=results, type="actionlog")
 
     def _push_links(self, links, target_stage, name, version):
         for link in links["releasefile"]:
@@ -1476,23 +1480,24 @@ def _headers_from_response(r):
 def iter_cache_remote_file(xom, entry):
     # we get and cache the file and some http headers from remote
     r = xom.httpget(entry.url, allow_redirects=True)
-    if r.status_code != 200:
-        msg = "error %s getting %s" % (r.status_code, entry.url)
-        threadlog.error(msg)
-        raise BadGateway(msg, code=r.status_code, url=entry.url)
-    threadlog.info("reading remote: %s, target %s", r.url, entry.relpath)
-    content_size = r.headers.get("content-length")
-    err = None
+    with contextlib.closing(r):
+        if r.status_code != 200:
+            msg = "error %s getting %s" % (r.status_code, entry.url)
+            threadlog.error(msg)
+            raise BadGateway(msg, code=r.status_code, url=entry.url)
+        threadlog.info("reading remote: %s, target %s", r.url, entry.relpath)
+        content_size = r.headers.get("content-length")
+        err = None
 
-    yield _headers_from_response(r)
+        yield _headers_from_response(r)
 
-    content = BytesIO()
-    while 1:
-        data = r.raw.read(10240)
-        if not data:
-            break
-        content.write(data)
-        yield data
+        content = BytesIO()
+        while 1:
+            data = r.raw.read(10240)
+            if not data:
+                break
+            content.write(data)
+            yield data
 
     content = content.getvalue()
 
@@ -1567,26 +1572,29 @@ def iter_remote_file_replica(xom, entry):
             rt.H_REPLICA_UUID: uuid,
             str('Authorization'): 'Bearer %s' % token})
     if r.status_code != 200:
+        r.close()
         msg = "%s: received %s from master" % (url, r.status_code)
         if not entry.url:
             threadlog.error(msg)
             raise BadGateway(msg)
         # try to get from original location
         r = xom.httpget(entry.url, allow_redirects=True)
-        if r.status_code != 200:
-            msg = "%s\n%s: received %s" % (msg, entry.url, r.status_code)
-            threadlog.error(msg)
-            raise BadGateway(msg)
+        with contextlib.closing(r):
+            if r.status_code != 200:
+                msg = "%s\n%s: received %s" % (msg, entry.url, r.status_code)
+                threadlog.error(msg)
+                raise BadGateway(msg)
 
-    yield _headers_from_response(r)
+    with contextlib.closing(r):
+        yield _headers_from_response(r)
 
-    content = BytesIO()
-    while 1:
-        data = r.raw.read(10240)
-        if not data:
-            break
-        content.write(data)
-        yield data
+        content = BytesIO()
+        while 1:
+            data = r.raw.read(10240)
+            if not data:
+                break
+            content.write(data)
+            yield data
 
     content = content.getvalue()
 
@@ -1623,11 +1631,9 @@ def iter_fetch_remote_file(xom, entry):
         if not keyfs.tx.write:
             keyfs.restart_as_write_transaction()
         entry = filestore.get_file_entry(entry.relpath, readonly=False)
-        for part in iter_cache_remote_file(xom, entry):
-            yield part
+        yield from iter_cache_remote_file(xom, entry)
     else:
-        for part in iter_remote_file_replica(xom, entry):
-            yield part
+        yield from iter_remote_file_replica(xom, entry)
 
 
 def url_for_entrypath(request, entrypath):

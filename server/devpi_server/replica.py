@@ -326,66 +326,67 @@ class ReplicaThread:
             log.error("error fetching %s: %s", url, msg)
             return False
 
-        if r.status_code in (301, 302):
-            log.error(
-                "%s %s: redirect detected at %s to %s",
-                r.status_code, r.reason, url, r.headers.get('Location'))
-            return False
+        with contextlib.closing(r):
+            if r.status_code in (301, 302):
+                log.error(
+                    "%s %s: redirect detected at %s to %s",
+                    r.status_code, r.reason, url, r.headers.get('Location'))
+                return False
 
-        if r.status_code not in (200, 202):
-            log.error("%s %s: failed fetching %s", r.status_code, r.reason, url)
-            return False
+            if r.status_code not in (200, 202):
+                log.error("%s %s: failed fetching %s", r.status_code, r.reason, url)
+                return False
 
-        # we check that the remote instance
-        # has the same UUID we saw last time
-        master_uuid = config.get_master_uuid()
-        remote_master_uuid = r.headers.get(H_MASTER_UUID)
-        if not remote_master_uuid:
-            # we don't fatally leave the process because
-            # it might just be a temporary misconfiguration
-            # for example of a nginx frontend
-            log.error("remote provides no %r header, running "
-                      "<devpi-server-2.1?"
-                      " headers were: %s", H_MASTER_UUID, r.headers)
-            self.thread.sleep(self.ERROR_SLEEP)
-            return True
-        if master_uuid and remote_master_uuid != master_uuid:
-            # we got a master_uuid and it is not the one we
-            # expect, we are replicating for -- it's unlikely this heals
-            # itself.  It's thus better to die and signal we can't operate.
-            log.error("FATAL: master UUID %r does not match "
-                      "expected master UUID %r. EXITTING.",
-                      remote_master_uuid, master_uuid)
-            # force exit of the process
-            os._exit(3)
+            # we check that the remote instance
+            # has the same UUID we saw last time
+            master_uuid = config.get_master_uuid()
+            remote_master_uuid = r.headers.get(H_MASTER_UUID)
+            if not remote_master_uuid:
+                # we don't fatally leave the process because
+                # it might just be a temporary misconfiguration
+                # for example of a nginx frontend
+                log.error("remote provides no %r header, running "
+                          "<devpi-server-2.1?"
+                          " headers were: %s", H_MASTER_UUID, r.headers)
+                self.thread.sleep(self.ERROR_SLEEP)
+                return True
+            if master_uuid and remote_master_uuid != master_uuid:
+                # we got a master_uuid and it is not the one we
+                # expect, we are replicating for -- it's unlikely this heals
+                # itself.  It's thus better to die and signal we can't operate.
+                log.error("FATAL: master UUID %r does not match "
+                          "expected master UUID %r. EXITTING.",
+                          remote_master_uuid, master_uuid)
+                # force exit of the process
+                os._exit(3)
 
-        try:
-            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
-        except Exception as e:
-            msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
-            log.error("error fetching %s: %s", url, msg)
-            return False
-
-        if r.status_code == 200:
             try:
-                handler(r)
-            except Exception:
-                log.exception("could not process: %s", r.url)
-            else:
-                # we successfully received data so let's
-                # record the master_uuid for future consistency checks
-                if not master_uuid:
-                    self.xom.config.set_master_uuid(remote_master_uuid)
+                remote_serial = int(r.headers["X-DEVPI-SERIAL"])
+            except Exception as e:
+                msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
+                log.error("error fetching %s: %s", url, msg)
+                return False
+
+            if r.status_code == 200:
+                try:
+                    handler(r)
+                except Exception:
+                    log.exception("could not process: %s", r.url)
+                else:
+                    # we successfully received data so let's
+                    # record the master_uuid for future consistency checks
+                    if not master_uuid:
+                        self.xom.config.set_master_uuid(remote_master_uuid)
+                    # also record the current master serial for status info
+                    self.update_master_serial(remote_serial)
+                    return True
+            elif r.status_code == 202:
+                remote_serial = int(r.headers["X-DEVPI-SERIAL"])
+                log.debug("%s: trying again %s\n", r.status_code, url)
                 # also record the current master serial for status info
                 self.update_master_serial(remote_serial)
                 return True
-        elif r.status_code == 202:
-            remote_serial = int(r.headers["X-DEVPI-SERIAL"])
-            log.debug("%s: trying again %s\n", r.status_code, url)
-            # also record the current master serial for status info
-            self.update_master_serial(remote_serial)
-            return True
-        return False
+            return False
 
     def handler_single(self, response, serial):
         changes, rel_renames = loads(response.content)
@@ -440,6 +441,9 @@ class ReplicaThread:
                 self.log.exception(
                     "Unhandled exception in replica thread.")
                 self.thread.sleep(1.0)
+
+    def thread_shutdown(self):
+        self.session.close()
 
     def wait(self, error_queue=False):
         self.shared_data.wait(error_queue=error_queue)
@@ -863,9 +867,13 @@ def proxy_write_to_master(xom, request):
     # for redirects, the body is already read and stored in the ``next``
     # attribute (see requests.sessions.send)
     if r.raw.closed and r.next:
-        app_iter = (r.next.body,)
+        def app_iter():
+            with contextlib.closing(r):
+                yield r.next.body
     else:
-        app_iter = r.raw.stream()
+        def app_iter():
+            with contextlib.closing(r):
+                yield from r.raw.stream()
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.wait_tx_serial(commit_serial)
@@ -877,8 +885,8 @@ def proxy_write_to_master(xom, request):
         outside_url = request.application_url
         headers[str("location")] = str(
             master_location.replace(xom.config.master_url.url, outside_url))
-    return Response(status="%s %s" %(r.status_code, r.reason),
-                    app_iter=app_iter,
+    return Response(status="%s %s" % (r.status_code, r.reason),
+                    app_iter=app_iter(),
                     headers=headers)
 
 

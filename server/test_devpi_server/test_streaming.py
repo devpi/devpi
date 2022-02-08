@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import json
 import pytest
 import requests
@@ -34,7 +35,8 @@ def server_url_session(host_port, simpypi):
         r = s.put(url + 'root/mirror', json.dumps(indexconfig)).json()
         assert r['type'] == 'indexconfig'
         assert r['result']['mirror_url'] == simpypi.simpleurl
-    return (url, s)
+    yield (url, s)
+    s.close()
 
 
 @pytest.fixture(scope="session")
@@ -64,20 +66,22 @@ class TestStreaming(object):
         pkgzip = "pkg-%s.zip" % pkg_version
         simpypi.add_release('pkg', pkgver='%s#sha256=%s' % (pkgzip, digest))
         simpypi.add_file('/pkg/%s' % pkgzip, content, stream=True, length=length)
-        r = s.get(url + 'root/mirror/pkg').json()
+        with contextlib.closing(s.get(url + 'root/mirror/pkg')) as r:
+            r = r.json()
         href = r['result'][pkg_version]['+links'][0]['href']
         r = requests.get(href, stream=True)
-        stream = r.iter_content(1024)
-        data = next(stream)
-        assert data == b'deadbeaf' * 128
-        part = next(stream)
-        assert part == b'sandwich' * 128
-        data = data + part
-        if length is not False:
-            assert r.headers['content-length'] == str(len(content))
-        for part in stream:
+        with contextlib.closing(r):
+            stream = r.iter_content(1024)
+            data = next(stream)
+            assert data == b'deadbeaf' * 128
+            part = next(stream)
+            assert part == b'sandwich' * 128
             data = data + part
-        assert data == content
+            if length is not False:
+                assert r.headers['content-length'] == str(len(content))
+            for part in stream:
+                data = data + part
+            assert data == content
         pkg_file = files_directory.join(
             'root', 'mirror', '+f', digest[:3], digest[3:16], pkgzip)
         # this is sometimes delayed a bit, so we check for a while
@@ -98,19 +102,21 @@ class TestStreaming(object):
         length = int(len(content) * size_factor)
         simpypi.add_release('pkg', pkgver='%s#sha256=%s' % (pkgzip, digest))
         simpypi.add_file('/pkg/%s' % pkgzip, content, stream=True, length=length)
-        r = s.get(url + 'root/mirror/pkg').json()
+        with contextlib.closing(s.get(url + 'root/mirror/pkg')) as r:
+            r = r.json()
         href = r['result'][pkg_version]['+links'][0]['href']
         r = requests.get(href, stream=True)
-        stream = r.iter_content(1024)
-        data = next(stream)
-        assert data == b'deadbeaf' * 128
-        part = next(stream)
-        assert part == b'sandwich' * 128
-        data = data + part
-        assert r.headers['content-length'] == str(length)
-        for part in stream:
+        with contextlib.closing(r):
+            stream = r.iter_content(1024)
+            data = next(stream)
+            assert data == b'deadbeaf' * 128
+            part = next(stream)
+            assert part == b'sandwich' * 128
             data = data + part
-        assert data == content[:length]
+            assert r.headers['content-length'] == str(length)
+            for part in stream:
+                data = data + part
+            assert data == content[:length]
         pkg_file = files_directory.join(
             'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
         assert not pkg_file.exists()

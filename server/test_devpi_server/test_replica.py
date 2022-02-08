@@ -346,6 +346,8 @@ class TestProxyViewToMaster:
         request = blank_request(method="PUT")
         request.registry = dict(xom=xom)
         response = proxy_view_to_master(None, request)
+        # exhaust app_iter to close the proxied response
+        list(response.app_iter)
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert l == [10]
 
@@ -359,6 +361,8 @@ class TestProxyViewToMaster:
         request = blank_request(method="PUT")
         request.registry = dict(xom=xom)
         response = proxy_view_to_master(None, request)
+        # exhaust app_iter to close the proxied response
+        list(response.app_iter)
         assert response.status == "200 GOOD"
 
     def test_write_proxies_redirect(self, makexom, blank_request, reqmock, monkeypatch):
@@ -375,6 +379,8 @@ class TestProxyViewToMaster:
         request = blank_request(method="PUT", headers=dict(host='my.domain'))
         request.registry = dict(xom=xom)
         response = proxy_view_to_master(None, request)
+        # exhaust app_iter to close the proxied response
+        list(response.app_iter)
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert response.headers.get("location") == "http://my.domain/hello"
         assert l == [10]
@@ -393,6 +399,8 @@ class TestProxyViewToMaster:
         request = blank_request(method="PUT")
         request.registry = dict(xom=xom)
         response = proxy_view_to_master(None, request)
+        # exhaust app_iter to close the proxied response
+        list(response.app_iter)
         assert 'connection' not in response.headers
         assert 'foo' not in response.headers
         assert 'keep-alive' not in response.headers

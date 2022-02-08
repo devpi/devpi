@@ -280,6 +280,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             # we always need the async_thread
             xom.thread_pool.start_one(xom.async_thread)
         request.addfinalizer(xom.thread_pool.shutdown)
+        request.addfinalizer(xom._close_sessions)
         return xom
     return makexom
 
@@ -355,6 +356,9 @@ def httpget(pypiurls):
                     xself.allow_redirects = allow_redirects
                     if "content" in fakeresponse:
                         xself.raw = py.io.BytesIO(fakeresponse["content"])
+
+                def close(self):
+                    return
 
                 @property
                 def status(xself):
