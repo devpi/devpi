@@ -348,6 +348,9 @@ class XOM:
         max_retries = self.config.replica_max_retries
         return self.new_http_session("server", max_retries=max_retries)
 
+    def _close_sessions(self):
+        self._httpsession.close()
+
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         timeout = aiohttp.ClientTimeout(total=timeout)
         async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
