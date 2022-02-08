@@ -2,6 +2,7 @@ import pytest
 import json
 import textwrap
 from devpi.main import Hub
+from devpi.push import derive_token
 from devpi.push import parse_target, PyPIPush, DevpiPush
 from subprocess import check_output
 
@@ -211,6 +212,50 @@ def test_fail_push(monkeypatch, tmpdir):
         main(hub, args)
     except SystemExit as e:
         assert e.code==1
+
+
+def test_derive_token_non_token():
+    assert derive_token(None, "foo", None) == "foo"
+
+
+@pytest.mark.skipif("sys.version_info >= (3, 6)")
+def test_derive_token_old_python():
+    assert derive_token(None, "pypi-foo", None) == "pypi-foo"
+
+
+@pytest.mark.skipif("sys.version_info < (3, 6)")
+def test_derive_token_invalid_token():
+    msgs = []
+
+    class Hub:
+        def warn(self, msg):
+            msgs.append(msg)
+    derive_token(Hub(), "pypi-foo", None) == "pypi-foo"
+    (msg,) = msgs
+    assert "can not parse it" in msg
+
+
+@pytest.mark.skipif("sys.version_info < (3, 6)")
+def test_derive_token():
+    import pypitoken.token
+    token = pypitoken.token.Token.create(
+        domain="example.com",
+        identifier="devpi",
+        key="secret")
+    passwd = token.dump()
+    msgs = []
+
+    class Hub:
+        def info(self, msg):
+            msgs.append(msg)
+    derived_passwd = derive_token(Hub(), passwd, 'pkg', now=10)
+    assert derived_passwd != passwd
+    (msg,) = msgs
+    assert "created a unique PyPI token" in msg
+    derived_token = pypitoken.token.Token.load(derived_passwd)
+    assert derived_token.restrictions == [
+        pypitoken.token.ProjectsRestriction(projects=["pkg"]),
+        pypitoken.token.DateRestriction(not_before=9, not_after=70)]
 
 
 class TestPush:
