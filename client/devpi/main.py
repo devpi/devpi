@@ -360,6 +360,7 @@ class Hub:
         ret = subprocess.call(args, env=env, **kwargs)
         if ret != 0:
             self.fatal_code("command failed", code=ret)
+        return ret
 
     def line(self, *msgs, **kwargs):
         msg = " ".join(map(str, msgs))
@@ -851,23 +852,25 @@ def upload(parser):
 
     You can directly upload existing release files by specifying
     their file system path as positional arguments.  Such release files
-    need to contain package metadata as created by setup.py or
+    need to contain package metadata as created by build or
     wheel invocations.
 
-    Or, if you don't specify any path, a setup.py file must exist
-    and will be used to perform build and upload commands.
+    Or, if you don't specify any path, the build module will be used
+    to create releases.
 
     If you have a ``setup.cfg`` file you can have a "[devpi:upload]" section
-    with ``formats``, ``no-vcs = 1``, and ``setupdir-only = 1`` settings
-    providing defaults for the respective command line options.
+    with ``sdist = 1``, ``wheel = 1`` ``no-vcs = 1``, and
+    ``setupdir-only = 1`` settings providing defaults for the respective
+    command line options.
     """
     build = parser.add_argument_group("build options")
 
     build.add_argument(
         "-p", "--python", default=None, metavar="PYTHON_EXE",
         help="Specify which Python interpreter to use.")
-    build.add_argument("--no-vcs", action="store_true", dest="novcs",
-        help="don't VCS-export to a fresh dir, just execute setup.py scripts "
+    build.add_argument(
+        "--no-vcs", action="store_true", dest="novcs",
+        help="don't VCS-export to a fresh dir, just build "
              "directly using their dirname as current dir. By default "
              "git/hg/svn/bazaar are auto-detected and packaging is run from "
              "a fresh directory with all versioned files exported.")
@@ -876,9 +879,19 @@ def upload(parser):
         dest="setupdironly",
         help="Skip the VCS directory (.git, .hg, etc) from the export.")
 
-    build.add_argument("--formats", default="", action="store",
-        help="comma separated list of build formats (passed to setup.py). "
-             "Examples sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.")
+    build.add_argument(
+        "--formats", default=None, action="store",
+        help="comma separated list of build formats (DEPRECATED). "
+             "Examples sdist,bdist_wheel.")
+    build.add_argument(
+        "--sdist", default=False, action="store_true",
+        help="See python -m build --help.")
+    build.add_argument(
+        "--wheel", default=False, action="store_true",
+        help="See python -m build --help.")
+    build.add_argument(
+        "--no-isolation", default=False, action="store_true",
+        help="See python -m build --help.")
     build.add_argument("--with-docs", action="store_true", default=None,
         dest="withdocs",
         help="build sphinx docs and upload them to index. "

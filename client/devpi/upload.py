@@ -12,11 +12,8 @@ from .main import HTTPReply, set_devpi_auth_header
 
 
 def main(hub, args):
-    # for now we use distutils/setup.py for register/upload commands.
-
-    # we are going to invoke python setup.py register|sdist|upload
-    # but we want to push to our local devpi server,
-    # so we need to monkeypatch distutils in the setup.py process
+    # we use the build module (or setup.py for deprecated formats) for
+    # creating releases and upload via direct HTTP requests
 
     current = hub.require_valid_current_with_index()
     if not args.index and not current.pypisubmit:
@@ -25,10 +22,6 @@ def main(hub, args):
 
     if args.path:
         return main_fromfiles(hub, args)
-
-    setup = hub.cwd.join("setup.py")
-    if not setup.check():
-        hub.fatal("no setup.py found in", hub.cwd)
 
     setupcfg = read_setupcfg(hub, hub.cwd)
     checkout = Checkout(hub, args, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
@@ -271,7 +264,6 @@ class Checkout:
         self.cm_ui = None
         if hasattr(check_manifest, 'UI'):
             self.cm_ui = check_manifest.UI()
-        assert setupdir.join("setup.py").check(), setupdir
         hasvcs = not hasvcs and not args.novcs
         setupdir_only = bool(setupdir_only or args.setupdironly)
         if hasvcs:
@@ -382,56 +374,123 @@ class Exported:
             return auth
         return "_test", "test"
 
-    def check_setup(self):
-        p = self.rootpath.join("setup.py")
-        if not p.check():
-            self.hub.fatal("did not find %s after export of versioned files "
-                           "(you may try --no-vcs to prevent the export)" % p)
-
     def prepare(self):
-        self.check_setup()
         if self.target_distdir.check():
             self.hub.line("pre-build: cleaning %s" % self.target_distdir)
             self.target_distdir.remove()
         self.target_distdir.mkdir()
 
-    def setup_build(self, default_formats=None):
-        formats = self.args.formats
-        if not formats:
-            formats = default_formats
-            if not formats:
-                formats = "sdist.zip" if sys.platform == "win32" else "sdist.tgz"
+    @staticmethod
+    def is_default_sdist(format):
+        if format == "sdist":
+            return True
+        parts = format.split(".", 1)
+        if len(parts) == 2 and parts[0] == "sdist":
+            setup_format = sdistformat(parts[1])
+            if sys.platform == "win32":
+                return setup_format == "zip"
+            else:
+                return setup_format == "gztar"
+        return False
 
-        formats = [x.strip() for x in formats.split(",")]
+    def setup_build(self, default_formats=None):
+        deprecated_formats = []
+        formats = self.args.formats
+        if formats is None:
+            formats = default_formats
+        if formats:
+            sdist = None
+            wheel = None
+            for format in formats.split(","):
+                format = format.strip()
+                if not format:
+                    continue
+                if self.is_default_sdist(format):
+                    sdist = True
+                elif format == "bdist_wheel":
+                    wheel = True
+                else:
+                    deprecated_formats.append(format)
+            if sdist and wheel:
+                # if both formats are wanted, we do not pass the arguments
+                # to python -m build below, so the default behaviour is used
+                # see python -m build --help for details
+                sdist = False
+                wheel = False
+            if sdist is None and wheel is None:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "none of the specified formats '%s' are supported by "
+                    "python -m build" % ','.join(sorted(deprecated_formats)))
+            elif sdist and not wheel:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "replace it with --sdist to only get source release "
+                    "as with your currently specified format.")
+            elif wheel and not sdist:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "replace it with --wheel to only get wheel release "
+                    "as with your currently specified format.")
+            else:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "you can remove it to get the default sdist and wheel "
+                    "releases you get with your currently specified formats.")
+        else:
+            sdist = self.hub.args.sdist
+            wheel = self.hub.args.wheel
+
+        cmds = []
+        if sdist is not None or wheel is not None:
+            cmd = [self.python, "-m", "build"]
+            if sdist:
+                cmd.append("--sdist")
+            if wheel:
+                cmd.append("--wheel")
+            if self.args.no_isolation:
+                cmd.append("--no-isolation")
+            cmds.append(cmd)
+
+        for format in sorted(deprecated_formats):
+            cmd = [self.python, "setup.py"]
+            if format.startswith("sdist."):
+                cmd.append("sdist")
+                parts = format.split(".", 1)
+                if len(parts) == 2:
+                    cmd.append("--formats")
+                    cmd.append(sdistformat(parts[1]))
+                else:
+                    self.hub.fatal("Invalid sdist format '%s'.")
+            else:
+                cmd.append(format)
+            self.hub.warn(
+                "The '%s' format is invalid for python -m build. "
+                "Falling back to '%s' which is deprecated." % (
+                    format, ' '.join(cmd[1:])))
+            cmds.append(cmd)
 
         archives = []
-        for format in formats:
-            if not format:
-                continue
-            buildcommand = []
-            if format == "sdist" or format.startswith("sdist."):
-                buildcommand = ["sdist"]
-                parts = format.split(".", 1)
-                if len(parts) > 1:
-                    setup_format = sdistformat(parts[1])
-                    buildcommand.extend(["--formats", setup_format])
-            else:
-                buildcommand.append(format)
-            pre = [self.python, "setup.py"]
-            cmd = pre + buildcommand
-
+        for cmd in cmds:
             distdir = self.rootpath.join("dist")
             if self.rootpath != self.origrepo:
                 if distdir.exists():
                     distdir.remove()
-            out = self.hub.popen_output(cmd, cwd=self.rootpath)
-            if out is None:  # dryrun
+
+            if self.hub.args.verbose:
+                ret = self.hub.popen_check(cmd, cwd=self.rootpath)
+            else:
+                ret = self.hub.popen_output(cmd, cwd=self.rootpath)
+
+            if ret is None:  # dryrun
                 continue
+
             for x in distdir.listdir():  # usually just one
                 target = self.target_distdir.join(x.basename)
                 x.move(target)
                 archives.append(target)
-                self.log_build(target, "[%s]" %format.upper())
+                self.log_build(target)
+
         return archives
 
     def setup_build_docs(self):
@@ -453,9 +512,12 @@ class Exported:
         self.log_build(p, "[sphinx docs]")
         return p
 
-    def log_build(self, path, suffix):
+    def log_build(self, path, suffix=None):
         kb = path.size() / 1000
-        self.hub.line("built: %s %s %skb" %(path, suffix, kb))
+        if suffix:
+            self.hub.line("built: %s %s %skb" % (path, suffix, kb))
+        else:
+            self.hub.line("built: %s %skb" % (path, kb))
 
 
 sdistformat2option = {
