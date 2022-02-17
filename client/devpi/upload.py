@@ -47,8 +47,7 @@ def main(hub, args):
             archives.append(p)
     if not archives:
         hub.fatal("nothing built!")
-    name_version = exported.setup_name_and_version()
-    uploader = Uploader(hub, args, name_version=name_version)
+    uploader = Uploader(hub, args)
     if args.index:
         uploader.pypisubmit = hub.current.get_index_url(args.index).url
     uploader.do_upload_paths(archives)
@@ -85,13 +84,12 @@ def main_fromfiles(hub, args):
 
 
 class Uploader:
-    def __init__(self, hub, args, name_version=None):
+    def __init__(self, hub, args):
         self.hub = hub
         self.args = args
         # allow explicit name and version instead of using pkginfo which
         # has a high failure rate for documentation zips because they miss
         # explicit metadata and the implementation has to guess
-        self.name_version = name_version
         self.pypisubmit = hub.current.pypisubmit
 
     def do_upload_paths(self, paths):
@@ -119,10 +117,7 @@ class Uploader:
             self.upload_doc(archivepath, pkginfo)
 
     def upload_doc(self, path, pkginfo):
-        if self.name_version:
-            (name, version) = self.name_version
-        else:
-            (name, version) = (pkginfo.name, pkginfo.version)
+        (name, version) = (pkginfo.name, pkginfo.version)
         self.post("doc_upload", path,
                 {"name": name, "version": version})
 
@@ -174,8 +169,6 @@ class Uploader:
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
-        if self.name_version:
-            (meta['name'], meta['version']) = self.name_version
         self.post("register", None, meta=meta)
         pyver = get_pyversion_filetype(path.basename)
         meta["pyversion"], meta["filetype"] = pyver
