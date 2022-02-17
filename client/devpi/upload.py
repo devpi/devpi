@@ -4,6 +4,7 @@ import py
 import re
 
 import check_manifest
+import pep517.meta
 
 from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.archive import zip_dir
@@ -356,16 +357,10 @@ class Exported:
         return "<Exported %s>" % self.rootpath
 
     def setup_name_and_version(self):
-        setup_py = self.rootpath.join("setup.py")
-        if not setup_py.check():
-            self.hub.fatal("no setup.py file")
-        name = self.hub.popen_output(
-            [self.python, setup_py, "--name"],
-            report=False).splitlines()[-1].strip()
-        version = self.hub.popen_output(
-            [self.python, setup_py, "--version"],
-            report=False).splitlines()[-1].strip()
-        self.hub.debug("name, version = %s, %s" %(name, version))
+        result = pep517.meta.load(self.rootpath.strpath)
+        name = result.metadata["name"]
+        version = result.metadata["version"]
+        self.hub.debug("name, version = %s, %s" % (name, version))
         return name, version
 
     def _getuserpassword(self):
