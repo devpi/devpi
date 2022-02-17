@@ -109,8 +109,6 @@ class Uploader:
                     doczip2pkginfo[archivepath] = pkginfo
                 else:
                     releasefile2pkginfo[archivepath] = pkginfo
-                #hub.debug("got pkginfo for %s-%s  %s" %
-                #          (pkginfo.name, pkginfo.version, pkginfo.author))
         if self.args.only_latest:
             releasefile2pkginfo = filter_latest(releasefile2pkginfo)
             doczip2pkginfo = filter_latest(doczip2pkginfo)

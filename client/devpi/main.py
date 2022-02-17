@@ -856,11 +856,6 @@ def upload(parser):
     with ``formats``, ``no-vcs = 1``, and ``setupdir-only = 1`` settings
     providing defaults for the respective command line options.
     """
-    #parser.add_argument("--ver", dest="setversion",
-    #    action="store", default=None,
-    #    help="fill version string into setup.py, */__init__.py */conf.py files")
-    #parser.add_argument("--incver", action="store_true",
-    #    help="retrieve max remove version, increment and set it like --ver")
     build = parser.add_argument_group("build options")
 
     build.add_argument(
@@ -900,10 +895,6 @@ def upload(parser):
         help="don't perform any server-modifying actions")
     direct.add_argument("path", action="store", nargs="*",
         help="path to archive file to be inspected and uploaded.")
-    #parser.add_argument("-y", dest="yes",
-    #    action="store_true", default=None,
-    #    help="answer yes on interactive questions. ")
-    #
 
 
 @subcommand("devpi.test")
