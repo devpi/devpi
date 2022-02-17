@@ -30,6 +30,7 @@ if __name__ == "__main__":
         "build",
         "check-manifest>=0.28",
         "devpi_common<4,>=3.6.0",
+        "pep517",
         "pkginfo>=1.4.2",
         "pluggy>=0.6.0,<2.0",
         "py>=1.4.31"]
