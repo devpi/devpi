@@ -436,16 +436,20 @@ class Exported:
 
     def setup_build_docs(self):
         name, version = self.setup_name_and_version()
-        cwd = self.rootpath
-        build = cwd.join("build")
-        out = self.hub.popen_output(
-            [self.python, "setup.py", "build_sphinx", "-E",
-             "--build-dir", build], cwd=self.rootpath)
-        if out is None:
+        for guess in ("doc", "docs"):
+            docs = self.rootpath.join("doc")
+            if docs.join("conf.py").exists():
+                break
+        build = self.rootpath.join("build")
+        cmd = ["sphinx-build", "-E", docs, build]
+        if self.hub.args.verbose:
+            ret = self.hub.popen_check(cmd, cwd=self.rootpath)
+        else:
+            ret = self.hub.popen_output(cmd, cwd=self.rootpath)
+        if ret is None:
             return
         p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
-        html = build.join("html")
-        zip_dir(html, p)
+        zip_dir(build, p)
         self.log_build(p, "[sphinx docs]")
         return p
 
