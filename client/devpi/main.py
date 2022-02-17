@@ -882,7 +882,7 @@ def upload(parser):
     build.add_argument("--with-docs", action="store_true", default=None,
         dest="withdocs",
         help="build sphinx docs and upload them to index. "
-             "this triggers 'setup.py build_sphinx' for building")
+             "this triggers 'sphinx-build' for building")
     build.add_argument("--only-docs", action="store_true", default=None,
         dest="onlydocs",
         help="as --with-docs but don't build or upload release files")

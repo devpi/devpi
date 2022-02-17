@@ -172,7 +172,7 @@ class TestCheckout:
         old_popen_output = exported.hub.popen_output
 
         def mock_popen_output(args, **kwargs):
-            if "build_sphinx" in args:
+            if "sphinx-build" in args:
                 l.append(kwargs)
             else:
                 return old_popen_output(args, **kwargs)
