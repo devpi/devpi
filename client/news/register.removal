@@ -1,0 +1,1 @@
+When uploading we no longer "register" the package first. That requirement was removed from PyPI and devpi-server for some time.
