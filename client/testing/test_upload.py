@@ -94,7 +94,7 @@ class TestCheckout:
         return repo
 
     def test_vcs_export(self, uploadhub, repo, setupdir, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
@@ -113,7 +113,7 @@ class TestCheckout:
     def test_vcs_export_setupdironly(self, uploadhub, setupdir,
                                           tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "setupdironly", True)
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == setupdir
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
@@ -129,7 +129,7 @@ class TestCheckout:
     def test_vcs_export_disabled(self, uploadhub, setupdir,
                                       tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert not checkout.hasvcs
         exported = checkout.export(tmpdir)
         assert exported.rootpath == checkout.setupdir
@@ -138,14 +138,14 @@ class TestCheckout:
                                           tmpdir, monkeypatch):
         subdir = setupdir.mkdir("subdir")
         subdir.ensure("setup.py")
-        checkout = Checkout(uploadhub, subdir)
+        checkout = Checkout(uploadhub, uploadhub.args, subdir)
         wc = tmpdir.mkdir("wc")
         exported = checkout.export(wc)
         with pytest.raises(SystemExit):
             exported.check_setup()
 
     def test_export_attributes(self, uploadhub, setupdir, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
             # some packages like numpy produce output during build, simulate:
@@ -158,7 +158,7 @@ class TestCheckout:
         assert version == "1.2.3"
 
     def test_setup_build_docs(self, uploadhub, setupdir, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
             setup(name="xyz", version="1.2.3")
@@ -231,10 +231,14 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
 
     class args:
         dryrun = None
+        formats = "sdist,bdist_wheel"
         index = None
+        novcs = None
         only_latest = None
         onlydocs = None
         path = None
+        python = None
+        setupdironly = None
         withdocs = None
 
     initproj("pkg-1.0")
@@ -250,15 +254,15 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
     uploadhub.current.set_basic_auth("basic", "auth")
     uploadhub.current.set_client_cert(certpath)
     main(uploadhub, args)
-    (submit, upload) = Session.posts
-    assert submit[0][1][":action"] == "submit"
-    assert submit[1]["auth"] == ("basic", "auth")
-    assert submit[1]["cert"] == certpath
-    assert "X-Devpi-Auth" in submit[1]["headers"]
-    assert upload[0][1][":action"] == "file_upload"
-    assert upload[1]["auth"] == ("basic", "auth")
-    assert upload[1]["cert"] == certpath
-    assert "X-Devpi-Auth" in upload[1]["headers"]
+    (upload1, upload2) = Session.posts
+    assert upload1[0][1][":action"] == "file_upload"
+    assert upload1[1]["auth"] == ("basic", "auth")
+    assert upload1[1]["cert"] == certpath
+    assert "X-Devpi-Auth" in upload1[1]["headers"]
+    assert upload2[0][1][":action"] == "file_upload"
+    assert upload2[1]["auth"] == ("basic", "auth")
+    assert upload2[1]["cert"] == certpath
+    assert "X-Devpi-Auth" in upload2[1]["headers"]
 
 
 class TestUploadFunctional:
@@ -298,7 +302,7 @@ class TestUploadFunctional:
             "contents.rst": "",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
-        out = out_devpi("upload", "--with-docs", code=[200, 200, 200])
+        out = out_devpi("upload", "--with-docs", code=[200, 200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
@@ -314,7 +318,7 @@ class TestUploadFunctional:
             "contents.rst": "",
             "index.html": "<html/>"}})
         assert py.path.local("setup.py").check()
-        out = out_devpi("upload", "--formats", "sdist.zip", code=[200, 200])
+        out = out_devpi("upload", "--formats", "sdist.zip", code=[200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
@@ -323,7 +327,7 @@ class TestUploadFunctional:
 
         print("*" * 80)
         out = out_devpi("upload", "--formats", "sdist.zip,bdist_wheel",
-                        code=[200, 200, 200, 200])
+                        code=[200, 200])
         out.stdout.fnmatch_lines_random("""
             file_upload of {projname_version}.*
             file_upload of {projname_version_norm}*.whl*
@@ -352,7 +356,7 @@ class TestUploadFunctional:
 
         # --index option
         out = out_devpi("upload", "--index", "%s/dev" % user, "--dry-run")
-        out.stdout.fnmatch_lines_random("skipped: register*to*/%s/dev*" % user)
+        out.stdout.fnmatch_lines_random("skipped: file_upload*to*/%s/dev*" % user)
 
         # go back
         out = out_devpi("use", "%s/dev" % user)

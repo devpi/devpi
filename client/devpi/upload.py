@@ -31,7 +31,7 @@ def main(hub, args):
         hub.fatal("no setup.py found in", hub.cwd)
 
     setupcfg = read_setupcfg(hub, hub.cwd)
-    checkout = Checkout(hub, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
+    checkout = Checkout(hub, args, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
                         setupdir_only=setupcfg.get("setupdir-only"))
     uploadbase = hub.getdir("upload")
     exported = checkout.export(uploadbase)
@@ -126,8 +126,6 @@ class Uploader:
         assert "name" in meta and "version" in meta, meta
         dic = meta.copy()
         pypi_action = action
-        if action == "register":
-            pypi_action = "submit"
         dic[":action"] = pypi_action
         dic["protocol_version"] = "1",
         headers = {}
@@ -169,7 +167,6 @@ class Uploader:
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
-        self.post("register", None, meta=meta)
         pyver = get_pyversion_filetype(path.basename)
         meta["pyversion"], meta["filetype"] = pyver
         self.post("file_upload", path, meta=meta)
@@ -268,14 +265,15 @@ def find_parent_subpath(startpath, relpath, raising=True):
 
 
 class Checkout:
-    def __init__(self, hub, setupdir, hasvcs=None, setupdir_only=None):
+    def __init__(self, hub, args, setupdir, hasvcs=None, setupdir_only=None):
         self.hub = hub
+        self.args = args
         self.cm_ui = None
         if hasattr(check_manifest, 'UI'):
             self.cm_ui = check_manifest.UI()
         assert setupdir.join("setup.py").check(), setupdir
-        hasvcs = not hasvcs and not hub.args.novcs
-        setupdir_only = bool(setupdir_only or hub.args.setupdironly)
+        hasvcs = not hasvcs and not args.novcs
+        setupdir_only = bool(setupdir_only or args.setupdironly)
         if hasvcs:
             with setupdir.as_cwd():
                 try:
@@ -302,7 +300,7 @@ class Checkout:
 
     def export(self, basetemp):
         if not self.hasvcs:
-            return Exported(self.hub, self.setupdir, self.setupdir)
+            return Exported(self.hub, self.args, self.setupdir, self.setupdir)
         with self.rootpath.as_cwd():
             if self.cm_ui:
                 files = check_manifest.get_vcs_files(self.cm_ui)
@@ -332,12 +330,13 @@ class Checkout:
         self.hub.debug("%s-exported project to %s -> new CWD" %(
                       self.hasvcs, newrepo))
         setupdir_newrepo = newrepo.join(self.setupdir.relto(self.rootpath))
-        return Exported(self.hub, setupdir_newrepo, self.setupdir)
+        return Exported(self.hub, self.args, setupdir_newrepo, self.setupdir)
 
 
 class Exported:
-    def __init__(self, hub, rootpath, origrepo):
+    def __init__(self, hub, args, rootpath, origrepo):
         self.hub = hub
+        self.args = args
         self.rootpath = rootpath
         self.origrepo = origrepo
         self.target_distdir = origrepo.join("dist")
@@ -350,7 +349,7 @@ class Exported:
         is activated, but otherwise falls back to sys.executable, the Python
         under which devpi client is running.
         """
-        python = self.hub.args.python
+        python = self.args.python
         if python is None:
             python = self._virtualenv_python()
         if python is None:
@@ -397,7 +396,7 @@ class Exported:
         self.target_distdir.mkdir()
 
     def setup_build(self, default_formats=None):
-        formats = self.hub.args.formats
+        formats = self.args.formats
         if not formats:
             formats = default_formats
             if not formats:
