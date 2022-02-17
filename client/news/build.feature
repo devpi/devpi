@@ -1,0 +1,1 @@
+Use `build <https://pypi.org/project/build/>`_ package when possible and fall back to ``setup.py`` only for deprecated release types.

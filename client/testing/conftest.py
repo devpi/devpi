@@ -431,7 +431,7 @@ def initproj(tmpdir):
 def create_and_upload(request, devpi, initproj, Popen):
     def upload(name, filedefs=None, opts=()):
         initproj(name, filedefs)
-        devpi("upload", *opts)
+        devpi("upload", "--no-isolation", *opts)
     return upload
 
 

@@ -26,11 +26,13 @@ if __name__ == "__main__":
     README = io.open(os.path.join(here, 'README.rst'), encoding='utf-8').read()
     CHANGELOG = get_changelog()
 
-    install_requires=["devpi_common<4,>=3.6.0",
-                      "pkginfo>=1.4.2",
-                      "check-manifest>=0.28",
-                      "pluggy>=0.6.0,<2.0",
-                      "py>=1.4.31"]
+    install_requires = [
+        "build",
+        "check-manifest>=0.28",
+        "devpi_common<4,>=3.6.0",
+        "pkginfo>=1.4.2",
+        "pluggy>=0.6.0,<2.0",
+        "py>=1.4.31"]
 
     extras_require = {}
 
