@@ -312,7 +312,12 @@ class Hub:
         args[0] = str(cmd)
         if report:
             self.report_popen(args, cwd)
-        return subprocess.check_output(args, cwd=str(cwd)).decode('utf-8')
+        encoding = sys.getdefaultencoding()
+        try:
+            return subprocess.check_output(
+                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)
+        except subprocess.CalledProcessError as e:
+            self.fatal(e.output.decode(encoding))
 
     def popen(self, args, cwd=None, dryrun=None, **popen_kwargs):
         if isinstance(args, str):
