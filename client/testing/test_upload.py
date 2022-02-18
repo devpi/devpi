@@ -362,7 +362,7 @@ class TestUploadFunctional:
 
     def test_wheel_setup_cfg(self, devpi, initproj, out_devpi):
         initproj("pkg-1.0", kind="setup.cfg")
-        out = out_devpi("upload", "--wheel", code=[200])
+        out = out_devpi("upload", "--no-isolation", "--wheel", code=[200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
