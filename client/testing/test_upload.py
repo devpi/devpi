@@ -360,6 +360,25 @@ class TestUploadFunctional:
             file_upload of {projname_version_norm}*.whl*
             """.format(projname_version_norm=projname_version_norm))
 
+    def test_wheel_setup_cfg(self, devpi, initproj, out_devpi):
+        initproj("pkg-1.0", kind="setup.cfg")
+        out = out_devpi("upload", "--wheel", code=[200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of pkg-1.0-*.whl*
+            """)
+
+    @pytest.mark.skipif("sys.version_info < (3,)")
+    def test_wheel_pyproject_toml(self, devpi, initproj, out_devpi):
+        initproj("pkg-1.0", kind="pyproject.toml")
+        out = out_devpi("upload", "--wheel", code=[200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of pkg-1.0-*.whl*
+            """)
+
     def test_default_formats(self, devpi, out_devpi, projname_version):
         if sys.platform == "win32":
             nativeext = ".zip"

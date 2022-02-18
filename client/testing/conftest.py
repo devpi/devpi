@@ -372,7 +372,7 @@ def initproj(tmpdir):
             setup.py
     """
 
-    def initproj_(nameversion, filedefs=None, src_root="."):
+    def initproj_(nameversion, filedefs=None, src_root=".", kind="setup.py"):
         if filedefs is None:
             filedefs = {}
         if not src_root:
@@ -392,7 +392,7 @@ def initproj(tmpdir):
 
         base.ensure(dir=1)
         create_files(base, filedefs)
-        if not _filedefs_contains(base, filedefs, "setup.py"):
+        if not _filedefs_contains(base, filedefs, "setup.py") and kind == "setup.py":
             create_files(
                 base,
                 {
@@ -412,6 +412,33 @@ def initproj(tmpdir):
                     )
                 },
             )
+        if not _filedefs_contains(base, filedefs, "pyproject.toml") and kind == "setup.cfg":
+            create_files(base, {"pyproject.toml": """
+                    [build-system]
+                    requires = ["setuptools", "wheel"]
+                """})
+        if not _filedefs_contains(base, filedefs, "setup.cfg") and kind == "setup.cfg":
+            create_files(base, {"setup.cfg": """
+                    [metadata]
+                    name = {name}
+                    description= {name} project
+                    version = {version}
+                    license = MIT
+                    packages = find:
+                """.format(**locals())})
+        if not _filedefs_contains(base, filedefs, "pyproject.toml") and kind == "pyproject.toml":
+            create_files(base, {"pyproject.toml": """
+                    [build-system]
+                    requires = ["flit_core >=3.2"]
+                    build-backend = "flit_core.buildapi"
+
+                    [project]
+                    name = "{name}"
+                    description= "{name} project"
+                    version = "{version}"
+                    license = {{text="MIT"}}
+                    packages = "find:"
+                """.format(**locals())})
         if not _filedefs_contains(base, filedefs, src_root_path.join(name)):
             create_files(
                 src_root_path, {name: {"__init__.py": "__version__ = {!r}".format(version)}}
