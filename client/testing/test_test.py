@@ -311,6 +311,36 @@ class TestWheel:
         assert wheel1[0].basename == "prep_under-1.0-%s-none-any.whl" % pyver
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
+    def test_wheels_only_download_selected(self, loghub, monkeypatch, pseudo_current, reqmock, tmpdir):
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/prep_under-1.0-cp37-cp37m-macosx_10_10_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp38-cp38-macosx_11_0_arm64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp39-cp39-macosx_11_0_arm64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0.tar.gz", "rel": "releasefile"},
+        ], "name": "prep-under", "version": "1.0"})
+        links = vl.get_links(rel="releasefile")
+        (sdist_links, wheel_links) = find_sdist_and_wheels(
+            loghub, links, universal_only=False)
+        dev_index = DevIndex(loghub, tmpdir, pseudo_current)
+        monkeypatch.setattr("devpi.test.UnpackedPackage.unpack", lambda s: None)
+        reqmock.mockresponse(
+            "http://b/prep_under-1.0.tar.gz",
+            code=200, method="GET", data=b"source")
+        reqmock.mockresponse(
+            "http://b/prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+            code=200, method="GET", data=b"wheel")
+
+        toxrunargs = prepare_toxrun_args(
+            dev_index, vl, sdist_links, wheel_links,
+            select="(?:.*39)(?:.*linux)(?:.*whl)")
+        ((wheel_link, wheel, wheel_sdist),) = toxrunargs
+        assert wheel_link.basename == "prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        assert wheel.path_archive.basename == "prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        assert wheel_sdist.path_archive.basename == "prep_under-1.0.tar.gz"
+
     def test_wheels_and_sdist(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
             "tox.ini": """

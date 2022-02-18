@@ -208,14 +208,20 @@ def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links, select
         toxrunargs.append((sdist_link, sdist_pkg))
     # for testing wheels we need an sdist because wheels
     # typically don't contain test or tox.ini files
+    if select:
+        select = re.compile(select)
     for wheel_link in wheel_links:
+        if select and not select.search(wheel_link.basename):
+            # skip not matching
+            continue
         wheel_pkg = dev_index.download_and_unpack(versioninfo, wheel_link)
         toxrunargs.append((wheel_link, wheel_pkg, toxrunargs[0][1]))
     if select:
+        # filter whole list, in case the sdist is filtered out as well
         toxrunargs = [
             x
             for x in toxrunargs
-            if re.search(select, x[0].basename)]
+            if select.search(x[0].basename)]
     return toxrunargs
 
 
