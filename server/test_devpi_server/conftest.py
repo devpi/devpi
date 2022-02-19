@@ -397,7 +397,9 @@ def httpget(pypiurls):
             headers = kw.setdefault("headers", {})
             if pypiserial is not None:
                 headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
-            self.mockresponse(remoteurl + name + "/", text=text, **kw)
+            self.mockresponse(
+                URL(remoteurl).joinpath(name).asdir().url,
+                text=text, **kw)
             return ret
 
         def _getmd5digest(self, s):

@@ -749,7 +749,7 @@ class TestFileReplication:
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
             pypistage.xom.httpget.mockresponse(url, status_code=500)
             with pytest.raises(BadGateway) as e:
-                for part in iter_remote_file_replica(replica_xom, entry):
+                for part in iter_remote_file_replica(replica_xom, entry, entry.url):
                     pass
             e.match('received 500 from master')
             e.match('pypi.org/package/some/pytest-1.8.zip: received 404')
@@ -777,7 +777,7 @@ class TestFileReplication:
             pypistage.xom.httpget.mockresponse(url, status_code=500)
             pypistage.xom.httpget.mockresponse(
                 entry.url, headers=headers, content=b'123')
-            result = iter_remote_file_replica(replica_xom, entry)
+            result = iter_remote_file_replica(replica_xom, entry, entry.url)
             headers = next(result)
             # there should be one get
             (call_log_entry,) = [

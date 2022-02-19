@@ -55,6 +55,7 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
             self.end_headers()
 
         simpypi = self.server.simpypi
+        simpypi.requests.append((self.path, self.headers))
         headers = {
             'X-Simpypi-Method': 'GET'}
         p = self.path.split('/')
@@ -116,9 +117,13 @@ class SimPyPI:
         self.projects = {}
         self.files = {}
         self.clear_log()
+        self.clear_requests()
 
     def clear_log(self):
         self.log = []
+
+    def clear_requests(self):
+        self.requests = []
 
     def add_log(self, *args):
         msg = ' '.join(str(x) for x in args)

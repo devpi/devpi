@@ -42,6 +42,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .config import hookimpl
 from .filestore import BadGateway
+from .filestore import get_checksum_error
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
 from .model import ReadonlyIndex
 from .model import RemoveValue
@@ -948,7 +949,7 @@ class PyPIView:
     def _push_links(self, links, target_stage, name, version):
         for link in links["releasefile"]:
             if should_fetch_remote_file(link.entry, self.request.headers):
-                for part in iter_fetch_remote_file(self.xom, link.entry):
+                for part in iter_fetch_remote_file(self.xom, link.entry, link.entry.url):
                     pass
             new_link = target_stage.store_releasefile(
                 name, version, link.basename, link.entry.file_get_content(),
@@ -1231,11 +1232,9 @@ class PyPIView:
             relpath = relpath.split("#", 1)[0]
         return relpath
 
-    def _pkgserv(self, entry):
+    def _pkgserv(self, entry, url):
         request = self.request
-        if entry is None:
-            abort(request, 404, "no such file")
-        elif not entry.meta:
+        if not entry.meta:
             abort(request, 410, "file existed, deleted in later serial")
 
         if json_preferred(request):
@@ -1251,14 +1250,14 @@ class PyPIView:
                 entry.key.params['index'])
             if stage is not None and stage.use_external_url:
                 # redirect to external url
-                return HTTPFound(location=entry.url)
+                return HTTPFound(location=URL(url).url)
 
         if not request.has_permission("pkg_read"):
             abort(request, 403, "package read forbidden")
 
         try:
             if should_fetch_remote_file(entry, request.headers):
-                app_iter = iter_fetch_remote_file(self.xom, entry)
+                app_iter = iter_fetch_remote_file(self.xom, entry, url)
                 headers = next(app_iter)
                 return Response(app_iter=app_iter, headers=headers)
         except BadGateway as e:
@@ -1282,16 +1281,24 @@ class PyPIView:
         # they can still recover the deleted release from the filesystem
         # manually in case they need it.
         key = self.xom.filestore.get_key_from_relpath(relpath)
-        if not key.exists():
+        if key is None or not key.exists():
             abort(self.request, 404, "no such file")
         entry = self.xom.filestore.get_file_entry_from_key(key)
-        return self._pkgserv(entry)
+        # we need to add auth back to the url, as aiohttp doesn't include it
+        # in the response url, unlike requests did
+        # we do it in mirror_pkgserv now to avoid storing the credentials
+        # in the database and avoid changes in the db when mirror_url changes
+        mirror_url_auth = getattr(self.context.stage, "mirror_url_auth", {})
+        url = URL(entry.url).replace(**mirror_url_auth)
+        return self._pkgserv(entry, url)
 
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
     def stage_pkgserv(self):
         relpath = self._relpath_from_request()
         entry = self.xom.filestore.get_file_entry(relpath)
-        return self._pkgserv(entry)
+        if entry is None:
+            abort(self.request, 404, "no such file")
+        return self._pkgserv(entry, entry.url)
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}",
                  permission="del_entry",
@@ -1457,15 +1464,16 @@ def _headers_from_response(r):
     return headers
 
 
-def iter_cache_remote_file(xom, entry):
+def iter_cache_remote_file(xom, entry, url):
     # we get and cache the file and some http headers from remote
-    r = xom.httpget(entry.url, allow_redirects=True)
+    hash_spec = entry.hash_spec
+    r = xom.httpget(url, allow_redirects=True)
     with contextlib.closing(r):
         if r.status_code != 200:
-            msg = "error %s getting %s" % (r.status_code, entry.url)
+            msg = "error %s getting %r" % (r.status_code, url)
             threadlog.error(msg)
-            raise BadGateway(msg, code=r.status_code, url=entry.url)
-        threadlog.info("reading remote: %s, target %s", r.url, entry.relpath)
+            raise BadGateway(msg, code=r.status_code, url=url)
+        threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
         content_size = r.headers.get("content-length")
         err = None
 
@@ -1487,7 +1495,7 @@ def iter_cache_remote_file(xom, entry):
             "%s: got %s bytes of %r from remote, expected %s" % (
                 entry.relpath, filesize, r.url, content_size))
     if not err:
-        err = entry.check_checksum(content)
+        err = get_checksum_error(content, entry.relpath, hash_spec)
 
     if err is not None:
         threadlog.error(str(err))
@@ -1534,11 +1542,12 @@ def iter_cache_remote_file(xom, entry):
                 conn.commit_files_without_increasing_serial()
 
 
-def iter_remote_file_replica(xom, entry):
+def iter_remote_file_replica(xom, entry, url):
+    hash_spec = entry.hash_spec
     replication_errors = xom.replica_thread.shared_data.errors
     # construct master URL with param
-    url = xom.config.master_url.joinpath(entry.relpath).url
-    if not entry.url:
+    master_url = xom.config.master_url.joinpath(entry.relpath).url
+    if not url:
         threadlog.warn("missing private file: %s" % entry.relpath)
     else:
         threadlog.info("replica doesn't have file: %s", entry.relpath)
@@ -1546,22 +1555,22 @@ def iter_remote_file_replica(xom, entry):
     rt = xom.replica_thread
     token = rt.auth_serializer.dumps(uuid)
     r = xom.httpget(
-        url, allow_redirects=True,
+        master_url, allow_redirects=True,
         extra_headers={
             rt.H_REPLICA_FILEREPL: str("YES"),
             rt.H_REPLICA_UUID: uuid,
             str('Authorization'): 'Bearer %s' % token})
     if r.status_code != 200:
         r.close()
-        msg = "%s: received %s from master" % (url, r.status_code)
-        if not entry.url:
+        msg = "%s: received %s from master" % (master_url, r.status_code)
+        if not url:
             threadlog.error(msg)
             raise BadGateway(msg)
         # try to get from original location
-        r = xom.httpget(entry.url, allow_redirects=True)
+        r = xom.httpget(url, allow_redirects=True)
         with contextlib.closing(r):
             if r.status_code != 200:
-                msg = "%s\n%s: received %s" % (msg, entry.url, r.status_code)
+                msg = "%s\n%s: received %s" % (msg, url, r.status_code)
                 threadlog.error(msg)
                 raise BadGateway(msg)
 
@@ -1578,7 +1587,7 @@ def iter_remote_file_replica(xom, entry):
 
     content = content.getvalue()
 
-    err = entry.check_checksum(content)
+    err = get_checksum_error(content, entry.relpath, hash_spec)
     if err:
         # the file we got is different, so we fail
         raise BadGateway(str(err))
@@ -1604,16 +1613,16 @@ def iter_remote_file_replica(xom, entry):
     replication_errors.remove(entry)
 
 
-def iter_fetch_remote_file(xom, entry):
+def iter_fetch_remote_file(xom, entry, url):
     filestore = xom.filestore
     keyfs = xom.keyfs
     if not xom.is_replica():
         if not keyfs.tx.write:
             keyfs.restart_as_write_transaction()
         entry = filestore.get_file_entry(entry.relpath, readonly=False)
-        yield from iter_cache_remote_file(xom, entry)
+        yield from iter_cache_remote_file(xom, entry, url)
     else:
-        yield from iter_remote_file_replica(xom, entry)
+        yield from iter_remote_file_replica(xom, entry, url)
 
 
 def url_for_entrypath(request, entrypath):
