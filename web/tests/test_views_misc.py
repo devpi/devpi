@@ -74,7 +74,8 @@ def test_root_pypi_upstream_error(url, mapp, testapp, pypistage):
     assert r.status_code == 502
     content, = r.html.select('#content')
     text = compareable_text(content.text)
-    assert text.startswith('Error An error has occurred: 502 Bad Gateway 502 status on GET https://')
+    assert text.startswith('Error An error has occurred: 502 Bad Gateway 502 status on GET')
+    assert 'https://' in text
     assert '/simple/someproject/' in text
 
 

@@ -182,7 +182,7 @@ class TestFileStore:
         headers = ResponseHeaders({})
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        for part in iter_cache_remote_file(xom, entry):
+        for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
@@ -196,7 +196,7 @@ class TestFileStore:
         headers = ResponseHeaders({"Content-Type": ""})
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"123"))
-        for part in iter_cache_remote_file(xom, entry):
+        for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"
@@ -214,7 +214,7 @@ class TestFileStore:
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw = BytesIO(b"1"))
         with pytest.raises(ValueError):
-            for part in iter_cache_remote_file(xom, entry):
+            for part in iter_cache_remote_file(xom, entry, entry.url):
                 pass
 
     def test_iterfile_remote_nosize(self, filestore, httpget, gen, xom):
@@ -227,7 +227,7 @@ class TestFileStore:
         assert entry.file_size() is None
         httpget.url2response[link.url] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"1"))
-        for part in iter_cache_remote_file(xom, entry):
+        for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         assert entry.file_get_content() == b"1"
         entry2 = filestore.get_file_entry(entry.relpath)
@@ -247,7 +247,7 @@ class TestFileStore:
         httpget.url2response[link.url_nofrag] = dict(status_code=200,
                 headers=headers, raw=BytesIO(b"123"))
         with pytest.raises(ValueError, match=link.md5):
-            for part in iter_cache_remote_file(xom, entry):
+            for part in iter_cache_remote_file(xom, entry, entry.url):
                 pass
         assert not entry.file_exists()
 
@@ -265,7 +265,7 @@ def test_cache_remote_file(filestore, httpget, gen, xom):
             status_code=200,
             headers=headers,
             raw=BytesIO(b"123"))
-        for part in iter_cache_remote_file(xom, entry):
+        for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         rheaders = entry.gethttpheaders()
         assert rheaders["content-length"] == "3"

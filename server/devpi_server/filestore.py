@@ -161,11 +161,7 @@ class FileEntry(object):
         return self.hash_spec.split("=")[0]
 
     def check_checksum(self, content):
-        if not self.hash_spec:
-            return
-        err = get_checksum_error(content, self.hash_spec)
-        if err:
-            return ValueError("%s: %s" %(self.relpath, err))
+        return get_checksum_error(content, self.relpath, self.hash_spec)
 
     def file_get_checksum(self, hash_type):
         return getattr(hashlib, hash_type)(self.file_get_content()).hexdigest()
@@ -210,9 +206,9 @@ class FileEntry(object):
                 last_modified = unicode_if_bytes(format_date_time(None))
             self.last_modified = last_modified
         if hash_spec:
-            err = get_checksum_error(content, hash_spec)
+            err = get_checksum_error(content, self.relpath, hash_spec)
             if err:
-                raise ValueError(err)
+                raise err
         else:
             hash_spec = get_default_hash_spec(content)
         self.hash_spec = hash_spec
@@ -254,9 +250,13 @@ class FileEntry(object):
         return self.hash_spec and self.last_modified
 
 
-def get_checksum_error(content, hash_spec):
+def get_checksum_error(content, relpath, hash_spec):
+    if not hash_spec:
+        return
     hash_algo, hash_value = parse_hash_spec(hash_spec)
     hash_type = hash_spec.split("=")[0]
     digest = hash_algo(content).hexdigest()
     if digest != hash_value:
-        return "%s mismatch, got %s, expected %s" % (hash_type, digest, hash_value)
+        return ValueError(
+            f"{relpath}: {hash_type} mismatch, "
+            f"got {digest}, expected {hash_value}")

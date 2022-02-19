@@ -153,13 +153,13 @@ class PyPIStage(BaseStage):
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         extra_headers = self._get_extra_headers(extra_headers)
         return await self.xom.async_httpget(
-            url=url, allow_redirects=allow_redirects, timeout=timeout,
+            url=URL(url).url, allow_redirects=allow_redirects, timeout=timeout,
             extra_headers=extra_headers)
 
     def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         extra_headers = self._get_extra_headers(extra_headers)
         return self.xom.httpget(
-            url=url, allow_redirects=allow_redirects, timeout=timeout,
+            url=URL(url).url, allow_redirects=allow_redirects, timeout=timeout,
             extra_headers=extra_headers)
 
     @property
@@ -170,11 +170,15 @@ class PyPIStage(BaseStage):
     @property
     def mirror_url(self):
         if self.xom.is_replica():
-            url = self.xom.config.master_url
-            return url.joinpath("%s/+simple/" % self.name).url
+            url = self.xom.config.master_url.joinpath(self.name, "+simple")
         else:
             url = URL(self.ixconfig['mirror_url'])
-            return url.asdir().url
+        return url.asdir()
+
+    @property
+    def mirror_url_auth(self):
+        url = self.mirror_url
+        return dict(username=url.username, password=url.password)
 
     @property
     def use_external_url(self):
@@ -418,17 +422,17 @@ class PyPIStage(BaseStage):
 
     async def _async_fetch_releaselinks(self, newlinks_future, project, cache_serial, _key_from_link):
         # get the simple page for the project
-        url = self.mirror_url + project + "/"
-        threadlog.debug("reading index %s", url)
+        url = self.mirror_url.joinpath(project).asdir()
+        threadlog.debug("reading index %r", url)
         (response, text) = await self.async_httpget(url, allow_redirects=True)
         if response.status != 200:
             if response.status == 404:
                 self.cache_retrieve_times.refresh(project)
                 raise self.UpstreamNotFoundError(
-                    "not found on GET %s" % url)
+                    "not found on GET %r" % url)
 
             # we don't have an old result and got a non-404 code.
-            raise self.UpstreamError("%s status on GET %s" % (
+            raise self.UpstreamError("%s status on GET %r" % (
                 response.status, url))
 
         # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
@@ -447,18 +451,19 @@ class PyPIStage(BaseStage):
 
         if serial < cache_serial:
             raise self.UpstreamError(
-                "serial mismatch on GET %s, "
+                "serial mismatch on GET %r, "
                 "cache_serial %s is newer than returned serial %s" % (
                     url, cache_serial, serial))
 
         threadlog.debug("%s: got response with serial %s", project, serial)
 
         # check returned url has the same normalized name
-        ret_project = URL(response.url).path.strip("/").split("/")[-1]
-        assert project == normalize_name(ret_project)
+        assert project == normalize_name(url.asfile().basename)
 
+        # make sure we don't store credential in the database
+        response_url = URL(response.url).replace(username=None, password=None)
         # parse simple index's link
-        releaselinks = parse_index(response.url, text).releaselinks
+        releaselinks = parse_index(response_url, text).releaselinks
         num_releaselinks = len(releaselinks)
         key_hrefs = [None] * num_releaselinks
         requires_python = [None] * num_releaselinks

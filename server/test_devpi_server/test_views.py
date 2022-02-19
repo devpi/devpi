@@ -1185,7 +1185,8 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
     req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
     r = testapp.push("/root/pypi", json.dumps(req))
     assert r.status_code == 502
-    assert r.json["message"] == "error 502 getting https://pypi.org/simple/hello/hello-1.0.tar.gz"
+    assert "error 502 getting" in r.json["message"]
+    assert "https://pypi.org/simple/hello/hello-1.0.tar.gz" in r.json["message"]
 
 
 def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypistage, testapp):

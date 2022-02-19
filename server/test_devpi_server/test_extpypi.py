@@ -596,6 +596,52 @@ class TestPyPIStageprojects:
                 for x in pypistage.get_releaselinks("pkg")]) == sorted([
                     ('pkg', '1.0'), ('pkg', '2.0')])
 
+    @pytest.mark.nomocking
+    @pytest.mark.notransaction
+    def test_auth_mirror_url(self, caplog, mapp, simpypi, testapp):
+        import base64
+        url = URL(simpypi.simpleurl).replace(username="foo", password="bar").asdir()
+        mapp.login('root')
+        mapp.modify_index(
+            "root/pypi",
+            indexconfig=dict(type='mirror', mirror_url=url.url))
+        simpypi.add_release("pkg", pkgver="pkg-1.0.zip")
+        content = b'13'
+        simpypi.add_file('/pkg/pkg-1.0.zip', content)
+        assert not simpypi.requests
+        with mapp.xom.keyfs.transaction(write=False):
+            pypistage = mapp.xom.model.getstage("root/pypi")
+            assert pypistage.mirror_url == url
+            (link,) = pypistage.get_simplelinks("pkg")
+        assert "foo" not in link[1]
+        assert "bar" not in link[1]
+        ((path, headers), *_) = simpypi.requests
+        (kind, data) = headers["Authorization"].split(None, 1)
+        assert kind.lower() == "basic"
+        assert base64.b64decode(data) == b"foo:bar"
+        simpypi.clear_requests()
+        assert not simpypi.requests
+        r = testapp.xget(200, f"/{link[1]}")
+        assert r.body == content
+        ((path, headers),) = simpypi.requests
+        (kind, data) = headers["Authorization"].split(None, 1)
+        assert kind.lower() == "basic"
+        assert base64.b64decode(data) == b"foo:bar"
+        msgs = [x.getMessage() for x in caplog.getrecords()]
+        assert not [
+            x for x in msgs
+            if "foo:bar" in x
+            and "mockresponse" not in x
+            and "modified index" not in x]
+        assert [x for x in msgs if "foo:***" in x]
+
+    def test_auth_mirror_url_hidden_in_logs(self, caplog, pypistage):
+        pypistage.ixconfig["mirror_url"] = "https://foo:bar@example.com/simple/"
+        pypistage.get_releaselinks("pkg")
+        msgs = [x.getMessage() for x in caplog.getrecords()]
+        assert not [x for x in msgs if "foo:bar" in x and "mockresponse" not in x]
+        assert [x for x in msgs if "foo:***" in x]
+
 
 def raise_ValueError():
     raise ValueError(42)
