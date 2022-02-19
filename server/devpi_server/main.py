@@ -464,36 +464,64 @@ class XOM:
 
         pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
-        pyramid_config.add_route("/{user}/+api", "/{user}/+api", accept="application/json")
-        pyramid_config.add_route("/{user}/{index}/+api", "/{user}/{index}/+api", accept="application/json")
+        pyramid_config.add_route(
+            "/{user}/+api",
+            "/{user:[^+/]+}/+api",
+            accept="application/json")
+        pyramid_config.add_route(
+            "/{user}/{index}/+api",
+            "/{user:[^+/]+}/{index:[^+/]+}/+api",
+            accept="application/json")
         pyramid_config.add_route("/+authcheck", "/+authcheck")
         pyramid_config.add_route("/+login", "/+login", accept="application/json")
-        pyramid_config.add_route("/{user}/{index}/+e/{relpath:.*}", "/{user}/{index}/+e/{relpath:.*}")
-        pyramid_config.add_route("/{user}/{index}/+f/{relpath:.*}", "/{user}/{index}/+f/{relpath:.*}")
-        pyramid_config.add_route("/{user}/{index}/+simple", "/{user}/{index}/+simple")
-        pyramid_config.add_route("/{user}/{index}/+simple/", "/{user}/{index}/+simple/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{project}",
-                                 "/{user}/{index}/+simple/{project}")
-        pyramid_config.add_route("/{user}/{index}/+simple/{project}/",
-                                 "/{user}/{index}/+simple/{project}/")
-        pyramid_config.add_route("/{user}/{index}/+simple/{project}/refresh",
-                                 "/{user}/{index}/+simple/{project}/refresh")
-        pyramid_config.add_route("/{user}/{index}/{project}/{version}",
-                                 "/{user}/{index}/{project}/{version:[^/]+/?}")
         pyramid_config.add_route(
-            "installer_simple", "/{user}/{index:[^/]+/?}",
+            "/{user}/{index}/+e/{relpath:.*}",
+            "/{user:[^+/]+}/{index:[^+/]+}/+e/{relpath:.*}")
+        pyramid_config.add_route(
+            "/{user}/{index}/+f/{relpath:.*}",
+            "/{user:[^+/]+}/{index:[^+/]+}/+f/{relpath:.*}")
+        pyramid_config.add_route(
+            "/{user}/{index}/+simple",
+            "/{user:[^+/]+}/{index:[^+/]+}/+simple")
+        pyramid_config.add_route(
+            "/{user}/{index}/+simple/",
+            "/{user:[^+/]+}/{index:[^+/]+}/+simple/")
+        pyramid_config.add_route(
+            "/{user}/{index}/+simple/{project}",
+            "/{user:[^+/]+}/{index:[^+/]+}/+simple/{project:[^+/]+}")
+        pyramid_config.add_route(
+            "/{user}/{index}/+simple/{project}/",
+            "/{user:[^+/]+}/{index:[^+/]+}/+simple/{project:[^+/]+}/")
+        pyramid_config.add_route(
+            "/{user}/{index}/+simple/{project}/refresh",
+            "/{user:[^+/]+}/{index:[^+/]+}/+simple/{project:[^+/]+}/refresh")
+        pyramid_config.add_route(
+            "/{user}/{index}/{project}/{version}",
+            "/{user:[^+/]+}/{index:[^+/]+}/{project:[^+/]+}/{version:[^/]+/?}")
+        pyramid_config.add_route(
+            "installer_simple",
+            "/{user:[^+/]+}/{index:[^+/]+/?}",
             header="User-Agent:" + INSTALLER_USER_AGENT,
             accept="text/html", request_method="GET")
         pyramid_config.add_route(
-            "installer_simple_project", "/{user}/{index}/{project:[^/]+/?}",
+            "installer_simple_project", "/{user:[^+/]+}/{index}/{project:[^+/]+/?}",
             header="User-Agent:" + INSTALLER_USER_AGENT,
             accept="text/html", request_method="GET")
-        pyramid_config.add_route("/{user}/{index}/{project}",
-                                 "/{user}/{index}/{project:[^/]+/?}")
-        pyramid_config.add_route("/{user}/{index}/", "/{user}/{index}/")
-        pyramid_config.add_route("/{user}/{index}", "/{user}/{index}")
-        pyramid_config.add_route("/{user}/", "/{user}/")
-        pyramid_config.add_route("/{user}", "/{user}")
+        pyramid_config.add_route(
+            "/{user}/{index}/{project}",
+            "/{user:[^+/]+}/{index:[^+/]+}/{project:[^+/]+/?}")
+        pyramid_config.add_route(
+            "/{user}/{index}/",
+            "/{user:[^+/]+}/{index:[^+/]+}/")
+        pyramid_config.add_route(
+            "/{user}/{index}",
+            "/{user:[^+/]+}/{index:[^+/]+}")
+        pyramid_config.add_route(
+            "/{user}/",
+            "/{user:[^+/]+}/")
+        pyramid_config.add_route(
+            "/{user}",
+            "/{user:[^+/]+}")
         pyramid_config.add_route("/", "/")
 
         # register tweens for logging, transaction and replication
