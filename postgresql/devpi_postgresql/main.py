@@ -1,11 +1,22 @@
 from devpi_common.types import cached_property
+try:
+    from devpi_server import interfaces as ds_interfaces
+except ImportError:
+    ds_interfaces = None
 from devpi_server.fileutil import dumps, loads
+try:
+    from devpi_server.keyfs import RelpathInfo
+    from devpi_server.keyfs import get_relpath_at
+except ImportError:
+    pass
 from devpi_server.log import threadlog, thread_push_log, thread_pop_log
 from devpi_server.readonly import ReadonlyView
 from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from functools import partial
 from pluggy import HookimplMarker
 from repoze.lru import LRUCache
+from zope.interface import Interface
+from zope.interface import implementer
 import contextlib
 import os
 import pg8000.native
@@ -15,9 +26,19 @@ from devpi_server.model import ensure_boolean
 import ssl
 
 
+for name in ('IStorageConnection2', 'IStorageConnection'):
+    IStorageConnection2 = getattr(ds_interfaces, name, Interface)
+    if IStorageConnection2 is not Interface:
+        break
+
+
+absent = object()
+
+
 devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
+@implementer(IStorageConnection2)
 class Connection:
     def __init__(self, sqlconn, storage):
         self._sqlconn = sqlconn
@@ -79,6 +100,42 @@ class Connection:
             ON CONFLICT (key) DO UPDATE
                 SET keyname = EXCLUDED.keyname, serial = EXCLUDED.serial;"""
         self._sqlconn.run(q, relpath=relpath, name=name, next_serial=next_serial)
+
+    def get_relpath_at(self, relpath, serial):
+        result = self._changelog_cache.get((serial, relpath), absent)
+        if result is absent:
+            changes = self._changelog_cache.get(serial, absent)
+            if changes is not absent and relpath in changes:
+                (keyname, back_serial, value) = changes[relpath]
+                result = (serial, back_serial, value)
+        if result is absent:
+            result = get_relpath_at(self, relpath, serial)
+        self._changelog_cache.put((serial, relpath), result)
+        return result
+
+    def iter_relpaths_at(self, typedkeys, at_serial):
+        keynames = frozenset(k.name for k in typedkeys)
+        keyname_id_values = {"keynameid%i" % i: k for i, k in enumerate(keynames)}
+        q = """
+            SELECT key, keyname, serial
+            FROM kv
+            WHERE serial=:serial AND keyname IN (:keynames)
+        """
+        q = q.replace(':keynames', ", ".join(':' + x for x in keyname_id_values))
+        for serial in range(at_serial, -1, -1):
+            rows = self._sqlconn.run(q, serial=serial, **keyname_id_values)
+            if not rows:
+                continue
+            changes = self._changelog_cache.get(serial, absent)
+            if changes is absent:
+                changes = loads(
+                    self.get_raw_changelog_entry(serial))[0]
+            for relpath, keyname, serial in rows:
+                (keyname, back_serial, val) = changes[relpath]
+                yield RelpathInfo(
+                    relpath=relpath, keyname=keyname,
+                    serial=serial, back_serial=back_serial,
+                    value=val)
 
     def write_changelog_entry(self, serial, entry):
         threadlog.debug("writing changelog for serial %s", serial)
