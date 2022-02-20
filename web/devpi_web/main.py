@@ -178,12 +178,15 @@ def get_indexer_from_config(config):
     indexers = {
         x['name']: x
         for x in pm.hook.devpiweb_indexer_backend()}
-    if isinstance(config.args.indexer_backend, dict):
+    # return null indexer if argument doesn't exist, which can happen
+    # with devpi-import for example
+    indexer_backend = getattr(config.args, "indexer_backend", "null")
+    if isinstance(indexer_backend, dict):
         # a yaml config may return a dict
-        settings = dict(config.args.indexer_backend)
+        settings = dict(indexer_backend)
         name = settings.pop('name')
     else:
-        (name, sep, setting_str) = config.args.indexer_backend.partition(':')
+        (name, sep, setting_str) = indexer_backend.partition(':')
         settings = {}
         if setting_str:
             for item in setting_str.split(','):
