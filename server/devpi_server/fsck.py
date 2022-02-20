@@ -12,6 +12,15 @@ import sys
 import time
 
 
+def add_fsck_options(parser, pluginmanager):
+    parser.addoption(
+        "--checksum", action="store_true", default=True, dest="checksum",
+        help="Perform checksum validation.")
+    parser.addoption(
+        "--no-checksum", action="store_false", dest="checksum",
+        help="Skip checksum validation.")
+
+
 def fsck():
     """ devpi-fsck command line entry point. """
     pluginmanager = get_pluginmanager()
@@ -22,9 +31,11 @@ def fsck():
         add_help_option(parser, pluginmanager)
         add_configfile_option(parser, pluginmanager)
         add_storage_options(parser, pluginmanager)
+        add_fsck_options(parser.addgroup("fsck options"), pluginmanager)
         config = parseoptions(pluginmanager, sys.argv, parser=parser)
         configure_cli_logging(config.args)
         xom = xom_from_config(config)
+        args = xom.config.args
         log = xom.log
         log.info("serverdir: %s" % xom.config.serverdir)
         log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
@@ -56,13 +67,15 @@ def fsck():
                     elif missing_files == 10:
                         log.error("Further missing files will be ommited.")
                     continue
+                if not args.checksum:
+                    continue
                 checksum = entry.file_get_checksum(entry.hash_type)
                 if entry.hash_value != checksum:
                     log.error(
                         "%s - %s mismatch, got %s, expected %s"
                         % (entry.relpath, entry.hash_type, checksum, entry.hash_value))
             log.info(
-                "Processed a total of %s files."
+                "Finished with a total of %s files."
                 % processed)
             if missing_files:
                 log.error(
