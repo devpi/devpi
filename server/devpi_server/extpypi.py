@@ -379,7 +379,7 @@ class PyPIStage(BaseStage):
             self.add_project_name(project)
 
         def on_commit():
-            threadlog.info("setting projects cache for %r", project)
+            threadlog.debug("setting projects cache for %r", project)
             self.cache_retrieve_times.refresh(project)
             # make project appear in projects list even
             # before we next check up the full list with remote
