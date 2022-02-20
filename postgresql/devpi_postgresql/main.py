@@ -8,7 +8,7 @@ from pluggy import HookimplMarker
 from repoze.lru import LRUCache
 import contextlib
 import os
-import pg8000
+import pg8000.native
 import py
 import time
 from devpi_server.model import ensure_boolean
@@ -26,82 +26,85 @@ class Connection:
         self.storage = storage
         self._changelog_cache = storage._changelog_cache
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, cls, val, tb):
-        pass
-
     def close(self):
         self._sqlconn.close()
         del self._sqlconn
         del self.storage
 
+    def begin(self):
+        self._sqlconn.run("START TRANSACTION")
+        return self._sqlconn
+
     def commit(self):
-        self._sqlconn.commit()
+        self._sqlconn.run("COMMIT")
+
+    def rollback(self):
+        self._sqlconn.run("ROLLBACK")
+
+    def fetchone(self, q, **kw):
+        row = self._sqlconn.run(q, **kw)
+        if not row:
+            return None
+        (res,) = row
+        return res
+
+    def fetchscalar(self, q, **kw):
+        row = self._sqlconn.run(q, **kw)
+        if not row:
+            return None
+        ((res,),) = row
+        return res
 
     @cached_property
     def last_changelog_serial(self):
         return self.db_read_last_changelog_serial()
 
     def db_read_last_changelog_serial(self):
-        q = 'SELECT MAX(serial) FROM changelog LIMIT 1'
-        c = self._sqlconn.cursor()
-        c.execute(q)
-        res = c.fetchone()[0]
+        q = 'SELECT MAX(serial) FROM changelog'
+        res = self.fetchscalar(q)
         return -1 if res is None else res
 
     def db_read_typedkey(self, relpath):
-        q = "SELECT keyname, serial FROM kv WHERE key = %s"
-        c = self._sqlconn.cursor()
-        c.execute(q, (relpath,))
-        row = c.fetchone()
-        if row is None:
+        q = "SELECT keyname, serial FROM kv WHERE key = :relpath"
+        res = self.fetchone(q, relpath=relpath)
+        if res is None:
             raise KeyError(relpath)
-        return tuple(row[:2])
+        (keyname, serial) = res
+        return (keyname, serial)
 
     def db_write_typedkey(self, relpath, name, next_serial):
         q = """
             INSERT INTO kv(key, keyname, serial)
-                VALUES (%s, %s, %s)
+                VALUES (:relpath, :name, :next_serial)
             ON CONFLICT (key) DO UPDATE
                 SET keyname = EXCLUDED.keyname, serial = EXCLUDED.serial;"""
-        c = self._sqlconn.cursor()
-        c.execute(q, (relpath, name, next_serial))
-        c.close()
+        self._sqlconn.run(q, relpath=relpath, name=name, next_serial=next_serial)
 
     def write_changelog_entry(self, serial, entry):
         threadlog.debug("writing changelog for serial %s", serial)
         data = dumps(entry)
-        c = self._sqlconn.cursor()
-        c.execute("INSERT INTO changelog (serial, data) VALUES (%s, %s)",
-                  (serial, pg8000.Binary(data)))
-        c.close()
-        self._sqlconn.commit()
+        self._sqlconn.run(
+            "INSERT INTO changelog (serial, data) VALUES (:serial, :data)",
+            serial=serial, data=pg8000.Binary(data))
 
     def io_file_os_path(self, path):
         return None
 
     def io_file_exists(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
-        q = "SELECT path FROM files WHERE path = %s"
-        c.execute(q, (path,))
-        result = c.fetchone()
-        c.close()
-        return result is not None
+        q = "SELECT path FROM files WHERE path = :path"
+        return bool(self.fetchscalar(q, path=path))
 
     def io_file_set(self, path, content):
         assert not os.path.isabs(path)
         assert not path.endswith("-tmp")
-        c = self._sqlconn.cursor()
         q = """
             INSERT INTO files(path, size, data)
-                VALUES (%s, %s, %s)
+                VALUES (:path, :size, :data)
             ON CONFLICT (path) DO UPDATE
                 SET size = EXCLUDED.size, data = EXCLUDED.data;"""
-        c.execute(q, (path, len(content), pg8000.Binary(content)))
-        c.close()
+        self._sqlconn.run(
+            q, path=path, size=len(content), data=pg8000.Binary(content))
         self.dirty_files[path] = True
 
     def io_file_open(self, path):
@@ -109,42 +112,26 @@ class Connection:
 
     def io_file_get(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
-        q = "SELECT data FROM files WHERE path = %s"
-        c.execute(q, (path,))
-        content = c.fetchone()
-        c.close()
-        if content is None:
+        q = "SELECT data FROM files WHERE path = :path"
+        res = self.fetchscalar(q, path=path)
+        if res is None:
             raise IOError()
-        return content[0]
+        return res
 
     def io_file_size(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
-        q = "SELECT size FROM files WHERE path = %s"
-        c.execute(q, (path,))
-        result = c.fetchone()
-        c.close()
-        if result is not None:
-            return result[0]
+        q = "SELECT size FROM files WHERE path = :path"
+        return self.fetchscalar(q, path=path)
 
     def io_file_delete(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
-        q = "DELETE FROM files WHERE path = %s"
-        c.execute(q, (path,))
-        c.close()
+        q = "DELETE FROM files WHERE path = :path"
+        self._sqlconn.run(q, path=path)
         self.dirty_files[path] = None
 
     def get_raw_changelog_entry(self, serial):
-        q = "SELECT data FROM changelog WHERE serial = %s"
-        c = self._sqlconn.cursor()
-        c.execute(q, (serial,))
-        row = c.fetchone()
-        c.close()
-        if row is not None:
-            return bytes(row[0])
-        return None
+        q = "SELECT data FROM changelog WHERE serial = :serial"
+        return self.fetchscalar(q, serial=serial)
 
     def get_changes(self, serial):
         changes = self._changelog_cache.get(serial)
@@ -203,21 +190,13 @@ class Storage:
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
         with self.get_connection() as conn:
-            c = conn._sqlconn.cursor()
-            c.execute("select max(serial) from changelog")
-            row = c.fetchone()
-            c.close()
-            serial = row[0]
-            if serial is None:
-                self.next_serial = 0
-            else:
-                self.next_serial = serial + 1
+            self.next_serial = conn.last_changelog_serial + 1
 
     def perform_crash_recovery(self):
         pass
 
     def get_connection(self, closing=True, write=False):
-        sqlconn = pg8000.connect(
+        sqlconn = pg8000.native.Connection(
             user=self.user,
             database=self.database,
             host=self.host,
@@ -230,47 +209,42 @@ class Storage:
         conn = Connection(sqlconn, self)
         if write:
             q = 'SELECT pg_advisory_xact_lock(1);'
-            c = conn._sqlconn.cursor()
-            c.execute(q)
+            conn._sqlconn.run(q)
         if closing:
             return contextlib.closing(conn)
         return conn
 
     def ensure_tables_exist(self):
         with self.get_connection() as conn:
-            sqlconn = conn._sqlconn
-            c = sqlconn.cursor()
+            sqlconn = conn.begin()
             try:
-                c.execute("select * from changelog limit 1")
-                c.fetchall()
-                c.execute("select * from kv limit 1")
-                c.fetchall()
-            except pg8000.ProgrammingError:
-                sqlconn.rollback()
+                sqlconn.run("select * from changelog limit 1")
+                sqlconn.run("select * from kv limit 1")
+            except pg8000.exceptions.DatabaseError:
+                conn.rollback()
                 threadlog.info("DB: Creating schema")
-                c.execute("""
+                sqlconn = conn.begin()
+                sqlconn.run("""
                     CREATE TABLE kv (
                         key TEXT NOT NULL PRIMARY KEY,
                         keyname TEXT,
                         serial INTEGER
                     )
                 """)
-                c.execute("""
+                sqlconn.run("""
                     CREATE TABLE changelog (
                         serial INTEGER PRIMARY KEY,
                         data BYTEA NOT NULL
                     )
                 """)
-                c.execute("""
+                sqlconn.run("""
                     CREATE TABLE files (
                         path TEXT PRIMARY KEY,
                         size INTEGER NOT NULL,
                         data BYTEA NOT NULL
                     )
                 """)
-                sqlconn.commit()
-            finally:
-                c.close()
+                conn.commit()
 
 
 @devpiserver_hookimpl
@@ -304,6 +278,7 @@ class Writer:
 
     def __enter__(self):
         self.log = thread_push_log("fswriter%s:" % self.storage.next_serial)
+        self.conn.begin()
         return self
 
     def __exit__(self, cls, val, tb):
@@ -311,6 +286,7 @@ class Writer:
         if cls is None:
             entry = self.changes, []
             self.conn.write_changelog_entry(self.storage.next_serial, entry)
+            self.conn.commit()
             commit_serial = self.storage.next_serial
             self.storage.next_serial += 1
             message = "committed: keys: %s"
@@ -320,6 +296,7 @@ class Writer:
 
             self.storage._notify_on_commit(commit_serial)
         else:
+            self.conn.rollback()
             self.log.info("roll back at %s", self.storage.next_serial)
         del self.conn
         del self.storage
