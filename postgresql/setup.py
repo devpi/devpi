@@ -38,7 +38,7 @@ setup(
         'Documentation': 'https://doc.devpi.net',
         'Source Code': 'https://github.com/devpi/devpi'
     },
-    version='2.0.0',
+    version='2.1.0',
     maintainer="Florian Schulze",
     maintainer_email="mail@pyfidelity.com",
     license="MIT",
@@ -61,7 +61,7 @@ setup(
             "pytest_devpi_postgresql = pytest_devpi_postgresql"]},
     install_requires=[
         'devpi-server>=3.0.0.dev2',
-        'pg8000>=1.14.0'],
+        'pg8000>=1.17.0'],
     include_package_data=True,
     python_requires='>=3.7',
     zip_safe=False,
