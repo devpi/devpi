@@ -8,7 +8,6 @@ import posixpath
 import shutil
 from devpi_common.validation import normalize_name
 from devpi_common.metadata import BasenameMeta
-from devpi_common.types import parse_hash_spec
 from devpi_common.url import URL
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
@@ -22,7 +21,6 @@ from .config import add_import_options
 from .config import add_init_options
 from .config import add_storage_options
 from .config import parseoptions, get_pluginmanager
-from .fileutil import BytesForHardlink
 from .log import configure_cli_logging
 from .main import DATABASE_VERSION
 from .main import Fatal
@@ -186,8 +184,9 @@ class Exporter:
             shutil.copyfile(src, dest.strpath)
         else:
             self.tw.line("write file at %s" % relpath)
-            with open(dest.strpath, 'wb') as f:
-                f.write(entry.file_get_content())
+            with open(dest.strpath, 'wb') as df:
+                with entry.file_open_read() as sf:
+                    shutil.copyfileobj(sf, df)
         return relpath
 
     def warn(self, msg):
@@ -546,11 +545,10 @@ class Importer:
         project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         assert p.check(), p
-        data = p.read("rb")
+        f = p.open("rb")
         if self.xom.config.hard_links:
-            # wrap the data for additional attribute
-            data = BytesForHardlink(data)
-            data.devpi_srcpath = p.strpath
+            # additional attribute for hard links
+            f.devpi_srcpath = p.strpath
         if filedesc["type"] == "releasefile":
             mapping = filedesc["entrymapping"]
             if self.dumpversion == "1":
@@ -562,7 +560,7 @@ class Importer:
             if hasattr(stage, 'store_releasefile'):
                 link = stage.store_releasefile(
                     project, version,
-                    p.basename, data,
+                    p.basename, f,
                     last_modified=mapping["last_modified"])
                 entry = link.entry
             else:
@@ -570,7 +568,7 @@ class Importer:
                 url = URL(mapping['url']).replace(fragment=mapping['hash_spec'])
                 entry = self.xom.filestore.maplink(
                     url, stage.username, stage.index, project)
-                entry.file_set_content(data, mapping["last_modified"])
+                entry.file_set_content(f, mapping["last_modified"])
                 (_, links_with_data, serial) = stage._load_cache_links(project)
                 if links_with_data is None:
                     links_with_data = []
@@ -586,25 +584,24 @@ class Importer:
             # devpi-server-2.1 exported with md5 checksums
             if "md5" in mapping:
                 assert "hash_spec" not in mapping
-                mapping["hash_spec"] = "md5=" + mapping["md5"]
-            hash_algo, hash_value = parse_hash_spec(mapping["hash_spec"])
-            digest = hash_algo(entry.file_get_content()).hexdigest()
-            if digest != hash_value:
-                fatal("File %s has bad checksum %s, expected %s" % (
-                      p, digest, hash_value))
+                hash_value = mapping["md5"]
+                digest = entry.file_get_checksum("md5")
+                if digest != hash_value:
+                    fatal("File %s has bad checksum %s, expected %s" % (
+                          p, digest, hash_value))
             # note that the actual hash_type used within devpi-server is not
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
             version = filedesc["version"]
-            link = stage.store_doczip(project, version, data)
+            link = stage.store_doczip(project, version, f)
         elif filedesc["type"] == "toxresult":
-            linkstore = stage.get_linkstore_perstage(filedesc["projectname"],
-                                           filedesc["version"])
+            linkstore = stage.get_linkstore_perstage(
+                filedesc["projectname"], filedesc["version"])
             # we can not search for the full relative path because
             # it might use a different checksum
             basename = posixpath.basename(filedesc["for_entrypath"])
             link, = linkstore.get_links(basename=basename)
-            link = stage.store_toxresult(link, json.loads(data.decode("utf8")))
+            link = stage.store_toxresult(link, f)
         else:
             fatal("unknown file type: %s" % (type,))
         if link is not None:
@@ -613,6 +610,7 @@ class Importer:
                 link.add_log('upload', '<import>', dst=stage.name)
             else:
                 link.add_logs(history_log)
+        f.close()
 
 
 class IndexTree:

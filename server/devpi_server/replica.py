@@ -22,8 +22,10 @@ from . import mythread
 from .config import hookimpl
 from .exceptions import lazy_format_exception
 from .filestore import FileEntry
+from .filestore import get_checksum_error
+from .filestore import get_file_hash
 from .fileutil import buffered_iterator
-from .fileutil import BytesForHardlink, dumps, load, loads
+from .fileutil import dumps, load, loads
 from .log import thread_push_log, threadlog
 from .views import H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -754,25 +756,31 @@ class FileReplicationThread:
     def auth_serializer(self):
         return get_auth_serializer(self.xom.config)
 
-    def find_pre_existing_file(self, key, val):
+    def find_pre_existing_file(self, entry):
         if self.file_search_path is None:
             return
         if not os.path.exists(self.file_search_path):
             threadlog.error(
                 "path for existing files doesn't exist: %s",
                 self.file_search_path)
-        path = os.path.join(self.file_search_path, key.relpath)
-        if os.path.exists(path):
-            threadlog.info("checking existing file: %s", path)
-            with open(path, "rb") as f:
-                data = f.read()
-            if self.use_hard_links:
-                # wrap the data for additional attribute
-                data = BytesForHardlink(data)
-                data.devpi_srcpath = path
-            return data
-        else:
-            threadlog.info("path for existing file not found: %s", path)
+        path = os.path.join(self.file_search_path, entry.relpath)
+        if not os.path.exists(path):
+            threadlog.debug("path for existing file not found: %s", path)
+            return
+        threadlog.debug("checking existing file: %s", path)
+        f = open(path, "rb")
+        hexdigest = get_file_hash(f, entry.hash_type)
+        if hexdigest != entry.hash_value:
+            f.close()
+            threadlog.info(
+                "sha256 mismatch, got %s: %s",
+                hexdigest, path)
+            return
+        threadlog.info("using matching existing file: %s", path)
+        f.seek(0)
+        if self.use_hard_links:
+            f.devpi_srcpath = path
+        return f
 
     def importer(self, serial, key, val, back_serial, session):
         threadlog.debug("FileReplicationThread.importer for %s, %s", key, val)
@@ -799,18 +807,14 @@ class FileReplicationThread:
                 self.shared_data.errors.remove(entry)
                 return
 
-        content = self.find_pre_existing_file(key, val)
-        if content is not None:
-            # we found an existing file
-            err = entry.check_checksum(content)
-            if not err:
-                with keyfs._storage.get_connection(write=True) as conn:
-                    conn.io_file_set(entry._storepath, content)
-                    conn.commit_files_without_increasing_serial()
-                self.shared_data.errors.remove(entry)
-                return
-            else:
-                threadlog.error(str(err))
+        f = self.find_pre_existing_file(entry)
+        if f is not None:
+            # we found a matching existing file
+            with keyfs._storage.get_connection(write=True) as conn:
+                conn.io_file_set(entry._storepath, f)
+                conn.commit_files_without_increasing_serial()
+            self.shared_data.errors.remove(entry)
+            return
 
         threadlog.info(
             "retrieving file from master for serial %s: %s", serial, relpath)
@@ -824,64 +828,92 @@ class FileReplicationThread:
                 H_REPLICA_FILEREPL: str("YES"),
                 H_REPLICA_UUID: self.uuid,
                 str('Authorization'): 'Bearer %s' % token},
+            stream=True,
             timeout=self.xom.config.args.request_timeout)
-        if r.status_code == 302:
-            # mirrors might redirect to external file when
-            # mirror_use_external_urls is set
-            threadlog.info(
-                "ignoring because of redirection to external URL: %s",
-                relpath)
-            self.shared_data.errors.remove(entry)
-            return
-        if r.status_code == 410:
-            # master indicates Gone for files which were later deleted
-            threadlog.info(
-                "ignoring because of later deletion: %s",
-                relpath)
-            self.shared_data.errors.remove(entry)
-            return
-
-        if r.status_code in (404, 502):
-            stagename = '/'.join(relpath.split('/')[:2])
-            with self.xom.keyfs.transaction(write=False):
-                stage = self.xom.model.getstage(stagename)
-            if stage.ixconfig['type'] == 'mirror':
-                threadlog.warn(
-                    "ignoring file which couldn't be retrieved from mirror index '%s': %s",
-                    stagename, relpath)
+        with contextlib.closing(r):
+            if r.status_code == 302:
+                # mirrors might redirect to external file when
+                # mirror_use_external_urls is set
+                threadlog.info(
+                    "ignoring because of redirection to external URL: %s",
+                    relpath)
+                self.shared_data.errors.remove(entry)
+                return
+            if r.status_code == 410:
+                # master indicates Gone for files which were later deleted
+                threadlog.info(
+                    "ignoring because of later deletion: %s",
+                    relpath)
                 self.shared_data.errors.remove(entry)
                 return
 
-        if r.status_code != 200:
-            threadlog.error(
-                "error downloading '%s' from master, will be retried later: %s",
-                relpath, r.reason)
-            # add the error for the UI
-            self.shared_data.errors.add(dict(
-                url=r.url,
-                message=r.reason,
-                relpath=entry.relpath))
-            # and raise for retrying later
-            raise FileReplicationError(r, relpath)
+            if r.status_code in (404, 502):
+                stagename = '/'.join(relpath.split('/')[:2])
+                with self.xom.keyfs.transaction(write=False, at_serial=serial):
+                    stage = self.xom.model.getstage(stagename)
+                if stage.ixconfig['type'] == 'mirror':
+                    threadlog.warn(
+                        "ignoring file which couldn't be retrieved from mirror index '%s': %s",
+                        stagename, relpath)
+                    self.shared_data.errors.remove(entry)
+                    return
 
-        err = entry.check_checksum(r.content)
-        if err:
-            # the file we got is different, it may have changed later.
-            # we remember the error and move on
-            threadlog.error(
-                "checksum mismatch for '%s', will be retried later: %s",
-                relpath, r.reason)
+            if r.status_code != 200:
+                threadlog.error(
+                    "error downloading '%s' from master, will be retried later: %s",
+                    relpath, r.reason)
+                # add the error for the UI
+                self.shared_data.errors.add(dict(
+                    url=r.url,
+                    message=r.reason,
+                    relpath=entry.relpath))
+                # and raise for retrying later
+                raise FileReplicationError(r, relpath)
 
-            self.shared_data.errors.add(dict(
-                url=r.url,
-                message=str(err),
-                relpath=entry.relpath))
-            return
-        # in case there were errors before, we can now remove them
-        self.shared_data.errors.remove(entry)
-        with keyfs._storage.get_connection(write=True) as conn:
-            conn.io_file_set(entry._storepath, r.content)
-            conn.commit_files_without_increasing_serial()
+            running_hash = entry.hash_algo()
+            hash_spec = entry.hash_spec
+
+            with keyfs._storage.get_connection(write=False) as conn:
+                # get a new file, but close the transaction again
+                f = conn.io_file_new_open(entry._storepath)
+
+            with contextlib.closing(f):
+                filesize = 0
+                content_size = r.headers.get("content-length")
+                err = None
+
+                while 1:
+                    data = r.raw.read(10240)
+                    if not data:
+                        break
+                    filesize += len(data)
+                    running_hash.update(data)
+                    f.write(data)
+
+                if content_size and int(content_size) != filesize:
+                    err = ValueError(
+                        "%s: got %s bytes of %r from remote, expected %s" % (
+                            entry.relpath, filesize, r.url, content_size))
+
+                if not err:
+                    err = get_checksum_error(running_hash, entry.relpath, hash_spec)
+                    if err:
+                        threadlog.error(
+                            "checksum mismatch for '%s', will be retried later: %s",
+                            relpath, r.reason)
+
+                if err is not None:
+                    self.shared_data.errors.add(dict(
+                        url=r.url,
+                        message=str(err),
+                        relpath=entry.relpath))
+                    return
+
+                # in case there were errors before, we can now remove them
+                self.shared_data.errors.remove(entry)
+                with keyfs._storage.get_connection(write=True) as conn:
+                    conn.io_file_set(entry._storepath, f)
+                    conn.commit_files_without_increasing_serial()
 
     def handler(self, is_from_mirror, serial, key, keyname, value, back_serial):
         keyfs = self.xom.keyfs

@@ -124,6 +124,7 @@ class TestFileStore:
 
     @pytest.mark.storage_with_filesystem
     def test_file_exists_new_hash(self, filestore, gen, xom):
+        from devpi_server.filestore import get_checksum_error
         content1 = b'somedata'
         md5_1 = hashlib.md5(content1).hexdigest()
         link1 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_1)
@@ -140,8 +141,8 @@ class TestFileStore:
         assert entry2.file_exists()
         content2 = entry2.file_get_content()
         assert content1 != content2
-        assert isinstance(entry2.check_checksum(content2), ValueError)
-        assert entry2.check_checksum(content1) is None
+        assert isinstance(get_checksum_error(content2, entry2.relpath, entry2.hash_spec), ValueError)
+        assert get_checksum_error(content1, entry2.relpath, entry2.hash_spec) is None
         filestore.keyfs.commit_transaction_in_thread()
         assert py.path.local(filepath).exists()
 

@@ -873,10 +873,9 @@ class TestStage:
         linkstore = stage.get_linkstore_perstage("Pkg1", "1.0", readonly=False)
         content = zip_dict({"index.html": "<html/>"})
         linkstore.create_linked_entry(
-                rel="doczip",
-                basename="Pkg1-1.0.doc.zip",
-                file_content=content,
-        )
+            rel="doczip",
+            basename="Pkg1-1.0.doc.zip",
+            content_or_file=content)
 
         # check we have two doczip links
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
@@ -1363,26 +1362,26 @@ class TestLinkStore:
 
     def test_store_file(self, linkstore):
         linkstore.create_linked_entry(
-            rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
-        )
+            rel="releasefile", basename="proj1-1.0.zip",
+            content_or_file=b'123')
         linkstore.create_linked_entry(
-            rel="doczip", basename="proj1-1.0.doc.zip", file_content=b'123'
-        )
+            rel="doczip", basename="proj1-1.0.doc.zip",
+            content_or_file=b'123')
         link, = linkstore.get_links(rel="releasefile")
         assert link.entrypath.endswith("proj1-1.0.zip")
 
     def test_toxresult_create_remove(self, linkstore):
         linkstore.create_linked_entry(
-            rel="releasefile", basename="proj1-1.0.zip", file_content=b'123'
-        )
+            rel="releasefile", basename="proj1-1.0.zip",
+            content_or_file=b'123')
         linkstore.create_linked_entry(
-            rel="releasefile", basename="proj1-1.1.zip", file_content=b'456'
-        )
-        link1, link2= linkstore.get_links(rel="releasefile")
+            rel="releasefile", basename="proj1-1.1.zip",
+            content_or_file=b'456')
+        (link1, link2) = linkstore.get_links(rel="releasefile")
         assert link1.entrypath.endswith("proj1-1.0.zip")
 
-        linkstore.new_reflink(rel="toxresult", file_content=b'123', for_entrypath=link1)
-        linkstore.new_reflink(rel="toxresult", file_content=b'456', for_entrypath=link2)
+        linkstore.new_reflink(rel="toxresult", content_or_file=b'123', for_entrypath=link1)
+        linkstore.new_reflink(rel="toxresult", content_or_file=b'456', for_entrypath=link2)
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link1)
         assert rlink.for_entrypath == link1.entrypath
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link2)
