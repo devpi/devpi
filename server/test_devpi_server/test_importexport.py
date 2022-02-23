@@ -731,7 +731,7 @@ class TestImportExport:
         with mapp1.xom.keyfs.transaction(write=True):
             stage = mapp1.xom.model.getstage(api.stagename)
             doccontent = zip_dict({"index.html": "<html><body>Hello"})
-            link1 = stage.store_doczip(name, "1.0", content=doccontent)
+            link1 = stage.store_doczip(name, "1.0", content_or_file=doccontent)
 
         impexp.export()
 

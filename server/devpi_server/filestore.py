@@ -11,15 +11,49 @@ import py
 import re
 from devpi_common.metadata import splitbasename
 from devpi_common.types import parse_hash_spec
+from devpi_server.log import threadlog
 from urllib.parse import unquote
 
 
 _nodefault = object()
 
 
-def get_default_hash_spec(content):
-    #return "md5=" + hashlib.md5(content).hexdigest()
-    return "sha256=" + hashlib.sha256(content).hexdigest()
+def get_default_hash_algo():
+    return hashlib.sha256
+
+
+def get_default_hash_spec(content_or_file):
+    if not isinstance(content_or_file, bytes):
+        if content_or_file.seekable():
+            content_or_file.seek(0)
+            hash_type = get_default_hash_type()
+            hexdigest = get_file_hash(
+                content_or_file, hash_type)
+            content_or_file.seek(0)
+            return f"{hash_type}={hexdigest}"
+        else:
+            content_or_file = content_or_file.read()
+            if len(content_or_file) > 1048576:
+                threadlog.warn(
+                    "Read %.1f megabytes into memory in get_default_hash_spec",
+                    len(content_or_file) / 1048576)
+    if isinstance(content_or_file, bytes):
+        running_hash = get_default_hash_algo()(content_or_file)
+        return f"{running_hash.name}={running_hash.hexdigest()}"
+
+
+def get_default_hash_type():
+    return "sha256"
+
+
+def get_file_hash(fp, hash_type):
+    running_hash = getattr(hashlib, hash_type)()
+    while 1:
+        data = fp.read(65536)
+        if not data:
+            break
+        running_hash.update(data)
+    return running_hash.hexdigest()
 
 
 def make_splitdir(hash_spec):
@@ -97,11 +131,11 @@ class FileStore:
     def get_file_entry_from_key(self, key, meta=_nodefault, readonly=True):
         return FileEntry(key, meta=meta, readonly=readonly)
 
-    def store(self, user, index, basename, file_content, dir_hash_spec=None):
+    def store(self, user, index, basename, content_or_file, dir_hash_spec=None):
         # dir_hash_spec is set for toxresult files
         hash_spec = None
         if dir_hash_spec is None:
-            dir_hash_spec = get_default_hash_spec(file_content)
+            dir_hash_spec = get_default_hash_spec(content_or_file)
             # prevent hashing twice
             hash_spec = dir_hash_spec
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
@@ -110,7 +144,7 @@ class FileStore:
             hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
         entry = FileEntry(key, readonly=False)
         entry.file_set_content(
-            file_content, hash_spec=hash_spec)
+            content_or_file, hash_spec=hash_spec)
         return entry
 
 
@@ -159,6 +193,13 @@ class FileEntry(object):
             self._meta = meta or {}
 
     @property
+    def hash_algo(self):
+        if self.hash_spec:
+            return parse_hash_spec(self.hash_spec)[0]
+        else:
+            return get_default_hash_algo()
+
+    @property
     def hash_value(self):
         return self.hash_spec.split("=", 1)[1]
 
@@ -166,11 +207,9 @@ class FileEntry(object):
     def hash_type(self):
         return self.hash_spec.split("=")[0]
 
-    def check_checksum(self, content):
-        return get_checksum_error(content, self.relpath, self.hash_spec)
-
     def file_get_checksum(self, hash_type):
-        return getattr(hashlib, hash_type)(self.file_get_content()).hexdigest()
+        with self.file_open_read() as f:
+            return get_file_hash(f, hash_type)
 
     @property
     def tx(self):
@@ -205,20 +244,15 @@ class FileEntry(object):
     def file_os_path(self):
         return self.tx.conn.io_file_os_path(self._storepath)
 
-    def file_set_content(self, content, last_modified=None, hash_spec=None):
-        assert isinstance(content, bytes)
+    def file_set_content(self, content_or_file, last_modified=None, hash_spec=None):
         if last_modified != -1:
             if last_modified is None:
                 last_modified = unicode_if_bytes(format_date_time(None))
             self.last_modified = last_modified
-        if hash_spec:
-            err = get_checksum_error(content, self.relpath, hash_spec)
-            if err:
-                raise err
-        else:
-            hash_spec = get_default_hash_spec(content)
+        if not hash_spec:
+            hash_spec = get_default_hash_spec(content_or_file)
         self.hash_spec = hash_spec
-        self.tx.conn.io_file_set(self._storepath, content)
+        self.tx.conn.io_file_set(self._storepath, content_or_file)
         # we make sure we always refresh the meta information
         # when we set the file content. Otherwise we might
         # end up only committing file content without any keys
@@ -256,13 +290,21 @@ class FileEntry(object):
         return self.hash_spec and self.last_modified
 
 
-def get_checksum_error(content, relpath, hash_spec):
+def get_checksum_error(content_or_hash, relpath, hash_spec):
     if not hash_spec:
         return
     hash_algo, hash_value = parse_hash_spec(hash_spec)
     hash_type = hash_spec.split("=")[0]
-    digest = hash_algo(content).hexdigest()
-    if digest != hash_value:
+    hexdigest = getattr(content_or_hash, "hexdigest", None)
+    if callable(hexdigest):
+        hexdigest = hexdigest()
+        if content_or_hash.name != hash_type:
+            return ValueError(
+                f"{relpath}: hash type mismatch, "
+                f"got {content_or_hash.name}, expected {hash_type}")
+    else:
+        hexdigest = hash_algo(content_or_hash).hexdigest()
+    if hexdigest != hash_value:
         return ValueError(
             f"{relpath}: {hash_type} mismatch, "
-            f"got {digest}, expected {hash_value}")
+            f"got {hexdigest}, expected {hash_value}")

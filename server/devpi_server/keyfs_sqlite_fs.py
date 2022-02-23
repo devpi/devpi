@@ -1,5 +1,4 @@
 from .config import hookimpl
-from .fileutil import BytesForHardlink
 from .interfaces import IStorageConnection3
 from .keyfs_sqlite import BaseConnection
 from .keyfs_sqlite import BaseStorage
@@ -40,7 +39,7 @@ class DirtyFile(object):
     @classmethod
     def from_content(cls, path, content_or_file):
         self = DirtyFile(path)
-        if isinstance(content_or_file, BytesForHardlink) or hasattr(content_or_file, "devpi_srcpath"):
+        if hasattr(content_or_file, "devpi_srcpath"):
             dirname = os.path.dirname(self.tmppath)
             if not os.path.exists(dirname):
                 try:

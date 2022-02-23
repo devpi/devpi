@@ -119,7 +119,7 @@ def write_int_to_file(val, path):
 
 def get_write_file_ensure_dir(path):
     try:
-        return open(path, "wb")
+        return open(path, "w+b")
     except IOError:
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
@@ -131,7 +131,7 @@ def get_write_file_ensure_dir(path):
                 # another thread tries to create the same folder
                 if e.errno != errno.EEXIST:
                     raise
-        return open(path, "wb")
+        return open(path, "w+b")
 
 
 def buffered_iterator(iterable):
@@ -156,8 +156,3 @@ def buffered_iterator(iterable):
                 buffer_pos = 0
     if buffer_pos:
         yield bytes(buffer[:buffer_pos])
-
-
-class BytesForHardlink(bytes):
-    """ to allow hard links we have to pass the src path of the content """
-    devpi_srcpath = None

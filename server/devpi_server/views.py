@@ -5,16 +5,11 @@ import py
 import re
 import traceback
 from time import time
-try:
-    from collections.abc import Iterator
-except ImportError:
-    from collections import Iterator
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from html import escape
-from io import BytesIO
 from lazy import lazy
 from pluggy import HookimplMarker
 from pyramid.authentication import b64encode
@@ -28,6 +23,7 @@ from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
 from pyramid.request import Request
 from pyramid.request import apply_request_extensions
+from pyramid.response import FileIter
 from pyramid.response import Response
 from pyramid.security import forget
 from pyramid.threadlocal import RequestContext
@@ -43,6 +39,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 from .config import hookimpl
 from .filestore import BadGateway
 from .filestore import get_checksum_error
+from .fileutil import buffered_iterator
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
 from .model import ReadonlyIndex
 from .model import RemoveValue
@@ -211,8 +208,6 @@ def tween_keyfs_transaction(handler, registry):
 
 
 def set_header_devpi_serial(response, tx):
-    if isinstance(response._app_iter, Iterator):
-        return
     if tx.commit_serial is not None:
         serial = tx.commit_serial
     else:
@@ -482,7 +477,8 @@ class PyPIView:
     # attach test results to release files
     #
 
-    @view_config(route_name="/{user}/{index}/+f/{relpath:.*}",
+    @view_config(
+        route_name="/{user}/{index}/+f/{relpath:.*}",
         request_method="POST",
         permission="toxresult_upload")
     def post_toxresult(self):
@@ -558,11 +554,9 @@ class PyPIView:
             whitelist_info = stage.get_mirror_whitelist_info(project)
             embed_form = whitelist_info['has_mirror_base']
             blocked_index = whitelist_info['blocked_by_mirror_whitelist']
-        body = b"".join(self._simple_list_project(
+        app_iter = buffered_iterator(self._simple_list_project(
             stage, project, result, embed_form, blocked_index))
-        response = Response(
-            content_length=len(body),
-            body=body)
+        response = Response(app_iter=app_iter)
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial > 0:
@@ -656,12 +650,10 @@ class PyPIView:
         requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
             self.request.user_agent or "")
         if requested_by_installer:
-            body = b"".join(self._simple_list_all_installer(stage, stage_results))
+            app_iter = buffered_iterator(self._simple_list_all_installer(stage, stage_results))
         else:
-            body = b"".join(self._simple_list_all(stage, stage_results))
-        return Response(
-            content_length=len(body),
-            body=body)
+            app_iter = buffered_iterator(self._simple_list_all(stage, stage_results))
+        return Response(app_iter=app_iter)
 
     def _simple_list_all(self, stage, stage_results):
         title = "%s: simple list (including inherited indices)" % (stage.name)
@@ -954,9 +946,10 @@ class PyPIView:
             if should_fetch_remote_file(link.entry, self.request.headers):
                 for part in iter_fetch_remote_file(self.xom, link.entry, link.entry.url):
                     pass
-            new_link = target_stage.store_releasefile(
-                name, version, link.basename, link.entry.file_get_content(),
-                last_modified=link.entry.last_modified)
+            with link.entry.file_open_read() as f:
+                new_link = target_stage.store_releasefile(
+                    name, version, link.basename, f,
+                    last_modified=link.entry.last_modified)
             new_link.add_logs(
                 x for x in link.get_logs()
                 if x.get('what') != 'overwrite')
@@ -972,9 +965,8 @@ class PyPIView:
             for toxlink in links["toxresult"]:
                 if toxlink.for_entrypath == link.entry.relpath:
                     ref_link = tstore.get_links(entrypath=entry.relpath)[0]
-                    raw_data = toxlink.entry.file_get_content()
-                    data = json.loads(raw_data.decode("utf-8"))
-                    tlink = target_stage.store_toxresult(ref_link, data)
+                    with toxlink.entry.file_open_read() as f:
+                        tlink = target_stage.store_toxresult(ref_link, f)
                     tlink.add_logs(
                         x for x in toxlink.get_logs()
                         if x.get('what') != 'overwrite')
@@ -985,8 +977,8 @@ class PyPIView:
                         dst=target_stage.name)
                     yield (200, "store_toxresult", tlink.entrypath)
         for link in links["doczip"]:
-            doczip = link.entry.file_get_content()
-            new_link = target_stage.store_doczip(name, version, doczip)
+            with link.entry.file_open_read() as doczip:
+                new_link = target_stage.store_doczip(name, version, doczip)
             new_link.add_logs(link.get_logs())
             new_link.add_log(
                 'push',
@@ -1041,13 +1033,12 @@ class PyPIView:
 
                 abort_if_invalid_filename(request, name, content.filename)
                 self._update_versiondata_form(stage, request.POST)
-                file_content = content.file.read()
                 try:
                     link = stage.store_releasefile(
                         project, version,
-                        content.filename, file_content)
+                        content.filename, content.file)
                 except stage.NonVolatile as e:
-                    if e.link.matches_checksum(file_content):
+                    if e.link.matches_checksum(content.file):
                         abort_submit(
                             request, 200,
                             "Upload of identical file to non volatile index.",
@@ -1067,15 +1058,14 @@ class PyPIView:
             else:
                 if "version" in request.POST:
                     self._update_versiondata_form(stage, request.POST)
-                doczip = content.file.read()
                 try:
-                    link = stage.store_doczip(project, version, doczip)
+                    link = stage.store_doczip(project, version, content.file)
                 except stage.MissesVersion as e:
                     abort_submit(
                         request, 400,
                         "%s" % e)
                 except stage.NonVolatile as e:
-                    if e.link.matches_checksum(doczip):
+                    if e.link.matches_checksum(content.file):
                         abort_submit(
                             request, 200,
                             "Upload of identical file to non volatile index.",
@@ -1280,8 +1270,9 @@ class PyPIView:
         if self.request.method == "HEAD":
             return Response(headers=headers)
         else:
-            content = entry.file_get_content()
-            return Response(body=content, headers=headers)
+            # FileIter will close the file
+            return Response(
+                app_iter=FileIter(entry.file_open_read()), headers=headers)
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}")
     def mirror_pkgserv(self):
@@ -1477,83 +1468,88 @@ def _headers_from_response(r):
 
 def iter_cache_remote_file(xom, entry, url):
     # we get and cache the file and some http headers from remote
+    running_hash = entry.hash_algo()
     hash_spec = entry.hash_spec
     r = xom.httpget(url, allow_redirects=True)
-    with contextlib.closing(r):
-        if r.status_code != 200:
-            msg = "error %s getting %r" % (r.status_code, url)
-            threadlog.error(msg)
-            raise BadGateway(msg, code=r.status_code, url=url)
-        threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
-        content_size = r.headers.get("content-length")
-        err = None
+    f = entry.tx.conn.io_file_new_open(entry._storepath)
+    with contextlib.closing(f):
+        filesize = 0
+        with contextlib.closing(r):
+            if r.status_code != 200:
+                msg = "error %s getting %r" % (r.status_code, url)
+                threadlog.error(msg)
+                raise BadGateway(msg, code=r.status_code, url=url)
+            threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
+            content_size = r.headers.get("content-length")
+            err = None
 
-        yield _headers_from_response(r)
+            yield _headers_from_response(r)
 
-        content = BytesIO()
-        while 1:
-            data = r.raw.read(10240)
-            if not data:
-                break
-            content.write(data)
-            yield data
+            while 1:
+                data = r.raw.read(10240)
+                if not data:
+                    break
+                filesize += len(data)
+                running_hash.update(data)
+                f.write(data)
+                yield data
 
-    content = content.getvalue()
+        if content_size and int(content_size) != filesize:
+            err = ValueError(
+                "%s: got %s bytes of %r from remote, expected %s" % (
+                    entry.relpath, filesize, r.url, content_size))
+        if not err:
+            err = get_checksum_error(running_hash, entry.relpath, hash_spec)
 
-    filesize = len(content)
-    if content_size and int(content_size) != filesize:
-        err = ValueError(
-            "%s: got %s bytes of %r from remote, expected %s" % (
-                entry.relpath, filesize, r.url, content_size))
-    if not err:
-        err = get_checksum_error(content, entry.relpath, hash_spec)
+        if err is not None:
+            threadlog.error(str(err))
+            raise err
 
-    if err is not None:
-        threadlog.error(str(err))
-        raise err
+        try:
+            # when pushing from a mirror to an index, we are still in a
+            # transaction
+            tx = entry.tx
+        except AttributeError:
+            # when streaming we won't be in a transaction anymore, so we need
+            # to open a new one below
+            tx = None
 
-    try:
-        # when pushing from a mirror to an index, we are still in a
-        # transaction
-        tx = entry.tx
-    except AttributeError:
-        # when streaming we won't be in a transaction anymore, so we need
-        # to open a new one below
-        tx = None
+        def set_content():
+            entry.file_set_content(
+                f, r.headers.get("last-modified", None),
+                hash_spec=hash_spec)
+            if entry.project:
+                stage = xom.model.getstage(
+                    entry.key.params['user'],
+                    entry.key.params['index'])
+                # for mirror indexes this makes sure the project is in the database
+                # as soon as a file was fetched
+                stage.add_project_name(entry.project)
 
-    def set_content():
-        entry.file_set_content(content, r.headers.get("last-modified", None))
-        if entry.project:
-            stage = xom.model.getstage(
-                entry.key.params['user'],
-                entry.key.params['index'])
-            # for mirror indexes this makes sure the project is in the database
-            # as soon as a file was fetched
-            stage.add_project_name(entry.project)
-
-    if not entry.has_existing_metadata():
-        if tx is not None:
-            set_content()
-        else:
-            with xom.keyfs.transaction(write=True):
+        if not entry.has_existing_metadata():
+            if tx is not None:
                 set_content()
-    else:
-        # the file was downloaded before but locally removed, so put
-        # it back in place without creating a new serial
-        # we need a direct write connection to use the io_file_* methods
-        if tx is not None:
-            tx.conn.io_file_set(entry._storepath, content)
-            threadlog.debug(
-                "put missing file back into place: %s", entry._storepath)
+            else:
+                with xom.keyfs.transaction(write=True):
+                    set_content()
         else:
-            with xom.keyfs._storage.get_connection(write=True) as conn:
-                conn.io_file_set(entry._storepath, content)
+            # the file was downloaded before but locally removed, so put
+            # it back in place without creating a new serial
+            # we need a direct write connection to use the io_file_* methods
+            if tx is not None:
+                tx.conn.io_file_set(entry._storepath, f)
                 threadlog.debug(
                     "put missing file back into place: %s", entry._storepath)
-                conn.commit_files_without_increasing_serial()
+            else:
+                with xom.keyfs._storage.get_connection(write=True) as conn:
+                    conn.io_file_set(entry._storepath, f)
+                    threadlog.debug(
+                        "put missing file back into place: %s", entry._storepath)
+                    conn.commit_files_without_increasing_serial()
 
 
 def iter_remote_file_replica(xom, entry, url):
+    running_hash = entry.hash_algo()
     hash_spec = entry.hash_spec
     replication_errors = xom.replica_thread.shared_data.errors
     # construct master URL with param
@@ -1585,43 +1581,43 @@ def iter_remote_file_replica(xom, entry, url):
                 threadlog.error(msg)
                 raise BadGateway(msg)
 
-    with contextlib.closing(r):
-        yield _headers_from_response(r)
+    f = entry.tx.conn.io_file_new_open(entry._storepath)
+    with contextlib.closing(f):
+        with contextlib.closing(r):
+            yield _headers_from_response(r)
 
-        content = BytesIO()
-        while 1:
-            data = r.raw.read(10240)
-            if not data:
-                break
-            content.write(data)
-            yield data
+            while 1:
+                data = r.raw.read(10240)
+                if not data:
+                    break
+                running_hash.update(data)
+                f.write(data)
+                yield data
 
-    content = content.getvalue()
+        err = get_checksum_error(running_hash, entry.relpath, hash_spec)
+        if err:
+            # the file we got is different, so we fail
+            raise BadGateway(str(err))
 
-    err = get_checksum_error(content, entry.relpath, hash_spec)
-    if err:
-        # the file we got is different, so we fail
-        raise BadGateway(str(err))
-
-    try:
-        # there is no code path that still has a transaction at this point,
-        # but we handle that case just to be safe
-        tx = entry.tx
-    except AttributeError:
-        # when streaming we won't be in a transaction anymore, so we need
-        # to open a new one below
-        tx = None
-    if tx is not None and tx.write:
-        entry.tx.conn.io_file_set(entry._storepath, content)
-    else:
-        # we need a direct write connection to use the io_file_* methods
-        with xom.keyfs._storage.get_connection(write=True) as conn:
-            conn.io_file_set(entry._storepath, content)
-            threadlog.debug(
-                "put missing file back into place: %s", entry._storepath)
-            conn.commit_files_without_increasing_serial()
-    # in case there were errors before, we can now remove them
-    replication_errors.remove(entry)
+        try:
+            # there is no code path that still has a transaction at this point,
+            # but we handle that case just to be safe
+            tx = entry.tx
+        except AttributeError:
+            # when streaming we won't be in a transaction anymore, so we need
+            # to open a new one below
+            tx = None
+        if tx is not None and tx.write:
+            entry.tx.conn.io_file_set(entry._storepath, f)
+        else:
+            # we need a direct write connection to use the io_file_* methods
+            with xom.keyfs._storage.get_connection(write=True) as conn:
+                conn.io_file_set(entry._storepath, f)
+                threadlog.debug(
+                    "put missing file back into place: %s", entry._storepath)
+                conn.commit_files_without_increasing_serial()
+        # in case there were errors before, we can now remove them
+        replication_errors.remove(entry)
 
 
 def iter_fetch_remote_file(xom, entry, url):
