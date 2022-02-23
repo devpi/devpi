@@ -29,9 +29,9 @@ from devpi_server.model import ensure_boolean
 import ssl
 
 
-for name in ('IStorageConnection2', 'IStorageConnection'):
-    IStorageConnection2 = getattr(ds_interfaces, name, Interface)
-    if IStorageConnection2 is not Interface:
+for name in ('IStorageConnection3', 'IStorageConnection2', 'IStorageConnection'):
+    IStorageConnection3 = getattr(ds_interfaces, name, Interface)
+    if IStorageConnection3 is not Interface:
         break
 
 
@@ -172,7 +172,7 @@ class FileOut(RawIOBase):
         return 0
 
 
-@implementer(IStorageConnection2)
+@implementer(IStorageConnection3)
 class Connection:
     def __init__(self, sqlconn, storage):
         self._sqlconn = sqlconn
@@ -285,15 +285,28 @@ class Connection:
         q = "SELECT path FROM files WHERE path = :path"
         return bool(self.fetchscalar(q, path=path))
 
-    def io_file_set(self, path, content):
+    def io_file_set(self, path, content_or_file):
         assert not os.path.isabs(path)
         assert not path.endswith("-tmp")
         f = self.dirty_files.get(path, None)
         if f is None:
             f = SpooledTemporaryFile(max_size=1048576)
-        f.write(content)
-        f.seek(0)
+        if not isinstance(content_or_file, bytes) and not callable(getattr(content_or_file, "seekable", None)):
+            content_or_file = content_or_file.read()
+            if len(content_or_file) > 1048576:
+                threadlog.warn(
+                    "Read %.1f megabytes into memory in postgresql io_file_set for %s, because of unseekable file",
+                    len(content_or_file) / 1048576, path)
+        if isinstance(content_or_file, bytes):
+            f.write(content_or_file)
+            f.seek(0)
+        else:
+            content_or_file.seek(0)
+            shutil.copyfileobj(content_or_file, f)
         self.dirty_files[path] = f
+
+    def io_file_new_open(self, path):
+        return SpooledTemporaryFile(max_size=1048576)
 
     def _copy_io_file_open(self, path):
         dirty_file = self.dirty_files.get(path, absent)
@@ -333,6 +346,10 @@ class Connection:
             return content
         with self._copy_io_file_open(path) as f:
             res = f.read()
+            if len(res) > 1048576:
+                threadlog.warn(
+                    "Read %.1f megabytes into memory in postgresql io_file_get for %s",
+                    len(res) / 1048576, path)
             return res
 
     def _select_io_file_open(self, path):
