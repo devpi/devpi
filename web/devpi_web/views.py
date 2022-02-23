@@ -14,6 +14,7 @@ from devpi_web.doczip import Docs, unpack_docs
 from devpi_web.indexing import is_project_cached
 from devpi_web.main import navigation_version
 from email.utils import parsedate
+from io import TextIOWrapper
 from operator import attrgetter, itemgetter
 from py.xml import html
 try:
@@ -324,8 +325,8 @@ def get_files_info(request, linkstore, show_toxresults=False):
 
 
 def load_toxresult(link):
-    data = link.entry.file_get_content().decode("utf-8")
-    return json.loads(data)
+    with TextIOWrapper(link.entry.file_open_read(), encoding="utf-8") as f:
+        return json.load(f)
 
 
 def get_toxresults_info(linkstore, for_link, newest=True):

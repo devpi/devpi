@@ -116,6 +116,7 @@ def test_testdata_latest_version(mapp, testapp, tox_result_data):
 def test_toxresults_state():
     from devpi_web.views import get_toxresults_info
     from devpi_web.views import get_toxresults_state
+    from io import BytesIO
 
     class LinkStore(list):
         def get_links(self, rel, for_entrypath):
@@ -129,6 +130,9 @@ def test_toxresults_state():
         @property
         def entry(self):
             return self
+
+        def file_open_read(self):
+            return BytesIO(self.file_get_content())
 
         def file_get_content(self):
             result = {
