@@ -98,13 +98,19 @@ class FileStore:
         return FileEntry(key, meta=meta, readonly=readonly)
 
     def store(self, user, index, basename, file_content, dir_hash_spec=None):
+        # dir_hash_spec is set for toxresult files
+        hash_spec = None
         if dir_hash_spec is None:
             dir_hash_spec = get_default_hash_spec(file_content)
+            # prevent hashing twice
+            hash_spec = dir_hash_spec
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
-        key = self.keyfs.STAGEFILE(user=user, index=index,
-                   hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
+        key = self.keyfs.STAGEFILE(
+            user=user, index=index,
+            hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
         entry = FileEntry(key, readonly=False)
-        entry.file_set_content(file_content)
+        entry.file_set_content(
+            file_content, hash_spec=hash_spec)
         return entry
 
 
