@@ -1,6 +1,6 @@
 from .config import hookimpl
 from .fileutil import BytesForHardlink
-from .interfaces import IStorageConnection2
+from .interfaces import IStorageConnection3
 from .keyfs_sqlite import BaseConnection
 from .keyfs_sqlite import BaseStorage
 from .log import threadlog, thread_push_log, thread_pop_log
@@ -8,17 +8,24 @@ from .readonly import ReadonlyView
 from .readonly import get_mutable_deepcopy
 from .fileutil import get_write_file_ensure_dir, rename, loads
 from hashlib import sha256
+from zope.interface import Interface
+from zope.interface import alsoProvides
 from zope.interface import implementer
 import errno
 import os
 import re
+import shutil
 import sys
 import threading
 import time
 
 
+class IStorageFile(Interface):
+    """ Marker interface. """
+
+
 class DirtyFile(object):
-    def __init__(self, path, content):
+    def __init__(self, path):
         self.path = path
         # use hash of path, pid and thread id to prevent conflicts
         key = "%s%i%i" % (
@@ -28,8 +35,12 @@ class DirtyFile(object):
             # on windows we have to shorten the digest, otherwise we reach
             # the 260 chars file path limit too quickly
             digest = digest[:8]
-        self.tmppath = '%s-%s-tmp' % (path, digest)
-        if isinstance(content, BytesForHardlink):
+        self.tmppath = f"{path}-{digest}-tmp"
+
+    @classmethod
+    def from_content(cls, path, content_or_file):
+        self = DirtyFile(path)
+        if isinstance(content_or_file, BytesForHardlink) or hasattr(content_or_file, "devpi_srcpath"):
             dirname = os.path.dirname(self.tmppath)
             if not os.path.exists(dirname):
                 try:
@@ -40,13 +51,24 @@ class DirtyFile(object):
                     # another thread tries to create the same folder
                     if e.errno != errno.EEXIST:
                         raise
-            os.link(content.devpi_srcpath, self.tmppath)
+            os.link(content_or_file.devpi_srcpath, self.tmppath)
         else:
             with get_write_file_ensure_dir(self.tmppath) as f:
-                f.write(content)
+                if not isinstance(content_or_file, bytes) and not callable(getattr(content_or_file, "seekable", None)):
+                    content_or_file = content_or_file.read()
+                    if len(content_or_file) > 1048576:
+                        threadlog.warn(
+                            "Read %.1f megabytes into memory in keyfs_sqlite_fs from_content for %s, because of unseekable file",
+                            len(content_or_file) / 1048576, path)
+                if isinstance(content_or_file, bytes):
+                    f.write(content_or_file)
+                else:
+                    content_or_file.seek(0)
+                    shutil.copyfileobj(content_or_file, f)
+        return self
 
 
-@implementer(IStorageConnection2)
+@implementer(IStorageConnection3)
 class Connection(BaseConnection):
     def rollback(self):
         BaseConnection.rollback(self)
@@ -67,10 +89,21 @@ class Connection(BaseConnection):
             path = dirty_file.tmppath
         return os.path.exists(path)
 
-    def io_file_set(self, path, content):
+    def io_file_set(self, path, content_or_file):
         path = self._basedir.join(path).strpath
         assert not path.endswith("-tmp")
-        self.dirty_files[path] = DirtyFile(path, content)
+        if IStorageFile.providedBy(content_or_file):
+            self.dirty_files[path] = DirtyFile(path)
+        else:
+            self.dirty_files[path] = DirtyFile.from_content(path, content_or_file)
+
+    def io_file_new_open(self, path):
+        path = self._basedir.join(path).strpath
+        assert not path.endswith("-tmp")
+        assert not self.io_file_exists(path)
+        f = get_write_file_ensure_dir(DirtyFile(path).tmppath)
+        alsoProvides(f, IStorageFile)
+        return f
 
     def io_file_open(self, path):
         path = self._basedir.join(path).strpath
@@ -89,7 +122,12 @@ class Connection(BaseConnection):
                 raise IOError()
             path = dirty_file.tmppath
         with open(path, "rb") as f:
-            return f.read()
+            data = f.read()
+            if len(data) > 1048576:
+                threadlog.warn(
+                    "Read %.1f megabytes into memory in io_file_get for %s",
+                    len(data) / 1048576, path)
+            return data
 
     def io_file_size(self, path):
         path = self._basedir.join(path).strpath
