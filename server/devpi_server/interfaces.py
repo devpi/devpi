@@ -66,6 +66,14 @@ class IStorageConnection2(IStorageConnection):
             Yields RelpathInfo objects."""
 
 
+class IStorageConnection3(IStorageConnection2):
+    def io_file_set(path, content_or_file):
+        """ Set the binary content of the file at path. """
+
+    def io_file_new_open(path):
+        """ Returns a new open file like object for binary writing. """
+
+
 # some adapters for legacy plugins
 
 
@@ -112,4 +120,26 @@ def adapt(iface, obj):
         classImplements(cls, IStorageConnection2)
         # make sure the object now actually provides this interface
         verifyObject(IStorageConnection2, _obj)
+        return obj
+    elif iface is IStorageConnection3:
+        from .keyfs import io_file_new_open
+        from .keyfs import io_file_set
+        # first make sure the old connection interface is implemented
+        obj = IStorageConnection2(obj)
+        _obj = unwrap_connection_obj(obj)
+        cls = get_connection_class(_obj)
+        # now add fallback method directly to the class
+        cls.io_file_new_open = io_file_new_open
+        orig_io_file_set = cls.io_file_set
+
+        # we need another wrapper to pass in the io_file_set from original class
+        # for some reason a partial doesn't work here
+        def _io_file_set(self, path, content_or_file):
+            return io_file_set(self, path, content_or_file, _io_file_set=orig_io_file_set)
+
+        cls.io_file_set = _io_file_set
+        # and add the interface
+        classImplements(cls, IStorageConnection3)
+        # make sure the object now actually provides this interface
+        verifyObject(IStorageConnection3, _obj)
         return obj
