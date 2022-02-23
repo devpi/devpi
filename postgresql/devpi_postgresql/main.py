@@ -247,7 +247,8 @@ class Storage:
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
         with self.get_connection() as conn:
-            self.next_serial = conn.last_changelog_serial + 1
+            # don't use cached last_changelog_serial here
+            self.next_serial = conn.db_read_last_changelog_serial() + 1
 
     def perform_crash_recovery(self):
         pass
