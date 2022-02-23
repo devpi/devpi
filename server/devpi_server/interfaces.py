@@ -20,6 +20,28 @@ class IStorageConnection(Interface):
     def get_raw_changelog_entry(serial):
         """ Returns serializes changes for given serial. """
 
+    def io_file_delete(path):
+        """ Deletes the file at path. """
+
+    def io_file_exists(path):
+        """ Returns True if file at path exists. """
+
+    def io_file_get(path):
+        """ Returns binary content of the file at path. """
+
+    def io_file_open(path):
+        """ Returns an open file like object for binary reading. """
+
+    def io_file_os_path(path):
+        """ Returns the real path to the file if the storage is filesystem
+            based, otherwise None. """
+
+    def io_file_set(path, content):
+        """ Set the binary content of the file at path. """
+
+    def io_file_size(path):
+        """ Returns the size of the file at path. """
+
 
 class IStorageConnection2(IStorageConnection):
     def get_relpath_at(relpath, serial):
@@ -72,7 +94,7 @@ def adapt(iface, obj):
         obj = IStorageConnection(obj)
         _obj = unwrap_connection_obj(obj)
         cls = get_connection_class(_obj)
-        # now add fallback method directly to the class
+        # now add fallback methods directly to the class
         cls.get_relpath_at = get_relpath_at
         cls.iter_relpaths_at = iter_relpaths_at
         # and add the interface
