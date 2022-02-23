@@ -23,7 +23,7 @@ jobs:
           set -xe -o nounset
           python -VV
           python -m site
-          python -m pip install --upgrade pip setuptools wheel devpi-client "towncrier!=21.3.0" check-manifest
+          python -m pip install --upgrade pip setuptools wheel devpi-client "towncrier>=21.9.0" check-manifest
       - name: "Create packages"
         run: |
           set -xe -o nounset

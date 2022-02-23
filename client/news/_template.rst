@@ -1,3 +1,7 @@
+
+{{ top_line }}
+{{ top_underline * ((top_line)|length)}}
+
 {% for section in sections %}
 {% set underline = "-" %}
 {% if section %}
