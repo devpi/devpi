@@ -1,5 +1,6 @@
 import os
 import contextlib
+import io
 import itsdangerous
 import secrets
 import threading
@@ -20,7 +21,8 @@ from webob.headers import EnvironHeaders, ResponseHeaders
 from . import mythread
 from .config import hookimpl
 from .filestore import FileEntry
-from .fileutil import BytesForHardlink, dumps, loads
+from .fileutil import buffered_iterator
+from .fileutil import BytesForHardlink, dumps, load, loads
 from .log import thread_push_log, threadlog
 from .views import H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
@@ -39,6 +41,8 @@ REPLICA_USER_NAME = "+replica"
 REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
 REPLICA_MULTIPLE_TIMEOUT = REPLICA_REQUEST_TIMEOUT / 2
 REPLICA_AUTH_MAX_AGE = REPLICA_REQUEST_TIMEOUT + 0.1
+REPLICA_CONTENT_TYPE = "application/x-devpi-replica-changes"
+REPLICA_ACCEPT_STREAMING = f"{REPLICA_CONTENT_TYPE}, application/octet-stream; q=0.9"
 MAX_REPLICA_CHANGES_SIZE = 5 * 1024 * 1024
 
 
@@ -96,6 +100,30 @@ def devpiserver_auth_request(request, userdict, username, password):
         raise HTTPForbidden("Authorization malformed.")
 
 
+class ReadableIterabel(io.RawIOBase):
+    def __init__(self, iterable):
+        self.iterable = iterable
+        self.chunk = None
+        self.chunk_pos = 0
+        self.chunk_size = 0
+
+    def readable(self):
+        return True
+
+    def readinto(self, b):
+        if self.chunk is None:
+            self.chunk = next(self.iterable)
+            self.chunk_pos = 0
+            self.chunk_size = len(self.chunk)
+        chunk_remaining = self.chunk_size - self.chunk_pos
+        to_copy = min(len(b), chunk_remaining)
+        b[:to_copy] = self.chunk[self.chunk_pos:self.chunk_pos + to_copy]
+        self.chunk_pos += to_copy
+        if self.chunk_pos == self.chunk_size:
+            self.chunk = None
+        return to_copy
+
+
 class MasterChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
     MAX_REPLICA_CHANGES_SIZE = MAX_REPLICA_CHANGES_SIZE
@@ -106,7 +134,7 @@ class MasterChangelogRequest:
         self.xom = request.registry["xom"]
 
     @contextlib.contextmanager
-    def update_replica_status(self, serial):
+    def update_replica_status(self, serial, streaming=False):
         headers = self.request.headers
         uuid = headers.get(H_REPLICA_UUID)
         if uuid:
@@ -117,6 +145,7 @@ class MasterChangelogRequest:
                 # and we want to show where the replica serial is at
                 "serial": int(serial) - 1,
                 "in-request": True,
+                "is-streaming": streaming,
                 "last-request": time.time(),
                 "outside-url": headers.get(H_REPLICA_OUTSIDE_URL),
             }
@@ -124,7 +153,7 @@ class MasterChangelogRequest:
                 yield
             finally:
                 polling_replicas[uuid]["last-request"] = time.time()
-                polling_replicas[uuid]["in-request"] = False
+                polling_replicas[uuid]["in-request"] = streaming
         else:  # just a regular request
             yield
 
@@ -183,6 +212,16 @@ class MasterChangelogRequest:
 
     @view_config(route_name="/+changelog/{serial}-")
     def get_multiple_changes(self):
+        acceptable = self.request.accept.acceptable_offers(
+            [REPLICA_CONTENT_TYPE, "application/octet-stream"])
+        preferres_streaming = (
+            (REPLICA_CONTENT_TYPE, 1.0) in acceptable
+            and not ("application/octet-stream", 1.0) in acceptable)
+        if preferres_streaming:
+            # a replica which accepts streams has a lower priority for
+            # "application/octet-stream" as the old default "Accept: */*"
+            return self.get_streaming_changes()
+
         self.verify_master()
 
         start_serial = int(self.request.matchdict["serial"])
@@ -212,6 +251,35 @@ class MasterChangelogRequest:
                 str("X-DEVPI-SERIAL"): str(devpi_serial),
             })
             return r
+
+    def get_streaming_changes(self):
+        self.verify_master()
+
+        start_serial = int(self.request.matchdict["serial"])
+
+        keyfs = self.xom.keyfs
+        self._wait_for_serial(start_serial)
+        devpi_serial = keyfs.get_current_serial()
+        threadlog.info("Streaming from %s to %s", start_serial, devpi_serial)
+
+        def iter_changelog_entries():
+            for serial in range(start_serial, devpi_serial + 1):
+                with keyfs.get_connection() as conn:
+                    raw = conn.get_raw_changelog_entry(serial)
+                with self.update_replica_status(serial, streaming=True):
+                    yield dumps(serial)
+                    yield raw
+            # update status again when done
+            with self.update_replica_status(devpi_serial + 1, streaming=False):
+                pass
+
+        r = Response(
+            app_iter=buffered_iterator(iter_changelog_entries()),
+            status=200, headers={
+                str("Content-Type"): str(REPLICA_CONTENT_TYPE),
+                str("X-DEVPI-SERIAL"): str(devpi_serial),
+            })
+        return r
 
     def _wait_for_serial(self, serial):
         keyfs = self.xom.keyfs
@@ -255,6 +323,7 @@ class ReplicaThread:
         xom.thread_pool.register(self.initial_queue_thread)
         self.master_auth = xom.config.master_auth
         self.master_url = xom.config.master_url
+        self.use_streaming = xom.config.replica_streaming
         self._master_serial = None
         self._master_serial_timestamp = None
         self.started_at = None
@@ -311,15 +380,19 @@ class ReplicaThread:
         try:
             self.master_contacted_at = time.time()
             token = self.auth_serializer.dumps(uuid)
+            headers = {
+                H_REPLICA_UUID: uuid,
+                H_EXPECTED_MASTER_ID: master_uuid,
+                H_REPLICA_OUTSIDE_URL: config.args.outside_url,
+                str('Authorization'): 'Bearer %s' % token}
+            if self.use_streaming:
+                headers[str("Accept")] = REPLICA_ACCEPT_STREAMING
             r = self.session.get(
                 url,
                 allow_redirects=False,
                 auth=self.master_auth,
-                headers={
-                    H_REPLICA_UUID: uuid,
-                    H_EXPECTED_MASTER_ID: master_uuid,
-                    H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                    str('Authorization'): 'Bearer %s' % token},
+                headers=headers,
+                stream=self.use_streaming,
                 timeout=self.REPLICA_REQUEST_TIMEOUT)
         except Exception as e:
             msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
@@ -370,6 +443,8 @@ class ReplicaThread:
             if r.status_code == 200:
                 try:
                     handler(r)
+                except mythread.Shutdown:
+                    raise
                 except Exception:
                     log.exception("could not process: %s", r.url)
                 else:
@@ -399,9 +474,24 @@ class ReplicaThread:
             url)
 
     def handler_multi(self, response):
-        all_changes = loads(response.content)
-        for serial, changes in all_changes:
-            self.xom.keyfs.import_changes(serial, changes)
+        if response.headers["content-type"] == REPLICA_CONTENT_TYPE:
+            with contextlib.closing(response):
+                readableiterable = ReadableIterabel(
+                    response.iter_content(chunk_size=None))
+                stream = io.BufferedReader(readableiterable, buffer_size=65536)
+                try:
+                    while True:
+                        serial = load(stream)
+                        (changes, rel_renames) = load(stream)
+                        self.xom.keyfs.import_changes(serial, changes)
+                except StopIteration:
+                    pass
+                except EOFError:
+                    pass
+        else:
+            all_changes = loads(response.content)
+            for serial, changes in all_changes:
+                self.xom.keyfs.import_changes(serial, changes)
 
     def fetch_multi(self, serial):
         url = self.master_url.joinpath("+changelog", "%s-" % serial).url

@@ -21,10 +21,9 @@ def rename(source, dest):
         os.rename(source, dest)
 
 
-def loads(data):
-    read = BytesIO(data).read
-    _unpack_int4 = partial(unpack, "!i")
-    _unpack_float8 = partial(unpack, "!d")
+# int.from_bytes is slower
+def load(fp, _unpack_int4=partial(unpack, "!i"), _unpack_float8=partial(unpack, "!d")):
+    read = fp.read
     stack = []
     stack_append = stack.append
     stack_pop = stack.pop
@@ -95,6 +94,10 @@ def loads(data):
     return stack_pop(0)
 
 
+def loads(data):
+    return load(BytesIO(data))
+
+
 def dumps(obj):
     return _Serializer().save(obj, versioned=False)
 
@@ -129,6 +132,30 @@ def get_write_file_ensure_dir(path):
                 if e.errno != errno.EEXIST:
                     raise
         return open(path, "wb")
+
+
+def buffered_iterator(iterable):
+    buffer_size = 65536
+    buffer = bytearray(buffer_size)
+    buffer_pos = 0
+    for chunk in iterable:
+        chunk_pos = 0
+        chunk_remaining = len(chunk)
+        while chunk_remaining:
+            buffer_remaining = buffer_size - buffer_pos
+            while chunk_remaining and buffer_remaining:
+                to_copy = min(chunk_remaining, buffer_remaining)
+                buffer[buffer_pos:buffer_pos + to_copy] = chunk[
+                    chunk_pos:chunk_pos + to_copy]
+                buffer_pos += to_copy
+                buffer_remaining -= to_copy
+                chunk_pos += to_copy
+                chunk_remaining -= to_copy
+            if not buffer_remaining:
+                yield bytes(buffer)
+                buffer_pos = 0
+    if buffer_pos:
+        yield bytes(buffer[:buffer_pos])
 
 
 class BytesForHardlink(bytes):
