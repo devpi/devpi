@@ -12,7 +12,7 @@ import contextlib
 import py
 from . import mythread
 from .fileutil import loads
-from .interfaces import IStorageConnection2
+from .interfaces import IStorageConnection3
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
 from .readonly import ensure_deeply_readonly
@@ -233,7 +233,7 @@ class KeyFS(object):
         self._readonly = readonly
 
     def get_connection(self, closing=True, write=False):
-        conn = IStorageConnection2(
+        conn = IStorageConnection3(
             self._storage.get_connection(closing=False, write=write))
         if closing:
             return contextlib.closing(conn)
@@ -522,6 +522,25 @@ def get_relpath_at(self, relpath, serial):
     except StopIteration:
         pass
     raise KeyError(relpath)
+
+
+def io_file_new_open(self, path):
+    """ Fallback method for legacy storage connections. """
+    from tempfile import TemporaryFile
+    return TemporaryFile()
+
+
+def io_file_set(self, path, content_or_file, _io_file_set):
+    """ Fallback method wrapper for legacy storage connections. """
+    # _io_file_set is from the original class
+    if not isinstance(content_or_file, bytes):
+        content_or_file.seek(0)
+        content_or_file = content_or_file.read()
+    if len(content_or_file) > 1048576:
+        threadlog.warn(
+            "Got content with %.1f megabytes in memory while setting content for %s",
+            len(content_or_file) / 1048576, path)
+    return _io_file_set(self, path, content_or_file)
 
 
 def iter_serial_and_value_backwards(conn, relpath, last_serial):
