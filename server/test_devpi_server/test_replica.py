@@ -469,6 +469,7 @@ class TestUseExistingFiles:
             '--replica-file-search-path', existing_base.strpath])
         # now sync the replica, if the file is not found there will be an error
         # because httpget is mocked
+        caplog.clear()
         replay(xom, replica_xom, events=False)
         replica_xom.replica_thread.wait()
         assert len(caplog.getrecords('checking existing file')) == 1
@@ -496,6 +497,7 @@ class TestUseExistingFiles:
             '--hard-links'])
         # now sync the replica, if the file is not found there will be an error
         # because httpget is mocked
+        caplog.clear()
         replay(xom, replica_xom)
         assert len(caplog.getrecords('checking existing file')) == 1
         # check the number of links of the file
@@ -522,6 +524,7 @@ class TestUseExistingFiles:
         frt_reqmock.mockresponse("http://localhost" + path, 200, data=content1)
         # now sync the replica, if the file is not found there will be an error
         # because httpget is mocked
+        caplog.clear()
         replay(xom, replica_xom, events=False)
         replica_xom.replica_thread.wait()
         assert len(caplog.getrecords('checking existing file')) == 1
@@ -556,6 +559,7 @@ class TestUseExistingFiles:
         frt_reqmock.mockresponse("http://localhost" + path, 200, data=content1)
         # now sync the replica, if the file is not found there will be an error
         # because httpget is mocked
+        caplog.clear()
         replay(xom, replica_xom)
         assert len(caplog.getrecords('checking existing file')) == 1
         assert len(caplog.getrecords('sha256 mismatch, got ec7d057f450dc963f15978af98b9cdda64aca6751c677e45d4a358fe103dc05b')) == 1

@@ -215,6 +215,11 @@ def add_replica_options(parser, pluginmanager):
         help="Number of seconds to wait before proxied requests from "
              "the replica to the master time out (login, uploads etc).")
 
+    parser.addoption(
+        "--no-replica-streaming", dest="replica_streaming",
+        default=True, action="store_false",
+        help="use separate requests instead of replica streaming protocol")
+
 
 def add_request_options(parser, pluginmanager):
     parser.addoption(
@@ -743,6 +748,10 @@ class Config(object):
     @property
     def replica_max_retries(self):
         return getattr(self.args, 'replica_max_retries', None)
+
+    @property
+    def replica_streaming(self):
+        return getattr(self.args, 'replica_streaming', True)
 
     @property
     def requests_only(self):
