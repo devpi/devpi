@@ -1243,16 +1243,20 @@ class PyPIView:
             entry_data = get_mutable_deepcopy(entry.meta)
             apireturn(200, type="releasefilemeta", result=entry_data)
 
-        if entry.last_modified is None or not entry.file_exists():
-            # The file is in a mirror and either deleted or not yet downloaded.
+        file_exists = entry.file_exists()
+        if entry.last_modified is None or not file_exists:
             # We check whether we should serve the file directly
             # or redirect to the external URL
-            stage = self.xom.model.getstage(
-                entry.key.params['user'],
-                entry.key.params['index'])
-            if stage is not None and stage.use_external_url:
-                # redirect to external url
+            stage = self.context.stage
+            # getting the stage from context will cause 404 if stage is deleted
+            if stage.use_external_url:
+                # The file is in a mirror and either deleted or not
+                # yet downloaded. Redirect to external url
                 return HTTPFound(location=URL(url).url)
+            if stage.ixconfig['type'] != "mirror" and not file_exists and not self.xom.is_replica():
+                # return error when private file is missing and not in
+                # replica mode, otherwise fall through to fetch file
+                abort(self.request, 404, "no such file")
 
         if not request.has_permission("pkg_read"):
             abort(request, 403, "package read forbidden")
