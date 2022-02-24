@@ -561,6 +561,9 @@ class FatalResponse:
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.reason)
 
+    def close(self):
+        pass
+
 
 def get_remote_ip(request):
     return request.headers.get("X-REAL-IP", request.client_addr)
