@@ -493,6 +493,7 @@ class PyPIStage(BaseStage):
             devpi_serial = int(info["devpi_serial"])
             threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
                             devpi_serial)
+            links = None
             if self.keyfs.wait_tx_serial(devpi_serial, timeout=self.timeout):
                 threadlog.debug("get_simplelinks pypi: finished waiting for devpi_serial %r",
                                 devpi_serial)

@@ -895,17 +895,26 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     assert xom.keyfs.get_current_serial() > serial
 
     # we patch wait_tx_serial so we can check it
-    orig_wait_tx_serial = replica_xom.keyfs.wait_tx_serial
     called = []
 
     def wait_tx_serial(serial, timeout=None):
-        result = orig_wait_tx_serial(serial, timeout=timeout)
-        threadlog.info("Patched wait_tx_serial %s %r", serial, result)
-        called.append((serial, result))
-        return result
+        threadlog.info("Patched wait_tx_serial %s", serial)
+        called.append(serial)
+        assert xom.keyfs.get_current_serial() == serial
+        assert replica_xom.keyfs.get_current_serial() < serial
+        # save _import_subscriber
+        import_subscriber = replica_xom.keyfs._import_subscriber
+        # set _import_subscriber to empty dict, so no transaction is opened
+        # during import_changes
+        replica_xom.keyfs._import_subscriber = {}
+        replay(xom, replica_xom, events=False)
+        # restore _import_subscriber
+        replica_xom.keyfs._import_subscriber = import_subscriber
+        replica_xom.keyfs.restart_read_transaction()
+        assert replica_xom.keyfs.get_current_serial() == serial
+        return True
 
     monkeypatch.setattr(replica_xom.keyfs, 'wait_tx_serial', wait_tx_serial)
-    replay(xom, replica_xom, events=False)
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
     httpget.mock_simple(
         'pytest',
@@ -917,7 +926,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
         r_pypistage = replica_xom.model.getstage("root/pypi")
         r_pypistage.cache_retrieve_times.expire("pytest")
         ret = replica_pypistage.get_releaselinks("pytest")
-    assert called == [(2, True)]
+    assert called == [2]
     replay(xom, replica_xom)
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.org_pytest/pytest-1.1.zip'
