@@ -421,10 +421,10 @@ def replay(xom, replica_xom, events=True):
             change_entry = conn.get_changes(serial)
         threadlog.info("test: importing to replica %s", serial)
         replica_xom.keyfs.import_changes(serial, change_entry)
+    replica_xom.replica_thread.wait()
 
     # replay notifications
     if events:
-        replica_xom.replica_thread.wait()
         noti_thread = replica_xom.keyfs.notifier
         event_serial = noti_thread.read_event_serial()
         thread_push_log("NOTI")
