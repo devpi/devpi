@@ -1179,7 +1179,6 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
         raise
     p = subprocess.Popen([
         nginx, "-c", nginx_conf.strpath, "-p", nginx_directory.strpath])
-    wait_for_port(host, nginx_port)
     return (p, nginx_port)
 
 
@@ -1192,6 +1191,7 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory):
     (p, nginx_port) = _nginx_host_port(
         host, port, call_devpi_in_dir, server_directory)
     try:
+        wait_for_port(host, nginx_port)
         yield (host, nginx_port)
     finally:
         p.terminate()
@@ -1207,6 +1207,7 @@ def nginx_replica_host_port(request, call_devpi_in_dir, server_directory):
     (p, nginx_port) = _nginx_host_port(
         host, port, call_devpi_in_dir, server_directory)
     try:
+        wait_for_port(host, nginx_port)
         yield (host, nginx_port)
     finally:
         p.terminate()
