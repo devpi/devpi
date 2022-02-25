@@ -444,7 +444,6 @@ def make_replica_xom(makexom, secretfile):
             "--secretfile", secretfile.strpath] + list(options))
         # shorten error delay for tests
         replica_xom.replica_thread.shared_data.ERROR_QUEUE_MAX_DELAY = 0.1
-        replica_xom.thread_pool.start_one(replica_xom.replica_thread)
         replica_xom.thread_pool.start_one(
             replica_xom.replica_thread.file_replication_threads[0])
         return replica_xom
@@ -834,7 +833,6 @@ class TestFileReplication:
 
 
 def test_simplelinks_update_updates_projectname(pypistage, replica_xom, xom):
-    replica_xom.thread_pool.start_one(replica_xom.replica_thread)
     replica_xom.thread_pool.start_one(
         replica_xom.replica_thread.file_replication_threads[0])
     pypistage.mock_simple_projects([])
@@ -855,7 +853,6 @@ def test_simplelinks_update_updates_projectname(pypistage, replica_xom, xom):
 
 def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypistage,
                                   pypiurls, replica_xom, xom):
-    replica_xom.thread_pool.start_one(replica_xom.replica_thread)
     replica_xom.thread_pool.start_one(
         replica_xom.replica_thread.file_replication_threads[0])
 
@@ -903,6 +900,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
 
     def wait_tx_serial(serial, timeout=None):
         result = orig_wait_tx_serial(serial, timeout=timeout)
+        threadlog.info("Patched wait_tx_serial %s %r", serial, result)
         called.append((serial, result))
         return result
 
@@ -926,7 +924,6 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
 
 
 def test_replicate_deleted_user(mapp, replica_xom):
-    replica_xom.thread_pool.start_one(replica_xom.replica_thread)
     replica_xom.thread_pool.start_one(
         replica_xom.replica_thread.file_replication_threads[0])
     mapp.create_and_use("hello/dev")
