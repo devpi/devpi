@@ -302,7 +302,9 @@ class TestTransactionIsolation:
         with pytest.raises(keyfs.ReadOnly):
             tx_1.delete(key)
 
-    def test_serialized_writing(self, TimeoutQueue, keyfs):
+    def test_serialized_writing(self, TimeoutQueue, keyfs, storage_info):
+        if "sqlite" not in storage_info["name"]:
+            pytest.skip("The test is only relevant for sqlite based storages.")
         import threading
         q1 = TimeoutQueue()
         q2 = TimeoutQueue()
