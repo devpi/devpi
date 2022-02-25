@@ -426,6 +426,7 @@ class XOM:
         from pyramid.config import Configurator
         from pyramid.viewderivers import INGRESS
         log = self.log
+        log.info("running with role %r", self.config.role)
         log.debug("creating application in process %s", os.getpid())
         pyramid_config = Configurator(root_factory='devpi_server.view_auth.RootFactory')
         pyramid_config.set_security_policy(DevpiSecurityPolicy(self))
