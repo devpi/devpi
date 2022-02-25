@@ -19,6 +19,13 @@ class RootFactory(object):
         self.restrict_modify = xom.config.restrict_modify
         self.hook = xom.config.hook
 
+    def __repr__(self):
+        cls = self.__class__
+        return (
+            f"<{cls.__module__}.{cls.__name__} "
+            f"username={self.username!r} "
+            f"index={self.index!r}>")
+
     @cached_property
     def _user(self):
         if self.username:
