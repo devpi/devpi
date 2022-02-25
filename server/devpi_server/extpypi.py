@@ -579,9 +579,12 @@ class PyPIStage(BaseStage):
                     newlinks_future, project, cache_serial, _key_from_link),
                 timeout=self.timeout)
         except asyncio.TimeoutError:
-            # we process the future in the background
-            self.xom.create_task(
-                self._update_simplelinks_in_future(newlinks_future, project))
+            if not self.xom.is_replica():
+                # we process the future in the background
+                # but only on master, the replica will get the update
+                # via the replication thread
+                self.xom.create_task(
+                    self._update_simplelinks_in_future(newlinks_future, project))
             # to prevent a buildup of updates we mark the project as fresh
             self.cache_retrieve_times.refresh(project)
             if links is not None:
