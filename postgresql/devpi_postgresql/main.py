@@ -222,6 +222,10 @@ class Storage:
     password = None
     ssl_context = None
     expected_schema = dict(
+        index=dict(
+            kv_serial_idx="""
+                CREATE INDEX kv_serial_idx ON kv (serial);
+            """),
         table=dict(
             changelog="""
                 CREATE TABLE changelog (
