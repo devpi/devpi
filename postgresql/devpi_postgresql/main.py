@@ -93,14 +93,6 @@ class Connection:
         (keyname, serial) = res
         return (keyname, serial)
 
-    def db_write_typedkey(self, relpath, name, next_serial):
-        q = """
-            INSERT INTO kv(key, keyname, serial)
-                VALUES (:relpath, :name, :next_serial)
-            ON CONFLICT (key) DO UPDATE
-                SET keyname = EXCLUDED.keyname, serial = EXCLUDED.serial;"""
-        self._sqlconn.run(q, relpath=relpath, name=name, next_serial=next_serial)
-
     def get_relpath_at(self, relpath, serial):
         result = self._changelog_cache.get((serial, relpath), absent)
         if result is absent:
@@ -136,13 +128,6 @@ class Connection:
                     relpath=relpath, keyname=keyname,
                     serial=serial, back_serial=back_serial,
                     value=val)
-
-    def write_changelog_entry(self, serial, entry):
-        threadlog.debug("writing changelog for serial %s", serial)
-        data = dumps(entry)
-        self._sqlconn.run(
-            "INSERT INTO changelog (serial, data) VALUES (:serial, :data)",
-            serial=serial, data=pg8000.Binary(data))
 
     def io_file_os_path(self, path):
         return None
@@ -187,7 +172,25 @@ class Connection:
         self.dirty_files[path] = None
 
     def get_raw_changelog_entry(self, serial):
-        q = "SELECT data FROM changelog WHERE serial = :serial"
+        # because a sequence is used for the next serial, there might be
+        # missing serials in the changelog table if there was a conflict
+        # during commit
+        # this query makes sure we return an empty changelog for missing
+        # serials, but only if the serial wasn't used yet by comparing with
+        # max(serial) of changelog
+        q = r"""
+            SELECT
+                COALESCE(
+                    data,
+                    'JK\000\000\000\000@\000\000\000\002Q'::BYTEA) AS data
+            FROM changelog
+            RIGHT OUTER JOIN (
+                SELECT
+                    :serial::BIGINT AS serial
+                WHERE (
+                    :serial::BIGINT <= (SELECT max(serial) FROM changelog))
+                ) AS serial
+            ON changelog.serial=serial.serial;"""
         return self.fetchscalar(q, serial=serial)
 
     def get_changes(self, serial):
@@ -225,6 +228,13 @@ class Storage:
         index=dict(
             kv_serial_idx="""
                 CREATE INDEX kv_serial_idx ON kv (serial);
+            """),
+        sequence=dict(
+            changelog_serial_seq="""
+                CREATE SEQUENCE changelog_serial_seq
+                AS BIGINT
+                MINVALUE 0
+                START :startserial;
             """),
         table=dict(
             changelog="""
@@ -272,9 +282,6 @@ class Storage:
         self._changelog_cache = LRUCache(cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
-        with self.get_connection() as conn:
-            # don't use cached last_changelog_serial here
-            self.next_serial = conn.db_read_last_changelog_serial() + 1
 
     def perform_crash_recovery(self):
         pass
@@ -310,6 +317,10 @@ class Storage:
                 SELECT indexname FROM pg_indexes WHERE schemaname='public';""")
             for row in rows:
                 result.setdefault("index", {})[row[0]] = ""
+            rows = sqlconn.run("""
+                SELECT sequencename FROM pg_sequences WHERE schemaname='public';""")
+            for row in rows:
+                result.setdefault("sequence", {})[row[0]] = ""
         return result
 
     def ensure_tables_exist(self):
@@ -327,10 +338,16 @@ class Storage:
                 threadlog.info("DB: Creating schema")
             else:
                 threadlog.info("DB: Updating schema")
-            for kind in ('table', 'index'):
+            if "changelog" not in missing.get("table", {}):
+                kw = dict(startserial=conn.db_read_last_changelog_serial() + 1)
+            else:
+                kw = dict(startserial=0)
+            for kind in ('table', 'index', 'sequence'):
                 objs = missing.pop(kind, {})
                 for name in list(objs):
                     q = objs.pop(name)
+                    for k, v in kw.items():
+                        q = q.replace(f":{k}", pg8000.native.literal(v))
                     sqlconn.run(q)
                 assert not objs
             conn.commit()
@@ -349,44 +366,68 @@ class Writer:
     def __init__(self, storage, conn):
         self.conn = conn
         self.storage = storage
-        self.changes = {}
 
     def record_set(self, typedkey, value=None, back_serial=None):
         """ record setting typedkey to value (None means it's deleted) """
         assert not isinstance(value, ReadonlyView), value
-        if back_serial is None:
-            try:
-                _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
-            except KeyError:
-                back_serial = -1
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name,
-                                    self.storage.next_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
+    def _db_write_typedkey(self, relpath, name, serial):
+        q = """
+            INSERT INTO kv(key, keyname, serial)
+                VALUES (:relpath, :name, :serial)
+            ON CONFLICT (key) DO UPDATE
+                SET keyname = EXCLUDED.keyname, serial = EXCLUDED.serial;"""
+        self.conn._sqlconn.run(q, relpath=relpath, name=name, serial=serial)
+
+    def _write_changelog_entry(self, serial, entry):
+        threadlog.debug("writing changelog for serial %s", serial)
+        q = """
+            INSERT INTO changelog (serial, data) VALUES (:serial, :data);"""
+        data = dumps(entry)
+        self.conn._sqlconn.run(q, serial=serial, data=pg8000.Binary(data))
+
     def __enter__(self):
-        self.log = thread_push_log("fswriter%s:" % self.storage.next_serial)
         self.conn.begin()
+        q = """SELECT nextval('changelog_serial_seq');"""
+        self.commit_serial = self.conn.fetchscalar(q)
+        self.log = thread_push_log("fswriter%s:" % self.commit_serial)
+        self.changes = {}
         return self
 
     def __exit__(self, cls, val, tb):
-        thread_pop_log("fswriter%s:" % self.storage.next_serial)
-        if cls is None:
-            entry = self.changes, []
-            self.conn.write_changelog_entry(self.storage.next_serial, entry)
-            self.conn.commit()
-            commit_serial = self.storage.next_serial
-            self.storage.next_serial += 1
-            message = "committed: keys: %s"
-            args = [",".join(map(repr, list(self.changes)))]
-            self.log.info("commited at %s", commit_serial)
-            self.log.debug(message, *args)
-
-            self.storage._notify_on_commit(commit_serial)
-        else:
+        commit_serial = self.commit_serial
+        try:
+            del self.commit_serial
+            if cls is None:
+                for relpath, (keyname, back_serial, value) in self.changes.items():
+                    if back_serial is None:
+                        try:
+                            (_, back_serial) = self.conn.db_read_typedkey(relpath)
+                        except KeyError:
+                            back_serial = -1
+                        # update back_serial for _write_changelog_entry
+                        self.changes[relpath] = (keyname, back_serial, value)
+                    self._db_write_typedkey(relpath, keyname, commit_serial)
+                entry = (self.changes, [])
+                self._write_changelog_entry(commit_serial, entry)
+                self.conn.commit()
+                message = "committed: keys: %s"
+                args = [",".join(map(repr, list(self.changes)))]
+                self.log.info("commited at %s", commit_serial)
+                self.log.debug(message, *args)
+                self.storage._notify_on_commit(commit_serial)
+            else:
+                self.conn.rollback()
+                self.log.info("roll back in %s", commit_serial)
+            del self.conn
+            del self.storage
+            del self.log
+        except BaseException:
             self.conn.rollback()
-            self.log.info("roll back at %s", self.storage.next_serial)
-        del self.conn
-        del self.storage
+            raise
+        finally:
+            thread_pop_log("fswriter%s:" % commit_serial)
