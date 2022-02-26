@@ -221,6 +221,28 @@ class Storage:
     user = "devpi"
     password = None
     ssl_context = None
+    expected_schema = dict(
+        table=dict(
+            changelog="""
+                CREATE TABLE changelog (
+                    serial INTEGER PRIMARY KEY,
+                    data BYTEA NOT NULL
+                )
+            """,
+            kv="""
+                CREATE TABLE kv (
+                    key TEXT NOT NULL PRIMARY KEY,
+                    keyname TEXT,
+                    serial INTEGER
+                )
+            """,
+            files="""
+                CREATE TABLE files (
+                    path TEXT PRIMARY KEY,
+                    size INTEGER NOT NULL,
+                    data BYTEA NOT NULL
+                )
+            """))
 
     def __init__(self, basedir, notify_on_commit, cache_size, settings=None):
         if settings is None:
@@ -272,37 +294,43 @@ class Storage:
             return contextlib.closing(conn)
         return conn
 
-    def ensure_tables_exist(self):
+    def _reflect_schema(self):
+        result = {}
         with self.get_connection() as conn:
             sqlconn = conn.begin()
-            try:
-                sqlconn.run("select * from changelog limit 1")
-                sqlconn.run("select * from kv limit 1")
-            except pg8000.exceptions.DatabaseError:
-                conn.rollback()
+            rows = sqlconn.run("""
+                SELECT tablename FROM pg_tables WHERE schemaname='public';""")
+            for row in rows:
+                result.setdefault("table", {})[row[0]] = ""
+            rows = sqlconn.run("""
+                SELECT indexname FROM pg_indexes WHERE schemaname='public';""")
+            for row in rows:
+                result.setdefault("index", {})[row[0]] = ""
+        return result
+
+    def ensure_tables_exist(self):
+        schema = self._reflect_schema()
+        missing = dict()
+        for kind, objs in self.expected_schema.items():
+            for name, q in objs.items():
+                if name not in schema.get(kind, set()):
+                    missing.setdefault(kind, dict())[name] = q
+        if not missing:
+            return
+        with self.get_connection() as conn:
+            sqlconn = conn.begin()
+            if not schema:
                 threadlog.info("DB: Creating schema")
-                sqlconn = conn.begin()
-                sqlconn.run("""
-                    CREATE TABLE kv (
-                        key TEXT NOT NULL PRIMARY KEY,
-                        keyname TEXT,
-                        serial INTEGER
-                    )
-                """)
-                sqlconn.run("""
-                    CREATE TABLE changelog (
-                        serial INTEGER PRIMARY KEY,
-                        data BYTEA NOT NULL
-                    )
-                """)
-                sqlconn.run("""
-                    CREATE TABLE files (
-                        path TEXT PRIMARY KEY,
-                        size INTEGER NOT NULL,
-                        data BYTEA NOT NULL
-                    )
-                """)
-                conn.commit()
+            else:
+                threadlog.info("DB: Updating schema")
+            for kind in ('table', 'index'):
+                objs = missing.pop(kind, {})
+                for name in list(objs):
+                    q = objs.pop(name)
+                    sqlconn.run(q)
+                assert not objs
+            conn.commit()
+        assert not missing
 
 
 @devpiserver_hookimpl
