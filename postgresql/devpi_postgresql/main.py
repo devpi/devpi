@@ -15,6 +15,7 @@ from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from functools import partial
 from pluggy import HookimplMarker
 from repoze.lru import LRUCache
+from tempfile import SpooledTemporaryFile as SpooledTemporaryFileBase
 from zope.interface import Interface
 from zope.interface import implementer
 import contextlib
@@ -38,6 +39,21 @@ absent = object()
 devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
+class SpooledTemporaryFile(SpooledTemporaryFileBase):
+    # some missing methods
+    def readable(self):
+        return self._file.readable()
+
+    def readinto(self, buffer):
+        return self._file.readinto(buffer)
+
+    def seekable(self):
+        return self._file.seekable()
+
+    def writable(self):
+        return self._file.writable()
+
+
 @implementer(IStorageConnection2)
 class Connection:
     def __init__(self, sqlconn, storage):
@@ -48,9 +64,11 @@ class Connection:
         self._changelog_cache = storage._changelog_cache
 
     def close(self):
-        self._sqlconn.close()
-        del self._sqlconn
-        del self.storage
+        if hasattr(self, "_sqlconn"):
+            self._sqlconn.close()
+            del self._sqlconn
+        if hasattr(self, "storage"):
+            del self.storage
 
     def begin(self):
         self._sqlconn.run("START TRANSACTION")
@@ -134,26 +152,42 @@ class Connection:
 
     def io_file_exists(self, path):
         assert not os.path.isabs(path)
+        f = self.dirty_files.get(path, absent)
+        if f is not absent:
+            return f is not None
         q = "SELECT path FROM files WHERE path = :path"
         return bool(self.fetchscalar(q, path=path))
 
     def io_file_set(self, path, content):
         assert not os.path.isabs(path)
         assert not path.endswith("-tmp")
-        q = """
-            INSERT INTO files(path, size, data)
-                VALUES (:path, :size, :data)
-            ON CONFLICT (path) DO UPDATE
-                SET size = EXCLUDED.size, data = EXCLUDED.data;"""
-        self._sqlconn.run(
-            q, path=path, size=len(content), data=pg8000.Binary(content))
-        self.dirty_files[path] = True
+        f = self.dirty_files.get(path, None)
+        if f is None:
+            f = SpooledTemporaryFile(max_size=1048576)
+        f.write(content)
+        f.seek(0)
+        self.dirty_files[path] = f
 
     def io_file_open(self, path):
-        return py.io.BytesIO(self.io_file_get(path))
+        f = self.dirty_files.get(path, absent)
+        if f is None:
+            raise IOError()
+        if f is absent:
+            return py.io.BytesIO(self.io_file_get(path))
+        f.seek(0)
+        return f
 
     def io_file_get(self, path):
         assert not os.path.isabs(path)
+        f = self.dirty_files.get(path, absent)
+        if f is None:
+            raise IOError()
+        elif f is not absent:
+            pos = f.tell()
+            f.seek(0)
+            content = f.read()
+            f.seek(pos)
+            return content
         q = "SELECT data FROM files WHERE path = :path"
         res = self.fetchscalar(q, path=path)
         if res is None:
@@ -162,13 +196,22 @@ class Connection:
 
     def io_file_size(self, path):
         assert not os.path.isabs(path)
+        f = self.dirty_files.get(path, absent)
+        if f is None:
+            raise IOError()
+        elif f is not absent:
+            pos = f.tell()
+            size = f.seek(0, 2)
+            f.seek(pos)
+            return size
         q = "SELECT size FROM files WHERE path = :path"
         return self.fetchscalar(q, path=path)
 
     def io_file_delete(self, path):
         assert not os.path.isabs(path)
-        q = "DELETE FROM files WHERE path = :path"
-        self._sqlconn.run(q, path=path)
+        f = self.dirty_files.pop(path, None)
+        if f is not None:
+            f.close()
         self.dirty_files[path] = None
 
     def get_raw_changelog_entry(self, serial):
@@ -211,8 +254,48 @@ class Connection:
     def write_transaction(self):
         return Writer(self.storage, self)
 
+    def _file_write(self, path, f):
+        assert not os.path.isabs(path)
+        assert not path.endswith("-tmp")
+        q = """
+            INSERT INTO files(path, size, data)
+                VALUES (:path, :size, :data);"""
+        f.seek(0)
+        content = f.read()
+        f.close()
+        self._sqlconn.run(
+            q, path=path, size=len(content), data=pg8000.Binary(content))
+
+    def _file_delete(self, path):
+        assert not os.path.isabs(path)
+        assert not path.endswith("-tmp")
+        q = "DELETE FROM files WHERE path = :path"
+        self._sqlconn.run(q, path=path)
+
+    def _lock(self):
+        q = 'SELECT pg_advisory_xact_lock(1);'
+        self._sqlconn.run(q)
+
+    def _write_dirty_files(self):
+        for path, f in self.dirty_files.items():
+            if f is None:
+                self._file_delete(path)
+            else:
+                # delete first to avoid conflict
+                self._file_delete(path)
+                self._file_write(path, f)
+        self.dirty_files.clear()
+
     def commit_files_without_increasing_serial(self):
-        self.commit()
+        self.begin()
+        try:
+            self._lock()
+            self._write_dirty_files()
+        except BaseException:
+            self.rollback()
+            raise
+        else:
+            self.commit()
 
 
 class Storage:
@@ -298,9 +381,6 @@ class Storage:
             timeout=60)
         sqlconn.text_factory = bytes
         conn = Connection(sqlconn, self)
-        if write:
-            q = 'SELECT pg_advisory_xact_lock(1);'
-            conn._sqlconn.run(q)
         if closing:
             return contextlib.closing(conn)
         return conn
@@ -392,6 +472,7 @@ class Writer:
 
     def __enter__(self):
         self.conn.begin()
+        self.conn._lock()
         q = """SELECT nextval('changelog_serial_seq');"""
         self.commit_serial = self.conn.fetchscalar(q)
         self.log = thread_push_log("fswriter%s:" % self.commit_serial)
@@ -403,6 +484,7 @@ class Writer:
         try:
             del self.commit_serial
             if cls is None:
+                self.conn._write_dirty_files()
                 for relpath, (keyname, back_serial, value) in self.changes.items():
                     if back_serial is None:
                         try:
