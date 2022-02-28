@@ -1,4 +1,5 @@
 from contextlib import closing
+from zope.interface import Attribute
 from zope.interface import Interface
 from zope.interface import classImplements
 from zope.interface.interface import adapter_hooks
@@ -6,6 +7,9 @@ from zope.interface.verify import verifyObject
 
 
 class IStorageConnection(Interface):
+    last_changelog_serial = Attribute("""
+        Like db_read_last_changelog_serial, but cached on the class. """)
+
     def db_read_last_changelog_serial():
         """ Return last stored serial.
             Returns -1 if nothing is stored yet. """
@@ -41,6 +45,13 @@ class IStorageConnection(Interface):
 
     def io_file_size(path):
         """ Returns the size of the file at path. """
+
+    def commit_files_without_increasing_serial():
+        """ Writes any files which have been changed without
+            increasing the serial. """
+
+    def write_transaction():
+        """ Returns a context providing class with a record_set method. """
 
 
 class IStorageConnection2(IStorageConnection):
