@@ -1,0 +1,1 @@
+Stream files directly through database connection using ``COPY``.
