@@ -177,7 +177,7 @@ class FSWriter:
         self.conn = conn
         self.storage = storage
         self.changes = {}
-        self.next_serial = conn.last_changelog_serial + 1
+        self.commit_serial = conn.last_changelog_serial + 1
 
     def record_set(self, typedkey, value=None, back_serial=None):
         """ record setting typedkey to value (None means it's deleted) """
@@ -187,18 +187,18 @@ class FSWriter:
                 _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
             except KeyError:
                 back_serial = -1
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.next_serial)
+        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.commit_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
     def __enter__(self):
-        self.log = thread_push_log("fswriter%s:" % self.next_serial)
+        self.log = thread_push_log("fswriter%s:" % self.commit_serial)
         return self
 
     def __exit__(self, cls, val, tb):
-        commit_serial = self.next_serial
+        commit_serial = self.commit_serial
         thread_pop_log("fswriter%s:" % commit_serial)
         if cls is None:
             pending_renames = write_dirty_files(self.conn.dirty_files)
@@ -230,7 +230,7 @@ class FSWriter:
             make_rel_renames(basedir, pending_renames)
         )
         entry = self.changes, rel_renames
-        self.conn.write_changelog_entry(self.next_serial, entry)
+        self.conn.write_changelog_entry(self.commit_serial, entry)
         self.conn.commit()
 
         # If we crash in the remainder, the next restart will

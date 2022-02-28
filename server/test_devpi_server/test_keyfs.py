@@ -679,8 +679,8 @@ class TestSubscriber:
 
         # directly  modify the database without keyfs-transaction machinery
         with keyfs._storage.get_connection(write=True) as conn:
-            conn.write_changelog_entry(wait_serial, [{}, ()])
-            conn.commit()
+            with conn.write_transaction():
+                pass
 
         # check wait_tx_serial() call from the thread returned True
         assert queue.get() == True

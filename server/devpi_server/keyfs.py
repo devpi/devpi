@@ -715,7 +715,10 @@ class Transaction(object):
                     val = self.cache.get(typedkey)
                     # None signals deletion
                     fswriter.record_set(typedkey, val)
-                commit_serial = self.conn.last_changelog_serial + 1
+                commit_serial = getattr(fswriter, "commit_serial", notset)
+                if commit_serial is notset:
+                    # for storages which don't have the attribute yet
+                    commit_serial = self.conn.last_changelog_serial + 1
         finally:
             self._close()
         self.commit_serial = commit_serial
