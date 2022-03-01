@@ -15,8 +15,9 @@ from .fileutil import loads
 from .interfaces import IStorageConnection2
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
-from .readonly import get_mutable_deepcopy, ensure_deeply_readonly, \
-                      is_deeply_readonly
+from .readonly import ensure_deeply_readonly
+from .readonly import get_mutable_deepcopy
+from .readonly import is_deeply_readonly
 from .filestore import FileEntry
 from .fileutil import read_int_from_file, write_int_to_file
 import attr
@@ -433,7 +434,7 @@ class PTypedKey:
         self.keyfs.notifier.on_key_change(self.name, callback)
 
     def __repr__(self):
-        return "<PTypedKey %r type %r>" %(self.pattern, self.type.__name__)
+        return f"<PTypedKey {self.pattern!r} type {self.type.__name__!r}>"
 
 
 class KeyChangeEvent:
@@ -461,7 +462,7 @@ class TypedKey:
         return self.relpath == other.relpath
 
     def __repr__(self):
-        return "<TypedKey %r type %r>" %(self.relpath, self.type.__name__)
+        return f"<TypedKey {self.relpath!r} type {self.type.__name__!r}>"
 
     def get(self, readonly=True):
         return self.keyfs.tx.get(self, readonly=readonly)
@@ -485,9 +486,9 @@ class TypedKey:
 
     def set(self, val):
         if not isinstance(val, self.type):
-            raise TypeError("%r requires value of type %r, got %r" %(
-                            self.relpath, self.type.__name__,
-                            type(val).__name__))
+            raise TypeError(
+                "%r requires value of type %r, got %r" % (
+                    self.relpath, self.type.__name__, type(val).__name__))
         self.keyfs.tx.set(self, val)
 
     def exists(self):

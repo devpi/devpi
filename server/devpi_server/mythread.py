@@ -63,7 +63,7 @@ class ThreadPool:
             self.start_one(obj)
 
     def start_one(self, obj):
-        assert hasattr(obj, "thread"), "no thread registered for %s" %(obj,)
+        assert hasattr(obj, "thread"), f"no thread registered for {obj}"
         if hasattr(obj, "thread_shutdown"):
             self._shutdown_funcs.append(obj.thread_shutdown)
         obj.thread.start()

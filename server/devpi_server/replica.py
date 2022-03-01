@@ -171,8 +171,9 @@ class MasterChangelogRequest:
             raise HTTPBadRequest(msg)
 
         if expected_uuid and expected_uuid != master_uuid:
-            threadlog.error("expected %r as master_uuid, replica sent %r", master_uuid,
-                      expected_uuid)
+            threadlog.error(
+                "expected %r as master_uuid, replica sent %r",
+                master_uuid, expected_uuid)
             raise HTTPBadRequest(
                 "expected %s as master_uuid, replica sent %s" %
                 (master_uuid, expected_uuid))
@@ -821,14 +822,16 @@ class FileReplicationThread:
         if r.status_code == 302:
             # mirrors might redirect to external file when
             # mirror_use_external_urls is set
-            threadlog.warn("ignoring because of redirection to external URL: %s",
-                           relpath)
+            threadlog.info(
+                "ignoring because of redirection to external URL: %s",
+                relpath)
             self.shared_data.errors.remove(entry)
             return
         if r.status_code == 410:
             # master indicates Gone for files which were later deleted
-            threadlog.warn("ignoring because of later deletion: %s",
-                           relpath)
+            threadlog.info(
+                "ignoring because of later deletion: %s",
+                relpath)
             self.shared_data.errors.remove(entry)
             return
 

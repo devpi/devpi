@@ -1518,7 +1518,7 @@ class LinkStore:
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
         links = self.get_links(entrypath=for_entrypath)
-        assert len(links) == 1, "need exactly one reference, got %s" %(links,)
+        assert len(links) == 1, f"need exactly one reference, got {links}"
         base_entry = links[0].entry
         other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
         timestamp = strftime("%Y%m%d%H%M%S", gmtime())
@@ -1616,10 +1616,10 @@ def normalize_bases(model, bases):
         try:
             stage_base = model.getstage(base)
         except ValueError:
-            messages.append("invalid base index spec: %r" % (base,))
+            messages.append(f"invalid base index spec: {base!r}")
         else:
             if stage_base is None:
-                messages.append("base index %r does not exist" %(base,))
+                messages.append(f"base index {base!r} does not exist")
             else:
                 newbases.append(stage_base.name)
     if messages:

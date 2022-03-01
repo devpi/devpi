@@ -97,7 +97,7 @@ class RootFactory(object):
             version = self.version
         if perstage:
             get = self.stage.get_versiondata_perstage
-            msg = " on stage %r" %(self.index,)
+            msg = f" on stage {self.index!r}"
         else:
             get = self.stage.get_versiondata
             msg = ""
@@ -106,9 +106,10 @@ class RootFactory(object):
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         if not verdata:
-            abort(self.request, 404,
-                  "The version %s of project %s does not exist%s." %
-                               (self.version, project, msg))
+            abort(
+                self.request, 404,
+                "The version %s of project %s does not exist%s." % (
+                    self.version, project, msg))
         return verdata
 
     def list_versions(self, project=None, perstage=False):
@@ -122,7 +123,7 @@ class RootFactory(object):
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         if not res and not self.stage.has_project(project):
-            abort(self.request, 404, "no project %r" %(project))
+            abort(self.request, 404, f"no project {project!r}")
         return res
 
     @cached_property
@@ -150,7 +151,7 @@ class RootFactory(object):
         name = self.project
         try:
             if not self.stage.has_project(name):
-                abort(self.request, 404, "The project %s does not exist." %(name))
+                abort(self.request, 404, f"The project {name} does not exist.")
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         return name
