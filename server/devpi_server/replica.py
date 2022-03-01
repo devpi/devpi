@@ -173,8 +173,9 @@ class MasterChangelogRequest:
         if expected_uuid and expected_uuid != master_uuid:
             threadlog.error("expected %r as master_uuid, replica sent %r", master_uuid,
                       expected_uuid)
-            raise HTTPBadRequest("expected %s as master_uuid, replica sent %s" %
-                                 (master_uuid, expected_uuid))
+            raise HTTPBadRequest(
+                "expected %s as master_uuid, replica sent %s" %
+                (master_uuid, expected_uuid))
 
         identity = self.request.identity
         if identity is not None and not isinstance(identity, ReplicaIdentity):
@@ -241,10 +242,10 @@ class MasterChangelogRequest:
                 all_changes.append((serial, changes))
                 now = time.time()
                 if raw_size > self.MAX_REPLICA_CHANGES_SIZE:
-                    threadlog.debug('Changelog raw size %s' % raw_size)
+                    threadlog.debug('Changelog raw size %s', raw_size)
                     break
                 if (now - start_time) > (self.REPLICA_MULTIPLE_TIMEOUT):
-                    threadlog.debug('Changelog timeout %s' % raw_size)
+                    threadlog.debug('Changelog timeout %s', raw_size)
                     break
             raw_entry = dumps(all_changes)
             r = Response(body=raw_entry, status=200, headers={
@@ -315,7 +316,7 @@ class ReplicaThread:
             keyfs.subscribe_on_import(key, self.shared_data.on_import)
         self.file_replication_threads = []
         num_threads = xom.config.file_replication_threads
-        threadlog.info("Using %s file download threads." % num_threads)
+        threadlog.info("Using %s file download threads.", num_threads)
         for i in range(num_threads):
             frt = FileReplicationThread(xom, self.shared_data)
             self.file_replication_threads.append(frt)
@@ -360,7 +361,7 @@ class ReplicaThread:
             if serial < self._master_serial:
                 self.log.error(
                     "Got serial %s from master which is smaller than last "
-                    "recorded serial %s." % (serial, self._master_serial))
+                    "recorded serial %s.", serial, self._master_serial)
             return
         self._master_serial = serial
         self._master_serial_timestamp = now
@@ -525,7 +526,7 @@ class ReplicaThread:
                     last_time = time.time()
                     qsize = self.shared_data.queue.qsize()
                     if qsize:
-                        threadlog.info("File download queue size ~ %s" % qsize)
+                        threadlog.info("File download queue size ~ %s", qsize)
             except mythread.Shutdown:
                 raise
             except:
@@ -837,15 +838,15 @@ class FileReplicationThread:
                 stage = self.xom.model.getstage(stagename)
             if stage.ixconfig['type'] == 'mirror':
                 threadlog.warn(
-                    "ignoring file which couldn't be retrieved from mirror index '%s': %s" % (
-                        stagename, relpath))
+                    "ignoring file which couldn't be retrieved from mirror index '%s': %s",
+                    stagename, relpath)
                 self.shared_data.errors.remove(entry)
                 return
 
         if r.status_code != 200:
             threadlog.error(
-                "error downloading '%s' from master, will be retried later: "
-                "%s" % (relpath, r.reason))
+                "error downloading '%s' from master, will be retried later: %s",
+                relpath, r.reason)
             # add the error for the UI
             self.shared_data.errors.add(dict(
                 url=r.url,
@@ -859,8 +860,9 @@ class FileReplicationThread:
             # the file we got is different, it may have changed later.
             # we remember the error and move on
             threadlog.error(
-                "checksum mismatch for '%s', will be retried later: "
-                "%s" % (relpath, r.reason))
+                "checksum mismatch for '%s', will be retried later: %s",
+                relpath, r.reason)
+
             self.shared_data.errors.add(dict(
                 url=r.url,
                 message=str(err),
@@ -967,8 +969,8 @@ class InitialQueueThread(object):
                 if time.time() - last_time > 5:
                     last_time = time.time()
                     threadlog.info(
-                        "Processed a total of %s files and queued %s so far."
-                        % (processed, queued))
+                        "Processed a total of %s files and queued %s so far.",
+                        processed, queued)
                 processed = processed + 1
                 key = keyfs.get_key_instance(item.keyname, item.relpath)
                 entry = FileEntry(key, item.value)
@@ -982,8 +984,8 @@ class InitialQueueThread(object):
                     item.keyname, item.value, item.back_serial))
                 queued = queued + 1
         threadlog.info(
-            "Queued %s of %s files for possible download from master"
-            % (queued, processed))
+            "Queued %s of %s files for possible download from master",
+            queued, processed)
 
 
 class SimpleLinksChanged:
