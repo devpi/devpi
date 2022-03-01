@@ -569,11 +569,6 @@ class FileReplicationSharedData(object):
         self.last_processed = None
 
     def on_import(self, conn, serial, key, val, back_serial):
-        # Do not queue anything until we have been in sync for the first
-        # time. The InitialQueueThread will queue in one go on initial sync
-        with self._replica_in_sync_cv:
-            if self.xom.replica_thread.replica_in_sync_at is None:
-                return
         try:
             is_from_mirror = self.is_from_mirror(key)
         except KeyError:
@@ -581,6 +576,15 @@ class FileReplicationSharedData(object):
                 key.params['user'], key.params['index'])
             self.index_types.put(stage.name, stage.ixconfig['type'])
             is_from_mirror = self.is_from_mirror(key)
+        if self.xom.replica_thread.replica_in_sync_at is None:
+            # Don't queue files from mirrors until we have been in sync first.
+            # The InitialQueueThread will queue in one go on initial sync
+            if is_from_mirror:
+                return
+            # let the queue be processed before filling it further
+            if self.queue.qsize() > 50000:
+                return
+
         # note the negated serial for the PriorityQueue
         self.queue.put((
             is_from_mirror, -serial, key.relpath, key.name, val, back_serial))
