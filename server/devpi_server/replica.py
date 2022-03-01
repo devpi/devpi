@@ -349,12 +349,12 @@ class ReplicaThread:
     def get_master_serial_timestamp(self):
         return self._master_serial_timestamp
 
-    def update_master_serial(self, serial):
+    def update_master_serial(self, serial, update_sync=True):
         now = time.time()
         # record that we got a reply from the master, so we can produce status
         # information about the connection to master
         self.update_from_master_at = now
-        if self.xom.keyfs.get_current_serial() == serial:
+        if update_sync and self.xom.keyfs.get_current_serial() == serial:
             with self.shared_data._replica_in_sync_cv:
                 self.replica_in_sync_at = now
                 self.shared_data._replica_in_sync_cv.notify_all()
@@ -487,6 +487,7 @@ class ReplicaThread:
                         serial = load(stream)
                         (changes, rel_renames) = load(stream)
                         self.xom.keyfs.import_changes(serial, changes)
+                        self.update_master_serial(serial, update_sync=False)
                 except StopIteration:
                     pass
                 except EOFError:
@@ -495,6 +496,7 @@ class ReplicaThread:
             all_changes = loads(response.content)
             for serial, changes in all_changes:
                 self.xom.keyfs.import_changes(serial, changes)
+                self.update_master_serial(serial, update_sync=False)
 
     def fetch_multi(self, serial):
         url = self.master_url.joinpath("+changelog", "%s-" % serial).url
