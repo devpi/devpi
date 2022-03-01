@@ -103,7 +103,7 @@ def do_import(path, xom):
     tw = py.io.TerminalWriter()
 
     if not path.check():
-        fatal("path for importing not found: %s" %(path))
+        fatal(f"path for importing not found: {path}")
 
     with xom.keyfs.transaction(write=False):
         if has_users_or_stages(xom):
@@ -222,8 +222,8 @@ class Exporter:
 
         writedata = json.dumps(data, indent=2, default=handle_readonly)
         path.dirpath().ensure(dir=1)
-        self.tw.line("writing %s, length %s" %(path.relto(self.basepath),
-                                               len(writedata)))
+        self.tw.line(
+            f"writing {path.relto(self.basepath)}, length {len(writedata)}")
         path.write(writedata)
 
 
@@ -309,7 +309,7 @@ class IndexDump:
         d["projectname"] = project
         d["relpath"] = relpath
         self.indexmeta["files"].append(d)
-        self.exporter.completed("%s: %s " %(type, relpath))
+        self.exporter.completed(f"{type}: {relpath} ")
 
     def dump_docfile(self, project, version, entry):
         relpath = self.exporter.copy_file(
@@ -328,7 +328,7 @@ class Importer:
         self.types_to_skip = set(self.xom.config.skip_import_type or [])
 
     def read_json(self, path):
-        self.tw.line("reading json: %s" %(path,))
+        self.tw.line(f"reading json: {path}")
         return json.loads(path.read())
 
     def warn(self, msg):
@@ -402,7 +402,7 @@ class Importer:
         self.import_data = self.read_json(json_path)
         self.dumpversion = self.import_data["dumpversion"]
         if self.dumpversion not in ("1", "2"):
-            fatal("incompatible dumpversion: %r" %(self.dumpversion,))
+            fatal(f"incompatible dumpversion: {self.dumpversion!r}")
         uuid = self.import_data.get("uuid")
         if uuid is not None:
             self.xom.config.set_uuid(uuid)

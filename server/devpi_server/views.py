@@ -162,7 +162,7 @@ def tween_request_logging(handler, registry):
     nodeinfo = registry["xom"].config.nodeinfo
 
     def request_log_handler(request):
-        tag = "[req%s]" %(next(req_count))
+        tag = f"[req{next(req_count)}]"
         log = thread_push_log(tag)
         try:
             request.log = log
@@ -841,15 +841,16 @@ class PyPIView:
         try:
             linkstore = stage.get_linkstore_perstage(name, version)
         except stage.MissesRegistration:
-            apireturn(400, "there are no files for %s-%s on stage %s" %(
-                           name, version, stage.name))
-        links = dict([(rel, linkstore.get_links(rel=rel))
-                        for rel in ('releasefile', 'doczip', 'toxresult')])
+            apireturn(400, "there are no files for %s-%s on stage %s" % (
+                name, version, stage.name))
+        links = dict([
+            (rel, linkstore.get_links(rel=rel))
+            for rel in ('releasefile', 'doczip', 'toxresult')])
         if not links["releasefile"]:
             self.log.info("%s: no release files for version %s-%s" %
                           (stage.name, name, version))
-            apireturn(404, message="no release/files found for %s-%s" %(
-                      name, version))
+            apireturn(404, message="no release/files found for %s-%s" % (
+                name, version))
 
         if not request.has_permission("pkg_read"):
             abort(request, 403, "package read forbidden")
@@ -867,8 +868,8 @@ class PyPIView:
             self.log.debug("targetindex %r, auth_user %r", targetindex,
                            auth_user)
             if not request.has_permission("upload", context=target_stage):
-                apireturn(401, message="user %r cannot upload to %r"
-                                      %(auth_user, targetindex))
+                apireturn(401, message="user %r cannot upload to %r" % (
+                    auth_user, targetindex))
             self._set_versiondata_dict(target_stage, metadata)
             results.append((200, "register", name, version,
                             "->", target_stage.name))
@@ -1095,8 +1096,9 @@ class PyPIView:
             if skip_missing and key not in form:
                 continue
             elif key in stage.metadata_list_fields:
-                val = [ensure_unicode(item)
-                        for item in form.getall(key) if item]
+                val = [
+                    ensure_unicode(item)
+                    for item in form.getall(key) if item]
             else:
                 val = form.get(key, "")
                 if val == "UNKNOWN":
@@ -1130,8 +1132,9 @@ class PyPIView:
             stage.set_versiondata(metadata)
         except ValueError as e:
             abort_submit(self.request, 400, "invalid metadata: %s" % (e,))
-        self.log.info("%s: got submit release info %r",
-                 stage.name, metadata["name"])
+        self.log.info(
+            "%s: got submit release info %r",
+            stage.name, metadata["name"])
 
     #
     #  per-project and version data
@@ -1177,8 +1180,8 @@ class PyPIView:
         project = self.context.project
         force = 'force' in self.request.params
         if not stage.ixconfig["volatile"] and not force:
-            apireturn(403, "project %r is on non-volatile index %s" %(
-                      project, stage.name))
+            apireturn(403, "project %r is on non-volatile index %s" % (
+                project, stage.name))
         try:
             stage.del_project(project)
         except KeyError:
@@ -1209,8 +1212,9 @@ class PyPIView:
                 links.append(linkdict)
         shadowing = view_verdata.pop("+shadowing", None)
         if shadowing:
-            view_verdata["+shadowing"] = \
-                    [self._make_view_verdata(x) for x in shadowing]
+            view_verdata["+shadowing"] = [
+                self._make_view_verdata(x)
+                for x in shadowing]
         return view_verdata
 
     @view_config(route_name="/{user}/{index}/{project}/{version}",
@@ -1429,8 +1433,8 @@ class PyPIView:
             apireturn(404, "user %r does not exist" % context.username)
         for name, ixconfig in userconfig.get("indexes", {}).items():
             if not ixconfig["volatile"]:
-                apireturn(403, "user %r has non-volatile index: %s" %(
-                               context.username, name))
+                apireturn(403, "user %r has non-volatile index: %s" % (
+                    context.username, name))
         context.user.delete()
         apireturn(200, "user %r deleted" % context.username)
 
@@ -1652,11 +1656,12 @@ def getjson(request):
 
 def abort_if_invalid_filename(request, name, filename):
     if not is_valid_archive_name(filename):
-        abort_submit(request, 400, "%r is not a valid archive name" %(filename))
+        abort_submit(request, 400, f"{filename!r} is not a valid archive name")
     if normalize_name(filename).startswith(normalize_name(name)):
         return
-    abort_submit(request, 400, "filename %r does not match project name %r"
-                      %(filename, name))
+    abort_submit(
+        request, 400, "filename %r does not match project name %r" % (
+            filename, name))
 
 
 def abort_if_invalid_project(request, project):

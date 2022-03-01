@@ -194,7 +194,7 @@ class FileEntry(object):
         return self.tx.conn.io_file_size(self._storepath)
 
     def __repr__(self):
-        return "<FileEntry %r>" %(self.key)
+        return f"<FileEntry {self.key!r}>"
 
     def file_open_read(self):
         return self.tx.conn.io_file_open(self._storepath)
