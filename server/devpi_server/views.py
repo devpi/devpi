@@ -347,9 +347,9 @@ def devpiweb_get_status_info(request):
             pass
         elif sync_at is None and last_processed is None and (now - status["last-commit-timestamp"]) > 300:
             msgs.append(dict(status="fatal", msg="The event processing doesn't seem to start"))
-        elif sync_at is None or (sync_at > 21600):
+        elif (sync_at is None and last_processed is None) or (sync_at is not None and sync_at > 21600):
             msgs.append(dict(status="fatal", msg="The event processing hasn't been in sync for more than 6 hours"))
-        elif sync_at > 3600:
+        elif sync_at is not None and sync_at > 3600:
             msgs.append(dict(status="warn", msg="The event processing hasn't been in sync for more than 1 hour"))
         if sync_at is not None and (last_processed is None or (last_processed > 1800)):
             msgs.append(dict(status="fatal", msg="No changes processed by plugins for more than 30 minutes"))
