@@ -180,6 +180,15 @@ class Connection:
         self.changes = {}
         self.storage = storage
         self._changelog_cache = storage._changelog_cache
+        threadlog.debug("Using use_copy=%r", storage.use_copy)
+        if storage.use_copy:
+            self.io_file_open = self._copy_io_file_open
+            self.io_file_get = self._copy_io_file_get
+            self._file_write = self._copy_file_write
+        else:
+            self.io_file_open = self._select_io_file_open
+            self.io_file_get = self._select_io_file_get
+            self._file_write = self._insert_file_write
 
     def close(self):
         if hasattr(self, "_sqlconn"):
@@ -286,7 +295,7 @@ class Connection:
         f.seek(0)
         self.dirty_files[path] = f
 
-    def io_file_open(self, path):
+    def _copy_io_file_open(self, path):
         dirty_file = self.dirty_files.get(path, absent)
         if dirty_file is None:
             raise IOError()
@@ -311,7 +320,7 @@ class Connection:
         f.close()
         raise IOError(f"File not found at '{path}'")
 
-    def io_file_get(self, path):
+    def _copy_io_file_get(self, path):
         assert not os.path.isabs(path)
         f = self.dirty_files.get(path, absent)
         if f is None:
@@ -322,8 +331,40 @@ class Connection:
             content = f.read()
             f.seek(pos)
             return content
-        with self.io_file_open(path) as f:
-            return f.read()
+        with self._copy_io_file_open(path) as f:
+            res = f.read()
+            return res
+
+    def _select_io_file_open(self, path):
+        dirty_file = self.dirty_files.get(path, absent)
+        if dirty_file is None:
+            raise IOError()
+        if dirty_file is absent:
+            return BytesIO(self._select_io_file_get(path))
+        f = SpooledTemporaryFile()
+        # we need a new file to prevent the dirty_file from being closed
+        dirty_file.seek(0)
+        shutil.copyfileobj(dirty_file, f)
+        dirty_file.seek(0)
+        f.seek(0)
+        return f
+
+    def _select_io_file_get(self, path):
+        assert not os.path.isabs(path)
+        f = self.dirty_files.get(path, absent)
+        if f is None:
+            raise IOError()
+        elif f is not absent:
+            pos = f.tell()
+            f.seek(0)
+            content = f.read()
+            f.seek(pos)
+            return content
+        q = "SELECT data FROM files WHERE path = :path"
+        res = self.fetchscalar(q, path=path)
+        if res is None:
+            raise IOError()
+        return res
 
     def io_file_size(self, path):
         assert not os.path.isabs(path)
@@ -385,7 +426,7 @@ class Connection:
     def write_transaction(self):
         return Writer(self.storage, self)
 
-    def _file_write(self, path, f):
+    def _copy_file_write(self, path, f):
         assert not os.path.isabs(path)
         assert not path.endswith("-tmp")
         q = """
@@ -394,6 +435,18 @@ class Connection:
         self._sqlconn.run(
             q, stream=FileOut(path, f))
         f.close()
+
+    def _insert_file_write(self, path, f):
+        assert not os.path.isabs(path)
+        assert not path.endswith("-tmp")
+        q = """
+            INSERT INTO files(path, size, data)
+                VALUES (:path, :size, :data);"""
+        f.seek(0)
+        content = f.read()
+        f.close()
+        self._sqlconn.run(
+            q, path=path, size=len(content), data=pg8000.Binary(content))
 
     def _file_delete(self, path):
         assert not os.path.isabs(path)
@@ -427,6 +480,18 @@ class Connection:
             self.commit()
 
 
+def as_bool(value):
+    if isinstance(value, bool):
+        return value
+    if not hasattr(value, "lower"):
+        raise ValueError("Unknown boolean value %r." % value)
+    if value.lower() in ["false", "no"]:
+        return False
+    if value.lower() in ["true", "yes"]:
+        return True
+    raise ValueError("Unknown boolean value '%s'." % value)
+
+
 class Storage:
     SSL_OPT_KEYS = ("ssl_check_hostname", "ssl_ca_certs", "ssl_certfile", "ssl_keyfile")
     database = "devpi"
@@ -435,6 +500,7 @@ class Storage:
     unix_sock = None
     user = "devpi"
     password = None
+    use_copy = True
     ssl_context = None
     expected_schema = dict(
         index=dict(
@@ -489,6 +555,8 @@ class Storage:
             if check_hostname is not None and not ensure_boolean(check_hostname):
                 ssl_context.check_hostname = False
 
+        self.use_copy = as_bool(settings.get("use_copy", os.environ.get(
+            "DEVPI_PG_USE_COPY", self.use_copy)))
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
         self._changelog_cache = LRUCache(cache_size)  # is thread safe

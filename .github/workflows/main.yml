@@ -328,6 +328,10 @@ jobs:
           #   os: "ubuntu-latest"
           #   tox-envs: "py37-server_postgresql_ssl"
           - project: "postgresql"
+            python-version: "3.7"
+            os: "ubuntu-latest"
+            tox-envs: "py37-dont_use_copy-server"
+          - project: "postgresql"
             python-version: "3.10"
             os: "ubuntu-latest"
             tox-envs: "py310-postgresql"
@@ -399,6 +403,10 @@ jobs:
             python-version: "pypy-3.7"
             os: "ubuntu-latest"
             tox-envs: "pypy3-web"
+          - project: "postgresql"
+            python-version: "3.7"
+            os: "ubuntu-latest"
+            tox-envs: "py37-dont_use_copy-web"
 
     env:
       PY_COLORS: 1
