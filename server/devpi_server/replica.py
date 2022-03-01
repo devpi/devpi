@@ -20,6 +20,7 @@ from webob.headers import EnvironHeaders, ResponseHeaders
 
 from . import mythread
 from .config import hookimpl
+from .exceptions import lazy_format_exception
 from .filestore import FileEntry
 from .fileutil import buffered_iterator
 from .fileutil import BytesForHardlink, dumps, load, loads
@@ -649,8 +650,8 @@ class FileReplicationSharedData(object):
             handler(is_from_mirror, serial, key, keyname, value, back_serial)
         except Exception as e:
             threadlog.warn(
-                "Error during file replication: %s" % ''.join(
-                    traceback.format_exception_only(e.__class__, e)).strip())
+                "Error during file replication for %s: %s",
+                key, lazy_format_exception(e))
             self.add_errored(is_from_mirror, serial, key, keyname, value, back_serial)
         finally:
             self.queue.task_done()
