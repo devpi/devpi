@@ -264,7 +264,7 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
 class TestUploadFunctional:
     @pytest.mark.parametrize("projname_version", [
         "hello-1.0", "my-pkg-123-1.0"])
-    def test_all(self, initproj, devpi, out_devpi, projname_version):
+    def test_dry_run(self, initproj, devpi, out_devpi, projname_version):
         initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
             "contents.rst": "",
@@ -289,21 +289,39 @@ class TestUploadFunctional:
             built:*
             skipped: doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
-        out = out_devpi("upload", "--with-docs", code=[200,200,200])
+
+    @pytest.mark.parametrize("projname_version", [
+        "hello-1.0", "my-pkg-123-1.0"])
+    def test_with_docs(self, initproj, devpi, out_devpi, projname_version):
+        initproj(projname_version.rsplit("-", 1), {"doc": {
+            "conf.py": "#nothing",
+            "contents.rst": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        out = out_devpi("upload", "--with-docs", code=[200, 200, 200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             file_upload of {projname_version}.*
             doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
-        out = out_devpi("upload", "--formats", "sdist.zip", code=[200,200])
+
+    @pytest.mark.parametrize("projname_version", [
+        "hello-1.0", "my-pkg-123-1.0"])
+    def test_formats(self, initproj, devpi, out_devpi, projname_version):
+        initproj(projname_version.rsplit("-", 1), {"doc": {
+            "conf.py": "#nothing",
+            "contents.rst": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+        out = out_devpi("upload", "--formats", "sdist.zip", code=[200, 200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             file_upload of {projname_version}.zip*
             """.format(projname_version=projname_version))
 
-        print("*"*80)
+        print("*" * 80)
         out = out_devpi("upload", "--formats", "sdist.zip,bdist_wheel",
                         code=[200, 200, 200, 200])
         out.stdout.fnmatch_lines_random("""
@@ -313,6 +331,14 @@ class TestUploadFunctional:
                        projname_version_norm=projname_version.replace("-", "*")
                        ))
 
+    @pytest.mark.parametrize("projname_version", [
+        "hello-1.0", "my-pkg-123-1.0"])
+    def test_other_stuff(self, initproj, devpi, out_devpi, projname_version):
+        initproj(projname_version.rsplit("-", 1), {"doc": {
+            "conf.py": "#nothing",
+            "contents.rst": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
         # remember username
         out = out_devpi("use")
         user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
