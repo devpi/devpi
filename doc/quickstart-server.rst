@@ -39,11 +39,11 @@ Using a configuration file for devpi-server
 
 A `strict YAML`_ conform configuration file can be used in place of the command line options.
 
-A configuration file named ``devpi-server.yml`` will be looked for in your systems and your users default configuration location using the `appdirs`_ library.
+A configuration file named ``devpi-server.yml`` will be looked for in your systems and your users default configuration location using the `platformdirs`_ library.
 
 .. note::
 
-    For ``appdirs`` the application name is ``devpi-server``, and the application author is ``devpi``.
+    For ``platformdirs`` the application name is ``devpi-server``, and the application author is ``devpi``.
     Thus, for example, on Linux the user configuration file would be ``~/.config/devpi-server/devpi-server.yml``.
 
 With the `-c/--configfile` option the location can be provided explicitly.
@@ -60,7 +60,7 @@ For example:
       port: 8080
 
 .. _`strict YAML`: https://pypi.org/project/strictyaml/
-.. _`appdirs`: https://pypi.org/project/appdirs/
+.. _`platformdirs`: https://pypi.org/project/platformdirs/
 
 
 Using environment variables for devpi-server configuration

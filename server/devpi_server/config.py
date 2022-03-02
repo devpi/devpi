@@ -418,12 +418,12 @@ def get_parser(pluginmanager):
 
 
 def find_config_file():
-    import appdirs
-    config_dirs = appdirs.site_config_dir(
+    import platformdirs
+    config_dirs = platformdirs.site_config_dir(
         'devpi-server', 'devpi', multipath=True)
     config_dirs = config_dirs.split(os.pathsep)
     config_dirs.append(
-        appdirs.user_config_dir('devpi-server', 'devpi'))
+        platformdirs.user_config_dir('devpi-server', 'devpi'))
     config_files = []
     for config_dir in config_dirs:
         config_file = os.path.join(config_dir, 'devpi-server.yml')
