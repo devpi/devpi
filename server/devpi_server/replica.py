@@ -1079,8 +1079,8 @@ class InitialQueueThread(object):
                 if time.time() - last_time > 5:
                     last_time = time.time()
                     threadlog.info(
-                        "Processed a total of %s files and queued %s so far.",
-                        processed, queued)
+                        "Processed a total of %s files (serial %s/%s) and queued %s so far.",
+                        processed, tx.at_serial - item.serial, tx.at_serial, queued)
                 processed = processed + 1
                 key = keyfs.get_key_instance(item.keyname, item.relpath)
                 entry = FileEntry(key, item.value)

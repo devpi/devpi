@@ -53,8 +53,8 @@ def fsck():
                 if time.time() - last_time > 5:
                     last_time = time.time()
                     log.info(
-                        "Processed a total of %s files so far."
-                        % processed)
+                        "Processed a total of %s files (serial %s/%s) so far."
+                        % (processed, tx.at_serial - item.serial, tx.at_serial))
                 processed = processed + 1
                 key = keyfs.get_key_instance(item.keyname, item.relpath)
                 entry = FileEntry(key, item.value)
