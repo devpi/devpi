@@ -870,7 +870,7 @@ class FileReplicationThread:
                 with keyfs._storage.get_connection(write=True) as conn:
                     # file was deleted, still might never have been replicated
                     if conn.io_file_exists(entry._storepath):
-                        threadlog.debug("mark for deletion: %s", entry._storepath)
+                        threadlog.info("mark for deletion: %s", relpath)
                         conn.io_file_delete(entry._storepath)
                         conn.commit_files_without_increasing_serial()
                 self.shared_data.errors.remove(entry)
