@@ -1037,19 +1037,9 @@ class FileReplicationThread:
 
     def thread_run(self):
         thread_push_log("[FREP]")
-        last_time = time.time()
-        master_serial = None
-        serial = -1
         while 1:
             try:
                 self.tick()
-                if time.time() - last_time > 5:
-                    last_time = time.time()
-                    master_serial = self.xom.replica_thread.get_master_serial()
-                    serial = self.xom.keyfs.get_current_serial()
-                if master_serial is not None and serial < master_serial:
-                    # be nice to get metadata in sync first
-                    self.thread.sleep(5)
             except mythread.Shutdown:
                 raise
             except Exception:
