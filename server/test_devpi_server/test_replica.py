@@ -1022,37 +1022,50 @@ class TestFileReplicationSharedData:
         # allow on_import to run right away, so we don't need to rely
         # on the initial import thread for tests
         replica_xom.replica_thread.replica_in_sync_at = 0
-        return FileReplicationSharedData(replica_xom)
+        shared_data = FileReplicationSharedData(replica_xom)
+        # No waiting on empty queues
+        shared_data.QUEUE_TIMEOUT = 0.1
+        return shared_data
 
     def test_mirror_priority(self, shared_data):
+        from itertools import permutations
         result = []
 
         mirror_file = 'root/pypi/+f/3f8/3058ac9076112/pytest-2.0.0.zip'
         stage_file = 'root/dev/+f/274/e88b0b3d028fe/pytest-2.1.0.zip'
+        deleted_file = 'root/dev1/+f/274/e88b0b3d028fe/pytest-2.2.0.zip'
         # set the index_types cache to prevent db access
-        shared_data.index_types.put('root/pypi', 'mirror')
-        shared_data.index_types.put('root/dev', 'stage')
+        shared_data.set_index_type_for('root/pypi', 'mirror')
+        shared_data.set_index_type_for('root/dev', 'stage')
+        shared_data.set_index_type_for('root/dev1', None)
 
-        def handler(is_from_mirror, serial, key, keyname, value, back_serial):
+        def handler(index_type, serial, key, keyname, value, back_serial):
             result.append(key)
         # Regardless of the serial or add order, the stage should come first
-        cases = [
-            ((mirror_file, 0), (stage_file, 0)),
-            ((mirror_file, 1), (stage_file, 0)),
-            ((mirror_file, 0), (stage_file, 1)),
-            ((stage_file, 0), (mirror_file, 0)),
-            ((stage_file, 1), (mirror_file, 0)),
-            ((stage_file, 0), (mirror_file, 1))]
-        for (relpath1, serial1), (relpath2, serial2) in cases:
+        cases = []
+        cases.extend(permutations(((mirror_file, 0), (stage_file, 0), (deleted_file, 0))))
+        cases.extend(permutations(((mirror_file, 1), (stage_file, 0), (deleted_file, 0))))
+        cases.extend(permutations(((mirror_file, 0), (stage_file, 1), (deleted_file, 0))))
+        cases.extend(permutations(((mirror_file, 0), (stage_file, 0), (deleted_file, 1))))
+        cases.extend(permutations(((mirror_file, 0), (stage_file, 1), (deleted_file, 2))))
+        cases.extend(permutations(((mirror_file, 0), (stage_file, 2), (deleted_file, 1))))
+        cases.extend(permutations(((mirror_file, 1), (stage_file, 0), (deleted_file, 2))))
+        cases.extend(permutations(((mirror_file, 1), (stage_file, 2), (deleted_file, 0))))
+        cases.extend(permutations(((mirror_file, 2), (stage_file, 0), (deleted_file, 1))))
+        cases.extend(permutations(((mirror_file, 2), (stage_file, 1), (deleted_file, 0))))
+        for (relpath1, serial1), (relpath2, serial2), (relpath3, serial3) in cases:
             key1 = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath1)
             key2 = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath2)
+            key3 = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath3)
             shared_data.on_import(None, serial1, key1, None, -1)
             shared_data.on_import(None, serial2, key2, None, -1)
-            assert shared_data.queue.qsize() == 2
+            shared_data.on_import(None, serial3, key3, None, -1)
+            assert shared_data.queue.qsize() == 3
+            shared_data.process_next(handler)
             shared_data.process_next(handler)
             shared_data.process_next(handler)
             assert shared_data.queue.qsize() == 0
-            assert result == [stage_file, mirror_file]
+            assert result == [stage_file, mirror_file, deleted_file]
             result.clear()
 
     @pytest.mark.parametrize("index_type", ["mirror", "stage"])
@@ -1060,10 +1073,10 @@ class TestFileReplicationSharedData:
         relpath = 'root/dev/+f/274/e88b0b3d028fe/pytest-2.1.0.zip'
         key = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath)
         # set the index_types cache to prevent db access
-        shared_data.index_types.put('root/dev', 'stage')
+        shared_data.set_index_type_for('root/dev', 'stage')
         result = []
 
-        def handler(is_from_mirror, serial, key, keyname, value, back_serial):
+        def handler(index_type, serial, key, keyname, value, back_serial):
             result.append(serial)
 
         # Later serials come first
@@ -1081,7 +1094,7 @@ class TestFileReplicationSharedData:
         relpath = 'root/dev/+f/274/e88b0b3d028fe/pytest-2.1.0.zip'
         key = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath)
         # set the index_types cache to prevent db access
-        shared_data.index_types.put('root/dev', 'stage')
+        shared_data.set_index_type_for('root/dev', 'stage')
 
         next_ts_result = []
         handler_result = []
@@ -1092,12 +1105,10 @@ class TestFileReplicationSharedData:
             return orig_next_ts(delay)
         shared_data.next_ts = next_ts
 
-        def handler(is_from_mirror, serial, key, keyname, value, back_serial):
+        def handler(index_type, serial, key, keyname, value, back_serial):
             handler_result.append(key)
             raise ValueError
 
-        # No waiting on empty queues
-        shared_data.QUEUE_TIMEOUT = 0
         shared_data.on_import(None, 0, key, None, -1)
         assert shared_data.queue.qsize() == 1
         assert shared_data.error_queue.qsize() == 0
@@ -1139,3 +1150,25 @@ class TestFileReplicationSharedData:
         # or ERROR_QUEUE_MAX_DELAY is changed
         assert len(next_ts_result) == 17
         assert len(handler_result) == 17
+
+    def test_deleted_index(self, monkeypatch, shared_data):
+        from devpi_server.replica import IndexType
+        relpath = "root/dev/+f/274/e88b0b3d028fe/pytest-2.1.0.zip"
+        key = shared_data.xom.keyfs.get_key_instance("STAGEFILE", relpath)
+
+        result = []
+
+        def handler(index_type, serial, key, keyname, value, back_serial):
+            result.append((index_type, serial, key, keyname, value, back_serial))
+
+        # simulate deleted index
+        l = []
+        monkeypatch.setattr(
+            shared_data.xom.model, "getstage", lambda u, i: l.append((u, i)))
+        shared_data.on_import(None, 1, key, None, -1)
+        # it should still be queued to check master and get a 410 for sure
+        assert shared_data.queue.qsize() == 1
+        shared_data.process_next(handler)
+        ((index_type, serial, key, keyname, value, back_serial),) = result
+        assert index_type == IndexType(None)
+        assert key == relpath
