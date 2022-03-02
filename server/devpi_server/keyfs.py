@@ -394,7 +394,7 @@ class KeyFS(object):
         tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
             yield tx
-        except:
+        except BaseException:
             self.rollback_transaction_in_thread()
             raise
         self.commit_transaction_in_thread()

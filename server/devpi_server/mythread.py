@@ -20,7 +20,7 @@ class MyThread(threading.Thread):
             return threading.Thread.run(self)
         except self.pool.Shutdown:
             pass
-        except:
+        except BaseException:
             print_exc()
 
 

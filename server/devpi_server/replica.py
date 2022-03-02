@@ -529,7 +529,7 @@ class ReplicaThread:
                         threadlog.info("File download queue size ~ %s", qsize)
             except mythread.Shutdown:
                 raise
-            except:
+            except BaseException:
                 self.log.exception(
                     "Unhandled exception in replica thread.")
                 self.thread.sleep(1.0)
