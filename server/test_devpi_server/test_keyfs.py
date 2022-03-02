@@ -483,11 +483,13 @@ class TestTransactionIsolation:
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         l = []
-        new_keyfs.subscribe_on_import(pkey, lambda *args: l.append(args))
+        new_keyfs.subscribe_on_import(lambda *args: l.append(args))
         with keyfs.transaction() as tx:
             changes = tx.conn.get_changes(0)
         new_keyfs.import_changes(0, changes)
-        assert l[0][2:] == (new_keyfs.NAME(name="world"), {1:1}, -1)
+        ((serial, changes),) = l
+        assert serial == 0
+        assert changes == {new_keyfs.NAME(name="world"): ({1: 1}, -1)}
 
     def test_import_changes_subscriber_error(self, keyfs, storage, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
@@ -496,7 +498,7 @@ class TestTransactionIsolation:
             D.set({1:1})
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
-        new_keyfs.subscribe_on_import(pkey, lambda *args: 0/0)
+        new_keyfs.subscribe_on_import(lambda *args: 0/0)
         serial = new_keyfs.get_current_serial()
         with keyfs.transaction() as tx:
             changes = tx.conn.get_changes(0)

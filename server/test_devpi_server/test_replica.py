@@ -1057,9 +1057,9 @@ class TestFileReplicationSharedData:
             key1 = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath1)
             key2 = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath2)
             key3 = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath3)
-            shared_data.on_import(None, serial1, key1, None, -1)
-            shared_data.on_import(None, serial2, key2, None, -1)
-            shared_data.on_import(None, serial3, key3, None, -1)
+            shared_data.on_import_file(None, serial1, key1, None, -1)
+            shared_data.on_import_file(None, serial2, key2, None, -1)
+            shared_data.on_import_file(None, serial3, key3, None, -1)
             assert shared_data.queue.qsize() == 3
             shared_data.process_next(handler)
             shared_data.process_next(handler)
@@ -1080,9 +1080,9 @@ class TestFileReplicationSharedData:
             result.append(serial)
 
         # Later serials come first
-        shared_data.on_import(None, 1, key, None, -1)
-        shared_data.on_import(None, 100, key, None, -1)
-        shared_data.on_import(None, 10, key, None, -1)
+        shared_data.on_import_file(None, 1, key, None, -1)
+        shared_data.on_import_file(None, 100, key, None, -1)
+        shared_data.on_import_file(None, 10, key, None, -1)
         assert shared_data.queue.qsize() == 3
         shared_data.process_next(handler)
         shared_data.process_next(handler)
@@ -1109,7 +1109,7 @@ class TestFileReplicationSharedData:
             handler_result.append(key)
             raise ValueError
 
-        shared_data.on_import(None, 0, key, None, -1)
+        shared_data.on_import_file(None, 0, key, None, -1)
         assert shared_data.queue.qsize() == 1
         assert shared_data.error_queue.qsize() == 0
         assert next_ts_result == []
@@ -1165,10 +1165,73 @@ class TestFileReplicationSharedData:
         l = []
         monkeypatch.setattr(
             shared_data.xom.model, "getstage", lambda u, i: l.append((u, i)))
-        shared_data.on_import(None, 1, key, None, -1)
+        shared_data.on_import_file(None, 1, key, None, -1)
         # it should still be queued to check master and get a 410 for sure
         assert shared_data.queue.qsize() == 1
         shared_data.process_next(handler)
         ((index_type, serial, key, keyname, value, back_serial),) = result
         assert index_type == IndexType(None)
         assert key == relpath
+
+    def test_recreated_index(self, monkeypatch, shared_data):
+        from devpi_server.replica import IndexType
+        relpath = "root/dev/+f/274/e88b0b3d028fe/pytest-2.1.0.zip"
+        key = shared_data.xom.keyfs.get_key_instance("STAGEFILE", relpath)
+        userkey = shared_data.xom.keyfs.get_key_instance("USER", "root/.config")
+
+        result = []
+
+        def handler(index_type, serial, key, keyname, value, back_serial):
+            result.append(index_type)
+
+        changes = {
+            0: {userkey: ({"indexes": {"dev": {"type": "stage"}}}, -1)},
+            1: {key: (None, -1)},
+            2: {userkey: ({}, 0)},
+            3: {key: (None, -1)},
+            4: {userkey: ({"indexes": {"dev": {"type": "mirror"}}}, 2)},
+            5: {key: (None, -1)},
+            6: {userkey: (None, 4)},
+            7: {key: (None, -1)}}
+
+        class Tx:
+            def get_value_at(self, key, serial):
+                return changes[serial][key][0]
+
+        monkeypatch.setattr("devpi_server.keyfs.KeyFS.tx", Tx())
+
+        # simulate index creation
+        shared_data.on_import(0, changes[0])
+        # import file
+        shared_data.on_import(1, changes[1])
+        assert shared_data.queue.qsize() == 1
+        shared_data.process_next(handler)
+        (index_type,) = result
+        assert index_type == IndexType("stage")
+        result.clear()
+        # simulate index deletion
+        shared_data.on_import(2, changes[2])
+        # import file
+        shared_data.on_import(3, changes[3])
+        assert shared_data.queue.qsize() == 1
+        shared_data.process_next(handler)
+        (index_type,) = result
+        assert index_type == IndexType(None)
+        result.clear()
+        # simulate index recreation
+        shared_data.on_import(4, changes[4])
+        # import file
+        shared_data.on_import(5, changes[5])
+        assert shared_data.queue.qsize() == 1
+        shared_data.process_next(handler)
+        (index_type,) = result
+        assert index_type == IndexType("mirror")
+        result.clear()
+        # simulate user deletion
+        shared_data.on_import(6, changes[6])
+        # import file
+        shared_data.on_import(7, changes[7])
+        assert shared_data.queue.qsize() == 1
+        shared_data.process_next(handler)
+        (index_type,) = result
+        assert index_type == IndexType(None)

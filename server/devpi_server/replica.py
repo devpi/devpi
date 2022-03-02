@@ -59,6 +59,9 @@ class IndexType:
             index_type = index_type._index_type
         self._index_type = index_type
 
+    def __repr__(self):
+        return f"<IndexType {self._index_type!r}>"
+
     def __lt__(self, other):
         if self._index_type == other._index_type:
             return False
@@ -344,8 +347,7 @@ class ReplicaThread:
         self.xom = xom
         self.shared_data = FileReplicationSharedData(xom)
         keyfs = self.xom.keyfs
-        for key in (keyfs.STAGEFILE, keyfs.PYPIFILE_NOMD5):
-            keyfs.subscribe_on_import(key, self.shared_data.on_import)
+        keyfs.subscribe_on_import(self.shared_data.on_import)
         self.file_replication_threads = []
         num_threads = xom.config.file_replication_threads
         threadlog.info("Using %s file download threads.", num_threads)
@@ -599,7 +601,19 @@ class FileReplicationSharedData(object):
         self.last_errored = None
         self.last_processed = None
 
-    def on_import(self, conn, serial, key, val, back_serial):
+    def on_import(self, serial, changes):
+        keyfs = self.xom.keyfs
+        user_keyname = keyfs.USER.name
+        for key in changes:
+            if key.name == user_keyname:
+                self.update_index_types(keyfs, serial, key, *changes[key])
+        file_keynames = frozenset(
+            (keyfs.STAGEFILE.name, keyfs.PYPIFILE_NOMD5.name))
+        for key in changes:
+            if key.name in file_keynames:
+                self.on_import_file(keyfs, serial, key, *changes[key])
+
+    def on_import_file(self, keyfs, serial, key, val, back_serial):
         try:
             index_type = self.get_index_type_for(key)
         except KeyError:
@@ -628,6 +642,30 @@ class FileReplicationSharedData(object):
         self.queue.put((
             index_type, -serial, key.relpath, key.name, val, back_serial))
         self.last_added = time.time()
+
+    def update_index_types(self, keyfs, serial, key, val, back_serial):
+        if val is None:
+            val = {}
+        current_index_types = {
+            name: config["type"]
+            for name, config in val.get("indexes", {}).items()}
+        val = {}
+        if back_serial >= 0:
+            try:
+                val = keyfs.tx.get_value_at(key, back_serial)
+            except KeyError:
+                pass
+        old_index_types = {
+            name: config["type"]
+            for name, config in val.get("indexes", {}).items()}
+        username = key.params["user"]
+        removed_indexes = set(old_index_types).difference(current_index_types)
+        for indexname in removed_indexes:
+            self.set_index_type_for(
+                f"{username}/{indexname}", None)
+        for indexname, indextype in current_index_types.items():
+            self.set_index_type_for(
+                f"{username}/{indexname}", indextype)
 
     def next_ts(self, delay):
         return time.time() + delay
