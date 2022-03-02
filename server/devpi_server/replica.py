@@ -52,6 +52,35 @@ MAX_REPLICA_CHANGES_SIZE = 5 * 1024 * 1024
 notset = object()
 
 
+class IndexType:
+    # class for the index type to get correct sort order
+    def __init__(self, index_type):
+        if isinstance(index_type, IndexType):
+            index_type = index_type._index_type
+        self._index_type = index_type
+
+    def __lt__(self, other):
+        if self._index_type == other._index_type:
+            return False
+        if self._index_type is None:
+            # deleted are lowest priority, so come last
+            return False
+        if other._index_type is None:
+            # the other is deleted, so we come first
+            return True
+        if self._index_type == "mirror":
+            # mirrors are just before deleted
+            return False
+        if other._index_type == "mirror":
+            # the other is a mirror, so we come before
+            return True
+        # everything else is by alphabet
+        return self._index_type < other._index_type
+
+    def __eq__(self, other):
+        return self._index_type == other._index_type
+
+
 def get_auth_serializer(config):
     return itsdangerous.TimedSerializer(config.get_replica_secret())
 
@@ -572,16 +601,24 @@ class FileReplicationSharedData(object):
 
     def on_import(self, conn, serial, key, val, back_serial):
         try:
-            is_from_mirror = self.is_from_mirror(key)
+            index_type = self.get_index_type_for(key)
         except KeyError:
             stage = self.xom.model.getstage(
                 key.params['user'], key.params['index'])
-            self.index_types.put(stage.name, stage.ixconfig['type'])
-            is_from_mirror = self.is_from_mirror(key)
+            if stage is None:
+                # deleted stage
+                stagename = f"{key.params['user']}/{key.params['index']}"
+                self.set_index_type_for(stagename, None)
+            else:
+                self.set_index_type_for(stage.name, stage.ixconfig['type'])
+            index_type = self.get_index_type_for(key)
         if self.xom.replica_thread.replica_in_sync_at is None:
             # Don't queue files from mirrors until we have been in sync first.
             # The InitialQueueThread will queue in one go on initial sync
-            if is_from_mirror:
+            if index_type == IndexType("mirror"):
+                return
+            # Don't queue from deleted indexes
+            if index_type == IndexType(None):
                 return
             # let the queue be processed before filling it further
             if self.queue.qsize() > 50000:
@@ -589,28 +626,31 @@ class FileReplicationSharedData(object):
 
         # note the negated serial for the PriorityQueue
         self.queue.put((
-            is_from_mirror, -serial, key.relpath, key.name, val, back_serial))
+            index_type, -serial, key.relpath, key.name, val, back_serial))
         self.last_added = time.time()
 
     def next_ts(self, delay):
         return time.time() + delay
 
-    def add_errored(self, is_from_mirror, serial, key, keyname, value, back_serial, ts=None, delay=11):
+    def add_errored(self, index_type, serial, key, keyname, value, back_serial, ts=None, delay=11):
         if ts is None:
             ts = self.next_ts(min(delay, self.ERROR_QUEUE_MAX_DELAY))
         # this priority queue is ordered by time stamp
         self.error_queue.put(
-            (ts, delay, is_from_mirror, serial, key, keyname, value, back_serial))
+            (ts, delay, index_type, serial, key, keyname, value, back_serial))
         self.last_errored = time.time()
 
-    def is_from_mirror(self, key, default=notset):
+    def get_index_type_for(self, key, default=notset):
         index_name = "%s/%s" % (key.params['user'], key.params['index'])
-        result = self.index_types.get(index_name)
-        if result is None:
+        result = self.index_types.get(index_name, notset)
+        if result is notset:
             if default is notset:
                 raise KeyError
-            return default
-        return result == 'mirror'
+            return IndexType(default)
+        return result
+
+    def set_index_type_for(self, stagename, index_type):
+        self.index_types.put(stagename, IndexType(index_type))
 
     def is_in_future(self, ts):
         return ts > time.time()
@@ -623,19 +663,19 @@ class FileReplicationSharedData(object):
             info = self.error_queue.get(timeout=self.QUEUE_TIMEOUT)
         except self.Empty:
             return
-        (ts, delay, is_from_mirror, serial, key, keyname, value, back_serial) = info
+        (ts, delay, index_type, serial, key, keyname, value, back_serial) = info
         try:
             if self.is_in_future(ts):
                 # not current yet, so re-add it
                 self.add_errored(
-                    is_from_mirror, serial, key, keyname, value, back_serial,
+                    index_type, serial, key, keyname, value, back_serial,
                     ts=ts, delay=delay)
                 return
-            handler(is_from_mirror, serial, key, keyname, value, back_serial)
+            handler(index_type, serial, key, keyname, value, back_serial)
         except Exception:
             # another failure, re-add with longer delay
             self.add_errored(
-                is_from_mirror, serial, key, keyname, value, back_serial,
+                index_type, serial, key, keyname, value, back_serial,
                 delay=delay * self.ERROR_QUEUE_DELAY_MULTIPLIER)
             if delay > self.ERROR_QUEUE_REPORT_DELAY:
                 threadlog.exception(
@@ -653,16 +693,16 @@ class FileReplicationSharedData(object):
         except self.Empty:
             # when the regular queue is empty, we retry previously errored ones
             return self.process_next_errored(handler)
-        (is_from_mirror, serial, key, keyname, value, back_serial) = info
+        (index_type, serial, key, keyname, value, back_serial) = info
         # negate again, because it was negated for the PriorityQueue
         serial = -serial
         try:
-            handler(is_from_mirror, serial, key, keyname, value, back_serial)
+            handler(index_type, serial, key, keyname, value, back_serial)
         except Exception as e:
             threadlog.warn(
                 "Error during file replication for %s: %s",
                 key, lazy_format_exception(e))
-            self.add_errored(is_from_mirror, serial, key, keyname, value, back_serial)
+            self.add_errored(index_type, serial, key, keyname, value, back_serial)
         finally:
             self.queue.task_done()
             self.last_processed = time.time()
@@ -915,7 +955,7 @@ class FileReplicationThread:
                     conn.io_file_set(entry._storepath, f)
                     conn.commit_files_without_increasing_serial()
 
-    def handler(self, is_from_mirror, serial, key, keyname, value, back_serial):
+    def handler(self, index_type, serial, key, keyname, value, back_serial):
         keyfs = self.xom.keyfs
         if value is None:
             self.shared_data.deleted.put(key, serial)
@@ -944,7 +984,7 @@ class FileReplicationThread:
             try:
                 linkstore = stage.get_linkstore_perstage(name, entry.version)
             except (stage.MissesRegistration, stage.UpstreamError):
-                if is_from_mirror:
+                if index_type == IndexType(None) or index_type == IndexType("mirror"):
                     return
                 raise
             links = linkstore.get_links(basename=entry.basename)
@@ -952,7 +992,7 @@ class FileReplicationThread:
                 self.xom.config.hook.devpiserver_on_replicated_file(
                     stage=stage, project=name, version=entry.version, link=link,
                     serial=serial, back_serial=back_serial,
-                    is_from_mirror=is_from_mirror)
+                    is_from_mirror=index_type == IndexType("mirror"))
 
     def tick(self):
         self.shared_data.process_next(self.handler)
@@ -999,7 +1039,8 @@ class InitialQueueThread(object):
         with keyfs.transaction(write=False) as tx:
             for user in self.xom.model.get_userlist():
                 for stage in user.getstages():
-                    self.shared_data.index_types.put(stage.name, stage.ixconfig['type'])
+                    self.shared_data.set_index_type_for(
+                        stage.name, stage.ixconfig['type'])
             relpaths = tx.iter_relpaths_at(keys, tx.at_serial)
             for item in relpaths:
                 if item.value is None:
@@ -1017,11 +1058,11 @@ class InitialQueueThread(object):
                 entry = FileEntry(key, item.value)
                 if entry.file_exists() or not entry.last_modified:
                     continue
-                is_from_mirror = self.shared_data.is_from_mirror(key, False)
+                index_type = self.shared_data.get_index_type_for(key, None)
                 # note the negated serial for the PriorityQueue
                 # the index_type boolean will prioritize non mirrors
                 self.shared_data.queue.put((
-                    is_from_mirror, -item.serial, item.relpath,
+                    index_type, -item.serial, item.relpath,
                     item.keyname, item.value, item.back_serial))
                 queued = queued + 1
         threadlog.info(
