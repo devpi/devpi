@@ -224,7 +224,7 @@ class KeyFS(object):
         self._keys = {}
         self._threadlocal = mythread.threading.local()
         self._cv_new_transaction = mythread.threading.Condition()
-        self._import_subscriber = {}
+        self._import_subscriber = None
         self.notifier = TxNotificationThread(self)
         self._storage = storage(
             self.basedir,
@@ -243,30 +243,24 @@ class KeyFS(object):
         self._storage.perform_crash_recovery()
 
     def import_changes(self, serial, changes):
-        subscriber_task_infos = []
         with self.get_connection(write=True) as conn:
             with conn.write_transaction() as fswriter:
                 next_serial = conn.last_changelog_serial + 1
                 assert next_serial == serial, (next_serial, serial)
-                for relpath, tup in changes.items():
-                    keyname, back_serial, val = tup
-                    typedkey = self.get_key_instance(keyname, relpath)
+                changes = {
+                    self.get_key_instance(keyname, relpath): (val, back_serial)
+                    for relpath, (keyname, back_serial, val) in changes.items()}
+                for typedkey, (val, back_serial) in changes.items():
                     fswriter.record_set(
                         typedkey, get_mutable_deepcopy(val),
                         back_serial=back_serial)
-                    meth = self._import_subscriber.get(keyname)
-                    if meth is not None:
-                        subscriber_task_infos.append(
-                            (meth, typedkey, val, back_serial))
-                if subscriber_task_infos:
+                if callable(self._import_subscriber):
                     with self.transaction(write=False, at_serial=serial):
-                        for meth, typedkey, val, back_serial in subscriber_task_infos:
-                            threadlog.debug("calling import subscriber %r", meth)
-                            meth(fswriter.conn, serial, typedkey, val, back_serial)
+                        self._import_subscriber(serial, changes)
 
-    def subscribe_on_import(self, key, subscriber):
-        assert key.name not in self._import_subscriber
-        self._import_subscriber[key.name] = subscriber
+    def subscribe_on_import(self, subscriber):
+        assert self._import_subscriber is None
+        self._import_subscriber = subscriber
 
     def _notify_on_commit(self, serial):
         self.release_all_wait_tx()
@@ -462,7 +456,7 @@ class TypedKey:
         return self.relpath == other.relpath
 
     def __repr__(self):
-        return f"<TypedKey {self.relpath!r} type {self.type.__name__!r}>"
+        return f"<TypedKey {self.name} {self.type.__name__} {self.relpath}>"
 
     def get(self, readonly=True):
         return self.keyfs.tx.get(self, readonly=readonly)
