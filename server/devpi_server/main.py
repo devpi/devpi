@@ -303,11 +303,10 @@ class XOM:
                 return res
 
         app = xom.create_app()
-        with xom.thread_pool.live():
-            if xom.is_replica():
-                # XXX ground restart_as_write_transaction better
-                xom.keyfs.restart_as_write_transaction = None
-            return wsgi_run(xom, app)
+        if xom.is_replica():
+            # XXX ground restart_as_write_transaction better
+            xom.keyfs.restart_as_write_transaction = None
+        return xom.thread_pool.run(wsgi_run, xom, app)
 
     def fatal(self, msg):
         self.keyfs.release_all_wait_tx()
