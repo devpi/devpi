@@ -83,6 +83,8 @@ def iter_current_threads(skip_thread_ids):
                 break
             if name == "wait" and filename == "threading.py" and basename.startswith("python"):
                 continue
+            elif name == "get" and filename == "queue.py" and basename.startswith("python"):
+                continue
             elif name == "handler_thread" and filename == "task.py" and basename == "waitress":
                 yield (thread_id, frame, "known_waiting", "waitress handler")
             elif name == "select" and filename == "selectors.py" and basename.startswith("python"):
@@ -99,6 +101,8 @@ def iter_current_threads(skip_thread_ids):
                 yield (thread_id, frame, "known_waiting", "futures _worker")
             elif name == "poll" and filename == "wasyncore.py" and basename == "waitress":
                 yield (thread_id, frame, "known_waiting", "waitress poll")
+            elif name in ("process_next", "process_next_errored") and filename == "replica.py" and basename == "devpi_server":
+                yield (thread_id, frame, "known_waiting", name)
             else:
                 yield (thread_id, frame, "unknown", "unknown")
             break
@@ -106,7 +110,8 @@ def iter_current_threads(skip_thread_ids):
 
 def show_stacks(signal, stack):
     output = ["=" * 80]
-    for thread_id, frame, status, status_src in iter_current_threads({threading.get_ident()}):
+    skip = {threading.get_ident()}
+    for thread_id, frame, status, status_src in iter_current_threads(skip):
         if status == "skipped":
             continue
         request = None
@@ -122,6 +127,12 @@ def show_stacks(signal, stack):
             if name == "invoke_request" and filename == "router.py" and basename == "pyramid":
                 request = f.f_locals.get('request')
                 # we got the request, so we don't need to go further up the stack
+                break
+            if name == "run" and filename == "threading.py" and basename.startswith("python"):
+                thread_self = f.f_locals.get('self')
+                if thread_self is not None:
+                    thread_name = thread_self.name
+                # we don't need to go further up the stack
                 break
             stack.append(f"    {co.co_filename}:{f.f_lineno} {co.co_name}")
         if status == "known_waiting":

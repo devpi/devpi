@@ -1,6 +1,7 @@
+from .log import threadlog
 import contextlib
 import threading
-from traceback import print_exc
+import time
 
 
 class Shutdown(Exception):
@@ -9,19 +10,37 @@ class Shutdown(Exception):
 
 class MyThread(threading.Thread):
     def sleep(self, secs):
-        self.pool._shutdown.wait(secs)
-        self.exit_if_shutdown()
+        start = time.monotonic()
+        remaining = secs
+        while 1:
+            to_wait = max(0.5, remaining)
+            self.pool._shutdown.wait(to_wait)
+            self.exit_if_shutdown()
+            remaining -= (time.monotonic() - start)
+            if remaining <= 0:
+                break
 
     def exit_if_shutdown(self):
         return self.pool.exit_if_shutdown()
 
     def run(self):
         try:
-            return threading.Thread.run(self)
+            result = threading.Thread.run(self)
         except self.pool.Shutdown:
             pass
-        except BaseException:
-            print_exc()
+        except Exception as e:
+            threadlog.exception(
+                "Exception in thread '%s'", self.name)
+            self.pool._fatal_exc = e
+        except BaseException as e:
+            threadlog.exception(
+                "Fatal exception in thread '%s'", self.name)
+            self.pool._fatal_exc = e
+        else:
+            threadlog.info("Thread '%s' ended", self.name)
+            return result
+        finally:
+            self.pool._a_thread_ended.set()
 
 
 def has_active_thread(obj):
@@ -33,6 +52,8 @@ class ThreadPool:
     Shutdown = Shutdown
 
     def __init__(self):
+        self._a_thread_ended = threading.Event()
+        self._fatal_exc = None
         self._objects = []
         self._shutdown = threading.Event()
         self._shutdown_funcs = []
@@ -51,10 +72,26 @@ class ThreadPool:
         self._objects.append(obj)
 
     @contextlib.contextmanager
-    def live(self):
-        self.start()
+    def run(self, func, *args, **kwargs):
+        threadlog.debug("ThreadManager starting")
+        main_thread = MyThread(
+            target=func,
+            args=args,
+            kwargs=kwargs,
+            name="MainThread",
+            daemon=True)
+        main_thread.pool = self
+        func.thread = main_thread
+        self._objects.append(func)
         try:
-            yield
+            self.start()
+            while 1:
+                if self._a_thread_ended.wait(timeout=1):
+                    if self._fatal_exc is not None:
+                        raise self._fatal_exc
+                    if not main_thread.is_alive():
+                        break
+                    self._a_thread_ended.clear()
         finally:
             self.shutdown()
 

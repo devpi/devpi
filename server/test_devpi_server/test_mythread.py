@@ -54,15 +54,18 @@ def test_custom_shutdown(pool, TimeoutQueue):
     t.thread.join()
 
 
-def test_live(pool):
+def test_run(pool):
     class T:
         def thread_run(self):
             self.thread.sleep(100)
 
     t = T()
     pool.register(t)
-    with pool.live():
+
+    def check():
         assert mythread.has_active_thread(t)
+
+    pool.run(check)
     t.thread.join()
 
 
