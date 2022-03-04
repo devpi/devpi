@@ -33,7 +33,6 @@ if __name__ == "__main__":
                         "defusedxml",
                         "devpi_common<4,>=3.3.0",
                         "itsdangerous>=0.24",
-                        "execnet>=1.2",
                         "platformdirs",
                         "pyramid>=2",
                         "waitress>=1.0.1",

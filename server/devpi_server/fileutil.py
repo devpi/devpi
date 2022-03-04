@@ -1,10 +1,13 @@
 import errno
 import os.path
 import sys
-from execnet.gateway_base import LoadError, Unserializer, _Serializer
+from . import readonly
 from functools import partial
 from io import BytesIO
+from struct import error as struct_error
+from struct import pack
 from struct import unpack
+
 
 _nodefault = object()
 
@@ -19,6 +22,21 @@ def rename(source, dest):
         if sys.platform == "win32" and os.path.exists(dest):
             os.remove(dest)
         os.rename(source, dest)
+
+
+FOUR_BYTE_INT_MAX = 2147483647
+
+
+class DataFormatError(Exception):
+    pass
+
+
+class DumpError(DataFormatError):
+    """Error while serializing an object."""
+
+
+class LoadError(DataFormatError):
+    """Error while unserializing an object."""
 
 
 # int.from_bytes is slower
@@ -47,7 +65,7 @@ def load(fp, _unpack_int4=partial(unpack, "!i"), _unpack_float8=partial(unpack, 
         elif opcode == b'A':  # bytes
             stack_append(read(_unpack_int4(read(4))[0]))
         elif opcode == b'B':  # Channel
-            raise NotImplementedError("%s" % Unserializer.num2func[opcode])
+            raise NotImplementedError("opcode B for Channel")
         elif opcode == b'C':  # False
             stack_append(False)
         elif opcode == b'D':  # float
@@ -86,7 +104,7 @@ def load(fp, _unpack_int4=partial(unpack, "!i"), _unpack_float8=partial(unpack, 
             stack_append(complex(_unpack_float8(read(8))[0], _unpack_float8(read(8))[0]))
         else:
             raise LoadError(
-                "unknown opcode %r - wire protocol corruption?" % opcode)
+                "unkown opcode %r - wire protocol corruption?" % opcode)
     if not stopped:
         raise LoadError("didn't get STOP")
     if len(stack) != 1:
@@ -98,8 +116,159 @@ def loads(data):
     return load(BytesIO(data))
 
 
+def _dump_tuple(write, obj, _pack_int4=partial(pack, "!i")):
+    for item in obj:
+        _dispatch[item.__class__](write, item)
+    write(b'@')
+    write(_pack_int4(len(obj)))
+
+
+def _dump_bytes(write, obj, _pack_int4=partial(pack, "!i")):
+    write(b'A')
+    write(_pack_int4(len(obj)))
+    write(obj)
+
+
+def _dump_bool(write, obj):
+    if obj:
+        write(b'R')
+    else:
+        write(b'C')
+
+
+def _dump_float(write, obj, _pack_float8=partial(pack, "!d")):
+    write(b'D')
+    write(_pack_float8(obj))
+
+
+def _dump_frozenset(write, obj, _pack_int4=partial(pack, "!i")):
+    for item in obj:
+        _dispatch[item.__class__](write, item)
+    write(b'E')
+    write(_pack_int4(len(obj)))
+
+
+def _dump_int(write, obj, _pack_int4=partial(pack, "!i")):
+    if obj > FOUR_BYTE_INT_MAX:
+        write(b'H')
+        s = f"{obj}".encode("ascii")
+        write(_pack_int4(len(s)))
+        write(s)
+    else:
+        write(b'F')
+        write(_pack_int4(obj))
+
+
+def _dump_dict(write, obj):
+    write(b'J')
+    for k, v in obj.items():
+        _dispatch[k.__class__](write, k)
+        _dispatch[v.__class__](write, v)
+        write(b'P')
+
+
+def _dump_list(write, obj, _pack_int4=partial(pack, "!i")):
+    write(b'K')
+    write(_pack_int4(len(obj)))
+    for i, v in enumerate(obj):
+        _dispatch[i.__class__](write, i)
+        _dispatch[v.__class__](write, v)
+        write(b'P')
+
+
+def _dump_none(write, obj):
+    write(b'L')
+
+
+def _dump_str(write, obj, _pack_int4=partial(pack, "!i")):
+    try:
+        obj = obj.encode('utf-8')
+    except UnicodeEncodeError:
+        raise DumpError("strings must be utf-8 encodable")
+    write(b'N')
+    write(_pack_int4(len(obj)))
+    write(obj)
+
+
+def _dump_set(write, obj, _pack_int4=partial(pack, "!i")):
+    for item in obj:
+        _dispatch[item.__class__](write, item)
+    write(b'O')
+    write(_pack_int4(len(obj)))
+
+
+def _dump_complex(write, obj, _pack_float8=partial(pack, "!d")):
+    write(b'T')
+    write(_pack_float8(obj.real))
+    write(_pack_float8(obj.imag))
+
+
+_dispatch = {
+    tuple: _dump_tuple,
+    readonly.TupleViewReadonly: _dump_tuple,
+    bytes: _dump_bytes,
+    bool: _dump_bool,
+    float: _dump_float,
+    frozenset: _dump_frozenset,
+    int: _dump_int,
+    dict: _dump_dict,
+    readonly.DictViewReadonly: _dump_dict,
+    list: _dump_list,
+    readonly.ListViewReadonly: _dump_list,
+    None.__class__: _dump_none,
+    str: _dump_str,
+    set: _dump_set,
+    readonly.SetViewReadonly: _dump_set,
+    complex: _dump_complex}
+
+
+def _dump(write, obj):
+    try:
+        _dispatch[obj.__class__](write, obj)
+    except struct_error as e:
+        val = e.__traceback__.tb_frame.f_locals.get('obj', _nodefault)
+        msg = e.args[0]
+        if isinstance(val, int) and val > FOUR_BYTE_INT_MAX:
+            msg = f"int must be less than {FOUR_BYTE_INT_MAX}"
+        raise DumpError(msg)
+    except KeyError as e:
+        raise DumpError(f"can't serialize {e.args[0]}")
+    write(b'Q')
+
+
+def dump(fp, obj):
+    return _dump(fp.write, obj)
+
+
+class _SizeError(Exception):
+    pass
+
+
+def dumplen(obj, maxlen=None):
+    count = 0
+
+    if maxlen is None:
+        def write(data):
+            nonlocal count
+            count += len(data)
+    else:
+        def write(data):
+            nonlocal count
+            count += len(data)
+            if count > maxlen:
+                raise _SizeError
+
+    try:
+        _dump(write, obj)
+        return count
+    except _SizeError:
+        return None
+
+
 def dumps(obj):
-    return _Serializer().save(obj, versioned=False)
+    fp = BytesIO()
+    _dump(fp.write, obj)
+    return fp.getvalue()
 
 
 def read_int_from_file(path, default=0):
