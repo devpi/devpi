@@ -24,10 +24,12 @@ def ensure_deeply_readonly(val):
         return val
     if isinstance(val, dict):
         return DictViewReadonly(val)
-    elif isinstance(val, (tuple, list)):
-        return SeqViewReadonly(val)
+    elif isinstance(val, list):
+        return ListViewReadonly(val)
     elif isinstance(val, set):
         return SetViewReadonly(val)
+    elif isinstance(val, tuple):
+        return TupleViewReadonly(val)
     raise ValueError("don't know how to handle type %r" % type(val))
 
 
@@ -57,7 +59,7 @@ def is_deeply_readonly(val):
 
 def is_sequence(val):
     """ Return True if the value is a readonly or normal sequence (list, tuple)"""
-    return isinstance(val, (ReadonlyView, list, tuple))
+    return isinstance(val, (SeqViewReadonly, list, tuple))
 
 
 class ReadonlyView(object):
@@ -112,6 +114,14 @@ class SeqViewReadonly(ReadonlyView):
 
     def __getitem__(self, key):
         return ensure_deeply_readonly(self._data[key])
+
+
+class ListViewReadonly(SeqViewReadonly):
+    __slots__ = ()
+
+
+class TupleViewReadonly(SeqViewReadonly):
+    __slots__ = ()
 
 
 class SetViewReadonly(ReadonlyView):
