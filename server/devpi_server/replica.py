@@ -771,11 +771,13 @@ def devpiserver_metrics(request):
         ('devpi_server_replica_deleted_cache_lookups', 'counter', deleted_cache.lookups),
         ('devpi_server_replica_deleted_cache_misses', 'counter', deleted_cache.misses),
         ('devpi_server_replica_deleted_cache_size', 'gauge', deleted_cache.size),
+        ('devpi_server_replica_deleted_cache_items', 'gauge', len(deleted_cache.data) if deleted_cache.data else 0),
         ('devpi_server_replica_indextypes_cache_evictions', 'counter', indextypes_cache.evictions),
         ('devpi_server_replica_indextypes_cache_hits', 'counter', indextypes_cache.hits),
         ('devpi_server_replica_indextypes_cache_lookups', 'counter', indextypes_cache.lookups),
         ('devpi_server_replica_indextypes_cache_misses', 'counter', indextypes_cache.misses),
-        ('devpi_server_replica_indextypes_cache_size', 'gauge', indextypes_cache.size)])
+        ('devpi_server_replica_indextypes_cache_size', 'gauge', indextypes_cache.size),
+        ('devpi_server_replica_indextypes_cache_items', 'gauge', len(indextypes_cache.data) if indextypes_cache.data else 0)])
     return result
 
 
