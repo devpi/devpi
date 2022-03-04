@@ -118,6 +118,7 @@ def show_stacks(signal, stack):
         stack = []
         thread_name = f"{thread_id}"
         for f, co, name, path, basename, filename in iter_frame_stack_info(frame):
+            info = ""
             if name == "thread_run":
                 thread_self = f.f_locals.get('self')
                 if thread_self is not None:
@@ -134,7 +135,11 @@ def show_stacks(signal, stack):
                     thread_name = thread_self.name
                 # we don't need to go further up the stack
                 break
-            stack.append(f"    {co.co_filename}:{f.f_lineno} {co.co_name}")
+            if name == "get_value_at" and filename == "keyfs.py" and basename == "devpi_server":
+                info = f"{f.f_locals.get('typedkey')} {f.f_locals.get('at_serial')}"
+            if name == "get_changes":
+                info = f"{f.f_locals.get('serial')}"
+            stack.append(f"    {co.co_filename}:{f.f_lineno} {co.co_name} {info}")
         if status == "known_waiting":
             output.append(f"Thread {thread_name} is waiting ({status_src})")
         else:
