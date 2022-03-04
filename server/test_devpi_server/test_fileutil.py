@@ -1,7 +1,13 @@
 from devpi_server.fileutil import BytesIO
-from devpi_server.fileutil import Unserializer
+from devpi_server.fileutil import DumpError
+from devpi_server.fileutil import LoadError
+from devpi_server.fileutil import dumplen
 from devpi_server.fileutil import dumps
 from devpi_server.fileutil import loads
+from execnet.gateway_base import _Serializer
+from execnet.gateway_base import DumpError as _DumpError
+from execnet.gateway_base import LoadError as _LoadError
+from execnet.gateway_base import Unserializer
 import pytest
 
 
@@ -10,6 +16,10 @@ def _loads(data):
     return Unserializer(
         BytesIO(data),
         strconfig=(False, False)).load(versioned=False)
+
+
+def _dumps(obj):
+    return _Serializer().save(obj, versioned=False)
 
 
 def test_execnet_opcodes():
@@ -34,6 +44,7 @@ def test_execnet_opcodes():
     (b'F\x00\x00\x00\x01Q', int(1)),
     (b'G\x00\x00\x00\x01Q', int(1)),
     (b'H\x00\x00\x00\x011Q', int(1)),
+    (b'H\x00\x00\x00\x0a8589934592Q', int(8589934592)),
     (b'I\x00\x00\x00\x011Q', int(1)),
     (b'JQ', {}),
     (b'JF\x00\x00\x00\x00F\x00\x00\x00\x00PF\x00\x00\x00\x01F\x00\x00\x00\x02PQ', {0: 0, 1: 2}),
@@ -62,8 +73,48 @@ def test_loads(data, expected):
     result = loads(data)
     assert result == expected
     assert type(result) == type(expected)
+    result = _loads(data)
+    assert result == expected
+    assert type(result) == type(expected)
     # try round-trip
-    assert loads(dumps(expected)) == expected
+    dump = dumps(expected)
+    assert len(dump) == dumplen(expected)
+    assert loads(dump) == expected
+    # try round-trip with original
+    _dump = _dumps(expected)
+    assert len(_dump) == dumplen(expected)
+    assert loads(_dump) == expected
+    assert dump == _dump
     # compare to original
     assert result == _loads(data)
     assert _loads(dumps(expected)) == expected
+    assert _loads(_dumps(expected)) == expected
+
+
+def test_dumplen():
+    assert dumplen(None) == 2
+    assert dumplen(None, maxlen=1) is None
+
+
+def test_dumps_bad_type():
+    with pytest.raises(_DumpError) as e:
+        _dumps(object())
+    msg = str(e.value)
+    with pytest.raises(DumpError) as e:
+        dumps(object())
+    assert msg == str(e.value)
+
+
+def test_loads_bad_data():
+    with pytest.raises(_LoadError) as e:
+        _loads(b'foo')
+    msg = str(e.value)
+    with pytest.raises(LoadError) as e:
+        loads(b'foo')
+    assert msg == str(e.value)
+    with pytest.raises(_LoadError) as e:
+        _loads(b'LCQ')
+    msg = str(e.value)
+    with pytest.raises(LoadError) as e:
+        loads(b'LCQ')
+    assert msg == str(e.value)
