@@ -350,6 +350,7 @@ class ReplicaThread:
         keyfs.subscribe_on_import(self.shared_data.on_import)
         self.file_replication_threads = []
         num_threads = xom.config.file_replication_threads
+        self.shared_data.num_threads = num_threads
         threadlog.info("Using %s file download threads.", num_threads)
         for i in range(num_threads):
             frt = FileReplicationThread(xom, self.shared_data)
@@ -1075,9 +1076,9 @@ class InitialQueueThread(object):
             for item in relpaths:
                 if item.value is None:
                     continue
-                while self.shared_data.queue.qsize() > 1000:
+                if self.shared_data.queue.qsize() > self.shared_data.num_threads:
                     # let the queue be processed before filling it further
-                    self.thread.sleep(5)
+                    self.shared_data.wait()
                 if time.time() - last_time > 5:
                     last_time = time.time()
                     threadlog.info(
