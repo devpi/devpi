@@ -8,6 +8,7 @@ from .log import threadlog, thread_push_log, thread_pop_log
 from .mythread import current_thread
 from .readonly import ReadonlyView
 from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
+from .sizeof import gettotalsizeof
 from repoze.lru import LRUCache
 from zope.interface import implementer
 import contextlib
@@ -21,6 +22,8 @@ absent = object()
 
 
 class BaseConnection:
+    _get_relpath_at = get_relpath_at
+
     def __init__(self, sqlconn, basedir, storage):
         self._sqlconn = sqlconn
         self._basedir = basedir
@@ -45,12 +48,16 @@ class BaseConnection:
         c.close()
         return result
 
+    def _print_rows(self, rows):
+        # for debugging
+        for row in rows:
+            print(row)
+
     def fetchall(self, query, *args):
         c = self._sqlconn.cursor()
         # print(query)
-        # pprint(self._explain(query, *args))
-        # for row in self._explain_query_plan(query, *args):
-        #     print(row)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
         r = c.execute(query, *args)
         result = r.fetchall()
         c.close()
@@ -59,9 +66,8 @@ class BaseConnection:
     def fetchone(self, query, *args):
         c = self._sqlconn.cursor()
         # print(query)
-        # pprint(self._explain(query, *args))
-        # for row in self._explain_query_plan(query, *args):
-        #     print(row)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
         r = c.execute(query, *args)
         result = r.fetchone()
         c.close()
@@ -70,9 +76,8 @@ class BaseConnection:
     def iterall(self, query, *args):
         c = self._sqlconn.cursor()
         # print(query)
-        # pprint(self._explain(query, *args))
-        # for row in self._explain_query_plan(query, *args):
-        #     print(row)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
         yield from c.execute(query, *args)
         c.close()
 
@@ -134,13 +139,21 @@ class BaseConnection:
     def get_relpath_at(self, relpath, serial):
         result = self._relpath_cache.get((serial, relpath), absent)
         if result is absent:
+            result = self._changelog_cache.get((serial, relpath), absent)
+        if result is absent:
             changes = self._changelog_cache.get(serial, absent)
             if changes is not absent and relpath in changes:
                 (keyname, back_serial, value) = changes[relpath]
                 result = (serial, back_serial, value)
         if result is absent:
-            result = get_relpath_at(self, relpath, serial)
-        self._relpath_cache.put((serial, relpath), result)
+            result = self._get_relpath_at(relpath, serial)
+        if gettotalsizeof(result, maxlen=100000) is None:
+            # result is big, put it in the changelog cache,
+            # which has fewer entries to preserve memory
+            self._changelog_cache.put((serial, relpath), result)
+        else:
+            # result is small
+            self._relpath_cache.put((serial, relpath), result)
         return result
 
     def iter_relpaths_at(self, typedkeys, at_serial):
