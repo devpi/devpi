@@ -31,13 +31,17 @@ class BaseConnection:
         # for debugging
         c = self._sqlconn.cursor()
         r = c.execute("EXPLAIN " + query, *args)
-        return r.fetchall()
+        result = r.fetchall()
+        c.close()
+        return result
 
     def _explain_query_plan(self, query, *args):
         # for debugging
         c = self._sqlconn.cursor()
         r = c.execute("EXPLAIN QUERY PLAN " + query, *args)
-        return r.fetchall()
+        result = r.fetchall()
+        c.close()
+        return result
 
     def fetchall(self, query, *args):
         c = self._sqlconn.cursor()
@@ -46,7 +50,20 @@ class BaseConnection:
         # for row in self._explain_query_plan(query, *args):
         #     print(row)
         r = c.execute(query, *args)
-        return r.fetchall()
+        result = r.fetchall()
+        c.close()
+        return result
+
+    def fetchone(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # pprint(self._explain(query, *args))
+        # for row in self._explain_query_plan(query, *args):
+        #     print(row)
+        r = c.execute(query, *args)
+        result = r.fetchone()
+        c.close()
+        return result
 
     def iterall(self, query, *args):
         c = self._sqlconn.cursor()
@@ -54,7 +71,8 @@ class BaseConnection:
         # pprint(self._explain(query, *args))
         # for row in self._explain_query_plan(query, *args):
         #     print(row)
-        return c.execute(query, *args)
+        yield from c.execute(query, *args)
+        c.close()
 
     def close(self):
         self._sqlconn.close()
@@ -71,31 +89,30 @@ class BaseConnection:
 
     def db_read_last_changelog_serial(self):
         q = 'SELECT MAX(_ROWID_) FROM "changelog" LIMIT 1'
-        res = self._sqlconn.execute(q).fetchone()[0]
+        res = self.fetchone(q)[0]
         return -1 if res is None else res
 
     def db_read_typedkey(self, relpath):
         q = "SELECT keyname, serial FROM kv WHERE key = ?"
-        c = self._sqlconn.cursor()
-        row = c.execute(q, (relpath,)).fetchone()
+        row = self.fetchone(q, (relpath,))
         if row is None:
             raise KeyError(relpath)
         return tuple(row[:2])
 
     def db_write_typedkey(self, relpath, name, next_serial):
         q = "INSERT OR REPLACE INTO kv (key, keyname, serial) VALUES (?, ?, ?)"
-        self._sqlconn.execute(q, (relpath, name, next_serial))
+        self.fetchone(q, (relpath, name, next_serial))
 
     def write_changelog_entry(self, serial, entry):
         threadlog.debug("writing changelog for serial %s", serial)
         data = dumps(entry)
-        self._sqlconn.execute(
+        self.fetchone(
             "INSERT INTO changelog (serial, data) VALUES (?, ?)",
             (serial, sqlite3.Binary(data)))
 
     def get_raw_changelog_entry(self, serial):
         q = "SELECT data FROM changelog WHERE serial = ?"
-        row = self._sqlconn.execute(q, (serial,)).fetchone()
+        row = self.fetchone(q, (serial,))
         if row is not None:
             return bytes(row[0])
         return None
@@ -158,20 +175,15 @@ class Connection(BaseConnection):
 
     def io_file_exists(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
         q = "SELECT path FROM files WHERE path = ?"
-        c.execute(q, (path,))
-        result = c.fetchone()
-        c.close()
+        result = self.fetchone(q, (path,))
         return result is not None
 
     def io_file_set(self, path, content):
         assert not os.path.isabs(path)
         assert not path.endswith("-tmp")
-        c = self._sqlconn.cursor()
         q = "INSERT OR REPLACE INTO files (path, size, data) VALUES (?, ?, ?)"
-        c.execute(q, (path, len(content), sqlite3.Binary(content)))
-        c.close()
+        self.fetchone(q, (path, len(content), sqlite3.Binary(content)))
         self.dirty_files[path] = True
 
     def io_file_open(self, path):
@@ -179,31 +191,23 @@ class Connection(BaseConnection):
 
     def io_file_get(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
         q = "SELECT data FROM files WHERE path = ?"
-        c.execute(q, (path,))
-        content = c.fetchone()
-        c.close()
+        content = self.fetchone(q, (path,))
         if content is None:
             raise IOError()
         return bytes(content[0])
 
     def io_file_size(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
         q = "SELECT size FROM files WHERE path = ?"
-        c.execute(q, (path,))
-        result = c.fetchone()
-        c.close()
+        result = self.fetchone(q, (path,))
         if result is not None:
             return result[0]
 
     def io_file_delete(self, path):
         assert not os.path.isabs(path)
-        c = self._sqlconn.cursor()
         q = "DELETE FROM files WHERE path = ?"
-        c.execute(q, (path,))
-        c.close()
+        self.fetchone(q, (path,))
         self.dirty_files[path] = None
 
     def write_transaction(self):
@@ -336,6 +340,7 @@ class BaseStorage(object):
                     q = objs.pop(name)
                     c.execute(q)
                 assert not objs
+            c.close()
             conn.commit()
         assert not missing
 
