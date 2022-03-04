@@ -8,10 +8,8 @@ class LazyExceptionFormatter:
         self.e = e
 
     def __str__(self):
-        return "%s:%s:%s %s" % (
-            *traceback.extract_tb(self.e.__traceback__, 2)[-1][:3],
-            ''.join(traceback.format_exception_only(
-                    self.e.__class__, self.e)).strip())
+        return ''.join(traceback.format_exception(
+            self.e.__class__, self.e, self.e.__traceback__)).strip()
 
 
 class LazyExceptionOnlyFormatter:

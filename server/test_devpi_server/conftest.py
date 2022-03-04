@@ -95,7 +95,7 @@ def caplog(caplog):
     """ enrich the pytest-catchlog funcarg. """
     def getrecords(msgrex=None, minlevel="DEBUG"):
         if msgrex is not None:
-            msgrex = re.compile(msgrex)
+            msgrex = re.compile(msgrex, re.DOTALL)
         minlevelno = {"DEBUG": 10, "INFO": 20, "WARNING": 30,
                       "ERROR": 40, "FATAL": 50}.get(minlevel)
         recs = []
