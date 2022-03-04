@@ -260,7 +260,12 @@ class TestConfig:
         config = make_config(("devpi-server",) + opts)
         assert config.args.keyfs_cache_size == 200
         xom = makexom(opts=opts)
-        assert xom.keyfs._storage._changelog_cache.size == 200
+        size = 0
+        if hasattr(xom.keyfs._storage, "_changelog_cache"):
+            size += xom.keyfs._storage._changelog_cache.size
+        if hasattr(xom.keyfs._storage, "_relpath_cache"):
+            size += xom.keyfs._storage._relpath_cache.size
+        assert size == 200
 
     @pytest.mark.no_storage_option
     def test_storage_backend_default(self, makexom):
