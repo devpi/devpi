@@ -1480,8 +1480,9 @@ class LinkStore:
         self.version = version
         self.verdata = stage.get_versiondata_perstage(self.project, version, readonly=readonly)
         if not self.verdata:
-            raise MissesRegistration("%s-%s on stage %s",
-                                     project, version, stage.name)
+            raise MissesRegistration(
+                "%s-%s on stage %s at %s",
+                project, version, stage.name, stage.keyfs.tx.at_serial)
 
     @property
     def metadata(self):
