@@ -1243,12 +1243,13 @@ class PyPIView:
             entry_data = get_mutable_deepcopy(entry.meta)
             apireturn(200, type="releasefilemeta", result=entry_data)
 
+        # getting the stage from context will cause 404 if stage is deleted
+        stage = self.context.stage
+
         file_exists = entry.file_exists()
         if entry.last_modified is None or not file_exists:
             # We check whether we should serve the file directly
             # or redirect to the external URL
-            stage = self.context.stage
-            # getting the stage from context will cause 404 if stage is deleted
             if stage.use_external_url:
                 # The file is in a mirror and either deleted or not
                 # yet downloaded. Redirect to external url
