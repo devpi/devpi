@@ -2,9 +2,7 @@ from .config import hookimpl
 from .interfaces import IStorageConnection3
 from .keyfs_sqlite import BaseConnection
 from .keyfs_sqlite import BaseStorage
-from .log import threadlog, thread_push_log, thread_pop_log
-from .readonly import ReadonlyView
-from .readonly import get_mutable_deepcopy
+from .log import threadlog
 from .fileutil import get_write_file_ensure_dir, rename, loads
 from hashlib import sha256
 from zope.interface import Interface
@@ -16,7 +14,6 @@ import re
 import shutil
 import sys
 import threading
-import time
 
 
 class IStorageFile(Interface):
@@ -147,14 +144,28 @@ class Connection(BaseConnection):
             os.remove(old.tmppath)
         self.dirty_files[path] = None
 
-    def write_transaction(self):
-        return FSWriter(self.storage, self)
-
-    def commit_files_without_increasing_serial(self):
+    def _get_rel_renames(self):
         pending_renames = write_dirty_files(self.dirty_files)
         basedir = str(self.storage.basedir)
-        rel_renames = list(make_rel_renames(basedir, pending_renames))
-        files_commit, files_del = commit_renames(basedir, rel_renames)
+        return list(make_rel_renames(basedir, pending_renames))
+
+    def _write_dirty_files(self, rel_renames):
+        basedir = str(self.storage.basedir)
+        # If we crash in the remainder, the next restart will
+        # - call check_pending_renames which will replay any remaining
+        #   renames from the changelog entry, and
+        # - initialize next_serial from the max committed serial + 1
+        result = commit_renames(basedir, rel_renames)
+        self.dirty_files.clear()
+        return result
+
+    def _drop_dirty_files(self):
+        drop_dirty_files(self.dirty_files)
+        self.dirty_files.clear()
+
+    def commit_files_without_increasing_serial(self):
+        rel_renames = self._get_rel_renames()
+        (files_commit, files_del) = self._write_dirty_files(rel_renames)
         if files_commit or files_del:
             threadlog.debug(
                 "wrote files without increasing serial: %s",
@@ -220,66 +231,6 @@ class LazyChangesFormatter:
         if self.files_del:
             msg.append(f"files_del: {','.join(self.files_del)}")
         return ", ".join(msg)
-
-
-class FSWriter:
-    def __init__(self, storage, conn):
-        self.conn = conn
-        self.storage = storage
-        self.changes = {}
-        self.commit_serial = conn.last_changelog_serial + 1
-
-    def record_set(self, typedkey, value=None, back_serial=None):
-        """ record setting typedkey to value (None means it's deleted) """
-        assert not isinstance(value, ReadonlyView), value
-        if back_serial is None:
-            try:
-                _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
-            except KeyError:
-                back_serial = -1
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.commit_serial)
-        # at __exit__ time we write out changes to the _changelog_cache
-        # so we protect here against the caller modifying the value later
-        value = get_mutable_deepcopy(value)
-        self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
-
-    def __enter__(self):
-        self.log = thread_push_log("fswriter%s:" % self.commit_serial)
-        return self
-
-    def __exit__(self, cls, val, tb):
-        commit_serial = self.commit_serial
-        thread_pop_log("fswriter%s:" % commit_serial)
-        if cls is None:
-            pending_renames = write_dirty_files(self.conn.dirty_files)
-
-            changes_formatter = self.commit_to_filesystem(pending_renames)
-
-            self.log.info("committed at %s", commit_serial)
-            self.log.debug("committed: keys: %s", changes_formatter)
-
-            self.storage._notify_on_commit(commit_serial)
-        else:
-            drop_dirty_files(self.conn.dirty_files)
-            self.conn.rollback()
-            self.log.info("roll back at %s", commit_serial)
-
-    def commit_to_filesystem(self, pending_renames):
-        basedir = str(self.storage.basedir)
-        rel_renames = list(
-            make_rel_renames(basedir, pending_renames)
-        )
-        entry = self.changes, rel_renames
-        self.conn.write_changelog_entry(self.commit_serial, entry)
-        self.conn.commit()
-
-        # If we crash in the remainder, the next restart will
-        # - call check_pending_renames which will replay any remaining
-        #   renames from the changelog entry, and
-        # - initialize next_serial from the max committed serial + 1
-        files_commit, files_del = commit_renames(basedir, rel_renames)
-        self.storage.last_commit_timestamp = time.time()
-        return LazyChangesFormatter(self.changes, files_commit, files_del)
 
 
 def drop_dirty_files(dirty_files):
