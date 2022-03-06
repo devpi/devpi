@@ -9,16 +9,33 @@ from .mythread import current_thread
 from .readonly import ReadonlyView
 from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from .sizeof import gettotalsizeof
+from io import BytesIO
 from repoze.lru import LRUCache
+from tempfile import SpooledTemporaryFile as SpooledTemporaryFileBase
 from zope.interface import implementer
 import contextlib
 import os
-import py
+import shutil
 import sqlite3
 import time
 
 
 absent = object()
+
+
+class SpooledTemporaryFile(SpooledTemporaryFileBase):
+    # some missing methods
+    def readable(self):
+        return self._file.readable()
+
+    def readinto(self, buffer):
+        return self._file.readinto(buffer)
+
+    def seekable(self):
+        return self._file.seekable()
+
+    def writable(self):
+        return self._file.writable()
 
 
 class BaseConnection:
@@ -179,6 +196,9 @@ class BaseConnection:
                     serial=serial, back_serial=back_serial,
                     value=val)
 
+    def write_transaction(self):
+        return Writer(self.storage, self)
+
 
 @implementer(IStorageConnection2)
 class Connection(BaseConnection):
@@ -187,22 +207,58 @@ class Connection(BaseConnection):
 
     def io_file_exists(self, path):
         assert not os.path.isabs(path)
+        f = self.dirty_files.get(path, absent)
+        if f is not absent:
+            return f is not None
         q = "SELECT path FROM files WHERE path = ?"
         result = self.fetchone(q, (path,))
         return result is not None
 
-    def io_file_set(self, path, content):
+    def io_file_set(self, path, content_or_file):
         assert not os.path.isabs(path)
         assert not path.endswith("-tmp")
-        q = "INSERT OR REPLACE INTO files (path, size, data) VALUES (?, ?, ?)"
-        self.fetchone(q, (path, len(content), sqlite3.Binary(content)))
-        self.dirty_files[path] = True
+        f = self.dirty_files.get(path, None)
+        if f is None:
+            f = SpooledTemporaryFile(max_size=1048576)
+        if not isinstance(content_or_file, bytes) and not callable(getattr(content_or_file, "seekable", None)):
+            content_or_file = content_or_file.read()
+            if len(content_or_file) > 1048576:
+                threadlog.warn(
+                    "Read %.1f megabytes into memory in postgresql io_file_set for %s, because of unseekable file",
+                    len(content_or_file) / 1048576, path)
+        if isinstance(content_or_file, bytes):
+            f.write(content_or_file)
+            f.seek(0)
+        else:
+            content_or_file.seek(0)
+            shutil.copyfileobj(content_or_file, f)
+        self.dirty_files[path] = f
 
     def io_file_open(self, path):
-        return py.io.BytesIO(self.io_file_get(path))
+        dirty_file = self.dirty_files.get(path, absent)
+        if dirty_file is None:
+            raise IOError()
+        if dirty_file is absent:
+            return BytesIO(self.io_file_get(path))
+        f = SpooledTemporaryFile()
+        # we need a new file to prevent the dirty_file from being closed
+        dirty_file.seek(0)
+        shutil.copyfileobj(dirty_file, f)
+        dirty_file.seek(0)
+        f.seek(0)
+        return f
 
     def io_file_get(self, path):
         assert not os.path.isabs(path)
+        f = self.dirty_files.get(path, absent)
+        if f is None:
+            raise IOError()
+        elif f is not absent:
+            pos = f.tell()
+            f.seek(0)
+            content = f.read()
+            f.seek(pos)
+            return content
         q = "SELECT data FROM files WHERE path = ?"
         content = self.fetchone(q, (path,))
         if content is None:
@@ -211,6 +267,14 @@ class Connection(BaseConnection):
 
     def io_file_size(self, path):
         assert not os.path.isabs(path)
+        f = self.dirty_files.get(path, absent)
+        if f is None:
+            raise IOError()
+        elif f is not absent:
+            pos = f.tell()
+            size = f.seek(0, 2)
+            f.seek(pos)
+            return size
         q = "SELECT size FROM files WHERE path = ?"
         result = self.fetchone(q, (path,))
         if result is not None:
@@ -218,15 +282,58 @@ class Connection(BaseConnection):
 
     def io_file_delete(self, path):
         assert not os.path.isabs(path)
-        q = "DELETE FROM files WHERE path = ?"
-        self.fetchone(q, (path,))
+        f = self.dirty_files.pop(path, None)
+        if f is not None:
+            f.close()
         self.dirty_files[path] = None
 
-    def write_transaction(self):
-        return Writer(self.storage, self)
+    def _file_write(self, path, f):
+        assert not os.path.isabs(path)
+        assert not path.endswith("-tmp")
+        q = "INSERT OR REPLACE INTO files (path, size, data) VALUES (?, ?, ?)"
+        f.seek(0)
+        content = f.read()
+        f.close()
+        self.fetchone(q, (path, len(content), sqlite3.Binary(content)))
+
+    def _file_delete(self, path):
+        assert not os.path.isabs(path)
+        assert not path.endswith("-tmp")
+        q = "DELETE FROM files WHERE path = ?"
+        self.fetchone(q, (path,))
+
+    def _get_rel_renames(self):
+        return []
+
+    def _write_dirty_files(self, rel_renames):
+        files_del = []
+        files_commit = []
+        for path, f in self.dirty_files.items():
+            if f is None:
+                self._file_delete(path)
+                files_del.append(path)
+            else:
+                self._file_write(path, f)
+                files_commit.append(path)
+        self.dirty_files.clear()
+        return (files_commit, files_del)
+
+    def _drop_dirty_files(self):
+        return
 
     def commit_files_without_increasing_serial(self):
-        self.commit()
+        try:
+            rel_renames = self._get_rel_renames()
+            (files_commit, files_del) = self._write_dirty_files(rel_renames)
+            if files_commit or files_del:
+                threadlog.debug(
+                    "wrote files without increasing serial: %s",
+                    LazyChangesFormatter({}, files_commit, files_del))
+        except BaseException:
+            self.rollback()
+            raise
+        else:
+            self.commit()
 
 
 class BaseStorage(object):
@@ -454,13 +561,22 @@ def devpiserver_metrics(request):
 
 
 class LazyChangesFormatter:
-    __slots__ = ('keys',)
+    __slots__ = ('files_commit', 'files_del', 'keys')
 
-    def __init__(self, changes):
+    def __init__(self, changes, files_commit, files_del):
+        self.files_commit = files_commit
+        self.files_del = files_del
         self.keys = changes.keys()
 
     def __str__(self):
-        return f"keys: {','.join(repr(c) for c in self.keys)}"
+        msg = []
+        if self.keys:
+            msg.append(f"keys: {','.join(repr(c) for c in self.keys)}")
+        if self.files_commit:
+            msg.append(f"files_commit: {','.join(self.files_commit)}")
+        if self.files_del:
+            msg.append(f"files_del: {','.join(self.files_del)}")
+        return ", ".join(msg)
 
 
 class Writer:
@@ -492,14 +608,24 @@ class Writer:
         commit_serial = self.commit_serial
         thread_pop_log("fswriter%s:" % commit_serial)
         if cls is None:
-            entry = self.changes, []
-            self.conn.write_changelog_entry(commit_serial, entry)
-            self.conn.commit()
+            changes_formatter = self.commit(commit_serial)
             self.log.info("committed at %s", commit_serial)
-            self.log.debug(
-                "committed: %s", LazyChangesFormatter(self.changes))
+            self.log.debug("committed: %s", changes_formatter)
 
             self.storage._notify_on_commit(commit_serial)
         else:
-            self.conn.rollback()
+            self.rollback()
             self.log.info("roll back at %s", commit_serial)
+
+    def commit(self, commit_serial):
+        rel_renames = self.conn._get_rel_renames()
+        entry = (self.changes, rel_renames)
+        self.conn.write_changelog_entry(commit_serial, entry)
+        (files_commit, files_del) = self.conn._write_dirty_files(rel_renames)
+        self.conn.commit()
+        self.storage.last_commit_timestamp = time.time()
+        return LazyChangesFormatter(self.changes, files_commit, files_del)
+
+    def rollback(self):
+        self.conn._drop_dirty_files()
+        self.conn.rollback()
