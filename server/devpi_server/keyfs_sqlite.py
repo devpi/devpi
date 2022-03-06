@@ -453,6 +453,16 @@ def devpiserver_metrics(request):
     return result
 
 
+class LazyChangesFormatter:
+    __slots__ = ('keys',)
+
+    def __init__(self, changes):
+        self.keys = changes.keys()
+
+    def __str__(self):
+        return f"keys: {','.join(repr(c) for c in self.keys)}"
+
+
 class Writer:
     def __init__(self, storage, conn):
         self.conn = conn
@@ -485,10 +495,9 @@ class Writer:
             entry = self.changes, []
             self.conn.write_changelog_entry(commit_serial, entry)
             self.conn.commit()
-            message = "committed: keys: %s"
-            args = [",".join(map(repr, list(self.changes)))]
             self.log.info("commited at %s", commit_serial)
-            self.log.debug(message, *args)
+            self.log.debug(
+                "committed: %s", LazyChangesFormatter(self.changes))
 
             self.storage._notify_on_commit(commit_serial)
         else:

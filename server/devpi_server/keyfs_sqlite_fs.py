@@ -155,16 +155,10 @@ class Connection(BaseConnection):
         basedir = str(self.storage.basedir)
         rel_renames = list(make_rel_renames(basedir, pending_renames))
         files_commit, files_del = commit_renames(basedir, rel_renames)
-        message = "wrote files without increasing serial: "
-        args = []
-        if files_commit:
-            message += "%s"
-            args.append(",".join(files_commit))
-        if files_del:
-            message += ", files_del: %s"
-            args.append(",".join(files_del))
-        if args:
-            threadlog.debug(message, *args)
+        if files_commit or files_del:
+            threadlog.debug(
+                "wrote files without increasing serial: %s",
+                LazyChangesFormatter({}, files_commit, files_del))
 
 
 class Storage(BaseStorage):
@@ -209,6 +203,25 @@ def devpiserver_storage_backend(settings):
         _test_markers=["storage_with_filesystem"])
 
 
+class LazyChangesFormatter:
+    __slots__ = ('files_commit', 'files_del', 'keys')
+
+    def __init__(self, changes, files_commit, files_del):
+        self.files_commit = files_commit
+        self.files_del = files_del
+        self.keys = changes.keys()
+
+    def __str__(self):
+        msg = []
+        if self.keys:
+            msg.append(f"keys: {','.join(repr(c) for c in self.keys)}")
+        if self.files_commit:
+            msg.append(f"files_commit: {','.join(self.files_commit)}")
+        if self.files_del:
+            msg.append(f"files_del: {','.join(self.files_del)}")
+        return ", ".join(msg)
+
+
 class FSWriter:
     def __init__(self, storage, conn):
         self.conn = conn
@@ -240,20 +253,10 @@ class FSWriter:
         if cls is None:
             pending_renames = write_dirty_files(self.conn.dirty_files)
 
-            changed_keys, files_commit, files_del = \
-                self.commit_to_filesystem(pending_renames)
+            changes_formatter = self.commit_to_filesystem(pending_renames)
 
-            # write out a nice commit entry to logging
-            message = "committed: keys: %s"
-            args = [",".join(map(repr, changed_keys))]
-            if files_commit:
-                message += ", files_commit: %s"
-                args.append(",".join(files_commit))
-            if files_del:
-                message += ", files_del: %s"
-                args.append(",".join(files_del))
             self.log.info("commited at %s", commit_serial)
-            self.log.debug(message, *args)
+            self.log.debug("committed: keys: %s", changes_formatter)
 
             self.storage._notify_on_commit(commit_serial)
         else:
@@ -276,7 +279,7 @@ class FSWriter:
         # - initialize next_serial from the max committed serial + 1
         files_commit, files_del = commit_renames(basedir, rel_renames)
         self.storage.last_commit_timestamp = time.time()
-        return list(self.changes), files_commit, files_del
+        return LazyChangesFormatter(self.changes, files_commit, files_del)
 
 
 def drop_dirty_files(dirty_files):
