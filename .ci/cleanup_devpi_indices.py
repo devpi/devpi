@@ -29,10 +29,8 @@ def get_release_dates(baseurl, username, indexname, projectname):
     result = response.json()["result"]
     dates = set()
     for value in result.values():
-        if "+links" not in value:
-            continue
-        for link in value["+links"]:
-            for log in link["log"]:
+        for link in value.get("+links", []):
+            for log in link.get("log", []):
                 dates.add(tuple(log["when"]))
     return dates
 
