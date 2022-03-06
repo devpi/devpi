@@ -495,20 +495,107 @@ class TestTransactionIsolation:
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
         D = pkey(name="world")
         with keyfs.transaction(write=True):
-            D.set({1:1})
+            D.set({1: 1})
+        keyfs_serial = keyfs.get_current_serial()
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
-        new_keyfs.subscribe_on_import(lambda *args: 0/0)
+        new_keyfs.subscribe_on_import(lambda *args: 0 / 0)
         serial = new_keyfs.get_current_serial()
         with keyfs.transaction() as tx:
             changes = tx.conn.get_changes(0)
         with pytest.raises(ZeroDivisionError):
             new_keyfs.import_changes(0, changes)
-        assert new_keyfs.get_current_serial() == serial
+        # the error in the subscriber didn't prevent the serial from
+        # being imported
+        assert new_keyfs.get_current_serial() > serial
+        assert new_keyfs.get_current_serial() == keyfs_serial
 
     def test_get_raw_changelog_entry_not_exist(self, keyfs):
         with keyfs.transaction() as tx:
             assert tx.conn.get_raw_changelog_entry(10000) is None
+
+    def test_cache_interference(self, storage, tmpdir):
+        # because the transaction for the import subscriber was opened during
+        # the transaction of the import itself and keys were fetched and placed
+        # in the relpath cache, there was a value mismatch when a key from
+        # the currently being written serial was places in the cache during
+        # the import subscriber run
+        keyfs1 = KeyFS(tmpdir.join("keyfs1"), storage)
+        pkey1 = keyfs1.add_key("NAME1", "hello1/{name}", dict)
+        pkey2 = keyfs1.add_key("NAME2", "hello2/{name}", dict)
+        D1 = pkey1(name="world1")
+        D2 = pkey2(name="world2")
+        for i in range(2):
+            with keyfs1.transaction(write=True):
+                assert D1.get() == {}
+                D1.set({1: 1})
+                assert D1.get() == {1: 1}
+            with keyfs1.transaction(write=True):
+                assert D2.get() == {}
+                D2.set({1: 1})
+                assert D2.get() == {1: 1}
+            with keyfs1.transaction(write=True):
+                assert D1.get() == {1: 1}
+                D1.set({1: 1, 2: 2})
+                assert D1.get() == {1: 1, 2: 2}
+            with keyfs1.transaction(write=True):
+                assert D2.get() == {1: 1}
+                D2.set({1: 1, 2: 2})
+                assert D2.get() == {1: 1, 2: 2}
+            with keyfs1.transaction(write=True):
+                assert D1.get() == {1: 1, 2: 2}
+                D1.delete()
+                assert D1.get() == {}
+            with keyfs1.transaction(write=True):
+                assert D2.get() == {1: 1, 2: 2}
+                D2.delete()
+                assert D2.get() == {}
+        # get all changes
+        serial1 = keyfs1.get_current_serial()
+        with keyfs1.get_connection() as conn1:
+            changes1 = [conn1.get_changes(i) for i in range(serial1 + 1)]
+        # create new keyfs
+        keyfs2 = KeyFS(tmpdir.join("newkeyfs"), storage)
+        pkey1 = keyfs2.add_key("NAME1", "hello1/{name}", dict)
+        pkey2 = keyfs2.add_key("NAME2", "hello2/{name}", dict)
+        D1 = pkey1(name="world1")
+        D2 = pkey2(name="world2")
+
+        # add a subscriber to get into that branch in keyfs2.import_changes
+
+        def subscriber(serial, changes):
+            # fetch the keys
+            if serial % 6 == 0:
+                assert D1.get() == {1: 1}, serial
+                assert D2.get() == {}, serial
+            elif serial % 6 == 1:
+                assert D1.get() == {1: 1}, serial
+                assert D2.get() == {1: 1}, serial
+            elif serial % 6 == 2:
+                assert D1.get() == {1: 1, 2: 2}, serial
+                assert D2.get() == {1: 1}, serial
+            elif serial % 6 == 3:
+                assert D1.get() == {1: 1, 2: 2}, serial
+                assert D2.get() == {1: 1, 2: 2}, serial
+            elif serial % 6 == 4:
+                assert D1.get() == {}, serial
+                assert D2.get() == {1: 1, 2: 2}, serial
+            elif serial % 6 == 5:
+                assert D1.get() == {}, serial
+                assert D2.get() == {}, serial
+            else:
+                raise RuntimeError
+        keyfs2.subscribe_on_import(subscriber)
+
+        # and import
+        for i in range(serial1 + 1):
+            keyfs2.import_changes(i, changes1[i])
+        changes2 = []
+        for i in range(serial1 + 1):
+            with keyfs2.get_connection() as conn2:
+                changes2.append(conn2.get_changes(i))
+        assert serial1 == keyfs2.get_current_serial()
+        assert changes1 == changes2
 
 
 @notransaction

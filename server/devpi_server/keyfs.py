@@ -254,9 +254,9 @@ class KeyFS(object):
                     fswriter.record_set(
                         typedkey, get_mutable_deepcopy(val),
                         back_serial=back_serial)
-                if callable(self._import_subscriber):
-                    with self.transaction(write=False, at_serial=serial):
-                        self._import_subscriber(serial, changes)
+        if callable(self._import_subscriber):
+            with self.transaction(write=False, at_serial=serial):
+                self._import_subscriber(serial, changes)
 
     def subscribe_on_import(self, subscriber):
         assert self._import_subscriber is None
