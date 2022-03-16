@@ -8,10 +8,17 @@ try:
     from devpi_server.keyfs import RelpathInfo
     from devpi_server.keyfs import get_relpath_at
 except ImportError:
+    # if these are missing, the methods they are used in are never called
     pass
 from devpi_server.log import threadlog, thread_push_log, thread_pop_log
 from devpi_server.readonly import ReadonlyView
 from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy
+try:
+    from devpi_server.sizeof import gettotalsizeof
+except ImportError:
+    def gettotalsizeof(obj, maxlen=None):
+        # dummy value for old devpi_server releases
+        return None
 from functools import partial
 from io import BytesIO
 from io import RawIOBase
@@ -242,13 +249,21 @@ class Connection:
     def get_relpath_at(self, relpath, serial):
         result = self._relpath_cache.get((serial, relpath), absent)
         if result is absent:
+            result = self._changelog_cache.get((serial, relpath), absent)
+        if result is absent:
             changes = self._changelog_cache.get(serial, absent)
             if changes is not absent and relpath in changes:
                 (keyname, back_serial, value) = changes[relpath]
                 result = (serial, back_serial, value)
         if result is absent:
             result = get_relpath_at(self, relpath, serial)
-        self._relpath_cache.put((serial, relpath), result)
+        if gettotalsizeof(result, maxlen=100000) is None:
+            # result is big, put it in the changelog cache,
+            # which has fewer entries to preserve memory
+            self._changelog_cache.put((serial, relpath), result)
+        else:
+            # result is small
+            self._relpath_cache.put((serial, relpath), result)
         return result
 
     def iter_relpaths_at(self, typedkeys, at_serial):
@@ -571,7 +586,11 @@ class Storage:
             "DEVPI_PG_USE_COPY", self.use_copy)))
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
-        changelog_cache_size = max(1, cache_size // 20)
+        if gettotalsizeof(0) is None:
+            # old devpi_server version doesn't have a working gettotalsizeof
+            changelog_cache_size = cache_size
+        else:
+            changelog_cache_size = max(1, cache_size // 20)
         relpath_cache_size = max(1, cache_size - changelog_cache_size)
         self._changelog_cache = LRUCache(changelog_cache_size)  # is thread safe
         self._relpath_cache = LRUCache(relpath_cache_size)  # is thread safe
