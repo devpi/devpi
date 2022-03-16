@@ -14,14 +14,14 @@ _nodefault = object()
 
 def rename(source, dest):
     try:
-        os.rename(source, dest)
+        os.replace(source, dest)
     except OSError:
         destdir = os.path.dirname(dest)
         if not os.path.exists(destdir):
             os.makedirs(destdir)
         if sys.platform == "win32" and os.path.exists(dest):
             os.remove(dest)
-        os.rename(source, dest)
+        os.replace(source, dest)
 
 
 FOUR_BYTE_INT_MAX = 2147483647
