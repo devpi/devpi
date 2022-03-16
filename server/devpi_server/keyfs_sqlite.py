@@ -5,6 +5,7 @@ from .interfaces import IStorageConnection2
 from .keyfs import RelpathInfo
 from .keyfs import get_relpath_at
 from .log import threadlog, thread_push_log, thread_pop_log
+from .mythread import current_thread
 from .readonly import ReadonlyView
 from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
 from repoze.lru import LRUCache
@@ -293,15 +294,18 @@ class BaseStorage(object):
         uri = "file:%s?mode=%s" % (self.sqlpath, mode)
         sqlconn = self._get_sqlconn(uri)
         if write:
-            start_time = time.time()
+            start_time = time.monotonic()
+            thread = current_thread()
             while 1:
                 try:
                     sqlconn.execute("begin immediate")
                     break
                 except sqlite3.OperationalError:
                     # another thread may be writing, give it a chance to finish
-                    time.sleep(0)
-                    if time.time() - start_time > 5:
+                    time.sleep(0.01)
+                    if hasattr(thread, "exit_if_shutdown"):
+                        thread.exit_if_shutdown()
+                    if time.monotonic() - start_time > 30:
                         # if it takes this long, something is wrong
                         raise
         conn = self.Connection(sqlconn, self.basedir, self)
