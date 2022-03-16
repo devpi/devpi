@@ -180,6 +180,7 @@ class Connection:
         self.changes = {}
         self.storage = storage
         self._changelog_cache = storage._changelog_cache
+        self._relpath_cache = storage._relpath_cache
         threadlog.debug("Using use_copy=%r", storage.use_copy)
         if storage.use_copy:
             self.io_file_open = self._copy_io_file_open
@@ -239,7 +240,7 @@ class Connection:
         return (keyname, serial)
 
     def get_relpath_at(self, relpath, serial):
-        result = self._changelog_cache.get((serial, relpath), absent)
+        result = self._relpath_cache.get((serial, relpath), absent)
         if result is absent:
             changes = self._changelog_cache.get(serial, absent)
             if changes is not absent and relpath in changes:
@@ -247,7 +248,7 @@ class Connection:
                 result = (serial, back_serial, value)
         if result is absent:
             result = get_relpath_at(self, relpath, serial)
-        self._changelog_cache.put((serial, relpath), result)
+        self._relpath_cache.put((serial, relpath), result)
         return result
 
     def iter_relpaths_at(self, typedkeys, at_serial):
@@ -263,10 +264,7 @@ class Connection:
             rows = self._sqlconn.run(q, serial=serial, **keyname_id_values)
             if not rows:
                 continue
-            changes = self._changelog_cache.get(serial, absent)
-            if changes is absent:
-                changes = loads(
-                    self.get_raw_changelog_entry(serial))[0]
+            changes = self.get_changes(serial, absent)
             for relpath, keyname, serial in rows:
                 (keyname, back_serial, val) = changes[relpath]
                 yield RelpathInfo(
@@ -426,19 +424,16 @@ class Connection:
         return self.fetchscalar(q, serial=serial)
 
     def get_changes(self, serial):
-        changes = self._changelog_cache.get(serial)
-        if changes is None:
+        changes = self._changelog_cache.get(serial, absent)
+        if changes is absent:
             data = self.get_raw_changelog_entry(serial)
             changes, rel_renames = loads(data)
             # make values in changes read only so no calling site accidentally
             # modifies data
             changes = ensure_deeply_readonly(changes)
-            self.cache_commit_changes(serial, changes)
+            assert isinstance(changes, ReadonlyView)
+            self._changelog_cache.put(serial, changes)
         return changes
-
-    def cache_commit_changes(self, serial, changes):
-        assert isinstance(changes, ReadonlyView)
-        self._changelog_cache.put(serial, changes)
 
     def write_transaction(self):
         return Writer(self.storage, self)
@@ -576,7 +571,10 @@ class Storage:
             "DEVPI_PG_USE_COPY", self.use_copy)))
         self.basedir = basedir
         self._notify_on_commit = notify_on_commit
-        self._changelog_cache = LRUCache(cache_size)  # is thread safe
+        changelog_cache_size = max(1, cache_size // 20)
+        relpath_cache_size = max(1, cache_size - changelog_cache_size)
+        self._changelog_cache = LRUCache(changelog_cache_size)  # is thread safe
+        self._relpath_cache = LRUCache(relpath_cache_size)  # is thread safe
         self.last_commit_timestamp = time.time()
         self.ensure_tables_exist()
 
