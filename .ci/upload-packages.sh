@@ -5,6 +5,7 @@ devpi index -c "${DEVPI_INDEX}" bases=root/pypi
 devpi use "${DEVPI_INDEX}"
 devpi push --index root/pypi devpi-server==4.0.0 "${DEVPI_INDEX}"
 devpi push --index root/pypi devpi-server==5.2.0 "${DEVPI_INDEX}"
+devpi push --index root/pypi devpi-server==6.2.0 "${DEVPI_INDEX}"
 pushd common
 yes | towncrier
 devpi upload
