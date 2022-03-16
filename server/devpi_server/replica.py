@@ -893,6 +893,9 @@ class FileReplicationThread:
             # we found a matching existing file
             with keyfs._storage.get_connection(write=True) as conn:
                 conn.io_file_set(entry._storepath, f)
+                # on Windows we need to close the file
+                # before the transaction closes
+                f.close()
                 conn.commit_files_without_increasing_serial()
             self.shared_data.errors.remove(entry)
             return
@@ -994,6 +997,9 @@ class FileReplicationThread:
                 self.shared_data.errors.remove(entry)
                 with keyfs._storage.get_connection(write=True) as conn:
                     conn.io_file_set(entry._storepath, f)
+                    # on Windows we need to close the file
+                    # before the transaction closes
+                    f.close()
                     conn.commit_files_without_increasing_serial()
 
     def handler(self, index_type, serial, key, keyname, value, back_serial):
