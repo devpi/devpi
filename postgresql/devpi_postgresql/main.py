@@ -1,15 +1,8 @@
 from devpi_common.types import cached_property
-try:
-    from devpi_server import interfaces as ds_interfaces
-except ImportError:
-    ds_interfaces = None
+from devpi_server import interfaces as ds_interfaces
 from devpi_server.fileutil import dumps, loads
-try:
-    from devpi_server.keyfs import RelpathInfo
-    from devpi_server.keyfs import get_relpath_at
-except ImportError:
-    # if these are missing, the methods they are used in are never called
-    pass
+from devpi_server.keyfs import RelpathInfo
+from devpi_server.keyfs import get_relpath_at
 from devpi_server.log import threadlog, thread_push_log, thread_pop_log
 from devpi_server.readonly import ReadonlyView
 from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy

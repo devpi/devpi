@@ -60,7 +60,7 @@ setup(
         'pytest11': [
             "pytest_devpi_postgresql = pytest_devpi_postgresql"]},
     install_requires=[
-        'devpi-server>=3.0.0.dev2',
+        'devpi-server>=6.2.0',
         'pg8000>=1.17.0'],
     include_package_data=True,
     python_requires='>=3.7',
