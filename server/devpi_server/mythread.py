@@ -2,10 +2,22 @@ from .log import threadlog
 import contextlib
 import threading
 import time
+import types
 
 
 class Shutdown(Exception):
     """ this thread is shutting down. """
+
+
+def current_thread():
+    systhread = threading.current_thread()
+    target = systhread._target
+    if not isinstance(target, types.MethodType):
+        return systhread
+    thread = getattr(target.__self__, "thread", None)
+    if not isinstance(thread, MyThread):
+        return systhread
+    return thread
 
 
 class MyThread(threading.Thread):
