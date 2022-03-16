@@ -280,6 +280,13 @@ class Connection:
                     serial=serial, back_serial=back_serial,
                     value=val)
 
+    def write_changelog_entry(self, serial, entry):
+        threadlog.debug("writing changelog for serial %s", serial)
+        q = """
+            INSERT INTO changelog (serial, data) VALUES (:serial, :data);"""
+        data = dumps(entry)
+        self._sqlconn.run(q, serial=serial, data=pg8000.Binary(data))
+
     def io_file_os_path(self, path):
         return None
 
@@ -687,13 +694,6 @@ class Writer:
                 SET keyname = EXCLUDED.keyname, serial = EXCLUDED.serial;"""
         self.conn._sqlconn.run(q, relpath=relpath, name=name, serial=serial)
 
-    def _write_changelog_entry(self, serial, entry):
-        threadlog.debug("writing changelog for serial %s", serial)
-        q = """
-            INSERT INTO changelog (serial, data) VALUES (:serial, :data);"""
-        data = dumps(entry)
-        self.conn._sqlconn.run(q, serial=serial, data=pg8000.Binary(data))
-
     def __enter__(self):
         self.conn.begin()
         self.conn._lock()
@@ -715,11 +715,11 @@ class Writer:
                             (_, back_serial) = self.conn.db_read_typedkey(relpath)
                         except KeyError:
                             back_serial = -1
-                        # update back_serial for _write_changelog_entry
+                        # update back_serial for write_changelog_entry
                         self.changes[relpath] = (keyname, back_serial, value)
                     self._db_write_typedkey(relpath, keyname, commit_serial)
                 entry = (self.changes, [])
-                self._write_changelog_entry(commit_serial, entry)
+                self.conn.write_changelog_entry(commit_serial, entry)
                 self.conn.commit()
                 message = "committed: keys: %s"
                 args = [",".join(map(repr, list(self.changes)))]
