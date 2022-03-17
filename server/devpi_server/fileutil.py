@@ -2,7 +2,6 @@ import errno
 import os.path
 import sys
 from . import readonly
-from functools import partial
 from io import BytesIO
 from struct import error as struct_error
 from struct import pack
@@ -39,15 +38,14 @@ class LoadError(DataFormatError):
     """Error while unserializing an object."""
 
 
-# int.from_bytes is slower
-def load(fp, _unpack_int4=partial(unpack, "!i"), _unpack_float8=partial(unpack, "!d")):
+def load(fp, _from_bytes=int.from_bytes, _unpack=unpack):
     read = fp.read
     stack = []
     stack_append = stack.append
     stack_pop = stack.pop
 
     def _load_collection(type_):
-        length = _unpack_int4(read(4))[0]
+        length = _from_bytes(read(4), byteorder="big", signed=True)
         if length:
             res = type_(stack[-length:])
             del stack[-length:]
@@ -63,29 +61,29 @@ def load(fp, _unpack_int4=partial(unpack, "!i"), _unpack_float8=partial(unpack, 
         if opcode == b'@':  # tuple
             _load_collection(tuple)
         elif opcode == b'A':  # bytes
-            stack_append(read(_unpack_int4(read(4))[0]))
+            stack_append(read(_from_bytes(read(4), byteorder="big", signed=True)))
         elif opcode == b'B':  # Channel
             raise NotImplementedError("opcode B for Channel")
         elif opcode == b'C':  # False
             stack_append(False)
         elif opcode == b'D':  # float
-            stack_append(_unpack_float8(read(8))[0])
+            stack_append(_unpack("!d", read(8))[0])
         elif opcode == b'E':  # frozenset
             _load_collection(frozenset)
         elif opcode in (b'F', b'G'):  # int, long
-            stack_append(_unpack_int4(read(4))[0])
+            stack_append(_from_bytes(read(4), byteorder="big", signed=True))
         elif opcode in (b'H', b'I'):  # longint, longlong
-            stack_append(int(read(_unpack_int4(read(4))[0])))
+            stack_append(int(read(_from_bytes(read(4), byteorder="big", signed=True))))
         elif opcode == b'J':  # dict
             stack_append({})
         elif opcode == b'K':  # list
-            stack_append([None] * _unpack_int4(read(4))[0])
+            stack_append([None] * _from_bytes(read(4), byteorder="big", signed=True))
         elif opcode == b'L':  # None
             stack_append(None)
         elif opcode == b'M':  # Python 2 string
-            stack_append(read(_unpack_int4(read(4))[0]))
+            stack_append(read(_from_bytes(read(4), byteorder="big", signed=True)))
         elif opcode in (b'N', b'S'):  # Python 3 string, unicode
-            stack_append(read(_unpack_int4(read(4))[0]).decode('utf-8'))
+            stack_append(read(_from_bytes(read(4), byteorder="big", signed=True)).decode('utf-8'))
         elif opcode == b'O':  # set
             _load_collection(set)
         elif opcode == b'P':  # setitem
@@ -101,7 +99,7 @@ def load(fp, _unpack_int4=partial(unpack, "!i"), _unpack_float8=partial(unpack, 
         elif opcode == b'R':  # True
             stack_append(True)
         elif opcode == b'T':  # complex
-            stack_append(complex(_unpack_float8(read(8))[0], _unpack_float8(read(8))[0]))
+            stack_append(complex(_unpack("!d", read(8))[0], _unpack("!d", read(8))[0]))
         else:
             raise LoadError(
                 "unkown opcode %r - wire protocol corruption?" % opcode)
@@ -116,16 +114,16 @@ def loads(data):
     return load(BytesIO(data))
 
 
-def _dump_tuple(write, obj, _pack_int4=partial(pack, "!i")):
+def _dump_tuple(write, obj, _pack=pack):
     for item in obj:
         _dispatch[item.__class__](write, item)
     write(b'@')
-    write(_pack_int4(len(obj)))
+    write(_pack("!i", len(obj)))
 
 
-def _dump_bytes(write, obj, _pack_int4=partial(pack, "!i")):
+def _dump_bytes(write, obj, _pack=pack):
     write(b'A')
-    write(_pack_int4(len(obj)))
+    write(_pack("!i", len(obj)))
     write(obj)
 
 
@@ -136,27 +134,27 @@ def _dump_bool(write, obj):
         write(b'C')
 
 
-def _dump_float(write, obj, _pack_float8=partial(pack, "!d")):
+def _dump_float(write, obj, _pack=pack):
     write(b'D')
-    write(_pack_float8(obj))
+    write(_pack("!d", obj))
 
 
-def _dump_frozenset(write, obj, _pack_int4=partial(pack, "!i")):
+def _dump_frozenset(write, obj, _pack=pack):
     for item in obj:
         _dispatch[item.__class__](write, item)
     write(b'E')
-    write(_pack_int4(len(obj)))
+    write(_pack("!i", len(obj)))
 
 
-def _dump_int(write, obj, _pack_int4=partial(pack, "!i")):
+def _dump_int(write, obj, _pack=pack):
     if obj > FOUR_BYTE_INT_MAX:
         write(b'H')
         s = f"{obj}".encode("ascii")
-        write(_pack_int4(len(s)))
+        write(_pack("!i", len(s)))
         write(s)
     else:
         write(b'F')
-        write(_pack_int4(obj))
+        write(_pack("!i", obj))
 
 
 def _dump_dict(write, obj):
@@ -167,9 +165,9 @@ def _dump_dict(write, obj):
         write(b'P')
 
 
-def _dump_list(write, obj, _pack_int4=partial(pack, "!i")):
+def _dump_list(write, obj, _pack=pack):
     write(b'K')
-    write(_pack_int4(len(obj)))
+    write(_pack("!i", len(obj)))
     for i, v in enumerate(obj):
         _dispatch[i.__class__](write, i)
         _dispatch[v.__class__](write, v)
@@ -180,27 +178,27 @@ def _dump_none(write, obj):
     write(b'L')
 
 
-def _dump_str(write, obj, _pack_int4=partial(pack, "!i")):
+def _dump_str(write, obj, _pack=pack):
     try:
         obj = obj.encode('utf-8')
     except UnicodeEncodeError:
         raise DumpError("strings must be utf-8 encodable")
     write(b'N')
-    write(_pack_int4(len(obj)))
+    write(_pack("!i", len(obj)))
     write(obj)
 
 
-def _dump_set(write, obj, _pack_int4=partial(pack, "!i")):
+def _dump_set(write, obj, _pack=pack):
     for item in obj:
         _dispatch[item.__class__](write, item)
     write(b'O')
-    write(_pack_int4(len(obj)))
+    write(_pack("!i", len(obj)))
 
 
-def _dump_complex(write, obj, _pack_float8=partial(pack, "!d")):
+def _dump_complex(write, obj, _pack=pack):
     write(b'T')
-    write(_pack_float8(obj.real))
-    write(_pack_float8(obj.imag))
+    write(_pack("!d", obj.real))
+    write(_pack("!d", obj.imag))
 
 
 _dispatch = {
