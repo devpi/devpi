@@ -2,6 +2,39 @@
 
 .. towncrier release notes start
 
+
+3.0.0 (2022-03-18)
+==================
+
+
+Deprecations and Removals
+-------------------------
+
+- Require at least devpi-server 6.2.0.
+
+
+Features
+--------
+
+- Support performance and memory optimizations enabled by devpi-server >= 6.2.0.
+
+- Support new storage interface from devpi-server 6.5.0 to keep files out of memory.
+
+- Files are stored in a temporary location and committed to the database in one shorter transaction block. This also reduces the time locks are held on the database.
+
+- Support memory optimizations enabled by devpi-server 6.5.0 to keep cache small.
+
+- Switch to native interface introduced in pg8000 1.17.0.
+
+- Stream files directly through database connection using ``COPY``.
+
+
+Bug Fixes
+---------
+
+- Reduce chances of conflicts by using a postgresql sequence for serials. This can cause serials with no changes due to gaps in the sequence in case of conflicts, but these are harmless.
+
+
 2.0.0 (2020-04-14)
 ==================
 

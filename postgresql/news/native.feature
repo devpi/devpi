@@ -1,1 +1,0 @@
-Switch to native interface introduced in pg8000 1.17.0.

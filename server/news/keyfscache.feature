@@ -1,1 +1,0 @@
-Split keyfs cache into a small changelog cache and a relpath cache, this lowers overall memory usage and prevents cache trashing.

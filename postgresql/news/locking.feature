@@ -1,1 +1,0 @@
-Files are stored in a temporary location and committed to the database in one shorter transaction block. This also reduces the time locks are held on the database.
