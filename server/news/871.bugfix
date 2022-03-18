@@ -1,1 +1,0 @@
-Fix #871: authentication info in ``mirror_url`` wasn't passed on to release links anymore.

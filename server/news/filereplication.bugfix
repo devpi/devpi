@@ -1,1 +1,0 @@
-Open database connection after file was downloaded during replication to avoid conflicts and locking.

@@ -2,6 +2,39 @@
 
 .. towncrier release notes start
 
+
+6.5.0 (2022-03-18)
+==================
+
+
+Features
+--------
+
+- Added ``--no-checksum`` option to ``devpi-fsck`` to skip checksum validation and only check for file existence.
+
+- Split keyfs cache into a small changelog cache and a relpath cache, this lowers overall memory usage and prevents cache trashing.
+
+- Lower memory usage by avoiding to read release files into memory and instead use existing file objects.
+
+- Switch to ``platformdirs`` from ``appdirs``.
+
+- Add streaming replica protocol, which is faster and uses less memory, especially when rebuilding a replica.
+
+- Better logging and handling if a thread unexpectedly dies.
+
+
+Bug Fixes
+---------
+
+- Fix #871: authentication info in ``mirror_url`` wasn't passed on to release links anymore.
+
+- Open database connection after file was downloaded during replication to avoid conflicts and locking.
+
+- Avoid hashing data twice when writing to storage.
+
+- Close HTTP responses and sessions when done to free resources as early as possible instead of waiting for garbage collection.
+
+
 6.4.0 (2022-01-24)
 ==================
 

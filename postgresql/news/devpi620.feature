@@ -1,1 +1,0 @@
-Support performance and memory optimizations enabled by devpi-server >= 6.2.0.

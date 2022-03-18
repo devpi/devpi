@@ -1,1 +1,0 @@
-Close HTTP responses and sessions when done to free resources as early as possible instead of waiting for garbage collection.

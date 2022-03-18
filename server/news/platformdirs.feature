@@ -1,1 +1,0 @@
-Switch to ``platformdirs`` from ``appdirs``.

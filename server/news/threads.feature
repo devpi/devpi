@@ -1,1 +1,0 @@
-Better logging and handling if a thread unexpectedly dies.
