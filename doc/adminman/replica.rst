@@ -29,6 +29,9 @@ In order to start a replica you need to provide the root master URL::
 
     devpi-server --master-url http://url-of-master
 
+The master and its replicas have to share the secret in the file specified with
+``--secretfile "${DEVPISERVER_SECRETFILE}"``.
+
 If you are testing replication and run the master and replica on the
 same host make sure you specify different server directories and ports
 like this::
