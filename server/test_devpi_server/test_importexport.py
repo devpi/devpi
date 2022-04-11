@@ -1012,26 +1012,6 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             assert "uploadtrigger_jenkins" not in stage.ixconfig
 
-    def test_import_fails_if_uploadtrigger_jenkins_set(self, impexp):
-        from devpi_server.model import InvalidIndexconfig
-        mapp1 = impexp.mapp1
-        api = mapp1.create_and_use()
-        (user, index) = api.stagename.split('/')
-        with mapp1.xom.keyfs.transaction(write=True):
-            stage = mapp1.xom.model.getstage(api.stagename)
-            with stage.user.key.update() as userconfig:
-                ixconfig = userconfig["indexes"][index]
-                ixconfig["uploadtrigger_jenkins"] = "foo"
-        with mapp1.xom.keyfs.transaction():
-            stage = mapp1.xom.model.getstage(api.stagename)
-            assert "uploadtrigger_jenkins" in stage.ixconfig
-            assert stage.ixconfig["uploadtrigger_jenkins"] == "foo"
-
-        impexp.export()
-
-        with pytest.raises(InvalidIndexconfig, match="uploadtrigger_jenkins"):
-            impexp.new_import()
-
     def test_plugin_index_config(self, impexp):
         class Plugin:
             @hookimpl
@@ -1057,6 +1037,40 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             assert "foo_plugin" in stage.ixconfig
             assert stage.ixconfig["foo_plugin"] == "foo"
+
+    def test_missing_plugin_index_config(self, impexp):
+        class Plugin:
+            @hookimpl
+            def devpiserver_indexconfig_defaults(self, index_type):
+                return {"foo_plugin": index_type}
+        mapp1 = impexp.mapp1
+        mapp1.xom.config.pluginmanager.register(Plugin())
+
+        api1 = mapp1.create_and_use()
+        with mapp1.xom.keyfs.transaction():
+            stage1 = mapp1.xom.model.getstage(api1.stagename)
+            assert stage1.ixconfig["foo_plugin"] == "stage"
+
+        mapp1.set_indexconfig_option("foo_plugin", "foo")
+        with mapp1.xom.keyfs.transaction():
+            stage1 = mapp1.xom.model.getstage(api1.stagename)
+            assert "foo_plugin" in stage1.ixconfig
+            assert stage1.ixconfig["foo_plugin"] == "foo"
+
+        mapp1.login("root", "")
+        mapp1.set_indexconfig_option("foo_plugin", "bar", "root/pypi")
+
+        impexp.export()
+
+        # now import without the plugin, the data should be preserved
+        mapp2 = impexp.new_import()
+        with mapp2.xom.keyfs.transaction():
+            stage1 = mapp2.xom.model.getstage(api1.stagename)
+            assert "foo_plugin" in stage1.ixconfig
+            assert stage1.ixconfig["foo_plugin"] == "foo"
+            stage2 = mapp2.xom.model.getstage("root/pypi")
+            assert "foo_plugin" in stage2.ixconfig
+            assert stage2.ixconfig["foo_plugin"] == "bar"
 
     @pytest.mark.nomockprojectsremote
     def test_mirror_settings_preserved(self, httpget, impexp, pypiurls):

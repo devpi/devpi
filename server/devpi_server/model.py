@@ -676,12 +676,8 @@ class BaseStage(object):
         for key, value in list(kwargs.items()):
             if value is RemoveValue:
                 ixconfig[key] = kwargs.pop(key)
-        if kwargs:
-            raise InvalidIndexconfig(
-                ["indexconfig got unexpected keyword arguments: %s"
-                 % ", ".join("%s=%s" % x for x in kwargs.items())])
         ixconfig["type"] = index_type
-        return ixconfig
+        return (ixconfig, kwargs)
 
     @cached_property
     def user(self):
@@ -938,9 +934,18 @@ class BaseStage(object):
         if 'type' in kw and self.ixconfig["type"] != kw['type']:
             raise InvalidIndexconfig(
                 ["the 'type' of an index can't be changed"])
-        kw.pop("type", None)
+        kw.pop('type', None)
         kw.pop("projects", None)  # we never modify this from the outside
-        ixconfig = self.get_indexconfig_from_kwargs(**kw)
+        keep_unknown = kw.pop("_keep_unknown", False)
+        (ixconfig, unknown) = self.get_indexconfig_from_kwargs(**kw)
+        if unknown:
+            if keep_unknown:
+                # used to import data when plugins aren't installed anymore
+                ixconfig.update(unknown)
+            else:
+                raise InvalidIndexconfig(
+                    ["indexconfig got unexpected keyword arguments: %s"
+                     % ", ".join("%s=%s" % x for x in unknown.items())])
         # modify user/indexconfig
         with self.user.key.update() as userconfig:
             oldconfig = dict(self.ixconfig)
