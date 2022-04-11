@@ -1577,7 +1577,7 @@ def test_setdefault_indexes(xom, model):
 def test_get_indexconfig_lists(xom, key, value, result):
     stage = PrivateStage(
         xom, "user", "index", {"type": "stage"}, StageCustomizer)
-    kvdict = stage.get_indexconfig_from_kwargs(**{key: value})
+    (kvdict, unknown) = stage.get_indexconfig_from_kwargs(**{key: value})
     assert kvdict[key] == result
 
 
@@ -1677,5 +1677,5 @@ def test_get_indexconfig_values(xom, input, expected):
         with pytest.raises(expected):
             stage.get_indexconfig_from_kwargs(**input)
     else:
-        result = stage.get_indexconfig_from_kwargs(**input)
+        (result, unknown) = stage.get_indexconfig_from_kwargs(**input)
         assert result == expected

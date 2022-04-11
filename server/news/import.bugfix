@@ -1,0 +1,1 @@
+Preserve index config settings of plugins during import instead of aborting, even if the plugin isn't installed during import.

@@ -474,13 +474,17 @@ class Importer:
                 bases = indexconfig.pop('bases', None)
                 stage = None
                 if stagename == "root/pypi":
+                    # see if the stage was already created
                     stage = self.xom.model.getstage(stagename)
-                    if stage is not None:
-                        stage.modify(**indexconfig)
-                    elif self.xom.config.no_root_pypi:
+                    if self.xom.config.no_root_pypi:
                         continue
                 if stage is None:
-                    stage = user.create_stage(index, **indexconfig)
+                    # we create a stage without any config
+                    stage = user.create_stage(index, type=indexconfig['type'])
+                if stage is not None:
+                    # we use modify with _keep_unknown, so data from
+                    # removed plugins is preserved
+                    stage.modify(**indexconfig, _keep_unknown=True)
                 if "bases" in import_index["indexconfig"]:
                     # we are changing bases directly to allow import with
                     # removed bases without changing the data from the export
