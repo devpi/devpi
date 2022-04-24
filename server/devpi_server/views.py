@@ -1318,6 +1318,8 @@ class PyPIView:
         entry = filestore.get_file_entry(relpath)
         if entry is None:
             abort(self.request, 404, "package %r doesn't exist" % relpath)
+        elif not entry.meta:
+            abort(self.request, 410, "file %r existed, deleted in later serial" % relpath)
         try:
             stage.del_entry(entry)
         except stage.NotFound as e:
