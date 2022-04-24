@@ -849,3 +849,17 @@ def test_keyfs_sqlite_fs(gentmp):
         with open(tx.conn.io_file_os_path('foo'), 'rb') as f:
             assert f.read() == b'bar'
     assert sorted(x.basename for x in tmp.listdir()) == ['.sqlite', 'foo']
+
+
+@notransaction
+def test_iter_relpaths_at(keyfs):
+    pkey = keyfs.add_key("NAME1", "{name}", int)
+    key = pkey(name="hello")
+    with keyfs.transaction(write=False) as tx:
+        assert list(tx.iter_relpaths_at([key], tx.at_serial)) == []
+    with keyfs.transaction(write=True):
+        key.set(1)
+    with keyfs.transaction(write=False) as tx:
+        (relpath_info,) = list(tx.iter_relpaths_at([key], tx.at_serial))
+    assert relpath_info.keyname == "NAME1"
+    assert relpath_info.value == 1

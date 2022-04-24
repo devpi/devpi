@@ -272,7 +272,7 @@ class Connection:
             rows = self._sqlconn.run(q, serial=serial, **keyname_id_values)
             if not rows:
                 continue
-            changes = self.get_changes(serial, absent)
+            changes = self.get_changes(serial)
             for relpath, keyname, serial in rows:
                 (keyname, back_serial, val) = changes[relpath]
                 yield RelpathInfo(
