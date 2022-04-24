@@ -1833,6 +1833,7 @@ def test_delete_package(mapp, testapp):
     # now delete the tarball link from above
     testapp.delete(link.href)
     testapp.xget(410, link.href)
+    testapp.delete(link.href, status=410)
     with testapp.xom.keyfs.transaction():
         assert not getentry(testapp, path).file_exists()
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
@@ -2005,6 +2006,53 @@ def test_delete_package_volatile_force(mapp, testapp):
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     (link,) = vv.get_links()
     testapp.xdel(200, link.href + '?force')
+
+
+def test_delete_toxresult(mapp, testapp, tox_result_data):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg6-2.6.tgz", b"123", "pkg6", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (link1,) = vv.get_links()
+    mapp.upload_toxresult(link1.href, json.dumps(tox_result_data))
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (toxlink,) = vv.get_links(rel="toxresult", for_href=link1.href)
+    with testapp.xom.keyfs.transaction():
+        assert getentry(testapp, URL(toxlink.href).path).file_exists()
+    testapp.delete(toxlink.href)
+    with testapp.xom.keyfs.transaction():
+        assert not getentry(testapp, URL(toxlink.href).path).file_exists()
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (link2,) = vv.get_links()
+    assert link1.href == link2.href
+    testapp.delete(toxlink.href, status=410)
+
+
+@pytest.mark.storage_with_filesystem
+def test_delete_removed_toxresult(mapp, testapp, tox_result_data):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg6-2.6.tgz", b"123", "pkg6", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (link1,) = vv.get_links()
+    mapp.upload_toxresult(link1.href, json.dumps(tox_result_data))
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (toxlink1,) = vv.get_links(rel="toxresult", for_href=link1.href)
+    with testapp.xom.keyfs.transaction():
+        entry = getentry(testapp, URL(toxlink1.href).path)
+        assert entry.file_exists()
+        # remove the file from filesystem
+        entry.file_delete()
+        assert not entry.file_exists()
+    # the link entry should still exist
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (toxlink2,) = vv.get_links(rel="toxresult", for_href=link1.href)
+    assert toxlink1.href == toxlink2.href
+    testapp.delete(toxlink2.href)
+    with testapp.xom.keyfs.transaction():
+        assert not getentry(testapp, URL(toxlink2.href).path).file_exists()
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (link2,) = vv.get_links()
+    assert link1.href == link2.href
+    testapp.delete(toxlink2.href, status=410)
 
 
 @proj
