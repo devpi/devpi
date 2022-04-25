@@ -1,1 +1,0 @@
-Fix traceback when trying to delete already deleted release or toxresult.

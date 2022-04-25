@@ -3,9 +3,19 @@
 .. towncrier release notes start
 
 
-6.5.0 (2022-03-18)
+6.5.1 (2022-04-25)
 ==================
 
+Bug Fixes
+---------
+
+- Fix traceback when trying to delete already deleted release or toxresult.
+
+- Preserve index config settings of plugins during import instead of aborting, even if the plugin isn't installed during import.
+
+
+6.5.0 (2022-03-18)
+==================
 
 Features
 --------

@@ -3,9 +3,17 @@
 .. towncrier release notes start
 
 
-3.0.0 (2022-03-18)
+3.0.1 (2022-04-25)
 ==================
 
+Bug Fixes
+---------
+
+- Fix #884: Error during startup of devpi-server.
+
+
+3.0.0 (2022-03-18)
+==================
 
 Deprecations and Removals
 -------------------------
