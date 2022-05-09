@@ -1,5 +1,6 @@
 # PYTHON_ARGCOMPLETE_OK
 import os
+import shutil
 import sys
 import py
 import argparse
@@ -43,6 +44,8 @@ def initmain(argv):
     func = "main"
     if ":" in mod:
         mod, func = mod.split(":")
+    if mod == "devpi.test":
+        verify_tox_installation()
     mod = __import__(mod, None, None, ["__doc__"])
     return Hub(args, pm=pm), getattr(mod, func)
 
@@ -998,3 +1001,28 @@ def verify_reply_version(hub, reply):
     hub.fatal("devpi-client-%s got a reply with API-VERSION %s, "
               "acceptable are: %s" %(client_version, version,
                                      ",".join(acceptable_api_version)))
+
+
+def verify_tox_installation():
+    try:
+        tox_exe_avail = shutil.which("tox")
+    except AttributeError:
+        # Python < 3.3
+        try:
+            with open(os.devnull, "w") as f:
+                subprocess.call(["tox", "--version"], stdout=f)
+        except OSError:
+            tox_exe_avail = False
+        else:
+            tox_exe_avail = True
+    if not tox_exe_avail:
+        try:
+            import tox
+        except ImportError:
+            tox_module_avail = False
+        else:
+            tox_module_avail = True
+    if not tox_exe_avail and not tox_module_avail:
+        sys.exit('No tox executable or module could be found. '
+                 'Use "pip install tox" or some other way to ensure tox is '
+                 'available as an executable or importable by devpi-client')
