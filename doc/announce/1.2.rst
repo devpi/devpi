@@ -13,7 +13,7 @@ and improvements for serving and interacting with your own pypi indexes:
 
 - ``devpi use --set-cfg`` reads and writes pip/easy_install 
   configuration files, making those installers pick up the in-use
-  index seemlessly.  You can even do ``devpi use --always-set-cfg`` to 
+  index seamlessly.  You can even do ``devpi use --always-set-cfg`` to 
   always set those config files when issuing a "devpi use" afterwards.
 
 - ``devpi upload`` got many improvements:
@@ -82,7 +82,7 @@ devpi-server:
 - fix submission of multi-value fields like "classifiers" or "platform"
   (previously they would be wrongly collapsed to become the last value of a list)
 
-- fix normalization import/export issue: pypi names take precendence
+- fix normalization import/export issue: pypi names take precedence
   for defining the "real" name of a project.
 
 - always store uploaded documentation with a version.  While 
@@ -92,7 +92,7 @@ devpi-server:
   This change requires exporting with devpi-1.1 and importing with devpi-1.2
   in order to properly store versioned docs internally.
 
-- use types/url/metadata/validation functionality of new depdency devpi_common 
+- use types/url/metadata/validation functionality of new dependency devpi_common 
 
 - internal cleanup using pytest-flakes
 
@@ -143,7 +143,7 @@ devpi-client:
 
 - strike BeautifulSoup dependency and re-use vendored pip-link parser
 
-- use types/url/metadata/validation functionality of new depdency devpi_common 
+- use types/url/metadata/validation functionality of new dependency devpi_common 
 
 - internal cleanup wrt pytest-flakes discoveries
 

@@ -495,7 +495,7 @@ class Writer:
             entry = self.changes, []
             self.conn.write_changelog_entry(commit_serial, entry)
             self.conn.commit()
-            self.log.info("commited at %s", commit_serial)
+            self.log.info("committed at %s", commit_serial)
             self.log.debug(
                 "committed: %s", LazyChangesFormatter(self.changes))
 

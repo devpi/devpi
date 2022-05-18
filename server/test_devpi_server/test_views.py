@@ -1882,7 +1882,7 @@ def test_delete_doczip(mapp, testapp):
     path = URL(link.href).path
     with testapp.xom.keyfs.transaction():
         assert getentry(testapp, path).file_exists()
-    # delet the doczip
+    # delete the doczip
     testapp.delete(link.href)
     testapp.xget(410, link.href)
     with testapp.xom.keyfs.transaction():

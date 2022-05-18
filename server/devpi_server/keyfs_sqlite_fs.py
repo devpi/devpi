@@ -255,7 +255,7 @@ class FSWriter:
 
             changes_formatter = self.commit_to_filesystem(pending_renames)
 
-            self.log.info("commited at %s", commit_serial)
+            self.log.info("committed at %s", commit_serial)
             self.log.debug("committed: keys: %s", changes_formatter)
 
             self.storage._notify_on_commit(commit_serial)

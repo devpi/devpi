@@ -5,7 +5,7 @@ devpi-server plugin hooks (experimental)
 
 ``devpi-server-3.0`` provides a reasonably but not completely stable Plugin system 
 in order to decouple ``devpi-web`` from core operations.  As the 3.0 series becomes more
-battle tested we expect the plugin API to stabilize and be useable from
+battle tested we expect the plugin API to stabilize and be usable from
 other prospective extensions.
 
 .. note::
@@ -98,7 +98,7 @@ There are currently two hooks notifying plugins of changes::
     # uploads to the pypi mirror.
 
 - Both hooks are called within a read-transaction pointing at the serial
-  where the change occured. This means that hooks may read values but
+  where the change occurred. This means that hooks may read values but
   they cannot write values.
 
 - hook subscribers are called after a transaction has finally

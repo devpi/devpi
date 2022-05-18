@@ -65,7 +65,7 @@ def fsck():
                     if missing_files < 10:
                         log.error("Missing file %s" % entry.relpath)
                     elif missing_files == 10:
-                        log.error("Further missing files will be ommited.")
+                        log.error("Further missing files will be omitted.")
                     continue
                 if not args.checksum:
                     continue

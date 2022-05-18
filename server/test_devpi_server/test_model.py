@@ -864,7 +864,7 @@ class TestStage:
         stage.store_doczip("pkg1", "1.0", zip_dict({}))
 
         # simulate a second entry with a slightly different name
-        # (XXX not clear if this test is really neccessary. hpk thinks for
+        # (XXX not clear if this test is really necessary. hpk thinks for
         # exporting state from server<2.1.5 with such a double-entry one
         # needs to install 2.1.5 and export from there anyway, clearing
         # the problem. Then again server<2.3.2 allowed the store_doczip
@@ -1063,7 +1063,7 @@ class TestStage:
         assert version == "1.0"
         with stage.xom.keyfs.transaction():
             assert link.entry.file_get_content() == content
-        # delete, which shouldnt trigger devpiserver_on_upload
+        # delete, which shouldn't trigger devpiserver_on_upload
         with stage.xom.keyfs.transaction(write=True):
             linkstore = stage.get_linkstore_perstage("pkg1", "1.0", readonly=False)
             linkstore.remove_links()
@@ -1130,7 +1130,7 @@ class TestStage:
         with xom.keyfs.transaction(write=True):
             stage = user.create_stage(**udict(
                 index="world", bases=(), type="stage", volatile=True))
-            with pytest.raises(KeyError, match='not commited yet'):
+            with pytest.raises(KeyError, match='not committed yet'):
                 stage.get_last_change_serial_perstage()
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
@@ -1220,7 +1220,7 @@ class TestStage:
             user = xom.model.create_user("hello", password="123")
             stage = user.create_stage(index="world", type="stage")
         # get_last_project_change_serial_perstage only works with
-        # commited transactions
+        # committed transactions
         with xom.keyfs.transaction() as tx:
             first_serial = tx.at_serial
             assert stage.list_projects_perstage() == set()

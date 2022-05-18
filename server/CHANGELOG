@@ -1022,13 +1022,13 @@ starting the master devpi-server instance.
   write-transaction every 30 minutes if the page is accessed which
   is likely on a somewhat busy site.  If you running with replicas
   it is recommended to do an an export/import cycle to remove all 
-  the unneccessary writes that were produced since devpi-server-2.3.0.
+  the unnecessary writes that were produced since devpi-server-2.3.0.
   They delay the setup of new replicas considerably.
 
 - add info about pypi_whitelist on simple page when root/pypi is blocked for
   a project.
 
-- replica simple-page serving will not unneccessarily wait for new 
+- replica simple-page serving will not unnecessarily wait for new 
   simple-page entries to arrive at the replication side if the master 
   does not return any changes in the initial simple-page request.
   Previously a replica would wait for the replication-thread to catch
@@ -1368,7 +1368,7 @@ starting the master devpi-server instance.
 - fix replica proxying: don't pass original host header when relaying a
   modifying request from replica to master.
 
-- fix export error when a private project doesnt exist on pypi
+- fix export error when a private project doesn't exist on pypi
 
 - fix pushing of a release when it contains multiple tox results.
 
@@ -1596,7 +1596,7 @@ starting the master devpi-server instance.
 - fix submission of multi-value fields like "classifiers" or "platform"
   (previously they would be wrongly collapsed to become the last value of a list)
 
-- fix normalization import/export issue: pypi names take precendence
+- fix normalization import/export issue: pypi names take precedence
   for defining the "real" name of a project.
 
 - always store uploaded documentation with a version.  While 
@@ -1606,7 +1606,7 @@ starting the master devpi-server instance.
   This change requires exporting with devpi-1.1 and importing with devpi-1.2
   in order to properly store versioned docs internally.
 
-- use types/url/metadata/validation functionality of new depdency devpi_common 
+- use types/url/metadata/validation functionality of new dependency devpi_common 
 
 - internal cleanup using pytest-flakes
 
@@ -1635,7 +1635,7 @@ starting the master devpi-server instance.
   registered as "name-sub" and "+simple/name_sub" is queried.
 
 - new --upgrade-state command to allow for easy and safe
-  in-place upgrading of server state.  This is not guranteed
+  in-place upgrading of server state.  This is not guaranteed
   to be possible for all future releases which might require
   using --export with an older version and --import with a newer
   version.
@@ -1666,7 +1666,7 @@ starting the master devpi-server instance.
   operating on a compatible server data layout, otherwise bail out.
 
 - address issue43: --gendeploy now uses pip without --pre and
-  explicitely instructs pip to install the exact same version 
+  explicitly instructs pip to install the exact same version 
   of devpi-server with which --gendeploy is issued.
 
 - fix issue46 -- for GET /root/pypi/ only show a link to the
@@ -1690,7 +1690,7 @@ starting the master devpi-server instance.
   than the "root/pypi" pypi caching mirror.
 
 - introduce ``--start``, ``--stop`` and ``--log`` commands for
-  controling a background devpi-server run. (these commands
+  controlling a background devpi-server run. (these commands
   previously were implemented with the devpi-client and the "server"
   sub command)
 
@@ -1772,7 +1772,7 @@ starting the master devpi-server instance.
 
 - properly sorted release file links on stage indexes
 
-- "push" method on indexes for transfering release files to another
+- "push" method on indexes for transferring release files to another
   pypi index
 
 - properly handle urls from indexes with ~ and other special chars
@@ -1813,7 +1813,7 @@ starting the master devpi-server instance.
 
 - remove fine-grained http caching for now because caching 
   on the index level seems enough.  This avoids an issues that
-  occured when installing icalendar and also some offline/online
+  occurred when installing icalendar and also some offline/online
   state change issues.  
 
 - added a note to README for how to upgrade --gendeploy installs
@@ -1835,7 +1835,7 @@ starting the master devpi-server instance.
 
   (thanks Markus Zapke-Gruendemann)
 
-- release 0.8.3 is not useable
+- release 0.8.3 is not usable
 
 0.8.2
 =====
@@ -1845,7 +1845,7 @@ starting the master devpi-server instance.
 
 - fix issue5 - require minimal versions for deps, thanks Andi Albrecht
 
-- remove superflous include lines in MANIFEST.in
+- remove superfluous include lines in MANIFEST.in
 
 
 0.8.1

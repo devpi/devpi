@@ -119,7 +119,7 @@ devpi-server-2.1.0 (compared to 2.0.6)
 - fix replica proxying: don't pass original host header when relaying a
   modifying request from replica to master.
 
-- fix export error when a private project doesnt exist on pypi
+- fix export error when a private project doesn't exist on pypi
 
 - fix pushing of a release when it contains multiple tox results.
 

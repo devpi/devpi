@@ -49,7 +49,7 @@ So let's first initialize devpi-server::
     INFO  [Wtx-1] created user 'root'
     INFO  [Wtx-1] created root user
     INFO  [Wtx-1] created root/pypi index
-    INFO  [Wtx-1] fswriter0: commited at 0
+    INFO  [Wtx-1] fswriter0: committed at 0
 
 To start ``devpi-server`` in the background we use supervisor as an example.
 First we create the config file for it::
@@ -226,7 +226,7 @@ index where we previously uploaded the package.
 
 .. note::
 
-    ``devpi upload`` allows to simultanously upload multiple different 
+    ``devpi upload`` allows to simultaneously upload multiple different 
     formats of your release files such as ``sdist.zip`` or ``bdist_egg``.
     The default is ``sdist.tgz``.
 
@@ -289,7 +289,7 @@ another devpi-server are also supported.
 .. note::
 
     Since version 2.2.0 testing of universal wheels is supported if there
-    also is an sdist which contains the neccessary tox.ini and tests files.
+    also is an sdist which contains the necessary tox.ini and tests files.
     Wheels typically don't contain them as they are a pure installation
     package.
 

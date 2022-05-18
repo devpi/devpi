@@ -325,7 +325,7 @@ bases::
        
           $ devpi index /emilie/dev
           
-From there, Emilie can install ``pysober`` by refering to her own index alone.  
+From there, Emilie can install ``pysober`` by referring to her own index alone.  
 When the work is done, this relationship can be revoked by doing::
    
    $ devpi index /emilie/dev bases=/emilie/prod

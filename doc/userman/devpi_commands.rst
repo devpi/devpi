@@ -434,7 +434,7 @@ use
                             http urls or hosts that fail https ssl validation.
                             'no' will clear setting
       --always-set-cfg {yes,no}
-                            on 'yes', all subsequent 'devpi use' will implicitely
+                            on 'yes', all subsequent 'devpi use' will implicitly
                             use --set-cfg. The setting is stored with the devpi
                             client config file and can be cleared with '--always-
                             set-cfg=no'.
@@ -675,7 +675,7 @@ devpi command reference (server)
                             modify other users and their indices. The root user
                             can do anything. When this option is set, only the
                             specified users/groups can create and modify users and
-                            indices. You have to add root explicitely if wanted.
+                            indices. You have to add root explicitly if wanted.
                             [None]
     
     devpi-web theme options:
