@@ -270,7 +270,7 @@ class KeyFS(object):
             self._cv_new_transaction.notify_all()
 
     def wait_tx_serial(self, serial, timeout=None, recheck=1.0):
-        """ Return True when the transaction with the serial has been commited.
+        """ Return True when the transaction with the serial has been committed.
         Return False if it hasn't happened within a specified timeout.
         If timeout was not specified, we'll wait indefinitely.  In any case,
         this method wakes up every "recheck" seconds to query the database

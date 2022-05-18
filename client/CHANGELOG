@@ -598,7 +598,7 @@ Bug Fixes
 
 - strike BeautifulSoup dependency and re-use vendored pip-link parser
 
-- use types/url/metadata/validation functionality of new depdency devpi_common 
+- use types/url/metadata/validation functionality of new dependency devpi_common 
 
 - internal cleanup wrt pytest-flakes discoveries
 
@@ -641,7 +641,7 @@ Bug Fixes
 1.0
 ===
 
-- removed ``server`` subcommand and options for controling background devpi-server
+- removed ``server`` subcommand and options for controlling background devpi-server
   processes to become options of ``devpi-server`` itself.
 
 - fix issue14: lookup "python" from PATH for upload/packaging activities instead of
@@ -654,7 +654,7 @@ Bug Fixes
 
 - remember authentication on a per-root basis and cleanup "devpi use"
   interactions.  This makes switching between multiple devpi instances
-  more seemless.
+  more seamless.
 
 - fix issue17: better reporting when "devpi use" does not operate on valid URL
 
@@ -687,7 +687,7 @@ Bug Fixes
 - remove spurious pdb.set_trace() in devpi install command when
   no pip can be found.
 
-- show and allow to set "acl_upload" for uploading priviliges
+- show and allow to set "acl_upload" for uploading privileges
 
 - add longer descriptions to each sub command, shown with
   "devpi COMMAND -h".

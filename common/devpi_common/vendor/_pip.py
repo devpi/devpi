@@ -21,7 +21,7 @@ class HTMLPage(object):
     # FIXME: these regexes are horrible hacks:
     _homepage_re = re.compile(r'<th>\s*home\s*page', re.I)
     _download_re = re.compile(r'<th>\s*download\s+url', re.I)
-    # These aren't so aweful:
+    # These aren't so awful:
     _rel_re = re.compile(r"""<[^>]*\srel\s*=\s*['"]?([^'">]+)[^>]*>""", re.I)
     _href_re = re.compile('href=(?:"([^"]*)"|\'([^\']*)\'|([^>\\s\\n]*))', re.I | re.S)
     _base_re = re.compile(r"""<base\s+href\s*=\s*['"]?([^'">]+)""", re.I)

@@ -66,7 +66,7 @@ the following user stories in mind:
 
 - A user can repeat installations against a replica without requiring
   the master or ``https://pypi.org`` to be online.  The replica
-  carries all neccessary information with itself but it will not allow 
+  carries all necessary information with itself but it will not allow 
   any modifying operations without connecting to the master.
 
 - A server administrator can start a devpi-server in replicating mode 

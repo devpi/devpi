@@ -52,7 +52,7 @@ def locked_unpack_path(stage, name, version, remove_lock_file=False):
 
 def unpack_docs(stage, name, version, entry):
     # unpack, maybe a bit uncarefully but in principle
-    # we are not loosing the original zip file anyway
+    # we are not losing the original zip file anyway
     with locked_unpack_path(stage, name, version) as (hash_file, unpack_path):
         hash_file.seek(0)
         if hash_file.read().strip() == entry.hash_spec:

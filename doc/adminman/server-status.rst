@@ -42,7 +42,7 @@ UUIDs of master and replica sites
 
 On initial startup, each devpi-server instance generates a UUID which it
 returns through a ``X-DEVPI-SERVER-UUID`` HTTP header.  When operating as
-a replica, the remote master's UUID is interally stored as well and compared
+a replica, the remote master's UUID is internally stored as well and compared
 for consistency on subsequent requests.
 
 

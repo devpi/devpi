@@ -111,7 +111,7 @@ class IndexParser:
                 continue
             if is_archive_of_project(newurl, self.project):
                 if not newurl.is_valid_http_url():
-                    threadlog.warn("unparseable/unsupported url: %r", newurl)
+                    threadlog.warn("unparsable/unsupported url: %r", newurl)
                 else:
                     seen.add(newurl.url)
                     self._mergelink_ifbetter(newurl)

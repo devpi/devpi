@@ -44,7 +44,7 @@ To initialize ``devpi-server`` issue::
     INFO  [Wtx-1] created user 'root'
     INFO  [Wtx-1] created root user
     INFO  [Wtx-1] created root/pypi index
-    INFO  [Wtx-1] fswriter0: commited at 0
+    INFO  [Wtx-1] fswriter0: committed at 0
 
 start background devpi-server process
 ++++++++++++++++++++++++++++++++++++++++++++++

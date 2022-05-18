@@ -826,7 +826,7 @@ def test_redownload_locally_removed_release(mapp, simpypi):
 @pytest.mark.notransaction
 def test_get_last_project_change_serial_perstage(xom, pypistage):
     # get_last_project_change_serial_perstage only works with
-    # commited transactions
+    # committed transactions
     with xom.keyfs.transaction() as tx:
         first_serial = tx.at_serial
         assert pypistage.list_projects_perstage() == set()

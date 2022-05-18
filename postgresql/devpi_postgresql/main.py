@@ -723,7 +723,7 @@ class Writer:
                 self.conn.commit()
                 message = "committed: keys: %s"
                 args = [",".join(map(repr, list(self.changes)))]
-                self.log.info("commited at %s", commit_serial)
+                self.log.info("committed at %s", commit_serial)
                 self.log.debug(message, *args)
                 self.storage._notify_on_commit(commit_serial)
             else:

@@ -13,7 +13,7 @@ Many devpi efforts were partly funded through commercial contracts
 carried out through pyfidelity UG (haftungsbeschränkt) by Florian Schulze
 and merlinux_ by Holger Krekel and Florian Schulze as lead
 developers.  We aim to further the devpi system through further
-contracts and payed support.
+contracts and paid support.
 
 .. _contribute:
 

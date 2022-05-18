@@ -32,7 +32,7 @@ def test_permissions_for_unknown_index(mapp, xom):
     with xom.keyfs.transaction(write=True):
         stage = xom.model.getstage(api.stagename)
         # first check direct stage access
-        # modifing the stage directly is ok, as the view is protected by
+        # modifying the stage directly is ok, as the view is protected by
         # a permission and other index types might want to use the
         # readonly functionality for all the rest of the methods
         stage.modify(**dict(stage.ixconfig, bases=[]))
