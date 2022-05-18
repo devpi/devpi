@@ -582,7 +582,7 @@ def use(parser):
     parser.add_argument("--always-set-cfg",
         choices=["yes", "no"], default=None,
         dest="always_setcfg",
-        help="on 'yes', all subsequent 'devpi use' will implicitely use "
+        help="on 'yes', all subsequent 'devpi use' will implicitly use "
              "--set-cfg.  The setting is stored with the devpi client "
              "config file and can be cleared with '--always-set-cfg=no'.")
     parser.add_argument("--venv", action="store", default=None,

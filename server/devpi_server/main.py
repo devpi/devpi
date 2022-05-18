@@ -112,7 +112,7 @@ def _main(pluginmanager, argv=None):
     config = parseoptions(pluginmanager, argv)
     args = config.args
 
-    # meta commmands
+    # meta commands
     if args.version:
         print(server_version)
         return 0

@@ -91,7 +91,7 @@ permanent hosting infrastructure.
 If you have improvements or additions to the example configs please
 share them with a
 `Merge/Pull Request on the configuration template files <https://github.com/devpi/devpi/tree/master/server/devpi_server/cfg>`_ and
-`devpi-gen-config implemenation <https://github.com/devpi/devpi/blob/master/server/devpi_server/genconfig.py>`_ along with a little doc section.
+`devpi-gen-config implementation <https://github.com/devpi/devpi/blob/master/server/devpi_server/genconfig.py>`_ along with a little doc section.
 
 Here is an example run::
 
@@ -286,7 +286,7 @@ First initialize it::
     INFO  [Wtx-1] created user 'root'
     INFO  [Wtx-1] created root user
     INFO  [Wtx-1] created root/pypi index
-    INFO  [Wtx-1] fswriter0: commited at 0
+    INFO  [Wtx-1] fswriter0: committed at 0
 
 Next we create configuration files for various process managers.
 Note that we set the port we want to use::

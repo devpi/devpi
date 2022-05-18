@@ -3,7 +3,7 @@ devpi-1.1: much improved PyPI mirroring, data migration
                  
 The devpi-{server,client}-1.1 releases bring a lot of refinements
 and improvements for serving standalone pypi mirrors or company/private
-indexes which seemlessly merge in PyPI releases, mainly:
+indexes which seamlessly merge in PyPI releases, mainly:
 
 - improved speed and semantics of pypi cache.  devpi-server
   has been tested to correctly mirror all ~34000 projects
@@ -70,7 +70,7 @@ devpi-server:
   registered as "name-sub" and "+simple/name_sub" is queried.
 
 - new --upgrade-state command to allow for easy and safe
-  in-place upgrading of server state.  This is not guranteed
+  in-place upgrading of server state.  This is not guaranteed
   to be possible for all future releases which might require
   using --export with an older version and --import with a newer
   version.
@@ -101,7 +101,7 @@ devpi-server:
   operating on a compatible server data layout, otherwise bail out.
 
 - address issue43: --gendeploy now uses pip without --pre and
-  explicitely instructs pip to install the exact same version 
+  explicitly instructs pip to install the exact same version 
   of devpi-server with which --gendeploy is issued.
 
 - fix issue46 -- for GET /root/pypi/ only show a link to the
@@ -158,7 +158,7 @@ devpi-server:
   than the "root/pypi" pypi caching mirror.
 
 - introduce ``--start``, ``--stop`` and ``--log`` commands for
-  controling a background devpi-server run. (these commands
+  controlling a background devpi-server run. (these commands
   previously were implemented with the devpi-client and the "server"
   sub command)
 
@@ -208,7 +208,7 @@ devpi-server:
 
 devpi-client:
 
-- removed ``server`` subcommand and options for controling background devpi-server
+- removed ``server`` subcommand and options for controlling background devpi-server
   processes to become options of ``devpi-server`` itself.
 
 - fix issue14: lookup "python" from PATH for upload/packaging activities instead of
@@ -221,7 +221,7 @@ devpi-client:
 
 - remember authentication on a per-root basis and cleanup "devpi use"
   interactions.  This makes switching between multiple devpi instances
-  more seemless.
+  more seamless.
 
 - fix issue17: better reporting when "devpi use" does not operate on valid URL
 
@@ -252,7 +252,7 @@ devpi-client:
 - remove spurious pdb.set_trace() in devpi install command when
   no pip can be found.
 
-- show and allow to set "acl_upload" for uploading priviliges
+- show and allow to set "acl_upload" for uploading privileges
 
 - add longer descriptions to each sub command, shown with
   "devpi COMMAND -h".
@@ -338,7 +338,7 @@ server:
 
 - properly sorted release file links on stage indexes
 
-- "push" method on indexes for transfering release files to another
+- "push" method on indexes for transferring release files to another
   pypi index
 
 - properly handle urls from indexes with ~ and other special chars

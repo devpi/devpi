@@ -35,7 +35,7 @@ Glossary
    
    push
    
-      Action of transfering a package from one index to another. 
+      Action of transferring a package from one index to another. 
 
    remove
 

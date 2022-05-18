@@ -37,12 +37,12 @@ The `devpi`_ consists of two parts:
    - The ``devpi client`` provides the user interface (command line) to interface with the ``devpi server``.
    
 The ``devpi server`` has a default, read-only, :term:`index` name **/root/pypi**. When a package is not 
-found in the index hierachy, it will will query `pypi`_ in a attempt to locate it. If located, 
+found in the index hierarchy, it will will query `pypi`_ in a attempt to locate it. If located, 
 the ``devpi server`` will cache all versions of that package, and periodically check the change
 logs to determine if new versions have been in released, in which case, the new package versions 
 will be automatically downloaded into the server cache.  
 
-.. note: The following chapters mostly decribe the interactions with the ``devpi server`` via the ``devpi client``, 
+.. note: The following chapters mostly describe the interactions with the ``devpi server`` via the ``devpi client``, 
          but it is important to understand how the server operates in order to use the client properly.
          
 .. note: Throughout this document, references to *devpi* impply the ``devpi client`` whereas references to the 
@@ -85,7 +85,7 @@ Indexes
 
    For instance, imagine Emilie creates her own production index (called 
    */emilie/prod*)) and decide to have a 
-   developement index (*/emilie/dev*) which derives from her production index 
+   development index (*/emilie/dev*) which derives from her production index 
    (a base). The latter is used to upload temporary packages currently under 
    development.
    
@@ -181,7 +181,7 @@ manner. This implies that:
 
    * A **non volatile index** can not be deleted. 
    * If a project is created, it can not be deleted.
-   * If a version is uploaded or pushed, it can not be be removed or overriden. 
+   * If a version is uploaded or pushed, it can not be be removed or overridden. 
 
 Furthermore, a non volatile index **should not** use a volatile index as
 one of its bases.

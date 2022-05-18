@@ -353,7 +353,7 @@ def add_permission_options(parser, pluginmanager):
              "and their indices. The root user can do anything. When this "
              "option is set, only the specified users/groups can create "
              "and modify users and indices. You have to add root "
-             "explicitely if wanted.")
+             "explicitly if wanted.")
 
 
 def addoptions(parser, pluginmanager):

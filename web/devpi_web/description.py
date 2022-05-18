@@ -27,7 +27,7 @@ class DescriptionRenderer:
             self.name, self.version)
 
     def get_description(self):
-        """ Fetch the desciption.
+        """ Fetch the description.
 
         :return: string
         """

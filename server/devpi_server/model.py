@@ -1377,7 +1377,7 @@ class PrivateStage(BaseStage):
         try:
             current_index_config = user_config["indexes"][self.index]
         except KeyError:
-            raise KeyError("The index '%s' was not commited yet." % self.index)
+            raise KeyError("The index '%s' was not committed yet." % self.index)
         # if any project is newer than the user config, we are done
         if last_serial >= user_serial:
             return last_serial
