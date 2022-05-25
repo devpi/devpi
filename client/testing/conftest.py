@@ -735,9 +735,8 @@ def makehub(tmpdir_factory):
 @pytest.fixture
 def mock_http_api(monkeypatch):
     """ mock out all Hub.http_api calls and return an object
-    offering 'register_result' to fake replies. """
+    offering 'set' and 'add' to fake replies. """
     from devpi import main
-    #monkeypatch.replace("requests.session.Session.request", None)
     from requests.sessions import Session
     monkeypatch.setattr(Session, "request", None)
 
@@ -754,20 +753,34 @@ def mock_http_api(monkeypatch):
                 cert=cert, fatal=fatal)
             self.called.append((method, url, kwargs))
             reply_data = self._json_responses.get(url)
-            if reply_data is not None:
-                class R:
-                    status_code = reply_data["status"]
-                    reason = reply_data.get("reason", "OK")
+            if isinstance(reply_data, list):
+                if not reply_data:
+                    pytest.fail(
+                        "http_api call to %r has no further replies" % (url,))
+                reply_data = reply_data.pop(0)
+            if reply_data is None:
+                pytest.fail("http_api call to %r is not mocked" % (url,))
 
-                    def json(self):
-                        return reply_data["json"]
+            class R:
+                status_code = reply_data["status"]
+                reason = reply_data.get("reason", "OK")
 
-                return main.HTTPReply(R())
-            pytest.fail("http_api call to %r is not mocked" % (url,))
+                def json(self):
+                    return reply_data["json"]
+
+            return main.HTTPReply(R())
 
         def set(self, url, status=200, **kw):
+            """ Set a reply for all future uses. """
             data = json.loads(json.dumps(kw))
             self._json_responses[url] = {"status": status, "json": data}
+
+        def add(self, url, status=200, **kw):
+            """ Add a one time use reply to the url. """
+            data = json.loads(json.dumps(kw))
+            self._json_responses.setdefault(url, []).append(
+                {"status": status, "json": data})
+
     mockapi = MockHTTPAPI()
     monkeypatch.setattr(main.Hub, "http_api", mockapi)
     return mockapi
