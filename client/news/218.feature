@@ -1,0 +1,1 @@
+Fix #218: use new pip.conf location by default and warn if the legacy location exists.
