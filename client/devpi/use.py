@@ -6,6 +6,7 @@ import py
 import re
 import json
 
+from devpi_common.types import cached_property
 from devpi_common.url import URL
 
 if sys.platform == "win32":
@@ -535,6 +536,11 @@ def main(hub, args=None):
         current.reconfigure(dict(always_setcfg=always_setcfg,
                                      settrusted=settrusted))
     pipcfg = PipCfg(venv=venvdir)
+    if pipcfg.legacy_location == pipcfg.default_location:
+        hub.warn(
+            "Detected pip config at legacy location: %s\n"
+            "You should move it to: %s" % (
+                pipcfg.legacy_location, pipcfg.new_location))
 
     if venvdir:
         hub.line("only setting venv pip cfg, no global configuration changed")
@@ -641,8 +647,10 @@ class BaseCfg(object):
 
 class DistutilsCfg(BaseCfg):
     section_name = "[easy_install]"
-    default_location = ("~/.pydistutils.cfg" if sys.platform != "win32"
-                        else "~/pydistutils.cfg")
+    default_location = py.path.local(
+        "~/.pydistutils.cfg"
+        if sys.platform != "win32"
+        else "~/pydistutils.cfg", expanduser=True)
 
 
 class PipCfg(BaseCfg):
@@ -652,16 +660,37 @@ class PipCfg(BaseCfg):
         self.venv = venv
         super(PipCfg, self).__init__(path=path)
 
+    @cached_property
+    def appdirs(self):
+        # try to get the vendored appdirs from pip to get same behaviour
+        try:
+            from pip._internal.utils import appdirs
+        except ImportError:
+            import platformdirs as appdirs
+        return appdirs
+
+    @property
+    def legacy_location(self):
+        confdir = py.path.local(
+            "~/.pip" if sys.platform != "win32" else "~/pip",
+            expanduser=True)
+        return confdir.join(self.pip_conf_name)
+
+    @property
+    def new_location(self):
+        return py.path.local(
+            self.appdirs.user_config_dir("pip")).join(self.pip_conf_name)
+
     @property
     def default_location(self):
         if self.venv:
             default_location = py.path.local(self.venv, expanduser=True).join(self.pip_conf_name)
         elif 'PIP_CONFIG_FILE' in os.environ:
             default_location = os.environ.get('PIP_CONFIG_FILE')
+        elif self.legacy_location.exists():
+            default_location = self.legacy_location
         else:
-            confdir = py.path.local("~/.pip" if sys.platform != "win32" else "~/pip",
-                                    expanduser=True)
-            default_location = confdir.join(self.pip_conf_name)
+            default_location = self.new_location
         return default_location
 
     @property
@@ -733,7 +762,8 @@ class BuildoutCfg(BaseCfg):
     section_name = "[buildout]"
     config_name = "index"
     regex = re.compile(r"(index)\s*=\s*(.*)")
-    default_location = "~/.buildout/default.cfg"
+    default_location = py.path.local(
+        "~/.buildout/default.cfg", expanduser=True)
 
 
 class KeyValues(list):
