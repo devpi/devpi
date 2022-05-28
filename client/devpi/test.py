@@ -121,8 +121,8 @@ class DevIndex:
         hub = self.hub
         args = self.hub.args
         toxargs = []
-        if args.venv is not None:
-            toxargs.append("-e" + args.venv)
+        if args.toxenv is not None:
+            toxargs.append("-e" + args.toxenv)
         if args.toxini:
             ini = hub.get_existing_file(args.toxini)
         elif unpack_path.join("tox.ini").exists():

@@ -572,9 +572,12 @@ def out_devpi(devpi):
         cap = py.io.StdCaptureFD()
         cap.startall()
         now = time.time()
+        ret = 0
         try:
             try:
-                devpi(*args, **kwargs)
+                hub = devpi(*args, **kwargs)
+                if getattr(hub, "sysex", None):
+                    ret = hub.sysex.args[0]
             finally:
                 out, err = cap.reset()
                 del cap
@@ -584,7 +587,7 @@ def out_devpi(devpi):
             raise
         print_(out)
         print_(err, file=sys.stderr)
-        return RunResult(0, out.split("\n"), None, time.time()-now)
+        return RunResult(ret, out.split("\n"), None, time.time()-now)
     return out_devpi_func
 
 
