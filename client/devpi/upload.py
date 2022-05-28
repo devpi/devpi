@@ -125,9 +125,8 @@ class Uploader:
         dic["protocol_version"] = "1",
         headers = {}
         auth = hub.current.get_auth()
-        if not auth:
-            hub.fatal("need to be authenticated (use 'devpi login')")
-        set_devpi_auth_header(headers, auth)
+        if auth:
+            set_devpi_auth_header(headers, auth)
         if path:
             files = {"content": (path.basename, path.open("rb"))}
         else:

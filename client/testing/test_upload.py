@@ -444,15 +444,17 @@ class TestUploadFunctional:
         out = out_devpi("upload", "--no-isolation", "--index", "%s/dev" % user, "--dry-run")
         out.stdout.fnmatch_lines_random("skipped: file_upload*to*/%s/dev*" % user)
 
-    def test_logout(self, devpi, out_devpi, projname_version):
+    def test_logout(self, capfd, devpi, out_devpi, projname_version):
         # logoff then upload
         out = out_devpi("logoff")
         out.stdout.fnmatch_lines_random("login information deleted")
-        out = out_devpi("upload", "--no-isolation", "--dry-run")
-        out.stdout.fnmatch_lines_random("need to be authenticated*")
 
         # see if we get an error return code
+        (out, err) = capfd.readouterr()
         res = devpi("upload", "--no-isolation")
+        (out, err) = capfd.readouterr()
+        assert "401 FAIL file_upload" in out
+        assert "Unauthorized" in out
         assert isinstance(res.sysex, SystemExit)
         assert res.sysex.args == (1,)
 
