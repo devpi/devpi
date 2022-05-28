@@ -234,29 +234,31 @@ def main(hub, args):
             index = None
         elif index.count("/") > 1:
             hub.fatal("index %r not of form URL, USER/NAME or NAME" % index)
-    tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
-    devindex = DevIndex(hub, tmpdir, current)
-    for pkgspec in args.pkgspec:
-        versioninfo = devindex.get_matching_versioninfo(pkgspec, index)
-        if not versioninfo:
-            hub.fatal("could not find/receive links for", pkgspec)
-        links = versioninfo.get_links("releasefile")
-        if not links:
-            hub.fatal("could not find/receive links for", pkgspec)
+    with hub.workdir(prefix="devpi-test-") as tmpdir:
+        devindex = DevIndex(hub, tmpdir, current)
+        for pkgspec in args.pkgspec:
+            versioninfo = devindex.get_matching_versioninfo(pkgspec, index)
+            if not versioninfo:
+                hub.fatal("could not find/receive links for", pkgspec)
+            links = versioninfo.get_links("releasefile")
+            if not links:
+                hub.fatal("could not find/receive links for", pkgspec)
 
-        universal_only = args.select is None
-        sdist_links, wheel_links = find_sdist_and_wheels(
-            hub, links, universal_only=universal_only)
-        toxrunargs = prepare_toxrun_args(
-            devindex, versioninfo, sdist_links, wheel_links, select=args.select)
-        all_ret = 0
-        if args.list:
-            hub.info("would test:")
-        for toxargs in toxrunargs:
+            universal_only = args.select is None
+            sdist_links, wheel_links = find_sdist_and_wheels(
+                hub, links, universal_only=universal_only)
+            toxrunargs = prepare_toxrun_args(
+                devindex, versioninfo, sdist_links, wheel_links,
+                select=args.select)
+            all_ret = 0
             if args.list:
-                hub.info("  ", toxargs[0].href)
-                continue
-            ret = devindex.runtox(*toxargs, upload_tox_results=args.upload_tox_results)
-            if ret != 0:
-                all_ret = 1
-    return all_ret
+                hub.info("would test:")
+            for toxargs in toxrunargs:
+                if args.list:
+                    hub.info("  ", toxargs[0].href)
+                    continue
+                ret = devindex.runtox(
+                    *toxargs, upload_tox_results=args.upload_tox_results)
+                if ret != 0:
+                    all_ret = 1
+        return all_ret
