@@ -134,6 +134,74 @@ class TestUnit:
             local_current_config = json.load(f)
         assert 'auth' not in local_current_config
 
+    def test_rewritten_url_scheme(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="https://devpi/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "https://devpi/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: https://devpi/foo/bar\n' in out
+        assert hub.current.index_url == URL('https://devpi/foo/bar')
+
+    def test_rewritten_url_host(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="http://127.0.0.1/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://127.0.0.1/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: http://127.0.0.1/foo/bar\n' in out
+        assert hub.current.index_url == URL('http://127.0.0.1/foo/bar')
+
+    def test_rewritten_url_port(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="http://devpi:3141/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi:3141/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: http://devpi:3141/foo/bar\n' in out
+        assert hub.current.index_url == URL('http://devpi:3141/foo/bar')
+
+    def test_rewritten_url_path(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="http://devpi/foo/bar/",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/bar/?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to:' not in out
+        assert hub.current.index_url == URL('http://devpi/foo/bar/')
+
+    def test_rewritten_url_root(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/+api", 200, result=dict(
+                login="https://devpi/+login",
+                authstatus=["noauth", ""]))
+        hub = cmd_devpi("use", "http://devpi/")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: https://devpi/\n' in out
+        assert hub.current.index_url == URL('')
+        assert hub.current.root_url == URL('https://devpi/')
+
     @pytest.mark.skipif("config.option.fast")
     def test_use_list_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
         import time

@@ -1,0 +1,1 @@
+Warn if the server changes the scheme, host or port during ``devpi use``.

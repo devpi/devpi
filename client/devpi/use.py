@@ -1,4 +1,5 @@
 from copy import deepcopy
+from operator import attrgetter
 import itertools
 import os
 import sys
@@ -476,6 +477,16 @@ def main(hub, args=None):
             current = hub.current.switch_to_temporary(hub, url)
     if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
+        url_parts = attrgetter('scheme', 'hostname', 'port')(URL(url))
+        if url_parts[0]:
+            # only check if a full url was used
+            new_url = current.index_url if current.index else current.root_url
+            new_parts = attrgetter('scheme', 'hostname', 'port')(new_url)
+            for url_part, new_part in zip(url_parts, new_parts):
+                if url_part != new_part:
+                    hub.warn(
+                        "The server has rewritten the url to: %s" % new_url)
+                    break
 
     if args.list:
         rooturl = current.root_url
