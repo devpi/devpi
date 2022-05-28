@@ -27,24 +27,25 @@ def main(hub, args):
     setupcfg = read_setupcfg(hub, hub.cwd)
     checkout = Checkout(hub, args, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
                         setupdir_only=setupcfg.get("setupdir-only"))
-    uploadbase = hub.getdir("upload")
-    exported = checkout.export(uploadbase)
 
-    exported.prepare()
-    archives = []
-    if not args.onlydocs:
-        archives.extend(exported.setup_build(
-                            default_formats=setupcfg.get("formats")))
-    if args.onlydocs or args.withdocs:
-        p = exported.setup_build_docs()
-        if p:
-            archives.append(p)
-    if not archives:
-        hub.fatal("nothing built!")
-    uploader = Uploader(hub, args)
-    if args.index:
-        uploader.pypisubmit = hub.current.get_index_url(args.index).url
-    uploader.do_upload_paths(archives)
+    with hub.workdir() as uploadbase:
+        exported = checkout.export(uploadbase)
+
+        exported.prepare()
+        archives = []
+        if not args.onlydocs:
+            archives.extend(exported.setup_build(
+                default_formats=setupcfg.get("formats")))
+        if args.onlydocs or args.withdocs:
+            p = exported.setup_build_docs()
+            if p:
+                archives.append(p)
+        if not archives:
+            hub.fatal("nothing built!")
+        uploader = Uploader(hub, args)
+        if args.index:
+            uploader.pypisubmit = hub.current.get_index_url(args.index).url
+        uploader.do_upload_paths(archives)
 
 
 def filter_latest(path_pkginfo):

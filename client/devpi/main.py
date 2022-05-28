@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import textwrap
 from base64 import b64encode
-from contextlib import closing
+from contextlib import closing, contextmanager
 from devpi import hookspecs
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
@@ -16,6 +16,8 @@ from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
 from pluggy import HookimplMarker
 from pluggy import PluginManager
+from shutil import rmtree
+from tempfile import mkdtemp
 import json
 subcommand = lazydecorator()
 
@@ -223,17 +225,16 @@ class Hub:
         except NameError:
             return input(msg)
 
-    def getdir(self, name):
-        return self._workdir.mkdir(name)
+    @contextmanager
+    def workdir(self, prefix='devpi-'):
+        workdir = py.path.local(
+            mkdtemp(prefix=prefix))
 
-    @property
-    def _workdir(self):
+        self.info("using workdir", workdir)
         try:
-            return self.__workdir
-        except AttributeError:
-            self.__workdir = py.path.local.make_numbered_dir(prefix="devpi")
-            self.info("using workdir", self.__workdir)
-            return self.__workdir
+            yield workdir
+        finally:
+            rmtree(workdir.strpath)
 
     @cached_property
     def current(self):
