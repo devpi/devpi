@@ -544,10 +544,8 @@ class TestUnit:
             user2/foo*x*False*
         """)
 
-    def test_main_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
-        from devpi.use import vbin
-        venvdir = tmpdir
-        venvdir.ensure(vbin, dir=1)
+    def test_main_venvsetting(self, create_venv, out_devpi, cmd_devpi, tmpdir, monkeypatch):
+        venvdir = create_venv()
         monkeypatch.chdir(tmpdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
         current = PersistentCurrent(hub.current.auth_path, hub.current.current_path)
@@ -575,16 +573,14 @@ class TestUnit:
         res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
-    def test_new_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
+    def test_new_venvsetting(self, capfd, out_devpi, cmd_devpi, tmpdir, monkeypatch):
         venvdir = tmpdir.join('.venv')
         assert not venvdir.exists()
         monkeypatch.chdir(tmpdir)
-        hub = cmd_devpi("use", "--venv=%s" % venvdir)
-        current = PersistentCurrent(hub.current.auth_path, hub.current.current_path)
-        assert current.venvdir == str(venvdir)
+        (out, err) = capfd.readouterr()
         cmd_devpi("use", "--venv=%s" % venvdir)
-        res = out_devpi("use")
-        res.stdout.fnmatch_lines("*venv*%s" % venvdir)
+        (out, err) = capfd.readouterr()
+        assert "No virtualenv found at:" in out
 
     def test_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin

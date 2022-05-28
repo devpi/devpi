@@ -279,17 +279,17 @@ class Hub:
         venvdir = None
         vbin = "Scripts" if sys.platform == "win32" else "bin"
 
-        if self.args.venv == "-":
+        venvname = getattr(self.args, "venv", None)
+        if venvname == "-":
             self.current.reconfigure(dict(venvdir=None))
         else:
-            if self.args.venv:
-                venvname = self.args.venv
+            if venvname:
                 cand = self.cwd.join(venvname, vbin, abs=True)
                 if not cand.check() and self.venvwrapper_home:
                     cand = self.venvwrapper_home.join(venvname, vbin, abs=True)
-                if not cand.check():
-                    self.create_virtualenv(venvname)
                 venvdir = cand.dirpath().strpath
+                if not cand.check():
+                    self.fatal("No virtualenv found at: %s" % venvdir)
                 self.current.reconfigure(dict(venvdir=venvdir))
             else:
                 venvdir = self.current.venvdir or self.active_venv()
@@ -309,12 +309,6 @@ class Hub:
         if path is None:
             return
         return py.path.local(path)
-
-    def create_virtualenv(self, venv):
-        if self.venvwrapper_home:
-            self.popen_check(["mkvirtualenv", venv])
-        else:
-            self.popen_check(["virtualenv", "-q", venv])
 
     def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):
@@ -656,10 +650,10 @@ def use(parser):
         help="on 'yes', all subsequent 'devpi use' will implicitly use "
              "--set-cfg.  The setting is stored with the devpi client "
              "config file and can be cleared with '--always-set-cfg=no'.")
-    parser.add_argument("--venv", action="store", default=None,
+    parser.add_argument(
+        "--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
              "specify '-' to unset it. "
-             "venv be created if given name doesn't already exist. "
              "Note: an activated virtualenv will be used without needing this.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
@@ -945,7 +939,8 @@ def test(parser):
     Download a package and run tests as configured by the
     tox.ini file (which must be contained in the package).
     """
-    parser.add_argument("-e", metavar="ENVNAME", type=str, dest="venv",
+    parser.add_argument(
+        "-e", metavar="ENVNAME", type=str, dest="toxenv",
         default=None, action="store",
         help="tox test environment to run from the tox.ini")
 
@@ -1031,9 +1026,9 @@ def install(parser):
         help="print list of currently installed packages. ")
     parser.add_argument("-e", action="store", dest="editable", metavar="ARG",
         help="install a project in editable mode. ")
-    parser.add_argument("--venv", action="store", metavar="DIR",
-        help="install into specified virtualenv (created on the fly "
-             "if none exists).")
+    parser.add_argument(
+        "--venv", action="store", metavar="DIR",
+        help="install into specified virtualenv.")
     parser.add_argument("-r", "--requirement", action="store_true",
         help="Install from the given requirements file.")
     parser.add_argument("pkgspecs", metavar="pkg", type=str,

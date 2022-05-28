@@ -30,20 +30,14 @@ def test_simple_install_activated_venv_workflow(create_and_upload,
     assert installed_folder_found
 
 
-def test_simple_install_new_venv_workflow(create_and_upload,
-                                          tmpdir, out_devpi, monkeypatch):
+def test_simple_install_missing_venv_workflow(
+        capfd, cmd_devpi, create_and_upload, tmpdir, monkeypatch):
     create_and_upload("example-1.2.3")
     venvdir = tmpdir.join('venv')
-    res = out_devpi("install", "--venv", venvdir, "example")
-    assert res.ret == 0
-    res = out_devpi("install", "--venv", venvdir, "-l")
-    out = res.stdout.str()
-    assert "example" in out and "1.2.3" in out
-
-    installed_folder_found = False
-    for root, dirnames, filenames in os.walk(str(venvdir)):
-        installed_folder_found |= "example-1.2.3.dist-info" in dirnames
-    assert installed_folder_found
+    hub = cmd_devpi("install", "--venv", venvdir, "example")
+    (out, err) = capfd.readouterr()
+    assert isinstance(hub.sysex, SystemExit)
+    assert "No virtualenv found at:" in out
 
 
 def test_simple_install_venv_workflow_index_option(create_and_upload,
