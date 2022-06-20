@@ -1452,6 +1452,14 @@ class PyPIView:
     @view_config(
         route_name="/snapshot/{user}/{index}/", request_method="POST")
     def snapshot(self):
+        if not request.has_permission("upload"):  # TODO: add 'snapshot' perm ?
+            # if there is no authenticated user, then issue a basic auth challenge
+            if not request.authenticated_userid:
+                response = HTTPUnauthorized()
+                response.headers.update(forget(request))
+                return response
+            abort_submit(request, 403, "no permission to submit")
+            assert 0
         json = getjson(self.request)
         target_index = json["target_index"]
         target_stage = None
@@ -1459,12 +1467,11 @@ class PyPIView:
         try:
             target_stage = self.context.user.create_stage(target_index)
             for project_name in projects:
-                print(project_name)
                 for version in source_stage.list_versions(project_name):
-                    print(version)
                     linkstore = source_stage.get_linkstore_perstage(project_name, version)
                     verdata = source_stage.get_versiondata_perstage(project_name, version)
                     release_links = linkstore.get_links("releasefile", None)
+                    assert len(release_links) == 1  # not sure
                     link = release_links[0]
                     target_stage.set_versiondata(verdata)
                     new_link = target_stage.store_releasefile(
