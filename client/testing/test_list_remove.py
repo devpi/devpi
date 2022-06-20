@@ -199,8 +199,13 @@ class TestListRemove:
         out = out_devpi("list", "--index", "%s/dev" % user, "-v")
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
 
-    def test_delete_version_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
-        devpi("index", "bases=root/pypi", "mirror_whitelist=*")
+    def test_delete_version_with_inheritance(self, initproj, devpi, out_devpi):
+        api = devpi("index", "-c", "dev2", "volatile=false")
+        initproj("dddttt-0.2", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        devpi("upload", "--index", "dev2", "--no-isolation", "--formats", "sdist.zip")
+        devpi("index", "bases=%s/dev2" % api.current.username, "mirror_whitelist=*")
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
@@ -213,7 +218,7 @@ class TestListRemove:
         with pytest.raises((Failed, ValueError)):
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
 
-    def test_delete_version_range_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
+    def test_delete_version_range_with_inheritance(self, initproj, devpi, out_devpi):
         import re
         # upload 0.666 to dev index
         initproj("dddttt-0.666", {"doc": {
@@ -251,7 +256,12 @@ class TestListRemove:
         out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
 
     def test_delete_project_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
-        devpi("index", "bases=root/pypi", "mirror_whitelist=*")
+        api = devpi("index", "-c", "dev2", "volatile=false")
+        initproj("dddttt-0.2", {"doc": {
+            "conf.py": "",
+            "index.html": "<html/>"}})
+        devpi("upload", "--index", "dev2", "--no-isolation", "--formats", "sdist.zip")
+        devpi("index", "bases=%s/dev2" % api.current.username, "mirror_whitelist=*")
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
