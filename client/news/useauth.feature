@@ -1,0 +1,1 @@
+Existing authentication data is validated on ``devpi use`` and removed if expired.

@@ -1,6 +1,5 @@
 
 from __future__ import with_statement
-import os
 import re
 import shlex
 import hashlib
@@ -8,7 +7,7 @@ import pkg_resources
 import py
 from devpi_common.archive import Archive
 import json
-import tox
+import sys
 
 from devpi_common.url import URL
 from devpi_common.metadata import get_sorted_versions
@@ -23,9 +22,15 @@ class DevIndex:
         self.dir_download = self.rootdir.mkdir("downloads")
 
     def download_and_unpack(self, versioninfo, link):
-        url = link.href
-        r = self.hub.http.get(url,
-                              auth=self.hub.current.get_basic_auth(url),
+        basic_auth = self.hub.current.get_basic_auth(link.href)
+        if basic_auth:
+            auth_url = link.href
+            url = auth_url
+        else:
+            auth_url = self.hub.current.add_auth_to_url(link.href)
+            url = auth_url.replace(password="****")
+        r = self.hub.http.get(auth_url,
+                              auth=basic_auth,
                               cert=self.hub.current.get_client_cert(url))
         if r.status_code != 200:
             self.hub.fatal("could not receive", url)
@@ -64,27 +69,42 @@ class DevIndex:
     def runtox(self, link, pkg, sdist_pkg=None, upload_tox_results=True):
         jsonreport = pkg.rootdir.join("toxreport.json")
         path_archive = pkg.path_archive
-        toxargs = [
+        tox_path = self.hub.current.getvenvbin(
+            "tox", venvdir=self.hub.venv, glob=True)
+        if not tox_path:
+            # try outside of venv
+            tox_path = py.path.local.sysfind("tox")
+        if not tox_path:
+            self.hub.fatal("no tox binary found")
+        toxcmd = [
+            str(tox_path),
             "--installpkg", str(path_archive),
-            "-i ALL=%s" % str(self.current.simpleindex_auth),
             "--recreate",
             "--result-json", str(jsonreport),
         ]
         if self.current.simpleindex != self.current.simpleindex_auth:
             self.hub.info("Using existing basic auth for '%s'." %
                           self.current.simpleindex)
-            self.hub.warn("The password will be available unencrypted in the "
-                          "JSON report!")
+            self.hub.warn("With pip < 19.3 the password might be exposed "
+                          "in the JSON report!")
+            simpleindex = self.current.simpleindex_auth
+        else:
+            simpleindex = self.hub.current.add_auth_to_url(
+                self.current.simpleindex)
 
         if sdist_pkg is None:
             sdist_pkg = pkg
-        toxargs.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
+        toxcmd.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
 
+        ret = 0
         with sdist_pkg.path_unpacked.as_cwd():
-            self.hub.info("%s$ tox %s" % (os.getcwd(), " ".join(toxargs)))
-            toxrunner = self.get_tox_runner()
             try:
-                ret = toxrunner(toxargs)
+                self.hub.popen_check(
+                    toxcmd,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                    extraenv={
+                        "PIP_INDEX_URL": simpleindex})
             except SystemExit as e:
                 ret = e.args[0]
 
@@ -97,22 +117,12 @@ class DevIndex:
             return 1
         return 0
 
-    def get_tox_runner(self):
-        if self.hub.args.detox:
-            try:
-                from detox.cli import main as detox_main
-            except ImportError:
-                from detox.main import main as detox_main
-            return detox_main
-        else:
-            return tox.cmdline
-
     def get_tox_args(self, unpack_path):
         hub = self.hub
         args = self.hub.args
         toxargs = []
-        if args.venv is not None:
-            toxargs.append("-e" + args.venv)
+        if args.toxenv is not None:
+            toxargs.append("-e" + args.toxenv)
         if args.toxini:
             ini = hub.get_existing_file(args.toxini)
         elif unpack_path.join("tox.ini").exists():
@@ -198,14 +208,20 @@ def prepare_toxrun_args(dev_index, versioninfo, sdist_links, wheel_links, select
         toxrunargs.append((sdist_link, sdist_pkg))
     # for testing wheels we need an sdist because wheels
     # typically don't contain test or tox.ini files
+    if select:
+        select = re.compile(select)
     for wheel_link in wheel_links:
+        if select and not select.search(wheel_link.basename):
+            # skip not matching
+            continue
         wheel_pkg = dev_index.download_and_unpack(versioninfo, wheel_link)
         toxrunargs.append((wheel_link, wheel_pkg, toxrunargs[0][1]))
     if select:
+        # filter whole list, in case the sdist is filtered out as well
         toxrunargs = [
             x
             for x in toxrunargs
-            if re.search(select, x[0].basename)]
+            if select.search(x[0].basename)]
     return toxrunargs
 
 
@@ -218,29 +234,31 @@ def main(hub, args):
             index = None
         elif index.count("/") > 1:
             hub.fatal("index %r not of form URL, USER/NAME or NAME" % index)
-    tmpdir = py.path.local.make_numbered_dir("devpi-test", keep=3)
-    devindex = DevIndex(hub, tmpdir, current)
-    for pkgspec in args.pkgspec:
-        versioninfo = devindex.get_matching_versioninfo(pkgspec, index)
-        if not versioninfo:
-            hub.fatal("could not find/receive links for", pkgspec)
-        links = versioninfo.get_links("releasefile")
-        if not links:
-            hub.fatal("could not find/receive links for", pkgspec)
+    with hub.workdir(prefix="devpi-test-") as tmpdir:
+        devindex = DevIndex(hub, tmpdir, current)
+        for pkgspec in args.pkgspec:
+            versioninfo = devindex.get_matching_versioninfo(pkgspec, index)
+            if not versioninfo:
+                hub.fatal("could not find/receive links for", pkgspec)
+            links = versioninfo.get_links("releasefile")
+            if not links:
+                hub.fatal("could not find/receive links for", pkgspec)
 
-        universal_only = args.select is None
-        sdist_links, wheel_links = find_sdist_and_wheels(
-            hub, links, universal_only=universal_only)
-        toxrunargs = prepare_toxrun_args(
-            devindex, versioninfo, sdist_links, wheel_links, select=args.select)
-        all_ret = 0
-        if args.list:
-            hub.info("would test:")
-        for toxargs in toxrunargs:
+            universal_only = args.select is None
+            sdist_links, wheel_links = find_sdist_and_wheels(
+                hub, links, universal_only=universal_only)
+            toxrunargs = prepare_toxrun_args(
+                devindex, versioninfo, sdist_links, wheel_links,
+                select=args.select)
+            all_ret = 0
             if args.list:
-                hub.info("  ", toxargs[0].href)
-                continue
-            ret = devindex.runtox(*toxargs, upload_tox_results=args.upload_tox_results)
-            if ret != 0:
-                all_ret = 1
-    return all_ret
+                hub.info("would test:")
+            for toxargs in toxrunargs:
+                if args.list:
+                    hub.info("  ", toxargs[0].href)
+                    continue
+                ret = devindex.runtox(
+                    *toxargs, upload_tox_results=args.upload_tox_results)
+                if ret != 0:
+                    all_ret = 1
+        return all_ret

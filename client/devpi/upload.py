@@ -4,6 +4,7 @@ import py
 import re
 
 import check_manifest
+import pep517.meta
 
 from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.archive import zip_dir
@@ -12,11 +13,8 @@ from .main import HTTPReply, set_devpi_auth_header
 
 
 def main(hub, args):
-    # for now we use distutils/setup.py for register/upload commands.
-
-    # we are going to invoke python setup.py register|sdist|upload
-    # but we want to push to our local devpi server,
-    # so we need to monkeypatch distutils in the setup.py process
+    # we use the build module (or setup.py for deprecated formats) for
+    # creating releases and upload via direct HTTP requests
 
     current = hub.require_valid_current_with_index()
     if not args.index and not current.pypisubmit:
@@ -26,32 +24,28 @@ def main(hub, args):
     if args.path:
         return main_fromfiles(hub, args)
 
-    setup = hub.cwd.join("setup.py")
-    if not setup.check():
-        hub.fatal("no setup.py found in", hub.cwd)
-
     setupcfg = read_setupcfg(hub, hub.cwd)
-    checkout = Checkout(hub, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
+    checkout = Checkout(hub, args, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
                         setupdir_only=setupcfg.get("setupdir-only"))
-    uploadbase = hub.getdir("upload")
-    exported = checkout.export(uploadbase)
 
-    exported.prepare()
-    archives = []
-    if not args.onlydocs:
-        archives.extend(exported.setup_build(
-                            default_formats=setupcfg.get("formats")))
-    if args.onlydocs or args.withdocs:
-        p = exported.setup_build_docs()
-        if p:
-            archives.append(p)
-    if not archives:
-        hub.fatal("nothing built!")
-    name_version = exported.setup_name_and_version()
-    uploader = Uploader(hub, args, name_version=name_version)
-    if args.index:
-        uploader.pypisubmit = hub.current.get_index_url(args.index).url
-    uploader.do_upload_paths(archives)
+    with hub.workdir() as uploadbase:
+        exported = checkout.export(uploadbase)
+
+        exported.prepare()
+        archives = []
+        if not args.onlydocs:
+            archives.extend(exported.setup_build(
+                default_formats=setupcfg.get("formats")))
+        if args.onlydocs or args.withdocs:
+            p = exported.setup_build_docs()
+            if p:
+                archives.append(p)
+        if not archives:
+            hub.fatal("nothing built!")
+        uploader = Uploader(hub, args)
+        if args.index:
+            uploader.pypisubmit = hub.current.get_index_url(args.index).url
+        uploader.do_upload_paths(archives)
 
 
 def filter_latest(path_pkginfo):
@@ -85,13 +79,12 @@ def main_fromfiles(hub, args):
 
 
 class Uploader:
-    def __init__(self, hub, args, name_version=None):
+    def __init__(self, hub, args):
         self.hub = hub
         self.args = args
         # allow explicit name and version instead of using pkginfo which
         # has a high failure rate for documentation zips because they miss
         # explicit metadata and the implementation has to guess
-        self.name_version = name_version
         self.pypisubmit = hub.current.pypisubmit
 
     def do_upload_paths(self, paths):
@@ -109,8 +102,6 @@ class Uploader:
                     doczip2pkginfo[archivepath] = pkginfo
                 else:
                     releasefile2pkginfo[archivepath] = pkginfo
-                #hub.debug("got pkginfo for %s-%s  %s" %
-                #          (pkginfo.name, pkginfo.version, pkginfo.author))
         if self.args.only_latest:
             releasefile2pkginfo = filter_latest(releasefile2pkginfo)
             doczip2pkginfo = filter_latest(doczip2pkginfo)
@@ -121,10 +112,7 @@ class Uploader:
             self.upload_doc(archivepath, pkginfo)
 
     def upload_doc(self, path, pkginfo):
-        if self.name_version:
-            (name, version) = self.name_version
-        else:
-            (name, version) = (pkginfo.name, pkginfo.version)
+        (name, version) = (pkginfo.name, pkginfo.version)
         self.post("doc_upload", path,
                 {"name": name, "version": version})
 
@@ -133,15 +121,12 @@ class Uploader:
         assert "name" in meta and "version" in meta, meta
         dic = meta.copy()
         pypi_action = action
-        if action == "register":
-            pypi_action = "submit"
         dic[":action"] = pypi_action
         dic["protocol_version"] = "1",
         headers = {}
         auth = hub.current.get_auth()
-        if not auth:
-            hub.fatal("need to be authenticated (use 'devpi login')")
-        set_devpi_auth_header(headers, auth)
+        if auth:
+            set_devpi_auth_header(headers, auth)
         if path:
             files = {"content": (path.basename, path.open("rb"))}
         else:
@@ -176,9 +161,6 @@ class Uploader:
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
-        if self.name_version:
-            (meta['name'], meta['version']) = self.name_version
-        self.post("register", None, meta=meta)
         pyver = get_pyversion_filetype(path.basename)
         meta["pyversion"], meta["filetype"] = pyver
         self.post("file_upload", path, meta=meta)
@@ -277,14 +259,14 @@ def find_parent_subpath(startpath, relpath, raising=True):
 
 
 class Checkout:
-    def __init__(self, hub, setupdir, hasvcs=None, setupdir_only=None):
+    def __init__(self, hub, args, setupdir, hasvcs=None, setupdir_only=None):
         self.hub = hub
+        self.args = args
         self.cm_ui = None
         if hasattr(check_manifest, 'UI'):
             self.cm_ui = check_manifest.UI()
-        assert setupdir.join("setup.py").check(), setupdir
-        hasvcs = not hasvcs and not hub.args.novcs
-        setupdir_only = bool(setupdir_only or hub.args.setupdironly)
+        hasvcs = not hasvcs and not args.novcs
+        setupdir_only = bool(setupdir_only or args.setupdironly)
         if hasvcs:
             with setupdir.as_cwd():
                 try:
@@ -311,7 +293,7 @@ class Checkout:
 
     def export(self, basetemp):
         if not self.hasvcs:
-            return Exported(self.hub, self.setupdir, self.setupdir)
+            return Exported(self.hub, self.args, self.setupdir, self.setupdir)
         with self.rootpath.as_cwd():
             if self.cm_ui:
                 files = check_manifest.get_vcs_files(self.cm_ui)
@@ -341,12 +323,13 @@ class Checkout:
         self.hub.debug("%s-exported project to %s -> new CWD" %(
                       self.hasvcs, newrepo))
         setupdir_newrepo = newrepo.join(self.setupdir.relto(self.rootpath))
-        return Exported(self.hub, setupdir_newrepo, self.setupdir)
+        return Exported(self.hub, self.args, setupdir_newrepo, self.setupdir)
 
 
 class Exported:
-    def __init__(self, hub, rootpath, origrepo):
+    def __init__(self, hub, args, rootpath, origrepo):
         self.hub = hub
+        self.args = args
         self.rootpath = rootpath
         self.origrepo = origrepo
         self.target_distdir = origrepo.join("dist")
@@ -359,7 +342,7 @@ class Exported:
         is activated, but otherwise falls back to sys.executable, the Python
         under which devpi client is running.
         """
-        python = self.hub.args.python
+        python = self.args.python
         if python is None:
             python = self._virtualenv_python()
         if python is None:
@@ -374,16 +357,10 @@ class Exported:
         return "<Exported %s>" % self.rootpath
 
     def setup_name_and_version(self):
-        setup_py = self.rootpath.join("setup.py")
-        if not setup_py.check():
-            self.hub.fatal("no setup.py file")
-        name = self.hub.popen_output(
-            [self.python, setup_py, "--name"],
-            report=False).splitlines()[-1].strip()
-        version = self.hub.popen_output(
-            [self.python, setup_py, "--version"],
-            report=False).splitlines()[-1].strip()
-        self.hub.debug("name, version = %s, %s" %(name, version))
+        result = pep517.meta.load(self.rootpath.strpath)
+        name = result.metadata["name"]
+        version = result.metadata["version"]
+        self.hub.debug("name, version = %s, %s" % (name, version))
         return name, version
 
     def _getuserpassword(self):
@@ -392,76 +369,150 @@ class Exported:
             return auth
         return "_test", "test"
 
-    def check_setup(self):
-        p = self.rootpath.join("setup.py")
-        if not p.check():
-            self.hub.fatal("did not find %s after export of versioned files "
-                           "(you may try --no-vcs to prevent the export)" % p)
-
     def prepare(self):
-        self.check_setup()
         if self.target_distdir.check():
             self.hub.line("pre-build: cleaning %s" % self.target_distdir)
             self.target_distdir.remove()
         self.target_distdir.mkdir()
 
-    def setup_build(self, default_formats=None):
-        formats = self.hub.args.formats
-        if not formats:
-            formats = default_formats
-            if not formats:
-                formats = "sdist.zip" if sys.platform == "win32" else "sdist.tgz"
+    @staticmethod
+    def is_default_sdist(format):
+        if format == "sdist":
+            return True
+        parts = format.split(".", 1)
+        if len(parts) == 2 and parts[0] == "sdist":
+            setup_format = sdistformat(parts[1])
+            if sys.platform == "win32":
+                return setup_format == "zip"
+            else:
+                return setup_format == "gztar"
+        return False
 
-        formats = [x.strip() for x in formats.split(",")]
+    def setup_build(self, default_formats=None):
+        deprecated_formats = []
+        formats = self.args.formats
+        if formats is None:
+            formats = default_formats
+        if formats:
+            sdist = None
+            wheel = None
+            for format in formats.split(","):
+                format = format.strip()
+                if not format:
+                    continue
+                if self.is_default_sdist(format):
+                    sdist = True
+                elif format == "bdist_wheel":
+                    wheel = True
+                else:
+                    deprecated_formats.append(format)
+            if sdist and wheel:
+                # if both formats are wanted, we do not pass the arguments
+                # to python -m build below, so the default behaviour is used
+                # see python -m build --help for details
+                sdist = False
+                wheel = False
+            if sdist is None and wheel is None:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "none of the specified formats '%s' are supported by "
+                    "python -m build" % ','.join(sorted(deprecated_formats)))
+            elif sdist and not wheel:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "replace it with --sdist to only get source release "
+                    "as with your currently specified format.")
+            elif wheel and not sdist:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "replace it with --wheel to only get wheel release "
+                    "as with your currently specified format.")
+            else:
+                self.hub.warn(
+                    "The --formats option is deprecated, "
+                    "you can remove it to get the default sdist and wheel "
+                    "releases you get with your currently specified formats.")
+        else:
+            sdist = self.hub.args.sdist
+            wheel = self.hub.args.wheel
+
+        cmds = []
+        if sdist is not None or wheel is not None:
+            cmd = [self.python, "-m", "build"]
+            if sdist:
+                cmd.append("--sdist")
+            if wheel:
+                cmd.append("--wheel")
+            if self.args.no_isolation:
+                cmd.append("--no-isolation")
+            cmds.append(cmd)
+
+        for format in sorted(deprecated_formats):
+            cmd = [self.python, "setup.py"]
+            if format.startswith("sdist."):
+                cmd.append("sdist")
+                parts = format.split(".", 1)
+                if len(parts) == 2:
+                    cmd.append("--formats")
+                    cmd.append(sdistformat(parts[1]))
+                else:
+                    self.hub.fatal("Invalid sdist format '%s'.")
+            else:
+                cmd.append(format)
+            self.hub.warn(
+                "The '%s' format is invalid for python -m build. "
+                "Falling back to '%s' which is deprecated." % (
+                    format, ' '.join(cmd[1:])))
+            cmds.append(cmd)
 
         archives = []
-        for format in formats:
-            if not format:
-                continue
-            buildcommand = []
-            if format == "sdist" or format.startswith("sdist."):
-                buildcommand = ["sdist"]
-                parts = format.split(".", 1)
-                if len(parts) > 1:
-                    setup_format = sdistformat(parts[1])
-                    buildcommand.extend(["--formats", setup_format])
-            else:
-                buildcommand.append(format)
-            pre = [self.python, "setup.py"]
-            cmd = pre + buildcommand
-
+        for cmd in cmds:
             distdir = self.rootpath.join("dist")
             if self.rootpath != self.origrepo:
                 if distdir.exists():
                     distdir.remove()
-            out = self.hub.popen_output(cmd, cwd=self.rootpath)
-            if out is None:  # dryrun
+
+            if self.hub.args.verbose:
+                ret = self.hub.popen_check(cmd, cwd=self.rootpath)
+            else:
+                ret = self.hub.popen_output(cmd, cwd=self.rootpath)
+
+            if ret is None:  # dryrun
                 continue
+
             for x in distdir.listdir():  # usually just one
                 target = self.target_distdir.join(x.basename)
                 x.move(target)
                 archives.append(target)
-                self.log_build(target, "[%s]" %format.upper())
+                self.log_build(target)
+
         return archives
 
     def setup_build_docs(self):
         name, version = self.setup_name_and_version()
-        cwd = self.rootpath
-        build = cwd.join("build")
-        out = self.hub.popen_output(
-            [self.python, "setup.py", "build_sphinx", "-E",
-             "--build-dir", build], cwd=self.rootpath)
-        if out is None:
+        for guess in ("doc", "docs"):
+            docs = self.rootpath.join("doc")
+            if docs.join("conf.py").exists():
+                break
+        build = self.rootpath.join("build")
+        cmd = ["sphinx-build", "-E", docs, build]
+        if self.hub.args.verbose:
+            ret = self.hub.popen_check(cmd, cwd=self.rootpath)
+        else:
+            ret = self.hub.popen_output(cmd, cwd=self.rootpath)
+        if ret is None:
             return
         p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
-        html = build.join("html")
-        zip_dir(html, p)
+        zip_dir(build, p)
         self.log_build(p, "[sphinx docs]")
         return p
 
-    def log_build(self, path, suffix):
+    def log_build(self, path, suffix=None):
         kb = path.size() / 1000
-        self.hub.line("built: %s %s %skb" %(path, suffix, kb))
+        if suffix:
+            self.hub.line("built: %s %s %skb" % (path, suffix, kb))
+        else:
+            self.hub.line("built: %s %skb" % (path, kb))
 
 
 sdistformat2option = {

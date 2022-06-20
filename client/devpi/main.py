@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import textwrap
 from base64 import b64encode
-from contextlib import closing
+from contextlib import closing, contextmanager
 from devpi import hookspecs
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
@@ -16,6 +16,8 @@ from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
 from pluggy import HookimplMarker
 from pluggy import PluginManager
+from shutil import rmtree
+from tempfile import mkdtemp
 import json
 subcommand = lazydecorator()
 
@@ -99,6 +101,23 @@ class Hub:
     def clientdir(self):
         return py.path.local(self.args.clientdir)
 
+    @property
+    def auth_path(self):
+        return self.clientdir.join("auth.json")
+
+    @property
+    def local_current_path(self):
+        venv = self.active_venv()
+        if venv is not None:
+            return venv.join('devpi.json')
+
+    @property
+    def current_path(self):
+        local_path = self.local_current_path
+        if local_path is not None and local_path.exists():
+            return local_path
+        return self.clientdir.join("current.json")
+
     def require_valid_current_with_index(self):
         current = self.current
         if not current.index:
@@ -179,6 +198,8 @@ class Hub:
         if r.status_code >= 400:
             if fatal:
                 out = self.fatal
+            elif quiet:
+                return reply
             else:
                 out = self.error
         elif quiet and not self.args.debug:
@@ -190,9 +211,7 @@ class Hub:
             info = "%s %s\n" % (r.request.method, r.url)
         else:
             info = ""
-        message = reply.json_get("message", getattr(r, 'text', ''))
-        if message:
-            message = ": " + message
+        message = reply.get_error_message(self.args.debug)
         out("%s%s %s%s" %(info, r.status_code, r.reason, message))
         return reply
 
@@ -206,23 +225,25 @@ class Hub:
         except NameError:
             return input(msg)
 
-    def getdir(self, name):
-        return self._workdir.mkdir(name)
+    @contextmanager
+    def workdir(self, prefix='devpi-'):
+        workdir = py.path.local(
+            mkdtemp(prefix=prefix))
 
-    @property
-    def _workdir(self):
+        self.info("using workdir", workdir)
         try:
-            return self.__workdir
-        except AttributeError:
-            self.__workdir = py.path.local.make_numbered_dir(prefix="devpi")
-            self.info("using workdir", self.__workdir)
-            return self.__workdir
+            yield workdir
+        finally:
+            rmtree(workdir.strpath)
 
     @cached_property
     def current(self):
         self.clientdir.ensure(dir=1)
-        path = self.clientdir.join("current.json")
-        return PersistentCurrent(path)
+        url = os.environ.get("DEVPI_INDEX")
+        current = PersistentCurrent(self.auth_path, self.current_path)
+        if url is not None:
+            current = current.switch_to_local(self, url, None)
+        return current
 
     def get_existing_file(self, arg):
         p = py.path.local(arg, expanduser=True)
@@ -232,22 +253,43 @@ class Hub:
             self.fatal("is not a file: %s" % p)
         return p
 
+    def validate_index_access(self):
+        reply = self.http_api(
+            "get",
+            self.current.index_url.replace(query=dict(no_projects="")),
+            check_version=False,
+            fatal=False,
+            quiet=True,
+            type="indexconfig")
+        if reply.status_code >= 400:
+            self.error("%s %s%s" % (
+                reply.status_code, reply.reason,
+                reply.get_error_message(self.args.debug)))
+            if reply.status_code == 403:
+                if self.current.get_auth_user() is None:
+                    self.info(
+                        "You might have to login first to access this index.")
+                else:
+                    self.warn(
+                        "You don't have permission to access this index.")
+            raise SystemExit(1)
+
     @property
     def venv(self):
         venvdir = None
         vbin = "Scripts" if sys.platform == "win32" else "bin"
 
-        if self.args.venv == "-":
+        venvname = getattr(self.args, "venv", None)
+        if venvname == "-":
             self.current.reconfigure(dict(venvdir=None))
         else:
-            if self.args.venv:
-                venvname = self.args.venv
+            if venvname:
                 cand = self.cwd.join(venvname, vbin, abs=True)
                 if not cand.check() and self.venvwrapper_home:
                     cand = self.venvwrapper_home.join(venvname, vbin, abs=True)
-                if not cand.check():
-                    self.create_virtualenv(venvname)
                 venvdir = cand.dirpath().strpath
+                if not cand.check():
+                    self.fatal("No virtualenv found at: %s" % venvdir)
                 self.current.reconfigure(dict(venvdir=venvdir))
             else:
                 venvdir = self.current.venvdir or self.active_venv()
@@ -268,12 +310,6 @@ class Hub:
             return
         return py.path.local(path)
 
-    def create_virtualenv(self, venv):
-        if self.venvwrapper_home:
-            self.popen_check(["mkvirtualenv", venv])
-        else:
-            self.popen_check(["virtualenv", "-q", venv])
-
     def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):
             args = shlex.split(args)
@@ -287,7 +323,12 @@ class Hub:
         args[0] = str(cmd)
         if report:
             self.report_popen(args, cwd)
-        return subprocess.check_output(args, cwd=str(cwd)).decode('utf-8')
+        encoding = sys.getdefaultencoding()
+        try:
+            return subprocess.check_output(
+                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)
+        except subprocess.CalledProcessError as e:
+            self.fatal(e.output.decode(encoding))
 
     def popen(self, args, cwd=None, dryrun=None, **popen_kwargs):
         if isinstance(args, str):
@@ -315,21 +356,22 @@ class Hub:
             rel = str(args[0])
         if extraenv is not None:
             envadd = " [%s]" % ",".join(
-                ["%s=%s" % item for item in sorted(extraenv.items())])
+                ["%s=%r" % item for item in sorted(extraenv.items())])
         else:
             envadd = ""
         self.line("--> ", base + "$", rel, " ".join(args[1:]), envadd)
 
-    def popen_check(self, args, extraenv=None):
+    def popen_check(self, args, extraenv=None, **kwargs):
         assert args[0], args
         args = [str(x) for x in args]
         self.report_popen(args, extraenv=extraenv)
         env = os.environ.copy()
         if extraenv is not None:
-            env.update(extraenv)
-        ret = subprocess.call(args, env=env)
+            env.update({k: str(v) for k, v in extraenv.items()})
+        ret = subprocess.call(args, env=env, **kwargs)
         if ret != 0:
-            self.fatal("command failed")
+            self.fatal_code("command failed", code=ret)
+        return ret
 
     def line(self, *msgs, **kwargs):
         msg = " ".join(map(str, msgs))
@@ -359,6 +401,10 @@ class Hub:
         if not self.quiet:
             self.line(*msg, red=True)
 
+    def fatal_code(self, msg, code=1):
+        self._tw.line(msg, red=True)
+        raise SystemExit(code)
+
     def fatal(self, *msg):
         msg = " ".join(map(str, msg))
         self._tw.line(msg, red=True)
@@ -383,9 +429,23 @@ class HTTPReply(object):
     def __getattr__(self, name):
         return getattr(self._response, name)
 
+    def get_error_message(self, debug):
+        message = self.json_get("message", None)
+        if message is not None:
+            message = ": " + message
+        else:
+            message = ''
+            if debug:
+                message = getattr(self._response, 'text', '')
+        return message
+
     @property
     def reason(self):
         return self._response.reason
+
+    @property
+    def status_code(self):
+        return self._response.status_code
 
     @property
     def type(self):
@@ -442,8 +502,8 @@ def try_argcomplete(parser):
 
 def print_version(hub):
     hub.line("devpi-client %s\n" % client_version)
-    if hub.current.rooturl is not None:
-        url = URL(hub.current.rooturl).addpath('+status').url
+    if hub.current.root_url is not None:
+        url = hub.current.root_url.addpath('+status').url
         try:
             r = HTTPReply(hub.http.get(
                 url, headers=dict(accept='application/json')))
@@ -453,7 +513,7 @@ def print_version(hub):
             status = r.json_get('result')
             if r.status_code == 200 and status is not None:
                 hub.info(
-                    "current devpi server: %s" % hub.current.rooturl)
+                    "current devpi server: %s" % hub.current.root_url)
                 versioninfo = status.get('versioninfo', {})
                 for name, version in sorted(versioninfo.items()):
                     hub.line("    %s %s" % (name, version))
@@ -568,6 +628,11 @@ def use(parser):
     for installation activities.
     """
 
+    parser.add_argument(
+        "--local", action="store_true", default=None,
+        help="create devpi settings in active virtualenv. "
+             "All future invocations will use that location instead of the "
+             "default as long as the virtualenv is active.")
     parser.add_argument("--set-cfg", action="store_true", default=None,
         dest="setcfg",
         help="create or modify pip/setuptools config files so "
@@ -585,15 +650,17 @@ def use(parser):
         help="on 'yes', all subsequent 'devpi use' will implicitly use "
              "--set-cfg.  The setting is stored with the devpi client "
              "config file and can be cleared with '--always-set-cfg=no'.")
-    parser.add_argument("--venv", action="store", default=None,
+    parser.add_argument(
+        "--venv", action="store", default=None,
         help="set virtual environment to use for install activities. "
              "specify '-' to unset it. "
-             "venv be created if given name doesn't already exist. "
              "Note: an activated virtualenv will be used without needing this.")
     parser.add_argument("--urls", action="store_true",
         help="show remote endpoint urls")
-    parser.add_argument("-l", action="store_true", dest="list",
+    parser.add_argument("--list", "-l", action="store_true",
         help="show all available indexes at the remote server")
+    parser.add_argument("--user", "-u", action="store",
+        help="when listing indexes, limit to the specified user")
     parser.add_argument("--delete", action="store_true",
         help="delete current association with server")
     parser.add_argument("--client-cert", action="store", default=None,
@@ -801,42 +868,50 @@ def upload(parser):
 
     You can directly upload existing release files by specifying
     their file system path as positional arguments.  Such release files
-    need to contain package metadata as created by setup.py or
+    need to contain package metadata as created by build or
     wheel invocations.
 
-    Or, if you don't specify any path, a setup.py file must exist
-    and will be used to perform build and upload commands.
+    Or, if you don't specify any path, the build module will be used
+    to create releases.
 
     If you have a ``setup.cfg`` file you can have a "[devpi:upload]" section
-    with ``formats``, ``no-vcs = 1``, and ``setupdir-only = 1`` settings
-    providing defaults for the respective command line options.
+    with ``sdist = 1``, ``wheel = 1`` ``no-vcs = 1``, and
+    ``setupdir-only = 1`` settings providing defaults for the respective
+    command line options.
     """
-    #parser.add_argument("--ver", dest="setversion",
-    #    action="store", default=None,
-    #    help="fill version string into setup.py, */__init__.py */conf.py files")
-    #parser.add_argument("--incver", action="store_true",
-    #    help="retrieve max remove version, increment and set it like --ver")
     build = parser.add_argument_group("build options")
 
     build.add_argument(
         "-p", "--python", default=None, metavar="PYTHON_EXE",
         help="Specify which Python interpreter to use.")
-    build.add_argument("--no-vcs", action="store_true", dest="novcs",
-        help="don't VCS-export to a fresh dir, just execute setup.py scripts "
+    build.add_argument(
+        "--no-vcs", action="store_true", dest="novcs",
+        help="don't VCS-export to a fresh dir, just build "
              "directly using their dirname as current dir. By default "
              "git/hg/svn/bazaar are auto-detected and packaging is run from "
              "a fresh directory with all versioned files exported.")
-    build.add_argument("--setupdir-only", action="store_true",
+    build.add_argument(
+        "--setupdir-only", action="store_true",
         dest="setupdironly",
-        help="VCS-export only the directory containing setup.py")
+        help="Skip the VCS directory (.git, .hg, etc) from the export.")
 
-    build.add_argument("--formats", default="", action="store",
-        help="comma separated list of build formats (passed to setup.py). "
-             "Examples sdist.zip,bdist_egg,bdist_wheel,bdist_dumb.")
+    build.add_argument(
+        "--formats", default=None, action="store",
+        help="comma separated list of build formats (DEPRECATED). "
+             "Examples sdist,bdist_wheel.")
+    build.add_argument(
+        "--sdist", default=False, action="store_true",
+        help="See python -m build --help.")
+    build.add_argument(
+        "--wheel", default=False, action="store_true",
+        help="See python -m build --help.")
+    build.add_argument(
+        "--no-isolation", default=False, action="store_true",
+        help="See python -m build --help.")
     build.add_argument("--with-docs", action="store_true", default=None,
         dest="withdocs",
         help="build sphinx docs and upload them to index. "
-             "this triggers 'setup.py build_sphinx' for building")
+             "this triggers 'sphinx-build' for building")
     build.add_argument("--only-docs", action="store_true", default=None,
         dest="onlydocs",
         help="as --with-docs but don't build or upload release files")
@@ -855,10 +930,6 @@ def upload(parser):
         help="don't perform any server-modifying actions")
     direct.add_argument("path", action="store", nargs="*",
         help="path to archive file to be inspected and uploaded.")
-    #parser.add_argument("-y", dest="yes",
-    #    action="store_true", default=None,
-    #    help="answer yes on interactive questions. ")
-    #
 
 
 @subcommand("devpi.test")
@@ -868,7 +939,8 @@ def test(parser):
     Download a package and run tests as configured by the
     tox.ini file (which must be contained in the package).
     """
-    parser.add_argument("-e", metavar="ENVNAME", type=str, dest="venv",
+    parser.add_argument(
+        "-e", metavar="ENVNAME", type=str, dest="toxenv",
         default=None, action="store",
         help="tox test environment to run from the tox.ini")
 
@@ -885,11 +957,6 @@ def test(parser):
         dest="toxargs", default=None,
         help="extra command line arguments for tox. e.g. "
              "--toxargs=\"-c othertox.ini\"")
-
-    parser.add_argument("--detox", "-d", action="store_true",
-        dest="detox", default=False,
-        help="(experimental) run tests concurrently in multiple processes using "
-             "the detox tool (which must be installed)")
 
     parser.add_argument("--no-upload", action="store_false",
         dest="upload_tox_results", default=True,
@@ -959,9 +1026,9 @@ def install(parser):
         help="print list of currently installed packages. ")
     parser.add_argument("-e", action="store", dest="editable", metavar="ARG",
         help="install a project in editable mode. ")
-    parser.add_argument("--venv", action="store", metavar="DIR",
-        help="install into specified virtualenv (created on the fly "
-             "if none exists).")
+    parser.add_argument(
+        "--venv", action="store", metavar="DIR",
+        help="install into specified virtualenv.")
     parser.add_argument("-r", "--requirement", action="store_true",
         help="Install from the given requirements file.")
     parser.add_argument("pkgspecs", metavar="pkg", type=str,

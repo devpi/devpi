@@ -94,7 +94,7 @@ class TestCheckout:
         return repo
 
     def test_vcs_export(self, uploadhub, repo, setupdir, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
@@ -113,7 +113,7 @@ class TestCheckout:
     def test_vcs_export_setupdironly(self, uploadhub, setupdir,
                                           tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "setupdironly", True)
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == setupdir
         newrepo = tmpdir.mkdir("newrepo")
         result = checkout.export(newrepo)
@@ -129,7 +129,7 @@ class TestCheckout:
     def test_vcs_export_disabled(self, uploadhub, setupdir,
                                       tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert not checkout.hasvcs
         exported = checkout.export(tmpdir)
         assert exported.rootpath == checkout.setupdir
@@ -138,14 +138,13 @@ class TestCheckout:
                                           tmpdir, monkeypatch):
         subdir = setupdir.mkdir("subdir")
         subdir.ensure("setup.py")
-        checkout = Checkout(uploadhub, subdir)
+        checkout = Checkout(uploadhub, uploadhub.args, subdir)
         wc = tmpdir.mkdir("wc")
         exported = checkout.export(wc)
-        with pytest.raises(SystemExit):
-            exported.check_setup()
+        assert not exported.rootpath.join("setup.py").check()
 
     def test_export_attributes(self, uploadhub, setupdir, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
             # some packages like numpy produce output during build, simulate:
@@ -158,7 +157,7 @@ class TestCheckout:
         assert version == "1.2.3"
 
     def test_setup_build_docs(self, uploadhub, setupdir, tmpdir, monkeypatch):
-        checkout = Checkout(uploadhub, setupdir)
+        checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
             setup(name="xyz", version="1.2.3")
@@ -172,7 +171,7 @@ class TestCheckout:
         old_popen_output = exported.hub.popen_output
 
         def mock_popen_output(args, **kwargs):
-            if "build_sphinx" in args:
+            if "sphinx-build" in args:
                 l.append(kwargs)
             else:
                 return old_popen_output(args, **kwargs)
@@ -231,10 +230,15 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
 
     class args:
         dryrun = None
+        formats = "sdist,bdist_wheel"
         index = None
+        no_isolation = True
+        novcs = None
         only_latest = None
         onlydocs = None
         path = None
+        python = None
+        setupdironly = None
         withdocs = None
 
     initproj("pkg-1.0")
@@ -250,55 +254,54 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
     uploadhub.current.set_basic_auth("basic", "auth")
     uploadhub.current.set_client_cert(certpath)
     main(uploadhub, args)
-    (submit, upload) = Session.posts
-    assert submit[0][1][":action"] == "submit"
-    assert submit[1]["auth"] == ("basic", "auth")
-    assert submit[1]["cert"] == certpath
-    assert "X-Devpi-Auth" in submit[1]["headers"]
-    assert upload[0][1][":action"] == "file_upload"
-    assert upload[1]["auth"] == ("basic", "auth")
-    assert upload[1]["cert"] == certpath
-    assert "X-Devpi-Auth" in upload[1]["headers"]
+    (upload1, upload2) = Session.posts
+    assert upload1[0][1][":action"] == "file_upload"
+    assert upload1[1]["auth"] == ("basic", "auth")
+    assert upload1[1]["cert"] == certpath
+    assert "X-Devpi-Auth" in upload1[1]["headers"]
+    assert upload2[0][1][":action"] == "file_upload"
+    assert upload2[1]["auth"] == ("basic", "auth")
+    assert upload2[1]["cert"] == certpath
+    assert "X-Devpi-Auth" in upload2[1]["headers"]
 
 
 class TestUploadFunctional:
-    @pytest.mark.parametrize("projname_version", [
-        "hello-1.0", "my-pkg-123-1.0"])
-    def test_dry_run(self, initproj, devpi, out_devpi, projname_version):
-        initproj(projname_version.rsplit("-", 1), {"doc": {
+    @pytest.fixture(params=["hello-1.0", "my-pkg-123-1.0"])
+    def projname_version(self, request, initproj):
+        initproj(request.param.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
             "contents.rst": "",
             "index.html": "<html/>"}})
+        return request.param
+
+    def test_plain_dry_run(self, devpi, out_devpi, projname_version):
         assert py.path.local("setup.py").check()
-        out = out_devpi("upload", "--dry-run")
+        out = out_devpi("upload", "--no-isolation", "--dry-run")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             skipped: file_upload of {projname_version}.*
             """.format(projname_version=projname_version))
-        out = out_devpi("upload", "--dry-run", "--with-docs")
+
+    def test_with_docs_dry_run(self, devpi, out_devpi, projname_version):
+        out = out_devpi("upload", "--no-isolation", "--dry-run", "--with-docs")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             skipped: file_upload of {projname_version}.*
             skipped: doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
-        out = out_devpi("upload", "--dry-run", "--only-docs")
+
+    def test_only_docs_dry_run(self, devpi, out_devpi, projname_version):
+        out = out_devpi("upload", "--no-isolation", "--dry-run", "--only-docs")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             skipped: doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
 
-    @pytest.mark.parametrize("projname_version", [
-        "hello-1.0", "my-pkg-123-1.0"])
-    def test_with_docs(self, initproj, devpi, out_devpi, projname_version):
-        initproj(projname_version.rsplit("-", 1), {"doc": {
-            "conf.py": "#nothing",
-            "contents.rst": "",
-            "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
-        out = out_devpi("upload", "--with-docs", code=[200, 200, 200])
+    def test_plain_with_docs(self, devpi, out_devpi, projname_version):
+        out = out_devpi("upload", "--no-isolation", "--with-docs", code=[200, 200, 200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
@@ -306,24 +309,113 @@ class TestUploadFunctional:
             doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
 
-    @pytest.mark.parametrize("projname_version", [
-        "hello-1.0", "my-pkg-123-1.0"])
-    def test_formats(self, initproj, devpi, out_devpi, projname_version):
-        initproj(projname_version.rsplit("-", 1), {"doc": {
-            "conf.py": "#nothing",
-            "contents.rst": "",
-            "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
-        out = out_devpi("upload", "--formats", "sdist.zip", code=[200, 200])
+    def test_sdist_zip_with_docs(self, devpi, out_devpi, projname_version):
+        out = out_devpi(
+            "upload", "--formats", "sdist.zip", "--with-docs", code=[200, 200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of {projname_version}.zip*
+            doc_upload of {projname_version}.doc.zip*
+            """.format(projname_version=projname_version))
+
+    def test_sdist_zip(self, devpi, out_devpi, projname_version):
+        out = out_devpi("upload", "--no-isolation", "--formats", "sdist.zip", code=[200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             file_upload of {projname_version}.zip*
             """.format(projname_version=projname_version))
 
-        print("*" * 80)
-        out = out_devpi("upload", "--formats", "sdist.zip,bdist_wheel",
-                        code=[200, 200, 200, 200])
+    def test_sdist(self, devpi, out_devpi, projname_version):
+        out = out_devpi("upload", "--no-isolation", "--sdist", code=[200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of {projname_version}*
+            """.format(projname_version=projname_version))
+
+    def test_native_sdist(self, devpi, out_devpi, projname_version):
+        if sys.platform == "win32":
+            nativeformat = "zip"
+            nativeext = ".zip"
+        else:
+            nativeformat = "tgz"
+            nativeext = ".tar.gz"
+        out = out_devpi("upload", "--no-isolation", "--formats", "sdist.%s" % nativeformat, code=[200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            The --formats option is deprecated, replace it with --sdist to only*
+            built:*
+            file_upload of {projname_version}{nativeext}*
+            """.format(projname_version=projname_version, nativeext=nativeext))
+
+    def test_bdist_wheel(self, devpi, out_devpi, projname_version):
+        out = out_devpi("upload", "--no-isolation", "--formats", "bdist_wheel", code=[200])
+        assert out.ret == 0
+        projname_version_norm = projname_version.replace("-", "*")
+        out.stdout.fnmatch_lines("""
+            The --formats option is deprecated, replace it with --wheel to only*
+            built:*
+            file_upload of {projname_version_norm}*.whl*
+            """.format(projname_version_norm=projname_version_norm))
+
+    def test_wheel_setup_cfg(self, devpi, initproj, out_devpi):
+        initproj("pkg-1.0", kind="setup.cfg")
+        out = out_devpi("upload", "--no-isolation", "--wheel", code=[200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of pkg-1.0-*.whl*
+            """)
+
+    @pytest.mark.skipif("sys.version_info < (3,)")
+    def test_wheel_pyproject_toml(self, devpi, initproj, out_devpi):
+        initproj("pkg-1.0", kind="pyproject.toml")
+        out = out_devpi("upload", "--wheel", code=[200])
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of pkg-1.0-*.whl*
+            """)
+
+    def test_default_formats(self, devpi, out_devpi, projname_version):
+        if sys.platform == "win32":
+            nativeext = ".zip"
+        else:
+            nativeext = ".tar.gz"
+        out = out_devpi(
+            "upload", "--formats", "sdist,bdist_wheel", code=[200, 200])
+        assert out.ret == 0
+        projname_version_norm = projname_version.replace("-", "*")
+        out.stdout.fnmatch_lines_random("""
+            The --formats option is deprecated, you can remove it to get the*
+            built:*
+            file_upload of {projname_version_norm}*.whl*
+            file_upload of {projname_version}{nativeext}*
+            """.format(
+            projname_version=projname_version,
+            projname_version_norm=projname_version_norm,
+            nativeext=nativeext))
+
+    def test_deprecated_formats(self, devpi, out_devpi, projname_version):
+        out = out_devpi(
+            "upload", "--formats", "bdist_dumb,bdist_egg", code=[200, 200])
+        assert out.ret == 0
+        projname_version_norm = projname_version.replace("-", "*")
+        out.stdout.fnmatch_lines_random("""
+            The --formats option is deprecated, none of the specified formats 'bdist_dumb,bdist_egg'*
+            *Falling back to 'setup.py bdist_dumb' which*
+            *Falling back to 'setup.py bdist_egg' which*
+            built:*
+            file_upload of {projname_version}*.tar.gz*
+            file_upload of {projname_version_norm}*.egg*
+            """.format(
+            projname_version=projname_version,
+            projname_version_norm=projname_version_norm))
+
+    def test_plain(self, devpi, out_devpi, projname_version):
+        out = out_devpi("upload", "--no-isolation", code=[200, 200])
         out.stdout.fnmatch_lines_random("""
             file_upload of {projname_version}.*
             file_upload of {projname_version_norm}*.whl*
@@ -331,9 +423,7 @@ class TestUploadFunctional:
                        projname_version_norm=projname_version.replace("-", "*")
                        ))
 
-    @pytest.mark.parametrize("projname_version", [
-        "hello-1.0", "my-pkg-123-1.0"])
-    def test_other_stuff(self, initproj, devpi, out_devpi, projname_version):
+    def test_index_option(self, initproj, devpi, out_devpi, projname_version):
         initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
             "contents.rst": "",
@@ -346,25 +436,25 @@ class TestUploadFunctional:
         # go to other index
         out = out_devpi("use", "root/pypi")
         out.stdout.fnmatch_lines_random("current devpi index*/root/pypi*")
-        out = out_devpi("upload", "--dry-run")
+        out = out_devpi("upload", "--no-isolation", "--dry-run")
         out.stdout.fnmatch_lines_random("*does not support upload.")
         out.stdout.fnmatch_lines_random("*it is a mirror.")
 
         # --index option
-        out = out_devpi("upload", "--index", "%s/dev" % user, "--dry-run")
-        out.stdout.fnmatch_lines_random("skipped: register*to*/%s/dev*" % user)
+        out = out_devpi("upload", "--no-isolation", "--index", "%s/dev" % user, "--dry-run")
+        out.stdout.fnmatch_lines_random("skipped: file_upload*to*/%s/dev*" % user)
 
-        # go back
-        out = out_devpi("use", "%s/dev" % user)
-        out.stdout.fnmatch_lines_random("current devpi index*/%s/dev*" % user)
+    def test_logout(self, capfd, devpi, out_devpi, projname_version):
         # logoff then upload
         out = out_devpi("logoff")
         out.stdout.fnmatch_lines_random("login information deleted")
-        out = out_devpi("upload", "--dry-run")
-        out.stdout.fnmatch_lines_random("need to be authenticated*")
 
         # see if we get an error return code
-        res = devpi("upload")
+        (out, err) = capfd.readouterr()
+        res = devpi("upload", "--no-isolation")
+        (out, err) = capfd.readouterr()
+        assert "401 FAIL file_upload" in out
+        assert "Unauthorized" in out
         assert isinstance(res.sysex, SystemExit)
         assert res.sysex.args == (1,)
 
@@ -378,7 +468,7 @@ class TestUploadFunctional:
         runproc(tmpdir, "python setup.py sdist --format=zip".split())
         dist = tmpdir.join("dist")
         assert len(dist.listdir()) == 2
-        hub = devpi("upload", "--from-dir", dist)
+        hub = devpi("upload", "--no-isolation", "--from-dir", dist)
         for ver in ("1.1", '1.2'):
             url = hub.current.get_index_url().url + "hello/%s/" % ver
             out = out_devpi("getjson", url)
@@ -410,7 +500,7 @@ class TestUploadFunctional:
         zip_dir(bpath.join('html'), dist.join("%s.doc.zip" % name_version_str))
         assert len(dist.listdir()) == 2
         (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
-        hub = devpi("upload", p, dp)
+        hub = devpi("upload", "--no-isolation", p, dp)
         url = hub.current.get_index_url().url + path
         out = out_devpi("getjson", url)
         data = json.loads(out.stdout.str())

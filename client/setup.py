@@ -26,12 +26,15 @@ if __name__ == "__main__":
     README = io.open(os.path.join(here, 'README.rst'), encoding='utf-8').read()
     CHANGELOG = get_changelog()
 
-    install_requires=["tox>=3.1.0,<4dev",
-                      "devpi_common<4,>=3.6.0",
-                      "pkginfo>=1.4.2",
-                      "check-manifest>=0.28",
-                      "pluggy>=0.6.0,<2.0",
-                      "py>=1.4.31"]
+    install_requires = [
+        "build",
+        "check-manifest>=0.28",
+        "devpi_common<4,>=3.6.0",
+        "pep517",
+        "pkginfo>=1.4.2",
+        "platformdirs",
+        "pluggy>=0.6.0,<2.0",
+        "py>=1.4.31"]
 
     extras_require = {}
 
@@ -40,7 +43,7 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='5.2.3',
+      version='6.0.0.dev8',
       packages=['devpi'],
       install_requires=install_requires,
       extras_require=extras_require,

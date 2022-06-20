@@ -1,7 +1,6 @@
 from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
 from devpi.use import Current, PersistentCurrent
 from devpi.use import get_keyvalues, out_index_list
-from devpi_common.url import URL
 import pytest
 import re
 import requests.exceptions
@@ -27,8 +26,9 @@ def test_ask_confirm_delete_args_yes(makehub):
 
 class TestUnit:
     def test_write_and_read(self, tmpdir):
-        path=tmpdir.join("current")
-        current = PersistentCurrent(path)
+        auth_path = tmpdir.join("auth")
+        current_path = tmpdir.join("current")
+        current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -36,15 +36,23 @@ class TestUnit:
                 login="/login",
         ))
         assert current.simpleindex
-        newcurrent = PersistentCurrent(path)
+        newcurrent = PersistentCurrent(auth_path, current_path)
         assert newcurrent.pypisubmit == current.pypisubmit
         assert newcurrent.simpleindex == current.simpleindex
         assert newcurrent.venvdir == current.venvdir
         assert newcurrent.login == current.login
 
+    def test_read_empty(self, tmpdir):
+        auth_path = tmpdir.join("auth").ensure()
+        current_path = tmpdir.join("current").ensure()
+        current = PersistentCurrent(auth_path, current_path)
+        assert current._authdict == {}
+        assert current._currentdict == {}
+
     def test_write_and_read_always_setcfg(self, tmpdir):
-        path=tmpdir.join("current")
-        current = PersistentCurrent(path)
+        auth_path = tmpdir.join("auth")
+        current_path = tmpdir.join("current")
+        current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
         current.reconfigure(dict(
                 pypisubmit="/post",
@@ -53,12 +61,146 @@ class TestUnit:
         ))
         assert current.simpleindex
         current.reconfigure(dict(always_setcfg=True))
-        newcurrent = PersistentCurrent(path)
+        newcurrent = PersistentCurrent(auth_path, current_path)
         assert newcurrent.always_setcfg == True
         newcurrent.reconfigure(data=dict(simpleindex="/index2"))
-        current = PersistentCurrent(path)
+        current = PersistentCurrent(auth_path, current_path)
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
+
+    def test_local_config(self, capfd, cmd_devpi, create_venv, mock_http_api, monkeypatch):
+        import json
+        venvdir = create_venv()
+        (out, err) = capfd.readouterr()
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        current_path = hub.current_path
+        assert current_path.strpath.endswith('client/current.json')
+        local_current_path = hub.local_current_path
+        assert venvdir.strpath in local_current_path.strpath
+        assert local_current_path.strpath.endswith('devpi.json')
+        assert not local_current_path.exists()
+        assert venvdir.strpath in out
+        hub = cmd_devpi("use", "--local")
+        (out, err) = capfd.readouterr()
+        assert hub.current_path.strpath == local_current_path.strpath
+        assert local_current_path.exists()
+        mock_http_api.set(
+            "http://devpi/foo/ham/+api", 200, result=dict(
+                index="/foo/ham",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/ham?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/ham")
+        (out, err) = capfd.readouterr()
+        with current_path.open("r") as f:
+            current_config = json.load(f)
+        with local_current_path.open("r") as f:
+            local_current_config = json.load(f)
+        assert current_config['index'] == 'http://devpi/foo/bar'
+        assert local_current_config['index'] == 'http://devpi/foo/ham'
+        hub = cmd_devpi("use")
+        (out, err) = capfd.readouterr()
+        assert 'current devpi index: http://devpi/foo/ham' in out
+        local_current_path.remove()
+        hub = cmd_devpi("use")
+        (out, err) = capfd.readouterr()
+        assert 'current devpi index: http://devpi/foo/bar' in out
+
+    def test_local_config_no_auth_key(self, cmd_devpi, create_venv, monkeypatch):
+        # test that the legacy ``auth`` key is removed
+        import json
+        venvdir = create_venv()
+        monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
+        hub = cmd_devpi("use")
+        current_path = hub.current_path
+        assert current_path.strpath.endswith('client/current.json')
+        local_current_path = hub.local_current_path
+        assert not local_current_path.exists()
+        with current_path.open("w") as f:
+            json.dump(dict(auth=[]), f)
+        hub = cmd_devpi("use", "--local")
+        assert local_current_path.exists()
+        with local_current_path.open("r") as f:
+            local_current_config = json.load(f)
+        assert 'auth' not in local_current_config
+
+    def test_rewritten_url_scheme(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="https://devpi/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "https://devpi/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: https://devpi/foo/bar\n' in out
+        assert hub.current.index_url == URL('https://devpi/foo/bar')
+
+    def test_rewritten_url_host(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="http://127.0.0.1/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://127.0.0.1/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: http://127.0.0.1/foo/bar\n' in out
+        assert hub.current.index_url == URL('http://127.0.0.1/foo/bar')
+
+    def test_rewritten_url_port(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="http://devpi:3141/foo/bar",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi:3141/foo/bar?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: http://devpi:3141/foo/bar\n' in out
+        assert hub.current.index_url == URL('http://devpi:3141/foo/bar')
+
+    def test_rewritten_url_path(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                index="http://devpi/foo/bar/",
+                login="/+login",
+                authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/bar/?no_projects=", 200, result=dict())
+        hub = cmd_devpi("use", "http://devpi/foo/bar")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to:' not in out
+        assert hub.current.index_url == URL('http://devpi/foo/bar/')
+
+    def test_rewritten_url_root(self, capfd, cmd_devpi, mock_http_api):
+        from devpi_common.url import URL
+        mock_http_api.set(
+            "http://devpi/+api", 200, result=dict(
+                login="https://devpi/+login",
+                authstatus=["noauth", ""]))
+        hub = cmd_devpi("use", "http://devpi/")
+        (out, err) = capfd.readouterr()
+        assert 'The server has rewritten the url to: https://devpi/\n' in out
+        assert hub.current.index_url == URL('')
+        assert hub.current.root_url == URL('https://devpi/')
 
     @pytest.mark.skipif("config.option.fast")
     def test_use_list_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
@@ -72,6 +214,9 @@ class TestUnit:
                 login="/+login",
                 authstatus=["noauth", "", []]))
         mock_http_api.set(
+            "http://devpi/foo/bar?no_projects=", 200,
+            result=dict())
+        mock_http_api.set(
             "http://devpi/", 200, result=dict(
                 foo=dict(username="foo", indexes=dict(
                     bar=dict(bases=("root/pypi",), volatile=False)))))
@@ -81,6 +226,23 @@ class TestUnit:
         time.sleep(1.5)
         cmd_devpi("use", "-l")
         assert mtime == path.mtime()
+
+    def test_use_list_with_url_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
+        mock_http_api.set(
+            "http://devpi/foo/bar/+api", 200, result=dict(
+                pypisubmit="/post",
+                simpleindex="/index/",
+                index="foo/bar",
+                bases="root/pypi",
+                login="/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set(
+            "http://devpi/", 200, result=dict(
+                foo=dict(username="foo", indexes=dict(
+                    bar=dict(bases=("root/pypi",), volatile=False)))))
+        path = tmpdir.join("client", "current.json")
+        cmd_devpi("use", "-l", "http://devpi/foo/bar")
+        assert not path.exists()
 
     def test_normalize_url(self):
         current = Current()
@@ -118,18 +280,18 @@ class TestUnit:
             "login": "http://l/login",
         }
         current.reconfigure(data=d)
-        assert current.rooturl
+        assert current.root_url
         current.set_auth("user", "password")
         assert current.get_auth() == ("user", "password")
 
         # ok response
         d["authstatus"] = ["ok", "user"]
-        current._configure_from_server_api(d, URL(current.rooturl))
+        current._configure_from_server_api(d, current.root_url)
         assert current.get_auth() == ("user", "password")
 
         # invalidation response
         d["authstatus"] = ["nouser", "user"]
-        current._configure_from_server_api(d, URL(current.rooturl))
+        current._configure_from_server_api(d, current.root_url)
         assert not current.get_auth()
 
     def test_rooturl_on_outside_url(self, loghub):
@@ -139,7 +301,7 @@ class TestUnit:
             "login": "http://l/subpath/login",
         }
         current.reconfigure(data=d)
-        assert current.rooturl == "http://l/subpath/"
+        assert current.root_url == "http://l/subpath/"
 
     def test_use_with_no_rooturl(self, capfd, cmd_devpi, monkeypatch):
         from devpi import main
@@ -174,6 +336,9 @@ class TestUnit:
                 login="/+login",
                 authstatus=["noauth", ""]))
         mock_http_api.set(
+            "http://devpi/foo/bar?no_projects=", 200,
+            result=dict())
+        mock_http_api.set(
             "http://devpi/foo/ham/+api", 200, result=dict(
                 pypisubmit="/post",
                 simpleindex="/index/",
@@ -181,6 +346,9 @@ class TestUnit:
                 bases="root/pypi",
                 login="/+login",
                 authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "http://devpi/foo/ham?no_projects=", 200,
+            result=dict())
         mock_http_api.set(
             "http://devpi/", 200, result=dict(
                 foo=dict(username="foo", indexes=dict(
@@ -191,17 +359,21 @@ class TestUnit:
         # should work with and without explicit port if it's the default port
         assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi:80/foo/bar") == ('user', 'password')
-        assert len(mock_http_api.called) == 1
+        assert len(mock_http_api.called) == 2
         assert mock_http_api.called[0][1].path == '/foo/bar/+api'
         assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
         mock_http_api.called[:] = []  # clear call list
         # now we switch only the index, basic auth info should be kept
         hub = cmd_devpi("use", "/foo/ham")
         assert hub.current.get_basic_auth(url="http://devpi/foo/ham") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi:80/foo/ham") == ('user', 'password')
-        assert len(mock_http_api.called) == 1
+        assert len(mock_http_api.called) == 2
         assert mock_http_api.called[0][1].path == '/foo/ham/+api'
         assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/ham'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
         mock_http_api.called[:] = []  # clear call list
         # just listing the index shouldn't change anything
         hub = cmd_devpi("use", "-l")
@@ -218,9 +390,11 @@ class TestUnit:
         assert hub.current.get_basic_auth(url="http://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi/foo/ham") == ('user', 'password')
         assert hub.current.get_basic_auth(url="http://devpi/") == ('user', 'password')
-        assert len(mock_http_api.called) == 1
+        assert len(mock_http_api.called) == 2
         assert mock_http_api.called[0][1].path == '/foo/bar/+api'
-        assert mock_http_api.called[-1][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
 
     def test_use_with_basic_auth_https(self, cmd_devpi, mock_http_api):
         mock_http_api.set(
@@ -231,16 +405,28 @@ class TestUnit:
                 bases="root/pypi",
                 login="/+login",
                 authstatus=["noauth", ""]))
+        mock_http_api.set(
+            "https://devpi/foo/bar?no_projects=", 200,
+            result=dict())
         # use with basic authentication
         hub = cmd_devpi("use", "https://user:password@devpi/foo/bar")
         # should work with and without explicit port if it's the default port
         assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
         assert hub.current.get_basic_auth(url="https://devpi:443/foo/bar") == ('user', 'password')
-        assert mock_http_api.called[-1][2]['basic_auth'] == ('user', 'password')
+        assert len(mock_http_api.called) == 2
+        assert mock_http_api.called[0][1].path == '/foo/bar/+api'
+        assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
+        mock_http_api.called[:] = []  # clear call list
         # now without basic authentication the user and password should still be used
         hub = cmd_devpi("use", "https://devpi/foo/bar")
         assert hub.current.get_basic_auth(url="https://devpi/foo/bar") == ('user', 'password')
-        assert mock_http_api.called[-1][2]['basic_auth'] == ('user', 'password')
+        assert len(mock_http_api.called) == 2
+        assert mock_http_api.called[0][1].path == '/foo/bar/+api'
+        assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
+        assert mock_http_api.called[1][1].path == '/foo/bar'
+        assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
 
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", 200,
@@ -249,6 +435,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world.com/index?no_projects=", 200,
+            result=dict())
         mock_http_api.set("http://world2.com/+api", 200,
                     result=dict(
                         login="/+login",
@@ -257,11 +446,11 @@ class TestUnit:
 
         hub = cmd_devpi("use", "http://world.com")
         assert hub.current.index == "http://world.com/index"
-        assert hub.current.rooturl == "http://world.com/"
+        assert hub.current.root_url == "http://world.com/"
 
         hub = cmd_devpi("use", "http://world2.com")
         assert not hub.current.index
-        assert hub.current.rooturl == "http://world2.com/"
+        assert hub.current.root_url == "http://world2.com/"
 
     def test_switch_to_temporary(self, makehub, mock_http_api):
         hub = makehub(['use'])
@@ -282,12 +471,13 @@ class TestUnit:
         current.set_auth("user", "password")
         assert current.get_auth() == ("user", "password")
         temp = current.switch_to_temporary(hub, "http://foo")
+        assert temp.get_auth("http://l") == ("user", "password")
         temp.set_auth("user1", "password1")
         assert temp.get_auth() == ("user1", "password1")
         # original is unaffected
         assert current.get_auth() == ("user", "password")
         assert temp._currentdict is not current._currentdict
-        assert temp._currentdict['auth'] is not current._currentdict['auth']
+        assert temp._authdict is not current._authdict
 
     def test_main(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world/this/+api", 200,
@@ -299,6 +489,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/root/some?no_projects=", 200,
+            result=dict())
 
         hub = cmd_devpi("use", "--venv", "-", "http://world/this")
         newapi = hub.current
@@ -326,24 +519,36 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/?no_projects=", 200,
+            result=dict())
 
         cmd_devpi("use", "http://world/")
-        mock_http_api.set("http://world/", 200, result=dict(
-            user1=dict(indexes={"dev": {"bases": ["x"],
-                "volatile": False}})
-        ))
+        mock_http_api.set(
+            "http://world/", 200, result=dict(
+                user1=dict(indexes={
+                    "dev": {"bases": ["x"], "volatile": False}}),
+                user2=dict(indexes={
+                    "foo": {"bases": ["x"], "volatile": False}})))
         out = out_devpi("use", "-l")
         out.stdout.fnmatch_lines("""
             user1/dev*x*False*
+            user2/foo*x*False*
+        """)
+        mock_http_api.set(
+            "http://world/user2", 200, result=dict(
+                indexes={
+                    "foo": {"bases": ["x"], "volatile": False}}))
+        out = out_devpi("use", "-l", "-u", "user2")
+        out.stdout.fnmatch_lines("""
+            user2/foo*x*False*
         """)
 
-    def test_main_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
-        from devpi.use import vbin
-        venvdir = tmpdir
-        venvdir.ensure(vbin, dir=1)
+    def test_main_venvsetting(self, create_venv, out_devpi, cmd_devpi, tmpdir, monkeypatch):
+        venvdir = create_venv()
         monkeypatch.chdir(tmpdir)
         hub = cmd_devpi("use", "--venv=%s" % venvdir)
-        current = PersistentCurrent(hub.current.path)
+        current = PersistentCurrent(hub.current.auth_path, hub.current.current_path)
         assert current.venvdir == str(venvdir)
         cmd_devpi("use", "--venv=%s" % venvdir)
         res = out_devpi("use")
@@ -368,16 +573,14 @@ class TestUnit:
         res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
-    def test_new_venvsetting(self, out_devpi, cmd_devpi, tmpdir, monkeypatch):
+    def test_new_venvsetting(self, capfd, out_devpi, cmd_devpi, tmpdir, monkeypatch):
         venvdir = tmpdir.join('.venv')
         assert not venvdir.exists()
         monkeypatch.chdir(tmpdir)
-        hub = cmd_devpi("use", "--venv=%s" % venvdir)
-        current = PersistentCurrent(hub.current.path)
-        assert current.venvdir == str(venvdir)
+        (out, err) = capfd.readouterr()
         cmd_devpi("use", "--venv=%s" % venvdir)
-        res = out_devpi("use")
-        res.stdout.fnmatch_lines("*venv*%s" % venvdir)
+        (out, err) = capfd.readouterr()
+        assert "No virtualenv found at:" in out
 
     def test_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin
@@ -396,6 +599,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/?no_projects=", 200,
+            result=dict())
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
@@ -433,6 +639,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "http://world/?no_projects=", 200,
+            result=dict())
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
@@ -468,6 +677,9 @@ class TestUnit:
                         login="/+login",
                         authstatus=["noauth", ""],
                    ))
+        mock_http_api.set(
+            "%s://world/?no_projects=" % scheme, 200,
+            result=dict())
 
         cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         # run twice to find any issues where lines are added more than once
@@ -512,6 +724,60 @@ class TestUnit:
         assert hub.current.settrusted
         hub = cmd_devpi("use", "--always-set-cfg=no", "--pip-set-trusted=no")
         assert not hub.current.settrusted
+
+    def test_environment_without_current(self, capfd, cmd_devpi, mock_http_api, monkeypatch):
+        (out, err) = capfd.readouterr()
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "no server:" in out
+        monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
+        mock_http_api.set(
+            "http://devpi/user/dev/+api", 200, result=dict(
+                pypisubmit="http://devpi/user/dev/",
+                simpleindex="http://devpi/user/dev/+simple/",
+                index="http://devpi/user/dev",
+                login="http://devpi/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "index: http://devpi/user/dev" in out
+        assert "simpleindex: http://devpi/user/dev/+simple/" in out
+        assert "pypisubmit: http://devpi/user/dev/" in out
+        assert "login: http://devpi/+login" in out
+
+    def test_environment_with_current(self, capfd, cmd_devpi, mock_http_api, monkeypatch):
+        mock_http_api.set(
+            "http://world/user/dev/+api", 200, result=dict(
+                pypisubmit="http://world/user/dev/",
+                simpleindex="http://world/user/dev/+simple/",
+                index="http://world/user/dev",
+                login="http://world/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set("http://world/user/dev?no_projects=", 200, result=dict())
+        cmd_devpi("use", "http://world/user/dev")
+        (out, err) = capfd.readouterr()
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "index: http://world/user/dev" in out
+        assert "simpleindex: http://world/user/dev/+simple/" in out
+        assert "pypisubmit: http://world/user/dev/" in out
+        assert "login: http://world/+login" in out
+        monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
+        mock_http_api.set(
+            "http://devpi/user/dev/+api", 200, result=dict(
+                pypisubmit="http://devpi/user/dev/",
+                simpleindex="http://devpi/user/dev/+simple/",
+                index="http://devpi/user/dev",
+                login="http://devpi/+login",
+                authstatus=["noauth", "", []]))
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+        cmd_devpi("use", "--urls")
+        (out, err) = capfd.readouterr()
+        assert "index: http://devpi/user/dev" in out
+        assert "simpleindex: http://devpi/user/dev/+simple/" in out
+        assert "pypisubmit: http://devpi/user/dev/" in out
+        assert "login: http://devpi/+login" in out
 
 
 def test_getparse_keyvalues_invalid():

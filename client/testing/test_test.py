@@ -3,7 +3,6 @@ import subprocess
 import py
 import pytest
 import sys
-import tox
 from devpi_common.viewhelp import ViewLinkStore
 from devpi.test import DevIndex
 from devpi.test import find_sdist_and_wheels
@@ -159,21 +158,6 @@ def test_passthrough_args_env(makehub, tmpdir, pseudo_current):
     assert contains_sublist(args, ["-epy27"])
 
 
-def test_no_detox(makehub, tmpdir, pseudo_current):
-    hub = makehub(["test", "-epy27", "somepkg"])
-    index = DevIndex(hub, tmpdir, pseudo_current)
-    runner = index.get_tox_runner()
-    assert runner == tox.cmdline
-
-
-def test_detox(makehub, tmpdir, pseudo_current):
-    pytest.importorskip("detox")
-    hub = makehub(["test", "--detox", "-epy27", "somepkg"])
-    index = DevIndex(hub, tmpdir, pseudo_current)
-    runner = index.get_tox_runner()
-    assert 'detox' in runner.__module__
-
-
 def test_fallback_ini(makehub, tmpdir, pseudo_current):
     p = tmpdir.ensure("mytox.ini")
     hub = makehub(["test", "--fallback-ini", str(p), "somepkg"])
@@ -327,6 +311,36 @@ class TestWheel:
         assert wheel1[0].basename == "prep_under-1.0-%s-none-any.whl" % pyver
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
+    def test_wheels_only_download_selected(self, loghub, monkeypatch, pseudo_current, reqmock, tmpdir):
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/prep_under-1.0-cp37-cp37m-macosx_10_10_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp38-cp38-macosx_11_0_arm64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp39-cp39-macosx_11_0_arm64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "rel": "releasefile"},
+            {"href": "http://b/prep_under-1.0.tar.gz", "rel": "releasefile"},
+        ], "name": "prep-under", "version": "1.0"})
+        links = vl.get_links(rel="releasefile")
+        (sdist_links, wheel_links) = find_sdist_and_wheels(
+            loghub, links, universal_only=False)
+        dev_index = DevIndex(loghub, tmpdir, pseudo_current)
+        monkeypatch.setattr("devpi.test.UnpackedPackage.unpack", lambda s: None)
+        reqmock.mockresponse(
+            "http://b/prep_under-1.0.tar.gz",
+            code=200, method="GET", data=b"source")
+        reqmock.mockresponse(
+            "http://b/prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+            code=200, method="GET", data=b"wheel")
+
+        toxrunargs = prepare_toxrun_args(
+            dev_index, vl, sdist_links, wheel_links,
+            select="(?:.*39)(?:.*linux)(?:.*whl)")
+        ((wheel_link, wheel, wheel_sdist),) = toxrunargs
+        assert wheel_link.basename == "prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        assert wheel.path_archive.basename == "prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        assert wheel_sdist.path_archive.basename == "prep_under-1.0.tar.gz"
+
     def test_wheels_and_sdist(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
             "tox.ini": """
@@ -384,7 +398,7 @@ class TestFunctional:
         assert result.ret == 0
         expected_output = (
             'Using existing basic auth*',
-            '*password*available unencrypted*',
+            '*password*might be exposed*',
             '*//root:verysecret@*',
         )
         result.stdout.fnmatch_lines(expected_output)
@@ -437,3 +451,22 @@ class TestFunctional:
         result = out_devpi("list", "-f", "my-pkg-123")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*tests passed*""")
+
+    def test_test_hides_auth_in_url(self, capsys, create_and_upload, devpi_username, monkeypatch, devpi):
+        create_and_upload(("foo", "1.0"), filedefs={
+            "tox.ini": """
+                [testenv]
+                commands = python -c "print('ok')"
+            """})
+        calls = []
+
+        def subprocess_call(*args, **kwargs):
+            calls.append((args, kwargs))
+
+        monkeypatch.setattr('subprocess.call', subprocess_call)
+        devpi("test", "--no-upload", "foo")
+        assert len(calls) == 1
+        (out, err) = capsys.readouterr()
+        (line,) = [x for x in out.splitlines() if 'PIP_INDEX_URL' in x]
+        expected = 'http://%s:****@localhost' % devpi_username
+        assert expected in line

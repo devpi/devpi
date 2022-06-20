@@ -1,10 +1,13 @@
 from copy import deepcopy
+from operator import attrgetter
+import itertools
 import os
 import sys
 import py
 import re
 import json
 
+from devpi_common.types import cached_property
 from devpi_common.url import URL
 
 if sys.platform == "win32":
@@ -26,20 +29,32 @@ def currentproperty(name):
     return property(propget, propset)
 
 
+def authproperty(name):
+    def propget(self):
+        return self._authdict.get(name, None)
+
+    def propset(self, val):
+        self._authdict[name] = val
+
+    return property(propget, propset)
+
+
 class Current(object):
     index = currentproperty("index")
     simpleindex = currentproperty("simpleindex")
     pypisubmit = currentproperty("pypisubmit")
     login = currentproperty("login")
+    username = currentproperty("username")
     venvdir = currentproperty("venvdir")
-    _auth = currentproperty("auth")
-    _basic_auth = currentproperty("basic_auth")
-    _client_cert = currentproperty("client_cert")
+    _auth = authproperty("auth")
+    _basic_auth = authproperty("basic_auth")
+    _client_cert = authproperty("client_cert")
     always_setcfg = currentproperty("always_setcfg")
     settrusted = currentproperty("settrusted")
     features = currentproperty("features")
 
     def __init__(self):
+        self._authdict = {}
         self._currentdict = {}
 
     @property
@@ -59,6 +74,10 @@ class Current(object):
             indexserver = indexserver.replace(netloc="%s@%s" % (
                 ':'.join(basic_auth), indexserver.netloc))
         return indexserver.url
+
+    @property
+    def indexname(self):
+        return self.index[len(self.root_url.url):]
 
     @property
     def index_url(self):
@@ -84,25 +103,57 @@ class Current(object):
 
     def set_auth(self, user, password):
         auth = self._get_auth_dict()
-        auth[self.rooturl] = (user, password)
+        rooturl = self.root_url.url
+        auth_users = dict(auth.get(rooturl, []))
+        auth_users.pop(user, None)
+        auth[rooturl] = list(itertools.chain(
+            [(user, password)], sorted(auth_users.items())))
+        self.username = user
         self.reconfigure(data=dict(_auth=auth))
 
     def del_auth(self):
+        user = self.get_auth_user()
         auth = self._get_auth_dict()
-        try:
-            del auth[self.rooturl]
-        except KeyError:
+        rooturl = self.root_url.url
+        auth_users = dict(auth.get(rooturl, []))
+        if user not in auth_users:
             return False
+        del auth_users[user]
+        auth[rooturl] = list(sorted(auth_users.items()))
         self.reconfigure(data=dict(_auth=auth))
         return True
 
-    def get_auth_user(self):
-        return self._get_auth_dict().get(self.rooturl, [None])[0]
+    def get_auth_user(self, username=None):
+        if "DEVPI_USER" in os.environ:
+            username = os.environ["DEVPI_USER"]
+        if username is None:
+            username = self.username
+        if username is None:
+            auth = self._value_from_dict_by_url(self._get_auth_dict(), self.root_url)
+            if auth:
+                username = auth[0][0]
+        auth = self.get_auth(username=username)
+        if auth is None:
+            return
+        return username
 
-    def get_auth(self, url=None):
-        url = url if url is not None else self.rooturl
+    def get_auth(self, url=None, username=None):
+        url = url if url is not None else self.root_url
+        username = username if username is not None else self.username
         auth = self._value_from_dict_by_url(self._get_auth_dict(), url)
-        return tuple(auth) if auth else None
+        if not auth:
+            return
+        auth = dict(auth)
+        auth = auth.get(username)
+        return (username, auth) if auth is not None else None
+
+    def add_auth_to_url(self, url):
+        url = URL(url)
+        auth = self.get_auth()
+        if auth is not None:
+            url = url.replace(
+                username=auth[0], password=auth[1])
+        return url
 
     def _get_basic_auth_dict(self):
         basic_auth = self._basic_auth
@@ -171,7 +222,7 @@ class Current(object):
                 setattr(self, name, newval)
 
     def exists(self):
-        return self.path and self.path.check()
+        return False
 
     def _normalize_url(self, url):
         url = URL(url, asdir=1)
@@ -179,8 +230,19 @@ class Current(object):
             url = URL(self.simpleindex, url.url).url
         return url
 
+    def switch_to_local(self, hub, url, current_path):
+        current = PersistentCurrent(self.auth_path, current_path)
+        current._authdict = self._authdict
+        current._currentdict = deepcopy(self._currentdict)
+        # we make sure to remove legacy auth data
+        current._currentdict.pop("auth", None)
+        if url is not None:
+            current.configure_fromurl(hub, url)
+        return current
+
     def switch_to_temporary(self, hub, url):
         current = Current()
+        current._authdict = deepcopy(self._authdict)
         current._currentdict = deepcopy(self._currentdict)
         current.configure_fromurl(hub, url)
         return current
@@ -281,24 +343,20 @@ class Current(object):
         if glob:
             return py.path.local.sysfind(name)
 
-    # url helpers
-    #
-    @property
-    def rooturl(self):
-        if self.login:
-            return self.root_url.url
-
     @property
     def root_url(self):
         if self.login:
             return URL(self.login, ".")
+        return URL()
 
     def get_user_url(self, user=None):
         if user is None:
             user = self.get_auth_user()
             if not user:
                 raise ValueError("no current authenticated user")
-        return URL(self.rooturl).addpath(user)
+        if '/' in user:
+            raise ValueError("user name contains a slash")
+        return self.root_url.addpath(user)
 
     def get_index_url(self, indexname=None, slash=True):
         if indexname is None:
@@ -309,7 +367,7 @@ class Current(object):
             return self.get_user_url().addpath(indexname)
         if not slash:
             indexname = indexname.rstrip("/")
-        return URL(self.rooturl).joinpath(indexname, asdir=slash)
+        return self.root_url.joinpath(indexname, asdir=slash)
 
     def get_project_url(self, name, indexname=None):
         return self.get_index_url(indexname=indexname).addpath(name, asdir=1)
@@ -324,25 +382,43 @@ class Current(object):
 
 
 class PersistentCurrent(Current):
-    def __init__(self, path):
+    def __init__(self, auth_path, current_path):
         Current.__init__(self)
-        self.path = path
-        if self.path.check():
-            self._currentdict.update(json.loads(self.path.read()))
+        self.auth_path = auth_path
+        self.current_path = current_path
+        if self.auth_path.check():
+            auth_data = self.auth_path.read().strip()
+            if auth_data:
+                self._authdict.update(json.loads(auth_data))
+        if self.current_path and self.current_path.check():
+            current_data = self.current_path.read().strip()
+            if current_data:
+                self._currentdict.update(json.loads(current_data))
 
-    def reconfigure(self, data):
-        Current.reconfigure(self, data)
+    def exists(self):
+        return self.current_path and self.current_path.check()
+
+    def _persist(self, data, path, force_write=False):
+        if path is None:
+            return
         try:
-            olddata = json.loads(self.path.read())
+            olddata = json.loads(path.read())
         except Exception:
             olddata = {}
-        if self._currentdict != olddata:
+        if force_write or data != olddata:
             oldumask = os.umask(7 * 8 + 7)
             try:
-                self.path.write(
-                    json.dumps(self._currentdict, indent=2, sort_keys=True))
+                path.write(
+                    json.dumps(data, indent=2, sort_keys=True))
             finally:
                 os.umask(oldumask)
+
+    def reconfigure(self, data, force_write=False):
+        Current.reconfigure(self, data)
+        self._persist(self._authdict, self.auth_path, force_write=force_write)
+        # we make sure to remove legacy auth data
+        self._currentdict.pop("auth", None)
+        self._persist(self._currentdict, self.current_path, force_write=force_write)
 
 
 def out_index_list(hub, data):
@@ -370,50 +446,91 @@ def active_venv():
 
 def main(hub, args=None):
     args = hub.args
+    if args.local:
+        if hub.local_current_path is None:
+            hub.fatal("Using --local is only valid in an active virtualenv.")
+        if not hub.local_current_path.exists():
+            current = hub.current
+            hub.info("Creating local configuration at %s" % hub.local_current_path)
+            hub.local_current_path.ensure()
+            current = current.switch_to_local(
+                hub, current.index, hub.local_current_path)
+            # now store existing data in new location
+            current.reconfigure({}, force_write=True)
     current = hub.current
 
     if args.delete:
         if not hub.current.exists():
             hub.error_and_out("NO configuration found")
-        hub.current.path.remove()
-        hub.info("REMOVED configuration at", hub.current.path)
+        hub.current.current_path.remove()
+        hub.info("REMOVED configuration at", hub.current.current_path)
         return
     if current.exists():
-        hub.debug("current: %s" % current.path)
+        hub.debug("current: %s" % current.current_path)
     else:
         hub.debug("no current file, using defaults")
 
     url = None
     if args.url:
         url = args.url
+        if args.list or args.urls:
+            current = hub.current.switch_to_temporary(hub, url)
     if url or current.index:
         current.configure_fromurl(hub, url, client_cert=args.client_cert)
+        url_parts = attrgetter('scheme', 'hostname', 'port')(URL(url))
+        if url_parts[0]:
+            # only check if a full url was used
+            new_url = current.index_url if current.index else current.root_url
+            new_parts = attrgetter('scheme', 'hostname', 'port')(new_url)
+            for url_part, new_part in zip(url_parts, new_parts):
+                if url_part != new_part:
+                    hub.warn(
+                        "The server has rewritten the url to: %s" % new_url)
+                    break
 
     if args.list:
-        if not current.rooturl:
+        rooturl = current.root_url
+        if not rooturl:
             hub.fatal("not connected to any server")
-        r = hub.http_api("GET", current.rooturl, {}, quiet=True)
-        out_index_list(hub, r.result)
+        if args.user:
+            rooturl = rooturl.joinpath(args.user)
+        r = hub.http_api("GET", rooturl, {}, quiet=True)
+        result = r.result
+        if args.user:
+            result = {args.user: result}
+        out_index_list(hub, result)
         return 0
 
     showurls = args.urls or args.debug
 
-    user = current.get_auth_user()
+    user = current.get_auth_user(args.user)
+    if user:
+        if args.user and user != current.username:
+            current.reconfigure(dict(username=user))
+        r = hub.http_api("GET", current.root_url.joinpath("+api"))
+        if r.status_code == 200:
+            authstatus = r.json().get("result", {}).get("authstatus")
+            if authstatus and authstatus[0] != "ok":
+                # update login status
+                current.del_auth()
+                user = None
     if user:
         login_status = "logged in as %s" % user
     else:
         login_status = "not logged in"
-    if current.rooturl:
+    if current.root_url:
         if current.index:
+            hub.info("current devpi index: %s (%s)" % (current.index, login_status))
             if showurls:
                 for name in devpi_endpoints:
-                    hub.info("%16s: %s" %(name, getattr(current, name)))
-            else:
-                hub.info("current devpi index: %s (%s)" % (current.index, login_status))
-                if current.features:
-                    hub.info("supported features: %s" % ", ".join(sorted(current.features)))
+                    if name == 'index':
+                        continue
+                    hub.info("%19s: %s" %(name, getattr(current, name)))
+            if current.features:
+                hub.info("supported features: %s" % ", ".join(sorted(current.features)))
+            hub.validate_index_access()
         else:
-            hub.info("using server: %s (%s)" % (current.rooturl, login_status))
+            hub.info("using server: %s (%s)" % (current.root_url, login_status))
             hub.error("no current index: type 'devpi use -l' "
                       "to discover indices")
     else:
@@ -430,6 +547,11 @@ def main(hub, args=None):
         current.reconfigure(dict(always_setcfg=always_setcfg,
                                      settrusted=settrusted))
     pipcfg = PipCfg(venv=venvdir)
+    if pipcfg.legacy_location == pipcfg.default_location:
+        hub.warn(
+            "Detected pip config at legacy location: %s\n"
+            "You should move it to: %s" % (
+                pipcfg.legacy_location, pipcfg.new_location))
 
     if venvdir:
         hub.line("only setting venv pip cfg, no global configuration changed")
@@ -536,8 +658,10 @@ class BaseCfg(object):
 
 class DistutilsCfg(BaseCfg):
     section_name = "[easy_install]"
-    default_location = ("~/.pydistutils.cfg" if sys.platform != "win32"
-                        else "~/pydistutils.cfg")
+    default_location = py.path.local(
+        "~/.pydistutils.cfg"
+        if sys.platform != "win32"
+        else "~/pydistutils.cfg", expanduser=True)
 
 
 class PipCfg(BaseCfg):
@@ -547,16 +671,37 @@ class PipCfg(BaseCfg):
         self.venv = venv
         super(PipCfg, self).__init__(path=path)
 
+    @cached_property
+    def appdirs(self):
+        # try to get the vendored appdirs from pip to get same behaviour
+        try:
+            from pip._internal.utils import appdirs
+        except ImportError:
+            import platformdirs as appdirs
+        return appdirs
+
+    @property
+    def legacy_location(self):
+        confdir = py.path.local(
+            "~/.pip" if sys.platform != "win32" else "~/pip",
+            expanduser=True)
+        return confdir.join(self.pip_conf_name)
+
+    @property
+    def new_location(self):
+        return py.path.local(
+            self.appdirs.user_config_dir("pip")).join(self.pip_conf_name)
+
     @property
     def default_location(self):
         if self.venv:
             default_location = py.path.local(self.venv, expanduser=True).join(self.pip_conf_name)
         elif 'PIP_CONFIG_FILE' in os.environ:
             default_location = os.environ.get('PIP_CONFIG_FILE')
+        elif self.legacy_location.exists():
+            default_location = self.legacy_location
         else:
-            confdir = py.path.local("~/.pip" if sys.platform != "win32" else "~/pip",
-                                    expanduser=True)
-            default_location = confdir.join(self.pip_conf_name)
+            default_location = self.new_location
         return default_location
 
     @property
@@ -628,7 +773,8 @@ class BuildoutCfg(BaseCfg):
     section_name = "[buildout]"
     config_name = "index"
     regex = re.compile(r"(index)\s*=\s*(.*)")
-    default_location = "~/.buildout/default.cfg"
+    default_location = py.path.local(
+        "~/.buildout/default.cfg", expanduser=True)
 
 
 class KeyValues(list):

@@ -372,7 +372,7 @@ def initproj(tmpdir):
             setup.py
     """
 
-    def initproj_(nameversion, filedefs=None, src_root="."):
+    def initproj_(nameversion, filedefs=None, src_root=".", kind="setup.py"):
         if filedefs is None:
             filedefs = {}
         if not src_root:
@@ -392,7 +392,7 @@ def initproj(tmpdir):
 
         base.ensure(dir=1)
         create_files(base, filedefs)
-        if not _filedefs_contains(base, filedefs, "setup.py"):
+        if not _filedefs_contains(base, filedefs, "setup.py") and kind == "setup.py":
             create_files(
                 base,
                 {
@@ -412,6 +412,33 @@ def initproj(tmpdir):
                     )
                 },
             )
+        if not _filedefs_contains(base, filedefs, "pyproject.toml") and kind == "setup.cfg":
+            create_files(base, {"pyproject.toml": """
+                    [build-system]
+                    requires = ["setuptools", "wheel"]
+                """})
+        if not _filedefs_contains(base, filedefs, "setup.cfg") and kind == "setup.cfg":
+            create_files(base, {"setup.cfg": """
+                    [metadata]
+                    name = {name}
+                    description= {name} project
+                    version = {version}
+                    license = MIT
+                    packages = find:
+                """.format(**locals())})
+        if not _filedefs_contains(base, filedefs, "pyproject.toml") and kind == "pyproject.toml":
+            create_files(base, {"pyproject.toml": """
+                    [build-system]
+                    requires = ["flit_core >=3.2"]
+                    build-backend = "flit_core.buildapi"
+
+                    [project]
+                    name = "{name}"
+                    description= "{name} project"
+                    version = "{version}"
+                    license = {{text="MIT"}}
+                    packages = "find:"
+                """.format(**locals())})
         if not _filedefs_contains(base, filedefs, src_root_path.join(name)):
             create_files(
                 src_root_path, {name: {"__init__.py": "__version__ = {!r}".format(version)}}
@@ -431,7 +458,7 @@ def initproj(tmpdir):
 def create_and_upload(request, devpi, initproj, Popen):
     def upload(name, filedefs=None, opts=()):
         initproj(name, filedefs)
-        devpi("upload", *opts)
+        devpi("upload", "--no-isolation", *opts)
     return upload
 
 
@@ -545,9 +572,12 @@ def out_devpi(devpi):
         cap = py.io.StdCaptureFD()
         cap.startall()
         now = time.time()
+        ret = 0
         try:
             try:
-                devpi(*args, **kwargs)
+                hub = devpi(*args, **kwargs)
+                if getattr(hub, "sysex", None):
+                    ret = hub.sysex.args[0]
             finally:
                 out, err = cap.reset()
                 del cap
@@ -557,7 +587,7 @@ def out_devpi(devpi):
             raise
         print_(out)
         print_(err, file=sys.stderr)
-        return RunResult(0, out.split("\n"), None, time.time()-now)
+        return RunResult(ret, out.split("\n"), None, time.time()-now)
     return out_devpi_func
 
 
@@ -708,9 +738,8 @@ def makehub(tmpdir_factory):
 @pytest.fixture
 def mock_http_api(monkeypatch):
     """ mock out all Hub.http_api calls and return an object
-    offering 'register_result' to fake replies. """
+    offering 'set' and 'add' to fake replies. """
     from devpi import main
-    #monkeypatch.replace("requests.session.Session.request", None)
     from requests.sessions import Session
     monkeypatch.setattr(Session, "request", None)
 
@@ -721,26 +750,40 @@ def mock_http_api(monkeypatch):
 
         def __call__(self, method, url, kvdict=None, quiet=False,
                      auth=None, basic_auth=None, cert=None,
-                     fatal=True, verify=None):
+                     check_version=True, fatal=True, type=None, verify=None):
             kwargs = dict(
                 kvdict=kvdict, quiet=quiet, auth=auth, basic_auth=basic_auth,
                 cert=cert, fatal=fatal)
             self.called.append((method, url, kwargs))
             reply_data = self._json_responses.get(url)
-            if reply_data is not None:
-                class R:
-                    status_code = reply_data["status"]
-                    reason = reply_data.get("reason", "OK")
+            if isinstance(reply_data, list):
+                if not reply_data:
+                    pytest.fail(
+                        "http_api call to %r has no further replies" % (url,))
+                reply_data = reply_data.pop(0)
+            if reply_data is None:
+                pytest.fail("http_api call to %r is not mocked" % (url,))
 
-                    def json(self):
-                        return reply_data["json"]
+            class R:
+                status_code = reply_data["status"]
+                reason = reply_data.get("reason", "OK")
 
-                return main.HTTPReply(R())
-            pytest.fail("http_api call to %r is not mocked" % (url,))
+                def json(self):
+                    return reply_data["json"]
+
+            return main.HTTPReply(R())
 
         def set(self, url, status=200, **kw):
+            """ Set a reply for all future uses. """
             data = json.loads(json.dumps(kw))
             self._json_responses[url] = {"status": status, "json": data}
+
+        def add(self, url, status=200, **kw):
+            """ Add a one time use reply to the url. """
+            data = json.loads(json.dumps(kw))
+            self._json_responses.setdefault(url, []).append(
+                {"status": status, "json": data})
+
     mockapi = MockHTTPAPI()
     monkeypatch.setattr(main.Hub, "http_api", mockapi)
     return mockapi

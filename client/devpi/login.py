@@ -1,5 +1,6 @@
 from devpi.main import hookimpl
 import getpass
+import sys
 
 
 def main(hub, args):
@@ -21,10 +22,16 @@ def main(hub, args):
         msg = "%s at %r" % (msg, hub.current.index)
     msg = "%s, credentials valid for %.2f hours" % (msg, hours)
     hub.info(msg)
+    if hub.current.index:
+        hub.validate_index_access()
 
 
 @hookimpl(trylast=True)
 def devpiclient_get_password(url, username):
+    if sys.version_info < (3,):
+        # getpass.getpass() does not support Unicode prompts on Python 2
+        username = username.encode(sys.stdout.encoding)
+        url = url.encode(sys.stdout.encoding)
     return getpass.getpass("password for user %s at %s: " % (username, url))
 
 
