@@ -1511,7 +1511,7 @@ class LinkStore:
             assert overwrite is None
             overwrite = sum(x.get('count', 0)
                             for x in link.get_logs() if x.get('what') == 'overwrite')
-            self.remove_links(rel=rel, basename=basename)
+        self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, content_or_file)
         if last_modified is not None:
             file_entry.last_modified = last_modified
