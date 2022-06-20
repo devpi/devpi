@@ -641,6 +641,9 @@ class BaseStage(object):
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.name}>"
+
     def get_indexconfig_from_kwargs(self, **kwargs):
         """Normalizes values and validates keys.
 
@@ -1553,6 +1556,9 @@ class LinkStore:
             raise MissesRegistration(
                 "%s-%s on stage %s at %s",
                 project, version, stage.name, stage.keyfs.tx.at_serial)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.project} {self.stage.name} {self.version}>"
 
     @property
     def metadata(self):

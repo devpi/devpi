@@ -98,6 +98,9 @@ class FileStore:
     def __init__(self, keyfs):
         self.keyfs = keyfs
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.keyfs!r}>"
+
     def maplink(self, link, user, index, project):
         key = key_from_link(self.keyfs, link, user, index)
         entry = FileEntry(key, readonly=False)
