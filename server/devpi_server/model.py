@@ -1118,6 +1118,9 @@ class PrivateStage(BaseStage):
             xom, username, index, ixconfig, customizer_cls)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name})"
+
     def get_possible_indexconfig_keys(self):
         return tuple(dict(self.get_default_config_items())) + (
             "custom_data", "description", "title")
@@ -1488,6 +1491,9 @@ class LinkStore:
             raise MissesRegistration(
                 "%s-%s on stage %s at %s",
                 project, version, stage.name, stage.keyfs.tx.at_serial)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.project}, {self.stage.name}, {self.version})"
 
     @property
     def metadata(self):
