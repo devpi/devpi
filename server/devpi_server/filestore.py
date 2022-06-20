@@ -14,7 +14,6 @@ from devpi_common.types import parse_hash_spec
 from devpi_server.log import threadlog
 from urllib.parse import unquote
 
-
 _nodefault = object()
 
 
@@ -138,7 +137,10 @@ class FileStore:
         # dir_hash_spec is set for toxresult files
         hash_spec = None
         if dir_hash_spec is None:
-            dir_hash_spec = get_default_hash_spec(content_or_file)
+            if hasattr(content_or_file, "hash_spec"):
+                dir_hash_spec = content_or_file.hash_spec
+            else:
+                dir_hash_spec = get_default_hash_spec(content_or_file)
             # prevent hashing twice
             hash_spec = dir_hash_spec
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)

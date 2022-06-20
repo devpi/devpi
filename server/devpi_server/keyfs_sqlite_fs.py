@@ -42,7 +42,11 @@ class DirtyFile(object):
     @classmethod
     def from_content(cls, path, content_or_file):
         self = DirtyFile(path)
-        if hasattr(content_or_file, "devpi_srcpath"):
+        if hasattr(content_or_file, "basename"):
+            devpi_srcpath = content_or_file.filestore.keyfs.basedir / content_or_file.entry._storepath
+        else:
+            devpi_srcpath = getattr(content_or_file, "devpi_srcpath", None)
+        if devpi_srcpath is not None:
             dirname = os.path.dirname(self.tmppath)
             if not os.path.exists(dirname):
                 try:
@@ -53,7 +57,7 @@ class DirtyFile(object):
                     # another thread tries to create the same folder
                     if e.errno != errno.EEXIST:
                         raise
-            os.link(content_or_file.devpi_srcpath, self.tmppath)
+            os.link(devpi_srcpath, self.tmppath)
         else:
             with get_write_file_ensure_dir(self.tmppath) as f:
                 if not isinstance(content_or_file, bytes) and not callable(getattr(content_or_file, "seekable", None)):

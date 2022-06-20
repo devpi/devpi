@@ -4,6 +4,7 @@ import os
 import py
 import re
 import traceback
+
 from time import time
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
@@ -1445,6 +1446,38 @@ class PyPIView:
         for user in self.model.get_userlist():
             d[user.name] = user.get()
         apireturn(200, type="list:userconfig", result=d)
+
+    @view_config(
+        route_name="/snapshot/{user}/{index}", request_method="POST")
+    @view_config(
+        route_name="/snapshot/{user}/{index}/", request_method="POST")
+    def snapshot(self):
+        json = getjson(self.request)
+        target_index = json["target_index"]
+        target_stage = None
+        source_stage, projects = self.context.stage.list_projects()[0]
+        try:
+            target_stage = self.context.user.create_stage(target_index)
+            for project_name in projects:
+                print(project_name)
+                for version in source_stage.list_versions(project_name):
+                    print(version)
+                    linkstore = source_stage.get_linkstore_perstage(project_name, version)
+                    verdata = source_stage.get_versiondata_perstage(project_name, version)
+                    release_links = linkstore.get_links("releasefile", None)
+                    link = release_links[0]
+                    target_stage.set_versiondata(verdata)
+                    new_link = target_stage.store_releasefile(
+                        project_name, version,
+                        link.basename, link)
+                    new_link.add_log(
+                        'snapshot', self.request.authenticated_userid, dst=target_stage.name)
+        except:
+            if target_stage is not None:
+                target_stage.delete()
+            raise
+        else:
+            apireturn(200)
 
 
 def should_fetch_remote_file(entry, headers):
