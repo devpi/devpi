@@ -33,6 +33,9 @@ class DirtyFile(object):
             digest = digest[:8]
         self.tmppath = f"{path}-{digest}-tmp"
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.path}>"
+
     @classmethod
     def from_content(cls, path, content_or_file):
         self = DirtyFile(path)
