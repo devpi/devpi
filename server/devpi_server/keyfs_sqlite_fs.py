@@ -42,7 +42,8 @@ class DirtyFile(object):
     @classmethod
     def from_content(cls, path, content_or_file):
         self = DirtyFile(path)
-        if hasattr(content_or_file, "basename"):
+        if hasattr(content_or_file, "filestore"):
+            # ELink
             devpi_srcpath = content_or_file.filestore.keyfs.basedir / content_or_file.entry._storepath
         else:
             devpi_srcpath = getattr(content_or_file, "devpi_srcpath", None)
@@ -57,6 +58,7 @@ class DirtyFile(object):
                     # another thread tries to create the same folder
                     if e.errno != errno.EEXIST:
                         raise
+            # hard-link:
             os.link(devpi_srcpath, self.tmppath)
         else:
             with get_write_file_ensure_dir(self.tmppath) as f:
