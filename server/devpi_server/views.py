@@ -1481,7 +1481,7 @@ class PyPIView:
                         project_name, version,
                         link.basename, link)
                     new_link.add_log(
-                        'snapshot', request.authenticated_userid, dst=target_stage.name)
+                        'snapshot', request.authenticated_userid, src=context.stage.name)
         except:
             if target_stage is not None:
                 target_stage.delete()
