@@ -1053,8 +1053,6 @@ def refresh(parser):
 @subcommand("devpi.snapshot")
 def snapshot(parser):
     """ snapshot an index into another."""
-    parser.add_argument("--index", default=None,
-                        help="index to snapshot from (defaults to current index)")
     parser.add_argument("target", metavar="TARGETSPEC",
                         action="store",
                         help="target index name")

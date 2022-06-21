@@ -1,10 +1,6 @@
 def main(hub, args):
     current = hub.require_valid_current_with_index()
-    if args.index and args.index.count("/") > 1:
-        hub.fatal("index %r not of form USER/NAME or NAME" % args.index)
-    source_index = args.index or current.indexname
-    if not source_index:
-        hub.fatal("no source index provided")
+    source_index = current.indexname
     target_index = args.target
     if "/" in target_index:
         hub.fatal("'/' not allowed in target index ; snapshot only allowed within one user indices")
