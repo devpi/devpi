@@ -1448,24 +1448,29 @@ class PyPIView:
         apireturn(200, type="list:userconfig", result=d)
 
     @view_config(
-        route_name="/snapshot/{user}/{index}", request_method="POST")
+        route_name="/+snapshot/{user}/{index}", request_method="POST")
     @view_config(
-        route_name="/snapshot/{user}/{index}/", request_method="POST")
+        route_name="/+snapshot/{user}/{index}/", request_method="POST")
     def snapshot(self):
+        request = self.request
+        context = self.context
         if not request.has_permission("upload"):  # TODO: add 'snapshot' perm ?
             # if there is no authenticated user, then issue a basic auth challenge
             if not request.authenticated_userid:
                 response = HTTPUnauthorized()
                 response.headers.update(forget(request))
                 return response
-            abort_submit(request, 403, "no permission to submit")
+            abort_submit(request, 403, "no permission to snapshot")
             assert 0
-        json = getjson(self.request)
+        json = getjson(request)
         target_index = json["target_index"]
         target_stage = None
-        source_stage, projects = self.context.stage.list_projects()[0]
+        source_stage, projects = context.stage.list_projects()[0]
         try:
-            target_stage = self.context.user.create_stage(target_index)
+            if context.user.getstage(target_index):
+                apireturn(409, "index %r already exists" % target_index)
+            target_stage = context.user.create_stage(target_index)
+
             for project_name in projects:
                 for version in source_stage.list_versions(project_name):
                     linkstore = source_stage.get_linkstore_perstage(project_name, version)
@@ -1478,7 +1483,7 @@ class PyPIView:
                         project_name, version,
                         link.basename, link)
                     new_link.add_log(
-                        'snapshot', self.request.authenticated_userid, dst=target_stage.name)
+                        'snapshot', request.authenticated_userid, dst=target_stage.name)
         except:
             if target_stage is not None:
                 target_stage.delete()
