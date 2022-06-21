@@ -1517,11 +1517,11 @@ class LinkStore:
             assert overwrite is None
             overwrite = sum(x.get('count', 0)
                             for x in link.get_logs() if x.get('what') == 'overwrite')
-        # TODO: should we or should we not remove_links here ?
-        # if content_or_file.__class__.__name__ != "ELink":
-        #     # NB: ELink is used for snapshot and/but the verdata is from the reference the file from the source index.
-        #     # so we must not remove_links here or else it deletes the file from the source index !
-        #     self.remove_links(rel=rel, basename=basename)
+        if not isinstance(content_or_file, ELink):
+            # NB: ELink is used for snapshot and/but the verdata is from the reference the file from the source index.
+            # so we must not remove_links here or else it deletes the file from the source index !
+            # TODO: should we or should we not remove_links here ?
+             self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, content_or_file)
         if last_modified is not None:
             file_entry.last_modified = last_modified
