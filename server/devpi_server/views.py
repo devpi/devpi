@@ -4,7 +4,6 @@ import os
 import py
 import re
 import traceback
-
 from time import time
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL

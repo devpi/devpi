@@ -1518,7 +1518,7 @@ class LinkStore:
             overwrite = sum(x.get('count', 0)
                             for x in link.get_logs() if x.get('what') == 'overwrite')
         if not isinstance(content_or_file, ELink):
-            # NB: ELink is used for snapshot and/but the verdata is from the reference the file from the source index.
+            # NB: ELink is used for snapshot and/but the verdata is from the reference file from the source index.
             # so we must not remove_links here or else it deletes the file from the source index !
             # TODO: should we or should we not remove_links here ?
              self.remove_links(rel=rel, basename=basename)
