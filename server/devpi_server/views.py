@@ -1466,6 +1466,7 @@ class PyPIView:
         target_stage = None
         source_stage, projects = context.stage.list_projects()[0]
         failures = []
+        tot_wheels = 0
         try:
             if context.user.getstage(target_index):
                 apireturn(409, "index %r already exists" % target_index)
@@ -1478,32 +1479,36 @@ class PyPIView:
                         linkstore = source_stage.get_linkstore_perstage(project_name, version)
                         release_links = linkstore.get_links("releasefile", None)
                         verdata = source_stage.get_versiondata_perstage(project_name, version)
-                        # fixup verdata coming from source_stage for target_stage:
-                        new_elinks = []
-                        for elink in verdata._data['+elinks']:
-                            front = source_stage.name + "/+f/"
-                            entrypath = elink['entrypath']
-                            assert entrypath.startswith(front), elink
-                            new_elink = dict(elink)
-                            new_elink['entrypath'] = entrypath.replace(front, f"{context.user.name}/{target_index}/+f/")
-                            new_elinks.append(new_elink)
-                        verdata._data['+elinks'] = new_elinks
-                        target_stage.set_versiondata(verdata)
-                        for link in release_links:
-                            print(f"  {link.entrypath}")
-                            new_link = target_stage.store_releasefile(
-                                project_name, version,
-                                link.basename, link)
-                            new_link.add_log(
-                                'snapshot', request.authenticated_userid, src=context.stage.name)
                     except Exception as err:
                         failures.append(f"failed during init of {project_name}-{version}: {err}")
+                        continue
+                    # fixup verdata coming from source_stage for target_stage:
+                    new_elinks = []
+                    for elink in verdata._data['+elinks']:
+                        front = source_stage.name + "/+f/"
+                        entrypath = elink['entrypath']
+                        assert entrypath.startswith(front), elink
+                        new_elink = dict(elink)
+                        new_elink['entrypath'] = entrypath.replace(front, f"{context.user.name}/{target_index}/+f/")
+                        new_elinks.append(new_elink)
+                    verdata._data['+elinks'] = new_elinks
+                    target_stage.set_versiondata(verdata)  # fixup done.
+                    for link in release_links:
+                        print(f"  {link.entrypath}")
+                        new_link = target_stage.store_releasefile(
+                            project_name, version,
+                            link.basename, link)
+                        new_link.add_log(
+                            'snapshot', request.authenticated_userid, src=context.stage.name)
+                        tot_wheels += 1
         except:
             if target_stage is not None:
                 target_stage.delete()
             raise
         else:
-            apireturn(200, type=dict, result={'failures': failures})
+            apireturn(200,
+                      type="failures",
+                      result={'failures': failures, 'tot_projects': len(projects), 'tot_wheels': tot_wheels})
 
 
 def should_fetch_remote_file(entry, headers):
