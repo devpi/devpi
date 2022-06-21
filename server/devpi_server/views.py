@@ -1470,7 +1470,6 @@ class PyPIView:
             if context.user.getstage(target_index):
                 apireturn(409, "index %r already exists" % target_index)
             target_stage = context.user.create_stage(target_index)
-
             for project_name in projects:
                 for version in source_stage.list_versions(project_name):
                     linkstore = source_stage.get_linkstore_perstage(project_name, version)
