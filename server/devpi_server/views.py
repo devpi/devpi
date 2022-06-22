@@ -1466,14 +1466,18 @@ class PyPIView:
         target_stage = None
         source_stage, projects = context.stage.list_projects()[0]
         failures = []
+        notices = []
         tot_wheels = 0
+        tot_project_versions = 0
+        if context.user.getstage(target_index):
+            apireturn(409, "index %r already exists" % target_index)
         try:
-            if context.user.getstage(target_index):
-                apireturn(409, "index %r already exists" % target_index)
             target_stage = context.user.create_stage(target_index)
             for project_name in projects:
                 print(f"doing {project_name} ..")
-                for version in source_stage.list_versions(project_name):
+                project_versions = source_stage.list_versions(project_name)
+                tot_project_versions += len(project_versions)
+                for version in project_versions:
                     print(f" {project_name}-{version} ..")
                     try:
                         linkstore = source_stage.get_linkstore_perstage(project_name, version)
@@ -1484,15 +1488,30 @@ class PyPIView:
                         continue
                     # fixup verdata coming from source_stage for target_stage:
                     new_elinks = []
-                    for elink in verdata._data['+elinks']:
-                        front = source_stage.name + "/+f/"
-                        entrypath = elink['entrypath']
-                        assert entrypath.startswith(front), elink
-                        new_elink = dict(elink)
-                        new_elink['entrypath'] = entrypath.replace(front, f"{context.user.name}/{target_index}/+f/")
-                        new_elinks.append(new_elink)
+                    elinks = verdata.get('+elinks', None)
+                    if not elinks:
+                        msg = f"{project_name}-{version} has no +elinks: {elinks}"
+                        notices.append(msg)
+                        print(msg)
+                        continue
+                    for elink in elinks:
+                        try:
+                            front = source_stage.name + "/+f/"
+                            entrypath = elink['entrypath']
+                            assert entrypath.startswith(front), elink
+                            new_elink = dict(elink)
+                            new_elink['entrypath'] = entrypath.replace(front, f"{context.user.name}/{target_index}/+f/")
+                            new_elinks.append(new_elink)
+                        except Exception as err:
+                            msg = f"error with elink {elink}: {err}"
+                            failures.append(msg)
+                            print(msg)
+                    # have to set on _data cause `verdata` itself is ReadOnly:
                     verdata._data['+elinks'] = new_elinks
-                    target_stage.set_versiondata(verdata)  # fixup done.
+                    # fixup done.
+                    # we now have to set that version data into the target stage:
+                    target_stage.set_versiondata(verdata)
+                    # then we can create the (hard-)links for each release:
                     for link in release_links:
                         print(f"  {link.entrypath}")
                         new_link = target_stage.store_releasefile(
@@ -1500,15 +1519,29 @@ class PyPIView:
                             link.basename, link)
                         new_link.add_log(
                             'snapshot', request.authenticated_userid, src=context.stage.name)
-                        tot_wheels += 1
-        except:
+                    tot_wheels += len(release_links)
+        except Exception as err:
+            print(f"Got error while snapshotting {source_stage}: {err}")
+            import traceback
+            traceback.print_exc()
             if target_stage is not None:
                 target_stage.delete()
-            raise
+            apireturn(500,
+                      type="failures",
+                      result={'failures': failures,
+                              'tot_projects': len(projects),
+                              'tot_project_versions': tot_project_versions,
+                              'tot_wheels': tot_wheels,
+                              'notices': notices,
+                              'error': str(err)})
         else:
             apireturn(200,
-                      type="failures",
-                      result={'failures': failures, 'tot_projects': len(projects), 'tot_wheels': tot_wheels})
+                      type="results",
+                      result={'failures': failures,
+                              'tot_projects': len(projects),
+                              'tot_project_versions': tot_project_versions,
+                              'tot_wheels': tot_wheels,
+                              'notices': notices})
 
 
 def should_fetch_remote_file(entry, headers):
