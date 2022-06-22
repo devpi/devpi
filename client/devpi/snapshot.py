@@ -8,6 +8,9 @@ def main(hub, args):
     url_authed = current.add_auth_to_url(url)
     r = hub.http.post(url_authed, json={"target_index": target_index})
     if r.status_code != 200:
-        hub.fatal("Couldn't snapshot %s via %s: %s %s" % (
-            source_index, url, r.status_code, r.reason))
-    hub.info(f"{source_index} successfully snapshoted into {target_index}")
+        hub.fatal("Couldn't snapshot %s via %s: %s %s %s" % (
+            source_index, url, r.status_code, r.reason, r.json()))
+    else:
+        hub.info(f"{source_index} successfully snapshot into {target_index}")
+        if args.verbose:
+            hub.info(f"{r.json()}")
