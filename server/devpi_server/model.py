@@ -1550,7 +1550,8 @@ class LinkStore:
         del_links = self.get_links(rel=rel, basename=basename, for_entrypath=for_entrypath)
         was_deleted = []
         for link in del_links:
-            link.entry.delete()
+            if link.entry is not None:
+                link.entry.delete()
             linkdicts.remove(link.linkdict)
             was_deleted.append(link.entrypath)
             threadlog.info("deleted %r link %s", link.rel, link.entrypath)
