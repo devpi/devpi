@@ -1484,7 +1484,9 @@ class PyPIView:
                         release_links = linkstore.get_links("releasefile", None)
                         verdata = source_stage.get_versiondata_perstage(project_name, version)
                     except Exception as err:
-                        failures.append(f"failed during init of {project_name}-{version}: {err}")
+                        failure = f"failed during read of {project_name}-{version}: {err}\n{traceback.format_exc()}"
+                        print(failure)
+                        failures.append(failure)
                         continue
                     # fixup verdata coming from source_stage for target_stage:
                     new_elinks = []
@@ -1521,8 +1523,7 @@ class PyPIView:
                             'snapshot', request.authenticated_userid, src=context.stage.name)
                     tot_wheels += len(release_links)
         except Exception as err:
-            print(f"Got error while snapshotting {source_stage}: {err}")
-            import traceback
+            print(f"Got error during snapshot {source_stage}: {err}")
             traceback.print_exc()
             if target_stage is not None:
                 target_stage.delete()
