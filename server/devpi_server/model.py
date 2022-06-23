@@ -1419,16 +1419,15 @@ def devpiserver_get_stage_customizer_classes():
 
 class ELink(object):
     """ model Link using entrypathes for referencing. """
-    __slots__ = ('_entry', 'basename', 'filestore', 'linkdict', 'project', 'version', 'devpi_srcpath')
+    __slots__ = ('_entry', 'basename', 'filestore', 'linkdict', 'project', 'version')
 
-    def __init__(self, filestore, linkdict, project, version, *, devpi_srcpath=None):
+    def __init__(self, filestore, linkdict, project, version):
         self._entry = notset
         self.filestore = filestore
         self.linkdict = linkdict
         self.basename = posixpath.basename(self.entrypath)
         self.project = project
         self.version = version
-        self.devpi_srcpath = devpi_srcpath
 
     @property
     def relpath(self):
@@ -1507,7 +1506,7 @@ class LinkStore:
     def get_file_entry(self, relpath):
         return self.filestore.get_file_entry(relpath)
 
-    def create_linked_entry(self, rel, basename, content_or_file, last_modified=None):
+    def create_linked_entry(self, rel, basename, content_or_file, last_modified=None, ref_hash_spec=None):
         overwrite = None
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
@@ -1519,7 +1518,7 @@ class LinkStore:
             overwrite = sum(x.get('count', 0)
                             for x in link.get_logs() if x.get('what') == 'overwrite')
         self.remove_links(rel=rel, basename=basename)
-        file_entry = self._create_file_entry(basename, content_or_file)
+        file_entry = self._create_file_entry(basename, content_or_file, ref_hash_spec=ref_hash_spec)
         if last_modified is not None:
             file_entry.last_modified = last_modified
         link = self._add_link_to_file_entry(rel, file_entry)

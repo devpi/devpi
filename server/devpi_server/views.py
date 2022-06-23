@@ -1502,7 +1502,8 @@ class PyPIView:
                                 rel="releasefile",
                                 basename=link.basename,
                                 content_or_file=f,
-                                last_modified=None)
+                                last_modified=None,
+                                ref_hash_spec=link.hash_spec)
                         new_link.add_log(
                             'snapshot', request.authenticated_userid, src=context.stage.name)
                     tot_wheels += len(release_links)
