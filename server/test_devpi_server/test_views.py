@@ -864,6 +864,21 @@ class TestSubmitValidation:
         paths = mapp.get_release_paths("pkg_hello")
         assert paths[0].endswith("pkg-hello-1.0.whl")
 
+    def test_upload_pep427_wheel_issue743(self, submit, mapp):
+        metadata = {
+            "name": "pkg_hello",
+            "version": "1.0+gaadc053",
+            ":action": "submit"}
+        submit.metadata(metadata, code=200)
+        submit.file(
+            "pkg-hello-1.0_gaadc053.whl",
+            b"123", {
+                "name": "pkg-hello",
+                "version": "1.0+gaadc053"},
+            code=200)
+        paths = mapp.get_release_paths("pkg_hello")
+        assert paths[0].endswith("pkg-hello-1.0_gaadc053.whl")
+
     def test_upload_and_delete_name_normalization_issue98(self, mapp,
             submit, testapp):
         metadata = {"name": "pkg_hello", "version":"1.0", ":action": "submit"}

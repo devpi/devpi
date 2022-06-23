@@ -1,0 +1,1 @@
+Fix #743: support PEP427 escaped wheels with local version, where the + is replaced by _.
