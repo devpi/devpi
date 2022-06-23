@@ -85,7 +85,6 @@ def main(hub, args):
     if args.list:
         return index_list(hub, indexname)
 
-    hub.requires_login()
     url = hub.current.get_index_url(indexname, slash=False)
 
     if (args.delete or args.create) and not indexname:
@@ -93,10 +92,13 @@ def main(hub, args):
     if args.delete:
         if args.keyvalues:
             hub.fatal("cannot delete if you specify key=values")
+        hub.requires_login()
         return index_delete(hub, url)
     if args.create:
+        hub.requires_login()
         return index_create(hub, url, keyvalues.kvdict)
     if keyvalues:
+        hub.requires_login()
         return index_modify(hub, url, keyvalues)
     else:
         if args.no_projects:

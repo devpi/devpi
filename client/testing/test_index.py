@@ -8,6 +8,21 @@ def test_index_show_empty(loghub):
     loghub._getmatcher().fnmatch_lines("*no index specified*")
 
 
+def test_index_show_without_login(loghub, mock_http_api):
+    loghub.current.reconfigure(dict(
+        simpleindex="http://devpi/index",
+        index="http://devpi/root/dev/",
+        login="http://devpi/+login"))
+    loghub.args.indexname = "hello/dev"
+    loghub.args.keyvalues = []
+    loghub.args.create = None
+    loghub.args.delete = None
+    loghub.args.list = None
+    loghub.args.no_projects = None
+    mock_http_api.set("http://devpi/hello/dev", 200, result={})
+    main(loghub, loghub.args)
+
+
 def test_index_list_without_login(loghub):
     loghub.args.indexname = None
     loghub.args.keyvalues = []
