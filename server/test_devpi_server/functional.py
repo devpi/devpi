@@ -123,9 +123,9 @@ class TestIndexThings:
 
     def test_pypi_index_attributes(self, mapp):
         mapp.login_root()
-        data = mapp.getjson("/root/pypi")
+        data = mapp.getjson("/root/pypi?no_projects=")
         res = data["result"]
-        res.pop("projects")
+        res.pop("projects", None)
         assert sorted(res.keys()) == sorted([
             "type", "volatile", "title", "mirror_url", "mirror_web_url_fmt"])
         assert res["type"] == "mirror"
