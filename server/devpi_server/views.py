@@ -376,6 +376,18 @@ def devpiserver_authcheck_forbidden(request):
         return True
 
 
+def version_in_filename(version, filename):
+    if version is None:
+        # no version set, so skip check
+        return True
+    if version in filename:
+        return True
+    # PEP 427 escaped wheels
+    if re.sub(r"[^\w\d.]+", "_", version, re.UNICODE) in filename:
+        return True
+    return False
+
+
 class PyPIView:
     def __init__(self, request):
         self.request = request
@@ -1025,7 +1037,7 @@ class PyPIView:
                 # we only check for release files if version is
                 # contained in the filename because for doczip files
                 # we construct the filename ourselves anyway.
-                if version and version not in content.filename:
+                if not version_in_filename(version, content.filename):
                     abort_submit(
                         request, 400,
                         "filename %r does not contain version %r" % (
