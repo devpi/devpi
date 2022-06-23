@@ -284,15 +284,29 @@ class Hub:
             self.current.reconfigure(dict(venvdir=None))
         else:
             if venvname:
-                cand = self.cwd.join(venvname, vbin, abs=True)
-                if not cand.check() and self.venvwrapper_home:
-                    cand = self.venvwrapper_home.join(venvname, vbin, abs=True)
-                venvdir = cand.dirpath().strpath
-                if not cand.check():
-                    self.fatal("No virtualenv found at: %s" % venvdir)
-                self.current.reconfigure(dict(venvdir=venvdir))
+                venvdir = venvname
             else:
                 venvdir = self.current.venvdir or self.active_venv()
+            if venvdir:
+                cand = self.cwd.join(venvdir, vbin, abs=True)
+                if not cand.check() and self.venvwrapper_home:
+                    cand = self.venvwrapper_home.join(venvdir, vbin, abs=True)
+                venvdir = cand.dirpath().strpath
+                if not cand.check():
+                    if self.current.venvdir:
+                        self.fatal(
+                            "No virtualenv found at: %r\n"
+                            "You can unset it with 'devpi use --venv -'."
+                            % venvdir)
+                    elif self.active_venv():
+                        self.fatal(
+                            "No virtualenv found at: %r\n"
+                            "Check your VIRTUAL_ENV environment variable."
+                            % venvdir)
+                    self.fatal("No virtualenv found at: %r" % venvdir)
+                if venvname:
+                    # only store if coming from args
+                    self.current.reconfigure(dict(venvdir=venvdir))
 
         return venvdir
 
