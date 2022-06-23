@@ -71,4 +71,3 @@ ENV/
 /tmp/
 *.sw[po]
 **/tags
-/.idea/
