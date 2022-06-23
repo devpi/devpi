@@ -87,6 +87,7 @@ jobs:
   bbb-tests:
     if: true
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: "packages"
     strategy:
       matrix:
         include:
@@ -119,6 +120,7 @@ jobs:
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
         run: |
           set -xe -o nounset
+          source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
@@ -311,6 +313,7 @@ jobs:
   postgresql-bbb-tests:
     if: true
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: "packages"
     strategy:
       matrix:
         include:
@@ -342,6 +345,7 @@ jobs:
           export POSTGRESQL_BIN_DIR=$(ls -d /usr/lib/postgresql/*/bin)
           ls $POSTGRESQL_BIN_DIR
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
+          source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes

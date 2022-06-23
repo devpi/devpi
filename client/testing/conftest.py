@@ -195,7 +195,7 @@ def server_executable(request, tmpdir_factory):
     # install devpi-server
     venv_pip = get_venv_script(venv_path, ('pip', 'pip.exe'))
     subprocess.check_call(
-        [venv_pip, 'install'] + requirements,
+        [venv_pip, 'install', '--pre'] + requirements,
         env=env)
     return get_venv_script(venv_path, ('devpi-server', 'devpi-server.exe'))
 

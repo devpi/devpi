@@ -30,7 +30,7 @@ if __name__ == "__main__":
       name="devpi-common",
       description="utilities jointly used by devpi-server and devpi-client",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='3.6.0',
+      version='3.6.1.dev0',
       packages=['devpi_common', 'devpi_common.vendor'],
       install_requires=[
           "lazy",
