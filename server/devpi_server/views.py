@@ -1464,14 +1464,17 @@ class PyPIView:
         target_index = json["target_index"]
         target_stage = None
         source_stage, projects = context.stage.list_projects()[0]
-        front = source_stage.name + "/+f/"  # used to set the devpi_srcpath
+        # used to set the devpi_srcpath:
+        front = f"{source_stage.name}/+f/"
+        entrypath_replacement = f"{context.user.name}/{target_index}/+f/"
+        if context.user.getstage(target_index):
+            apireturn(409, "index %r already exists" % target_index)
+        threadlog.info("snapshot %s", source_stage.name)
+        # stats:
         failures = []
         notices = []
         tot_wheels = 0
         tot_project_versions = 0
-        if context.user.getstage(target_index):
-            apireturn(409, "index %r already exists" % target_index)
-        threadlog.info("snapshot %s", source_stage.name)
         try:
             target_stage = context.user.create_stage(target_index)
             for project_name in projects:
@@ -1497,7 +1500,7 @@ class PyPIView:
                             # unhandled case TODO ?
                             failures.append(f"{project_name}-{version}: bad entrypath for {d}")
                             continue
-                        d['entrypath'] = entrypath.replace(front, f"{context.user.name}/{target_index}/+f/")
+                        d['entrypath'] = entrypath.replace(front, entrypath_replacement)
                         target_stage.set_versiondata({'name': project_name, 'version': version})
                         linkstore = target_stage.get_linkstore_perstage(project_name, version, readonly=False)
                         devpi_srcpath = linkstore.filestore.keyfs.basedir / "+files" / link.entrypath
