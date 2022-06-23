@@ -1484,33 +1484,25 @@ class PyPIView:
                 for version in project_versions:
                     threadlog.debug("snapshot doing %s-%s", project_name, version)
                     try:
-                        linkstore = source_stage.get_linkstore_perstage(project_name, version)
-                        release_links = linkstore.get_links("releasefile", None)
+                        source_linkstore = source_stage.get_linkstore_perstage(project_name, version)
+                        release_links = source_linkstore.get_links("releasefile", None)
                     except Exception as err:
                         failure = f"failed during read of {project_name}-{version}: {err}\n{traceback.format_exc()}"
                         threadlog.error("%s", failure)
                         failures.append(failure)
                         continue
+                    target_stage.set_versiondata({'name': project_name, 'version': version})
+                    target_linkstore = target_stage.get_linkstore_perstage(project_name, version, readonly=False)
                     # then we can create the (hard-)links for each release:
                     for link in release_links:
                         threadlog.debug("snapshot doing %s", link.entrypath)
-                        d = dict(link.linkdict)
-                        entrypath = d.get('entrypath', None)
-                        if entrypath is None or not entrypath.startswith(front):
-                            # unhandled case TODO ?
-                            failures.append(f"{project_name}-{version}: bad entrypath for {d}")
-                            continue
-                        d['entrypath'] = entrypath.replace(front, entrypath_replacement)
-                        target_stage.set_versiondata({'name': project_name, 'version': version})
-                        linkstore = target_stage.get_linkstore_perstage(project_name, version, readonly=False)
-                        devpi_srcpath = linkstore.filestore.keyfs.basedir / "+files" / link.entrypath
-                        new_release_link = ELink(target_stage.filestore, d, project_name, version,
-                                                 devpi_srcpath=devpi_srcpath)
-                        new_link = linkstore.create_linked_entry(
-                            rel="releasefile",
-                            basename=link.basename,
-                            content_or_file=new_release_link,
-                            last_modified=None)
+                        with link.entry.file_open_read() as f:
+                            f.devpi_srcpath = source_linkstore.filestore.keyfs.basedir / "+files" / link.entrypath
+                            new_link = target_linkstore.create_linked_entry(
+                                rel="releasefile",
+                                basename=link.basename,
+                                content_or_file=f,
+                                last_modified=None)
                         new_link.add_log(
                             'snapshot', request.authenticated_userid, src=context.stage.name)
                     tot_wheels += len(release_links)
