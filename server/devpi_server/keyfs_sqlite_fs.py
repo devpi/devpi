@@ -42,11 +42,7 @@ class DirtyFile(object):
     @classmethod
     def from_content(cls, path, content_or_file):
         self = DirtyFile(path)
-        if hasattr(content_or_file, "filestore"):
-            # ELink
-            devpi_srcpath = content_or_file.filestore.keyfs.basedir / content_or_file.entry._storepath
-        else:
-            devpi_srcpath = getattr(content_or_file, "devpi_srcpath", None)
+        devpi_srcpath = getattr(content_or_file, "devpi_srcpath", None)
         if devpi_srcpath is not None:
             dirname = os.path.dirname(self.tmppath)
             if not os.path.exists(dirname):

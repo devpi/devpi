@@ -1419,15 +1419,16 @@ def devpiserver_get_stage_customizer_classes():
 
 class ELink(object):
     """ model Link using entrypathes for referencing. """
-    __slots__ = ('_entry', 'basename', 'filestore', 'linkdict', 'project', 'version')
+    __slots__ = ('_entry', 'basename', 'filestore', 'linkdict', 'project', 'version', 'devpi_srcpath')
 
-    def __init__(self, filestore, linkdict, project, version):
+    def __init__(self, filestore, linkdict, project, version, *, devpi_srcpath=None):
         self._entry = notset
         self.filestore = filestore
         self.linkdict = linkdict
         self.basename = posixpath.basename(self.entrypath)
         self.project = project
         self.version = version
+        self.devpi_srcpath = devpi_srcpath
 
     @property
     def relpath(self):
@@ -1517,11 +1518,7 @@ class LinkStore:
             assert overwrite is None
             overwrite = sum(x.get('count', 0)
                             for x in link.get_logs() if x.get('what') == 'overwrite')
-        if not isinstance(content_or_file, ELink):
-            # NB: ELink is used for snapshot and/but the verdata is from the reference file from the source index.
-            # so we must not remove_links here or else it deletes the file from the source index !
-            # TODO: should we or should we not remove_links here ?
-             self.remove_links(rel=rel, basename=basename)
+        self.remove_links(rel=rel, basename=basename)
         file_entry = self._create_file_entry(basename, content_or_file)
         if last_modified is not None:
             file_entry.last_modified = last_modified
