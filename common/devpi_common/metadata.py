@@ -13,11 +13,12 @@ ALLOWED_ARCHIVE_EXTS = set(
 
 
 _releasefile_suffix_rx = re.compile(
-    r"(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
+    r"(\.deb|\.dmg|\.msi|\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|"
     r"\.doc\.zip|"
     r"\.macosx-\d+.*|"
     r"\.linux-.*|"
-    r"\.[^\.]*\.rpm|"
+    r"\-[^-]+?\.src\.rpm|"
+    r"\-[^-]+?\.rpm|"
     r"\.win-amd68-py[23]\.\d\..*|"
     r"\.win32-py[23]\.\d\..*|"
     r"\.win.*\..*|"
