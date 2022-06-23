@@ -432,18 +432,6 @@ def out_index_list(hub, data):
     return
 
 
-def active_venv():
-    venv = None
-    if "VIRTUAL_ENV" in os.environ:
-        venv = os.environ["VIRTUAL_ENV"]
-
-    elif (hasattr(sys, 'real_prefix') or
-            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)):
-        venv = sys.prefix
-
-    return py.path.local(venv).join(vbin, abs=True)
-
-
 def main(hub, args=None):
     args = hub.args
     if args.local:

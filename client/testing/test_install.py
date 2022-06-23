@@ -40,6 +40,23 @@ def test_simple_install_missing_venv_workflow(
     assert "No virtualenv found at:" in out
 
 
+def test_simple_install_missing_venvdir(capsys, cmd_devpi, create_and_upload, monkeypatch, tmpdir):
+    import json
+    monkeypatch.delenv("VIRTUAL_ENV")
+    create_and_upload("example-1.2.3")
+    venvdir = tmpdir.join('venv')
+    with cmd_devpi.clientdir.join("current.json").open('r+') as f:
+        config = json.load(f)
+        config['venvdir'] = venvdir.strpath
+        f.seek(0)
+        f.write(json.dumps(config))
+    # empty buffers
+    (out, err) = capsys.readouterr()
+    cmd_devpi("install", "pip")
+    (out, err) = capsys.readouterr()
+    assert "No virtualenv found at" in out
+
+
 def test_simple_install_venv_workflow_index_option(create_and_upload,
                                                    create_venv,
                                                    devpi, out_devpi):
