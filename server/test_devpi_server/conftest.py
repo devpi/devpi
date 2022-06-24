@@ -351,6 +351,7 @@ def httpget(pypiurls):
                         fakeresponse = dict(
                             status_code=404,
                             reason="Not Found")
+                    assert "assert_unloaded" not in fakeresponse, "Attempted to load URL '%s'" % url
                     fakeresponse["headers"] = requests.structures.CaseInsensitiveDict(
                         fakeresponse.setdefault("headers", {}))
                     xself.__dict__.update(fakeresponse)
@@ -393,6 +394,9 @@ def httpget(pypiurls):
                 "Devpi Mock Error"))
             log.debug("set mocking response %s %s", mockurl, kw)
             self.url2response[mockurl] = kw
+
+        def assert_unloaded(self, url):
+            self.url2response[url] = {"assert_unloaded": True}
 
         def mock_simple(self, name, text="", pkgver=None, hash_type=None,
                         pypiserial=10000, remoteurl=None, requires_python=None,

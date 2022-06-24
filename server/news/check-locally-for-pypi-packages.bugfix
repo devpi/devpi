@@ -1,0 +1,1 @@
+Don't access PyPI for projects that aren't present in the local PyPI index. This improves response times and avoids leaking typos of private package names upstream.

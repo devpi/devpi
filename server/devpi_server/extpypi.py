@@ -628,12 +628,14 @@ class PyPIStage(BaseStage):
                 self._offline_logging.add(project)
             return links
 
-        is_retrieval_expired = self.cache_retrieve_times.is_expired(
-            project, self.cache_expiry)
-
-        if links is None and not is_retrieval_expired:
-            raise self.UpstreamNotFoundError(
-                "cached not found for project %s" % project)
+        if links is None:
+            if not self.cache_retrieve_times.is_expired(project, self.cache_expiry):
+                raise self.UpstreamNotFoundError(
+                    "cached not found for project %s" % project)
+            elif not self.has_project_perstage(project):
+                self.cache_retrieve_times.refresh(project)
+                raise self.UpstreamNotFoundError(
+                    "project %s not found" % project)
 
         newlinks_future = self.xom.create_future()
         # we need to set this up here, as these access the database and
@@ -684,13 +686,10 @@ class PyPIStage(BaseStage):
         return self._update_simplelinks(project, info, newlinks)
 
     def has_project_perstage(self, project):
+        project = normalize_name(project)
         if self.is_project_cached(project):
             return True
-        try:
-            self.get_simplelinks_perstage(project)
-        except self.UpstreamNotFoundError:
-            return False
-        return True
+        return project in self.list_projects_perstage()
 
     def list_versions_perstage(self, project):
         try:

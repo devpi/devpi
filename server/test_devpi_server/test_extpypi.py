@@ -588,6 +588,41 @@ class TestPyPIStageprojects:
         x = pypistage._get_remote_projects()
         assert x == set(["devpi-server"])
 
+    def test_no_pypi_access_for_invalid_packages(self, pypistage):
+        """Test that a project needs to be in the index for devpi to attempt to
+        load it from the upstream server"""
+
+        VALID = {"devpi-server", "devpi-client", "devpi-web"}
+        INVALID = {"invalid", "test", "aaa"}
+
+        # load valid projects into the local project index
+        pypistage.xom.httpget.mockresponse(
+            pypistage.mirror_url,
+            code=200,
+            text="\n".join("<a href='%s'>%s</a><br/>" % (x, x) for x in VALID)
+        )
+        assert set(pypistage.list_projects_perstage()) == VALID
+
+        # Valid projects are mock to return no links, invalid ones are mocked
+        # to raise an assertion error if they're called.
+        for p in VALID:
+            pypistage.xom.httpget.mockresponse(
+                URL(pypistage.mirror_url).joinpath(p).asdir().url, code=200, text=""
+            )
+        for p in INVALID:
+            pypistage.xom.httpget.assert_unloaded(
+                URL(pypistage.mirror_url).joinpath(p).asdir().url
+            )
+
+        # Test loading projects
+        for p in VALID:
+            pypistage.get_simplelinks_perstage(p)
+        for p in INVALID:
+            # assert_unloaded will cause an assertion failure here if this
+            # tries to load the project from upstream
+            with pytest.raises(pypistage.UpstreamNotFoundError):
+                pypistage.get_simplelinks_perstage("invalid-package")
+
     @pytest.mark.notransaction
     def test_single_project_access_updates_projects(self, pypistage):
         pypistage.xom.httpget.mockresponse(
