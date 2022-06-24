@@ -836,26 +836,7 @@ class TestFileReplication:
         assert list(replication_errors.errors.keys()) == []
 
 
-def test_simplelinks_update_updates_projectname(pypistage, replica_xom, xom):
-    replica_xom.thread_pool.start_one(
-        replica_xom.replica_thread.file_replication_threads[0])
-    pypistage.mock_simple_projects([])
-    pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
-    with xom.keyfs.transaction():
-        assert not pypistage.list_projects_perstage()
-
-    with xom.keyfs.transaction():
-        assert len(pypistage.get_simplelinks("pytest")) == 1
-
-    # replicate including executing events
-    replay(xom, replica_xom)
-
-    with replica_xom.keyfs.transaction():
-        st = replica_xom.model.getstage(pypistage.name)
-        assert st.list_projects_perstage() == {"pytest": "pytest"}
-
-
-def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypistage,
+def test_get_simplelinks_perstage(monkeypatch, pypistage, replica_pypistage,
                                   pypiurls, replica_xom, xom):
     replica_xom.thread_pool.start_one(
         replica_xom.replica_thread.file_replication_threads[0])
@@ -869,11 +850,12 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
 
     # replicate the state
     replay(xom, replica_xom)
+    replica_pypistage.xom.httpget.call_log.clear()
 
     # now check
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
     serial = xom.keyfs.get_current_serial()
-    httpget.mock_simple(
+    replica_pypistage.mock_simple(
         'pytest',
         text='<a href="https://pypi.org/pytest/pytest-1.0.zip">pytest-1.0.zip</a>',
         headers={'X-DEVPI-SERIAL': str(serial)})
@@ -883,7 +865,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.org_pytest/pytest-1.0.zip'
     # there should be one get
     (call_log_entry,) = [
-        x for x in pypistage.xom.httpget.call_log
+        x for x in replica_pypistage.xom.httpget.call_log
         if x['url'].startswith(pypiurls.simple)]
     # and it should have an authorization header
     assert call_log_entry['extra_headers']['Authorization'].startswith('Bearer')
@@ -920,7 +902,7 @@ def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypis
 
     monkeypatch.setattr(replica_xom.keyfs, 'wait_tx_serial', wait_tx_serial)
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'
-    httpget.mock_simple(
+    pypistage.mock_simple(
         'pytest',
         text='<a href="https://pypi.org/pkg/pytest-1.1.zip">pytest-1.1.zip</a>',
         pypiserial=10001,

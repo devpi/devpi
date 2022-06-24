@@ -389,7 +389,7 @@ class MirrorStage(BaseStage):
         """ return set of all projects served through the mirror. """
         if self.offline:
             threadlog.warn("offline mode: using stale projects list")
-            return self.key_projects.get()
+            return {normalize_name(x): x for x in self.key_projects.get()}
         if not self.cache_projectnames.is_expired(self.cache_expiry):
             projects = self.cache_projectnames.get()
         else:
@@ -399,7 +399,7 @@ class MirrorStage(BaseStage):
             except self.UpstreamError as e:
                 threadlog.warn(
                     "upstream error (%s): using stale projects list" % e)
-                return self.key_projects.get()
+                return {normalize_name(x): x for x in self.key_projects.get()}
             else:
                 old = self.cache_projectnames.get()
                 if not self.cache_projectnames.exists() or old != projects:
@@ -410,12 +410,14 @@ class MirrorStage(BaseStage):
                         # make sure we are at the current serial
                         # this avoids setting the value again when
                         # called from the notification thread
-                        self.keyfs.restart_read_transaction()
+                        if not self.keyfs.tx.write:
+                            self.keyfs.restart_read_transaction()
                         k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
                         # when 0 it is new, when 1 it is pre 6.6.0 with
                         # only normalized names
                         if k.get() in (0, 1):
-                            self.keyfs.restart_as_write_transaction()
+                            if not self.keyfs.tx.write:
+                                self.keyfs.restart_as_write_transaction()
                             k.set(2)
                 else:
                     # mark current without updating contents
@@ -642,12 +644,16 @@ class MirrorStage(BaseStage):
                 self._offline_logging.add(project)
             return links
 
-        is_retrieval_expired = self.cache_retrieve_times.is_expired(
-            project, self.cache_expiry)
-
-        if links is None and not is_retrieval_expired:
-            raise self.UpstreamNotFoundError(
-                "cached not found for project %s" % project)
+        if links is None:
+            is_retrieval_expired = self.cache_retrieve_times.is_expired(
+                project, self.cache_expiry)
+            if not is_retrieval_expired:
+                raise self.UpstreamNotFoundError(
+                    "cached not found for project %s" % project)
+            elif not self.has_project_perstage(project):
+                self.cache_retrieve_times.refresh(project, None)
+                raise self.UpstreamNotFoundError(
+                    "project %s not found" % project)
 
         newlinks_future = self.xom.create_future()
         # we need to set this up here, as these access the database and
@@ -712,13 +718,10 @@ class MirrorStage(BaseStage):
         return self._update_simplelinks(project, info, newlinks)
 
     def has_project_perstage(self, project):
+        project = normalize_name(project)
         if self.is_project_cached(project):
             return True
-        try:
-            self.get_simplelinks_perstage(project)
-        except self.UpstreamNotFoundError:
-            return False
-        return True
+        return project in self.list_projects_perstage()
 
     def list_versions_perstage(self, project):
         try:
@@ -785,6 +788,9 @@ class ProjectNamesCache:
     def exists(self):
         return self._timestamp != -1
 
+    def expire(self):
+        self._timestamp = 0
+
     def is_expired(self, expiry_time):
         return (time.time() - self._timestamp) >= expiry_time
 
@@ -830,7 +836,7 @@ class ProjectUpdateCache:
         return etag
 
     def get_timestamp(self, project):
-        (ts, etag) = self._project2time.get(project, (0, None))
+        (ts, etag) = self._project2time.get(project, (-1, None))
         return ts
 
     def refresh(self, project, etag):

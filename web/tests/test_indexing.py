@@ -12,7 +12,6 @@ import pytest
 devpi_server_version = parse_version(devpi_server_version)
 
 
-@pytest.mark.nomockprojectsremote
 @pytest.mark.skipif(
     devpi_server_version < parse_version("6.6.0dev"),
     reason="Needs un-normalized project names from list_projects_perstage on mirrors")

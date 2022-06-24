@@ -19,7 +19,6 @@ def test_pkgresources_version_matches_init():
     assert pkg_resources.get_distribution("devpi_web").version == ver
 
 
-@pytest.mark.nomockprojectsremote
 def test_devpi_mirror_initialnames(caplog, pypistage):
     import logging
     caplog.set_level(logging.NOTSET)
@@ -36,7 +35,6 @@ def test_devpi_mirror_initialnames(caplog, pypistage):
     assert len(logs) == 1
 
 
-@pytest.mark.nomockprojectsremote
 @pytest.mark.skipif(
     devpi_server_version < parse_version("6.6.0dev"),
     reason="Needs un-normalized project names from list_projects_perstage on mirrors")
@@ -49,7 +47,7 @@ def test_devpi_mirror_initialnames_original_name(caplog, pypistage):
     projects = set(["Django", "pytest", "ploy_ansible"])
     pypistage.mock_simple_projects(projects)
     pypistage.mock_simple(
-        "django", pypiserial=10,
+        "Django", pypiserial=10,
         pkgver="django-1.0.zip")
     indexer = get_indexer(pypistage.xom)
     pypistage.xom.thread_pool.start_one(indexer.indexer_thread)
