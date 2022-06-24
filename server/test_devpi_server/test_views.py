@@ -311,7 +311,6 @@ user_agent_parameter_kw = dict(
     ids=['pip', 'setuptools', 'urllib-setuptools', 'setuptools-urllib', 'pex', 'pip6'])
 
 
-@pytest.mark.nomockprojectsremote
 @pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
 def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
     # installers should get the simple projects info directly without redirect
@@ -327,7 +326,6 @@ def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
     assert 'href="hello2/"' in r.text
 
 
-@pytest.mark.nomockprojectsremote
 @pytest.mark.parametrize("url", [
     "/root/pypi", "/root/pypi/", "/root/pypi/+simple", "/root/pypi/+simple/"])
 def test_projects_pep_691(pypistage, testapp, url):
@@ -359,7 +357,6 @@ def test_projects_pep_691(pypistage, testapp, url):
         "devpi-server", "django", "ploy-ansible"}
 
 
-@pytest.mark.nomockprojectsremote
 def test_project_pep_691(mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
@@ -385,7 +382,6 @@ def test_project_pep_691(mapp, testapp):
     assert 'yanked' not in item
 
 
-@pytest.mark.nomockprojectsremote
 def test_project_pep_691_multiple(mapp, testapp):
     from operator import itemgetter
     api = mapp.create_and_use()
@@ -495,7 +491,6 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
     assert "<input" not in r.text
 
 
-@pytest.mark.nomockprojectsremote
 @pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
 def test_simple_list_all_no_redirect_for_installers(pypistage, testapp, user_agent):
     pypistage.mock_simple_projects(["hello1", "hello2"])
@@ -536,7 +531,6 @@ def test_simple_project_pypi_egg(pypistage, testapp):
     assert r.status_code == 200
 
 
-@pytest.mark.nomockprojectsremote
 def test_simple_list(pypistage, testapp):
     pypistage.mock_simple_projects(["hello1", "hello2"])
     pypistage.mock_simple("hello1", "<html/>")
@@ -2311,7 +2305,6 @@ def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp)
     assert r.json['result']['login'] == "%s/+login" % expected
 
 
-@pytest.mark.nomockprojectsremote
 class TestOfflineMode:
     @pytest.fixture
     def xom(self, makexom):

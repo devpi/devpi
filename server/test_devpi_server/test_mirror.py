@@ -264,6 +264,7 @@ def test_get_updated(pypistage):
 
 class TestExtPYPIDB:
     def test_parse_pep691(self, pypistage):
+        pypistage.mock_simple_projects(["devpi"])
         pypistage.xom.httpget.mockresponse(
             URL(pypistage.mirror_url).joinpath("devpi").asdir().url, code=200,
             content_type="application/vnd.pypi.simple.v1+json",
@@ -278,13 +279,13 @@ class TestExtPYPIDB:
                         "requires-python":null,
                         "url":"https://files.pythonhosted.org/packages/40/b6/45e98504eba446c8e97ce946760893072cdf3bf6cdd18c296394a55621f9/devpi-0.9.tar.gz",
                         "yanked":false}]}""")
-        links = pypistage.get_releaselinks("devpi")
-        link, = links
+        (link,) = pypistage.get_releaselinks("devpi")
         assert link.hash_spec == 'sha256=b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e'
         assert link.yanked is None
         assert link.require_python is None
 
     def test_parse_pep691_data(self, pypistage):
+        pypistage.mock_simple_projects(["devpi"])
         pypistage.xom.httpget.mockresponse(
             URL(pypistage.mirror_url).joinpath("devpi").asdir().url, code=200,
             content_type="application/vnd.pypi.simple.v1+json",
@@ -449,6 +450,7 @@ class TestExtPYPIDB:
         # will result in the request response to have a "real" URL of
         # https://pypi.org/simple/hello-world because of the
         # new pypi normalization code
+        pypistage.mock_simple_projects(["Hello_World"])
         pypistage.xom.httpget.mock_simple(
             "Hello_World",
             '<a href="Hello_World-1.0.tar.gz" /a>',
@@ -562,7 +564,6 @@ class TestExtPYPIDB:
         assert pypistage.cache_retrieve_times.get_etag("foo") == '"bar"'
 
 
-@pytest.mark.nomockprojectsremote
 class TestMirrorStageprojects:
     def test_get_remote_projects(self, pypistage):
         pypistage.xom.httpget.mockresponse(
@@ -656,13 +657,38 @@ class TestMirrorStageprojects:
         (call,) = pypistage.xom.httpget.call_log
         assert call['extra_headers']['If-None-Match'] == orig_etag
 
+    def test_no_mirror_access_for_invalid_packages(self, pypistage):
+        """Test that a project needs to be in the index for devpi to attempt to
+        load it from the upstream server"""
+
+        VALID = {"devpi-server", "devpi-client", "devpi-web"}
+        INVALID = {"invalid", "test", "aaa"}
+
+        pypistage.mock_simple_projects(VALID)
+        for name in VALID:
+            pypistage.mock_simple(name, text="")
+        for name in INVALID:
+            # setup 500 returns as fail safe
+            pypistage.mock_simple(
+                name, text="", status_code=500, add_to_projects=False)
+
+        assert set(pypistage.list_projects_perstage()) == VALID
+        call = pypistage.xom.httpget.call_log.pop()
+        assert call['url'] == pypistage.mirror_url
+
+        for p in VALID:
+            pypistage.get_simplelinks_perstage(p)
+            call = pypistage.xom.httpget.call_log.pop()
+            assert call['url'] == pypistage.mirror_url.joinpath(p).asdir()
+        for p in INVALID:
+            with pytest.raises(pypistage.UpstreamNotFoundError):
+                pypistage.get_simplelinks_perstage(p)
+            # make sure there was no http fetch
+            assert len(pypistage.xom.httpget.call_log) == 0
+
     @pytest.mark.notransaction
     def test_single_project_access_updates_projects(self, pypistage):
-        pypistage.xom.httpget.mockresponse(
-            pypistage.mirror_url, code=200, text="""
-            <body>
-                <a href='django'>Django</a><br/>
-            </body>""")
+        pypistage.mock_simple_projects(["Django"])
         with pypistage.keyfs.transaction(write=False):
             assert pypistage.list_projects_perstage() == {"django": "Django"}
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
@@ -879,37 +905,46 @@ def test_requests_httpget_error(exc, xom, monkeypatch):
     assert r.status_code == -1
 
 
-def test_is_project_cached(httpget, pypistage):
+def test_is_project_cached(pypistage):
     assert not pypistage.is_project_cached("xyz")
     assert not pypistage.has_project("xyz")
     assert not pypistage.is_project_cached("xyz")
 
-    httpget.mock_simple("abc", text="")
+    pypistage.mock_simple("abc", text="")
     assert not pypistage.is_project_cached("abc")
     assert pypistage.has_project("abc")
+    assert not pypistage.is_project_cached("abc")
+    assert pypistage.get_releaselinks("abc") == []
     assert pypistage.is_project_cached("abc")
 
 
 @pytest.mark.notransaction
-def test_404_on_pypi_cached(httpget, pypistage):
+def test_404_on_pypi_cached(pypistage):
     # remember current serial to check later
+    pypistage.mock_simple_projects([])
     serial = pypistage.keyfs.get_current_serial()
     retrieve_times = pypistage.cache_retrieve_times
     retrieve_times.expire('foo')
     with pypistage.keyfs.transaction(write=False):
         assert not pypistage.has_project_perstage("foo")
+        with pytest.raises(pypistage.UpstreamNotFoundError):
+            pypistage.get_simplelinks_perstage("foo")
     updated_at = retrieve_times.get_timestamp("foo")
     assert updated_at > 0
     # if we check again, we should get a cached result and no change in the
     # updated_at time
     with pypistage.keyfs.transaction(write=False):
         assert not pypistage.has_project_perstage("foo")
+        with pytest.raises(pypistage.UpstreamNotFoundError):
+            pypistage.get_simplelinks_perstage("foo")
     assert retrieve_times.get_timestamp('foo') == updated_at
 
     # we trigger a fresh check
     retrieve_times.expire('foo')
     with pypistage.keyfs.transaction(write=False):
         assert not pypistage.has_project_perstage("foo")
+        with pytest.raises(pypistage.UpstreamNotFoundError):
+            pypistage.get_simplelinks_perstage("foo")
 
     # verify that no new commit took place
     assert serial == pypistage.keyfs.get_current_serial()
@@ -917,9 +952,11 @@ def test_404_on_pypi_cached(httpget, pypistage):
     assert updated_at > 0
 
     # make the project exist on pypi, and verify we still get cached result
-    httpget.mock_simple("foo", text="", pypiserial=2)
+    pypistage.mock_simple("foo", text="", pypiserial=2, cache_expire=False)
     with pypistage.keyfs.transaction(write=False):
         assert not pypistage.has_project_perstage("foo")
+        with pytest.raises(pypistage.UpstreamNotFoundError):
+            pypistage.get_simplelinks_perstage("foo")
     assert retrieve_times.get_timestamp('foo') == updated_at
 
     # check that no writes were triggered
@@ -927,6 +964,7 @@ def test_404_on_pypi_cached(httpget, pypistage):
 
     # if we reset the cache time, we should get a result
     retrieve_times.expire('foo')
+    pypistage.cache_projectnames.expire()
     time.sleep(0.01)  # to make sure we get a new timestamp
     with pypistage.keyfs.transaction(write=False):
         assert pypistage.has_project_perstage("foo")
@@ -1029,6 +1067,7 @@ def test_redownload_locally_removed_release(mapp, simpypi):
 
 @pytest.mark.notransaction
 def test_get_last_project_change_serial_perstage(xom, pypistage):
+    pypistage.mock_simple_projects([], cache_expire=False)
     # get_last_project_change_serial_perstage only works with
     # committed transactions
     with xom.keyfs.transaction() as tx:

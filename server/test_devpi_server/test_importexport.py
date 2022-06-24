@@ -475,7 +475,7 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             stage.offline = True
             projects = stage.list_projects_perstage()
-            assert projects == {'package'}
+            assert projects == {'package': 'package'}
             links = sorted(get_mutable_deepcopy(
                 stage.get_simplelinks_perstage("package")))
             assert links == [
@@ -1072,7 +1072,6 @@ class TestImportExport:
             assert "foo_plugin" in stage2.ixconfig
             assert stage2.ixconfig["foo_plugin"] == "bar"
 
-    @pytest.mark.nomockprojectsremote
     def test_mirror_settings_preserved(self, httpget, impexp, pypiurls):
         mapp1 = impexp.mapp1
         indexconfig = dict(
@@ -1096,7 +1095,6 @@ class TestImportExport:
             mirror_cache_expiry=600,
             projects=[])
 
-    @pytest.mark.nomockprojectsremote
     def test_no_mirror_releases_touched(self, httpget, impexp, pypiurls):
         mapp1 = impexp.mapp1
         indexconfig = dict(

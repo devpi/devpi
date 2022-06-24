@@ -435,7 +435,7 @@ class TestMirrorIndexThings:
         indexconfig = dict(
             type="mirror",
             mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=1800)
+            mirror_cache_expiry=0)
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror7/mirror")
         simpypi.add_project('pkg')
@@ -443,8 +443,6 @@ class TestMirrorIndexThings:
         result = mapp.getreleaseslist("pkg")
         assert len(result) == 1
         simpypi.remove_project('pkg')
-        indexconfig['mirror_cache_expiry'] = 0
-        mapp.modify_index("mirror7/mirror", indexconfig=indexconfig)
         result = mapp.getreleaseslist("pkg")
         # serving stale links indefinitely
         # we can't explicitly test for that here, because these tests also run

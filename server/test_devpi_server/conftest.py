@@ -259,10 +259,6 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             xom = XOM(config)
         else:
             xom = XOM(config, httpget=httpget)
-            if not request.node.get_closest_marker("nomockprojectsremote"):
-                monkeypatch.setattr(
-                    mirror.MirrorStage, "_get_remote_projects",
-                    lambda self: (set(), None))
             add_pypistage_mocks(monkeypatch, httpget)
         # verify storage interface
         with xom.keyfs.get_connection() as conn:
@@ -457,23 +453,34 @@ def pypistage(devpiserver_makepypistage, xom):
 
 
 def add_pypistage_mocks(monkeypatch, httpget):
+    _projects = set()
+
     # add some mocking helpers
     mirror.MirrorStage.url2response = httpget.url2response
 
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
-        self.cache_retrieve_times.expire(name)
+        cache_expire = kw.pop("cache_expire", True)
+        if cache_expire:
+            self.cache_retrieve_times.expire(name)
+        add_to_projects = kw.pop("add_to_projects", True)
+        if add_to_projects:
+            self.mock_simple_projects(
+                _projects.union([name]), cache_expire=cache_expire)
         return self.xom.httpget.mock_simple(
             name, text=text, pypiserial=pypiserial, **kw)
     monkeypatch.setattr(
         mirror.MirrorStage, "mock_simple", mock_simple, raising=False)
 
-    def mock_simple_projects(self, projectlist):
+    def mock_simple_projects(self, projectlist, cache_expire=True):
+        if cache_expire:
+            self.cache_projectnames.expire()
+        _projects.clear()
+        _projects.update(projectlist)
         t = "".join(
             '<a href="%s">%s</a>\n' % (normalize_name(name), name)
             for name in projectlist)
-        threadlog.debug("patching simple page with: %s" %(t))
+        threadlog.debug("patching simple page with: %s" % t)
         self.xom.httpget.mockresponse(self.mirror_url, code=200, text=t)
-
     monkeypatch.setattr(
         mirror.MirrorStage, "mock_simple_projects",
         mock_simple_projects, raising=False)
