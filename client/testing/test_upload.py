@@ -268,10 +268,17 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
 class TestUploadFunctional:
     @pytest.fixture(params=["hello-1.0", "my-pkg-123-1.0"])
     def projname_version(self, request, initproj):
-        initproj(request.param.rsplit("-", 1), {"doc": {
-            "conf.py": "#nothing",
-            "contents.rst": "",
-            "index.html": "<html/>"}})
+        initproj(
+            request.param.rsplit("-", 1),
+            {
+                "doc" if request.param.startswith("hello") else "docs":
+                {
+                    "conf.py": "#nothing",
+                    "contents.rst": "",
+                    "index.html": "<html/>"
+                },
+            }
+        )
         return request.param
 
     def test_plain_dry_run(self, devpi, out_devpi, projname_version):
