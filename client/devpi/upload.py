@@ -491,7 +491,7 @@ class Exported:
     def setup_build_docs(self):
         name, version = self.setup_name_and_version()
         for guess in ("doc", "docs"):
-            docs = self.rootpath.join("doc")
+            docs = self.rootpath.join(guess)
             if docs.join("conf.py").exists():
                 break
         build = self.rootpath.join("build")
