@@ -640,7 +640,7 @@ class PyPIView:
         if requested_by_installer:
             # for performance reasons we return results directly for
             # known installers
-            return self.simple_list_project()
+            return self.simple_list_all()
         return HTTPFound(location=request.route_url(
             "/{user}/{index}/+simple/",
             user=self.context.username,

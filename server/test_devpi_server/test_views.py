@@ -384,6 +384,17 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
     assert "<input" not in r.text
 
 
+@pytest.mark.nomockprojectsremote
+@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
+def test_simple_list_all_no_redirect_for_installers(pypistage, testapp, user_agent):
+    pypistage.mock_simple_projects(["hello1", "hello2"])
+    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    r = testapp.get("/root/pypi/+simple", headers=headers)
+    assert r.status_code == 200
+    assert 'href="hello1/"' in r.text
+    assert 'href="hello2/"' in r.text
+
+
 def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     from devpi_server.view_auth import RootFactory
     from devpi_server.views import PyPIView
