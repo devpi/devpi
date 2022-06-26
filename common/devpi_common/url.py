@@ -60,24 +60,32 @@ class URL:
 
     def geturl_nofragment(self):
         """ return url without fragment """
-        scheme, netloc, url, params, query, ofragment = self._parsed
-        return URL(urlunsplit((scheme, netloc, url, query, "")))
+        return self.replace(fragment="")
 
-    @property
+    @cached_property
+    def parsed_hash_spec(self):
+        return parse_hash_spec(self.fragment)
+
+    @cached_property
     def hash_spec(self):
-        hashalgo, hash_value = parse_hash_spec(self._parsed[-1])
+        hashalgo, hash_value = self.parsed_hash_spec
         if hashalgo:
-            hashtype = self._parsed[-1].split("=")[0]
-            return "%s=%s" %(hashtype, hash_value)
+            return "%s=%s" % (self.hash_type, hash_value)
         return ""
 
-    @property
-    def hash_algo(self):
-        return parse_hash_spec(self._parsed[-1])[0]
+    @cached_property
+    def hash_type(self):
+        hashalgo, hash_value = self.parsed_hash_spec
+        if hashalgo:
+            return self.fragment.split("=")[0]
 
-    @property
+    @cached_property
+    def hash_algo(self):
+        return parse_hash_spec(self.fragment)[0]
+
+    @cached_property
     def hash_value(self):
-        return parse_hash_spec(self._parsed[-1])[1]
+        return parse_hash_spec(self.fragment)[1]
 
     def replace(self, **kwargs):
         _parsed = self._parsed
@@ -124,31 +132,31 @@ class URL:
             url.append(value)
         return URL(urlunsplit(url))
 
-    @property
+    @cached_property
     def netloc(self):
         return self._parsed.netloc
 
-    @property
+    @cached_property
     def username(self):
         return self._parsed.username
 
-    @property
+    @cached_property
     def password(self):
         return self._parsed.password
 
-    @property
+    @cached_property
     def hostname(self):
         return self._parsed.hostname
 
-    @property
+    @cached_property
     def port(self):
         return self._parsed.port
 
-    @property
+    @cached_property
     def scheme(self):
         return self._parsed.scheme
 
-    @property
+    @cached_property
     def url_nofrag(self):
         return self.geturl_nofragment().url
 
@@ -166,11 +174,11 @@ class URL:
             return False
         return x.scheme in ("http", "https")
 
-    @property
+    @cached_property
     def path(self):
         return self._parsed.path
 
-    @property
+    @cached_property
     def query(self):
         return self._parsed.query
 
@@ -180,29 +188,33 @@ class URL:
     def get_query_items(self, *args, **kwargs):
         return parse_qsl(self.query, *args, **kwargs)
 
-    @property
+    @cached_property
     def basename(self):
         return posixpath.basename(unquote(self._parsed.path))
 
-    @property
+    @cached_property
     def parentbasename(self):
         return posixpath.basename(posixpath.dirname(unquote(self._parsed.path)))
 
-    @property
+    @cached_property
+    def fragment(self):
+        return self._parsed.fragment
+
+    @cached_property
     def eggfragment(self):
-        frag = self._parsed.fragment
+        frag = self.fragment
         if frag.startswith("egg="):
             return frag[4:]
 
-    @property
+    @cached_property
     def md5(self):
-        val = self._parsed.fragment
+        val = self.fragment
         if val.startswith("md5="):
             return ensure_unicode(val[4:])
 
-    @property
+    @cached_property
     def sha256(self):
-        val = self._parsed.fragment
+        val = self.fragment
         if val.startswith("sha256="):
             return ensure_unicode(val[4:])
 
