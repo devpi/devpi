@@ -57,10 +57,12 @@ class TestURL:
         url = URL("http://a/py.tar.gz#md5=123123")
         assert url.md5 == "123123"
         assert url.hash_algo == hashlib.md5
+        assert url.hash_type == "md5"
         assert url.hash_value == "123123"
         url = URL("http://a/py.tar.gz?foo=bar#md5=123123")
         assert url.md5 == "123123"
         assert url.hash_algo == hashlib.md5
+        assert url.hash_type == "md5"
         assert url.hash_value == "123123"
         assert url.query == "foo=bar"
 
@@ -72,17 +74,23 @@ class TestURL:
     def test_hashtypes(self, hashtype, hash_value):
         link = URL('py-1.4.12.zip#%s=%s' % (hashtype, hash_value))
         assert link.hash_algo == getattr(hashlib, hashtype)
+        link.hash_type == hashtype
         assert link.hash_value == hash_value
         link = URL('py-1.4.12.zip?foo=bar#%s=%s' % (hashtype, hash_value))
         assert link.hash_algo == getattr(hashlib, hashtype)
+        link.hash_type == hashtype
         assert link.hash_value == hash_value
         assert link.query == "foo=bar"
 
     def test_nohashtypes(self):
         link = URL("whateveer#lqk=123")
-        assert link.hash_value is None and link.hash_algo is None
+        assert link.hash_value is None
+        assert link.hash_algo is None
+        assert link.hash_type is None
         link = URL("whateveer?foo=bar#lqk=123")
-        assert link.hash_value is None and link.hash_algo is None
+        assert link.hash_value is None
+        assert link.hash_algo is None
+        assert link.hash_type is None
         assert link.query == "foo=bar"
 
     @pytest.mark.parametrize("url,path,expected", [

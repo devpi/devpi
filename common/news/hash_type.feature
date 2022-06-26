@@ -1,0 +1,1 @@
+Add ``hash_type`` and ``fragment`` attributes to URL class.
