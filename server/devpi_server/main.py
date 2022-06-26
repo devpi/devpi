@@ -7,13 +7,16 @@ from __future__ import unicode_literals
 import aiohttp
 import inspect
 import os
+import os.path
 import asyncio
 import py
+import ssl
 import sys
 import time
 import traceback
 
 from requests import Response, exceptions
+from requests.utils import DEFAULT_CA_BUNDLE_PATH
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
@@ -347,12 +350,30 @@ class XOM:
         max_retries = self.config.replica_max_retries
         return self.new_http_session("server", max_retries=max_retries)
 
+    @cached_property
+    def _ssl_context(self):
+        # create an SSLContext object that uses the same CA certs as requests
+        cafile = (
+            os.environ.get("REQUESTS_CA_BUNDLE")
+            or os.environ.get("CURL_CA_BUNDLE")
+            or DEFAULT_CA_BUNDLE_PATH
+        )
+        if cafile and not os.path.exists(cafile):
+            threadlog.warning(
+                "Could not find a suitable TLS CA certificate bundle, invalid path: %s",
+                cafile
+            )
+            cafile = None
+
+        return ssl.create_default_context(cafile=cafile)
+
     def _close_sessions(self):
         self._httpsession.close()
 
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         timeout = aiohttp.ClientTimeout(total=timeout)
-        async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
+        connector = aiohttp.TCPConnector(ssl=self._ssl_context)
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True) as session:
             async with session.get(
                 url, allow_redirects=allow_redirects, headers=extra_headers
             ) as response:
