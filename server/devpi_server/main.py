@@ -523,11 +523,11 @@ class XOM:
             "installer_simple",
             "/{user:[^+/]+}/{index:[^+/]+/?}",
             header="User-Agent:" + INSTALLER_USER_AGENT,
-            accept="text/html", request_method="GET")
+            request_method="GET")
         pyramid_config.add_route(
             "installer_simple_project", "/{user:[^+/]+}/{index}/{project:[^+/]+/?}",
             header="User-Agent:" + INSTALLER_USER_AGENT,
-            accept="text/html", request_method="GET")
+            request_method="GET")
         pyramid_config.add_route(
             "/{user}/{index}/{project}",
             "/{user:[^+/]+}/{index:[^+/]+}/{project:[^+/]+/?}")
@@ -544,6 +544,15 @@ class XOM:
             "/{user}",
             "/{user:[^+/]+}")
         pyramid_config.add_route("/", "/")
+
+        pyramid_config.add_accept_view_order(
+            'application/vnd.pypi.simple.v1+json')
+        pyramid_config.add_accept_view_order(
+            'application/json',
+            weighs_more_than='application/vnd.pypi.simple.v1+json')
+        pyramid_config.add_accept_view_order(
+            'text/html',
+            weighs_more_than='application/json')
 
         # register tweens for logging, transaction and replication
         pyramid_config.add_tween("devpi_server.views.tween_request_logging")

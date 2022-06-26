@@ -254,6 +254,48 @@ def test_get_updated(pypistage):
 
 
 class TestExtPYPIDB:
+    def test_parse_pep691(self, pypistage):
+        pypistage.xom.httpget.mockresponse(
+            URL(pypistage.mirror_url).joinpath("devpi").asdir().url, code=200,
+            content_type="application/vnd.pypi.simple.v1+json",
+            text="""{
+                "meta": {"api-version": "1.0"},
+                "name": "devpi",
+                "files": [
+                    {
+                        "filename":"devpi-0.9.tar.gz",
+                        "hashes":{
+                            "sha256":"b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e"},
+                        "requires-python":null,
+                        "url":"https://files.pythonhosted.org/packages/40/b6/45e98504eba446c8e97ce946760893072cdf3bf6cdd18c296394a55621f9/devpi-0.9.tar.gz",
+                        "yanked":false}]}""")
+        links = pypistage.get_releaselinks("devpi")
+        link, = links
+        assert link.hash_spec == 'sha256=b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e'
+        assert link.yanked is False
+        assert link.require_python is None
+
+    def test_parse_pep691_data(self, pypistage):
+        pypistage.xom.httpget.mockresponse(
+            URL(pypistage.mirror_url).joinpath("devpi").asdir().url, code=200,
+            content_type="application/vnd.pypi.simple.v1+json",
+            text="""{
+                "meta": {"api-version": "1.0"},
+                "name": "devpi",
+                "files": [
+                    {
+                        "filename":"devpi-0.9.tar.gz",
+                        "hashes":{
+                            "sha256":"b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e"},
+                        "requires-python": ">=3.6",
+                        "url":"https://files.pythonhosted.org/packages/40/b6/45e98504eba446c8e97ce946760893072cdf3bf6cdd18c296394a55621f9/devpi-0.9.tar.gz",
+                        "yanked": "brownbag"}]}""")
+        links = pypistage.get_releaselinks("devpi")
+        link, = links
+        assert link.hash_spec == 'sha256=b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e'
+        assert link.yanked == "brownbag"
+        assert link.require_python == ">=3.6"
+
     def test_parse_project_nomd5(self, pypistage):
         pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
@@ -498,6 +540,22 @@ class TestPyPIStageprojects:
                 <a href='django'>Django</a><br/>
                 <a href='ploy-ansible/'>ploy_ansible</a><br/>
             </body></html>""")
+        x = pypistage._get_remote_projects()
+        assert x == set(["ploy-ansible", "devpi-server", "django"])
+        s = pypistage.list_projects_perstage()
+        assert s == set(["ploy-ansible", "devpi-server", "django"])
+
+    def test_get_remote_projects_pep691_json(self, pypistage):
+        pypistage.xom.httpget.mockresponse(
+            pypistage.mirror_url, code=200,
+            content_type="application/vnd.pypi.simple.v1+json",
+            text="""{
+                "meta": {"api-version": "1.0"},
+                "projects": [
+                    {"name": "devpi-server"},
+                    {"name": "Django"},
+                    {"name": "ploy_ansible"}
+                ]}""")
         x = pypistage._get_remote_projects()
         assert x == set(["ploy-ansible", "devpi-server", "django"])
         s = pypistage.list_projects_perstage()

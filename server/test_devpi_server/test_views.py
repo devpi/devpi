@@ -307,6 +307,97 @@ def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
     assert 'href="hello2/"' in r.text
 
 
+@pytest.mark.nomockprojectsremote
+@pytest.mark.parametrize("url", [
+    "/root/pypi", "/root/pypi/", "/root/pypi/+simple", "/root/pypi/+simple/"])
+def test_projects_pep_691(pypistage, testapp, url):
+    mockkw = dict(
+        code=200,
+        content_type="application/vnd.pypi.simple.v1+json",
+        text="""{
+            "meta": {"api-version": "1.0"},
+            "projects": [
+                {"name": "devpi-server"},
+                {"name": "Django"},
+                {"name": "ploy_ansible"}
+            ]}""")
+    pypistage.xom.httpget.mockresponse(pypistage.mirror_url, **mockkw)
+    content_types = [
+        "application/vnd.pypi.simple.v1+json",
+        "application/vnd.pypi.simple.v1+html;q=0.2",
+        "text/html;q=0.01",  # For legacy compatibility
+    ]
+    accept = ", ".join(content_types)
+    headers = {"Accept": accept}
+    r = testapp.get(url, headers=headers, follow=False)
+    assert r.status_code == 200
+    assert 'Accept' in r.headers['Vary']
+    assert 'User-Agent' in r.headers['Vary']
+    assert r.headers['content-type'] == "application/vnd.pypi.simple.v1+json"
+    assert r.json['meta']['api-version'] == '1.0'
+    assert set([x['name'] for x in r.json['projects']]) == {
+        "devpi-server", "django", "ploy-ansible"}
+
+
+@pytest.mark.nomockprojectsremote
+def test_project_pep_691(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    content_types = [
+        "application/vnd.pypi.simple.v1+json",
+        "application/vnd.pypi.simple.v1+html;q=0.2",
+        "text/html;q=0.01",  # For legacy compatibility
+    ]
+    accept = ", ".join(content_types)
+    headers = {"Accept": accept}
+    r = testapp.get(
+        f"/{api.stagename}/+simple/pkg1", headers=headers, follow=False)
+    assert r.status_code == 200
+    assert 'Accept' in r.headers['Vary']
+    assert 'User-Agent' in r.headers['Vary']
+    assert r.headers['content-type'] == "application/vnd.pypi.simple.v1+json"
+    assert r.json['meta']['api-version'] == '1.0'
+    (item,) = r.json['files']
+    assert item['filename'] == 'pkg1-2.6.tgz'
+    assert item['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
+    assert item['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
+    assert item['requires-python'] == ''
+    assert item['yanked'] is False
+
+
+@pytest.mark.nomockprojectsremote
+def test_project_pep_691_multiple(mapp, testapp):
+    from operator import itemgetter
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.upload_file_pypi("pkg1-2.7.tgz", b"456", "pkg1", "2.7")
+    content_types = [
+        "application/vnd.pypi.simple.v1+json",
+        "application/vnd.pypi.simple.v1+html;q=0.2",
+        "text/html;q=0.01",  # For legacy compatibility
+    ]
+    accept = ", ".join(content_types)
+    headers = {"Accept": accept}
+    r = testapp.get(
+        f"/{api.stagename}/+simple/pkg1", headers=headers, follow=False)
+    assert r.status_code == 200
+    assert 'Accept' in r.headers['Vary']
+    assert 'User-Agent' in r.headers['Vary']
+    assert r.headers['content-type'] == "application/vnd.pypi.simple.v1+json"
+    assert r.json['meta']['api-version'] == '1.0'
+    (item1, item2) = sorted(r.json['files'], key=itemgetter("filename"))
+    assert item1['filename'] == 'pkg1-2.6.tgz'
+    assert item1['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
+    assert item1['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
+    assert item1['requires-python'] == ''
+    assert item1['yanked'] is False
+    assert item2['filename'] == 'pkg1-2.7.tgz'
+    assert item2['url'] == '../+f/b3a/8e0e1f9ab1bfe/pkg1-2.7.tgz'
+    assert item2['hashes'] == dict(sha256='b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0eee8ebb4a5d0')
+    assert item2['requires-python'] == ''
+    assert item2['yanked'] is False
+
+
 def test_projects_redirect(pypistage, testapp):
     # test non installer html requests which should go nowhere,
     # because devpi-server only returns json

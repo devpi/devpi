@@ -50,7 +50,7 @@ class URL:
         cloaked = repr(cloaked.url.encode("utf8"))
         if sys.version_info >= (3,0):
             cloaked = cloaked.lstrip("b")
-        return "URL(%s)" % cloaked
+        return "%s(%s)" % (self.__class__.__name__, cloaked)
 
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)

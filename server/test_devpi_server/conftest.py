@@ -350,15 +350,22 @@ def httpget(pypiurls):
                         fakeresponse = dict(
                             status_code=404,
                             reason="Not Found")
+                    fakeresponse["headers"] = requests.structures.CaseInsensitiveDict(
+                        fakeresponse.setdefault("headers", {}))
                     xself.__dict__.update(fakeresponse)
                     if "url" not in fakeresponse:
                         xself.url = url
                     xself.allow_redirects = allow_redirects
                     if "content" in fakeresponse:
                         xself.raw = py.io.BytesIO(fakeresponse["content"])
+                    xself.headers['content-type'] = fakeresponse.get(
+                        'content_type', 'text/html')
 
-                def close(self):
+                def close(xself):
                     return
+
+                def json(xself):
+                    return json.loads(xself.text)
 
                 @property
                 def status(xself):
