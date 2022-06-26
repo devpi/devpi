@@ -1,0 +1,1 @@
+Fixed some cases where name and version weren't split off correctly from filename.
