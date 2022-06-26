@@ -18,6 +18,7 @@ from contextlib import closing
 from devpi_server import extpypi
 from devpi_server.config import get_pluginmanager
 from devpi_server.main import XOM, parseoptions
+from devpi_common.validation import normalize_name
 from devpi_common.url import URL
 from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
@@ -442,7 +443,9 @@ def add_pypistage_mocks(monkeypatch, httpget):
     monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
 
     def mock_simple_projects(self, projectlist):
-        t = "".join('<a href="%s">%s</a>\n' % (name, name) for name in projectlist)
+        t = "".join(
+            '<a href="%s">%s</a>\n' % (normalize_name(name), name)
+            for name in projectlist)
         threadlog.debug("patching simple page with: %s" %(t))
         self.xom.httpget.mockresponse(self.mirror_url, code=200, text=t)
 

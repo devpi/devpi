@@ -295,10 +295,11 @@ class IndexingSharedData(object):
                     "Currently in %s" % (processed, queued, project.indexname))
             if project.is_from_mirror:
                 # we find the last serial the project was changed to avoid re-indexing
+                name = normalize_name(project.name)
                 project_serial = project.stage.get_last_project_change_serial_perstage(
-                    project.name, at_serial=at_serial)
+                    name, at_serial=at_serial)
                 # mirrors have no docs, so we can shortcut
-                path = '/%s/%s' % (project.indexname, project.name)
+                path = '/%s/%s' % (project.indexname, name)
                 existing = None
                 doc_num = searcher.document_number(path=path)
                 if doc_num is not None:
@@ -809,6 +810,7 @@ class Index(object):
         for item in result['items']:
             data = item['data']
             (user, index, name) = data['path'][1:].split('/')
+            name = data.get('name', name)
             stage = stagename2stage.get('%s/%s' % (user, index))
             if stage is None:
                 continue

@@ -268,6 +268,10 @@ def devpiserver_mirror_initialnames(stage, projectnames):
         "indexing '%s' mirror with %s projects",
         stage.name,
         len(projectnames))
+    if isinstance(projectnames, dict):
+        # since devpi-server 6.6.0 mirrors return a dictionary where
+        # the un-normalized names are in the values
+        projectnames = projectnames.values()
     ix.update_projects(
         ProjectIndexingInfo(stage=stage, name=name)
         for name in projectnames)

@@ -852,7 +852,7 @@ def test_simplelinks_update_updates_projectname(pypistage, replica_xom, xom):
 
     with replica_xom.keyfs.transaction():
         st = replica_xom.model.getstage(pypistage.name)
-        assert st.list_projects_perstage() == set(["pytest"])
+        assert st.list_projects_perstage() == {"pytest": "pytest"}
 
 
 def test_get_simplelinks_perstage(httpget, monkeypatch, pypistage, replica_pypistage,

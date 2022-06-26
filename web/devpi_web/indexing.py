@@ -26,7 +26,7 @@ def preprocess_project(project):
     user = ensure_unicode(user)
     index = ensure_unicode(index)
     if not is_project_cached(stage, name):
-        result = dict(name=name, user=user, index=index)
+        result = dict(name=project.name, user=user, index=index)
         pm.hook.devpiweb_modify_preprocess_project_result(
             project=project, result=result)
         return result
@@ -36,14 +36,14 @@ def preprocess_project(project):
         return
     setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
-    result = dict(name=name)
+    result = dict(name=project.name)
     for i, version in enumerate(versions):
         if i == 0:
-            verdata = stage.get_versiondata_perstage(name, version)
+            verdata = stage.get_versiondata_perstage(project.name, version)
             result.update(verdata)
         links = stage.get_linkstore_perstage(name, version).get_links(rel="doczip")
         if links:
-            docs = Docs(stage, name, version)
+            docs = Docs(stage, project.name, version)
             if docs.exists():
                 result['doc_version'] = version
                 result['+doczip'] = docs
@@ -97,6 +97,10 @@ def iter_projects(xom):
         if stage is None:  # this is async, so the stage may be gone
             continue
         names = stage.list_projects_perstage()
+        if isinstance(names, dict):
+            # since devpi-server 6.6.0 mirrors return a dictionary where
+            # the un-normalized names are in the values
+            names = names.values()
         for name in names:
             name = ensure_unicode(name)
             yield ProjectIndexingInfo(

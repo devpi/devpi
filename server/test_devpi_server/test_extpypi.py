@@ -328,7 +328,7 @@ class TestExtPYPIDB:
         pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         data = pypistage.get_versiondata("Pytest", "1.0")
         assert data["+elinks"]
-        assert data["name"] == "pytest"
+        assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
         assert pypistage.has_project_perstage("pytest")
 
@@ -541,9 +541,12 @@ class TestPyPIStageprojects:
                 <a href='ploy-ansible/'>ploy_ansible</a><br/>
             </body></html>""")
         x = pypistage._get_remote_projects()
-        assert x == set(["ploy-ansible", "devpi-server", "django"])
+        assert x == set(["ploy_ansible", "devpi-server", "Django"])
         s = pypistage.list_projects_perstage()
-        assert s == set(["ploy-ansible", "devpi-server", "django"])
+        assert s == {
+            "ploy-ansible": "ploy_ansible",
+            "devpi-server": "devpi-server",
+            "django": "Django"}
 
     def test_get_remote_projects_pep691_json(self, pypistage):
         pypistage.xom.httpget.mockresponse(
@@ -557,9 +560,12 @@ class TestPyPIStageprojects:
                     {"name": "ploy_ansible"}
                 ]}""")
         x = pypistage._get_remote_projects()
-        assert x == set(["ploy-ansible", "devpi-server", "django"])
+        assert x == set(["ploy_ansible", "devpi-server", "Django"])
         s = pypistage.list_projects_perstage()
-        assert s == set(["ploy-ansible", "devpi-server", "django"])
+        assert s == {
+            "ploy-ansible": "ploy_ansible",
+            "devpi-server": "devpi-server",
+            "django": "Django"}
 
     def test_get_remote_projects_doctype(self, pypistage):
         pypistage.xom.httpget.mockresponse(
@@ -581,7 +587,7 @@ class TestPyPIStageprojects:
                 <a href='django'>Django</a><br/>
             </body>""")
         with pypistage.keyfs.transaction(write=False):
-            assert pypistage.list_projects_perstage() == set(["django"])
+            assert pypistage.list_projects_perstage() == {"django": "Django"}
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
         pypistage.url2response["https://pypi.org/simple/proj3/"] = dict(
@@ -592,7 +598,8 @@ class TestPyPIStageprojects:
             assert not pypistage.has_project_perstage("proj3")
             assert not pypistage.get_releaselinks("proj3")
         with pypistage.keyfs.transaction(write=False):
-            assert pypistage.list_projects_perstage() == set(["proj1", "proj2", "django"])
+            assert pypistage.list_projects_perstage() == {
+                "proj1": "proj1", "proj2": "proj2", "django": "Django"}
 
     def test_name_cache_expiration_updated_when_no_names_changed(self, httpget, pypistage):
         pypistage.xom.httpget.mockresponse(
@@ -887,7 +894,7 @@ def test_get_last_project_change_serial_perstage(xom, pypistage):
     # committed transactions
     with xom.keyfs.transaction() as tx:
         first_serial = tx.at_serial
-        assert pypistage.list_projects_perstage() == set()
+        assert pypistage.list_projects_perstage() == {}
     with xom.keyfs.transaction() as tx:
         # the list_projects_perstage call above triggered a MIRRORNAMESINIT update
         assert tx.at_serial == (first_serial + 1)
