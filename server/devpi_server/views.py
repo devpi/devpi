@@ -53,6 +53,7 @@ server_version = devpi_server.__version__
 
 
 H_MASTER_UUID = str("X-DEVPI-MASTER-UUID")
+SIMPLE_API_V1_JSON = "application/vnd.pypi.simple.v1+json"
 
 
 API_VERSION = "2"
@@ -66,6 +67,28 @@ meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
 
 INSTALLER_USER_AGENT = r"([^ ]* )*(distribute|setuptools|pip|pex)/.*"
 INSTALLER_USER_AGENT_REGEXP = re.compile(INSTALLER_USER_AGENT)
+
+
+def _select_simple_content_type(request):
+    offers = request.accept.acceptable_offers([
+        "text/html", SIMPLE_API_V1_JSON])
+    if offers:
+        return offers[0][0]
+    return "text_html"
+
+
+def is_simple_json(request):
+    if _select_simple_content_type(request) == SIMPLE_API_V1_JSON:
+        return True
+    return False
+
+
+def is_requested_by_installer(request):
+    return INSTALLER_USER_AGENT_REGEXP.match(request.user_agent or "")
+
+
+def is_simple_json_or_requested_by_installer(request):
+    return is_simple_json(request) or is_requested_by_installer(request)
 
 
 def abort(request, code, body):
@@ -527,17 +550,17 @@ class PyPIView:
         """
         request = self.request
         abort_if_invalid_project(request, request.matchdict["project"])
-        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
-            request.user_agent or "")
-        if requested_by_installer:
+        if is_simple_json_or_requested_by_installer(request):
             # for performance reasons we return results directly for
             # known installers
             return self.simple_list_project()
-        return HTTPFound(location=self.request.route_url(
+        response = HTTPFound(location=self.request.route_url(
             "/{user}/{index}/+simple/{project}/",
             user=self.context.username,
             index=self.context.index,
             project=self.context.project))
+        response.vary = set(["Accept", "User-Agent"])
+        return response
 
     @view_config(route_name="/{user}/{index}/+simple/{project}/")
     def simple_list_project(self):
@@ -546,8 +569,7 @@ class PyPIView:
         project = self.context.project
         # we only serve absolute links so we don't care about the route's slash
         stage = self.context.stage
-        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
-            request.user_agent or "")
+        requested_by_installer = is_simple_json_or_requested_by_installer(request)
         try:
             result = stage.get_simplelinks(project, sorted_links=not requested_by_installer)
         except stage.UpstreamError as e:
@@ -566,14 +588,41 @@ class PyPIView:
             whitelist_info = stage.get_mirror_whitelist_info(project)
             embed_form = whitelist_info['has_mirror_base']
             blocked_index = whitelist_info['blocked_by_mirror_whitelist']
-        app_iter = buffered_iterator(self._simple_list_project(
-            stage, project, result, embed_form, blocked_index))
-        response = Response(app_iter=app_iter)
+        content_type = _select_simple_content_type(self.request)
+        if content_type == SIMPLE_API_V1_JSON:
+            app_iter = self._simple_list_project_json_v1(
+                stage, project, result, embed_form, blocked_index)
+        else:
+            app_iter = self._simple_list_project(
+                stage, project, result, embed_form, blocked_index)
+        response = Response(
+            app_iter=buffered_iterator(app_iter),
+            content_type=content_type,
+            vary=set(["Accept", "User-Agent"]))
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial > 0:
                 response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
         return response
+
+    def _makeurl_factory(self):
+        if self._use_absolute_urls:
+            # for joinpath we need the root url
+            application_url = self.request.application_url
+            if not application_url.endswith("/"):
+                application_url = application_url + "/"
+            url = URL(application_url)
+
+            def make_url(href):
+                return url.joinpath(href)
+        else:
+            # for relpath we need the path of the current page
+            url = URL(self.request.path_info)
+
+            def make_url(href):
+                return URL(url.relpath("/" + href))
+
+        return make_url
 
     def _simple_list_project(self, stage, project, result, embed_form, blocked_index):
         title = "%s: links for %s" % (stage.name, project)
@@ -589,25 +638,11 @@ class PyPIView:
                    "<strong>%s</strong> are included.</p>"
                    % blocked_index).encode('utf-8')
 
-        if self._use_absolute_urls:
-            # for joinpath we need the root url
-            application_url = self.request.application_url
-            if not application_url.endswith("/"):
-                application_url = application_url + "/"
-            url = URL(application_url)
-
-            def make_url(href):
-                return url.joinpath(href).url
-        else:
-            # for relpath we need the path of the current page
-            url = URL(self.request.path_info)
-
-            def make_url(href):
-                return url.relpath("/" + href)
+        make_url = self._makeurl_factory()
 
         for key, href, require_python, yanked in result:
             stage = "/".join(href.split("/", 2)[:2])
-            attribs = 'href="%s"' % make_url(href)
+            attribs = 'href="%s"' % make_url(href).url
             if require_python is not None:
                 attribs += ' data-requires-python="%s"' % escape(require_python)
             if yanked:
@@ -617,6 +652,31 @@ class PyPIView:
                 **data).encode('utf-8')
 
         yield "</body></html>".encode("utf-8")
+
+    def _simple_list_project_json_v1(self, stage, project, result, embed_form, blocked_index):
+        yield (f'{{"meta":{{"api-version":"1.0"}},"name":"{project}","files":[').encode("utf-8")
+
+        make_url = self._makeurl_factory()
+
+        first = True
+        for key, href, require_python, yanked in result:
+            url = make_url(href)
+            info = json.dumps(
+                {
+                    "filename": key,
+                    "url": url.url_nofrag,
+                    "hashes": {url.hash_type: url.hash_value} if url.hash_type else {},
+                    "requires-python": "" if require_python is None else require_python,
+                    "yanked": False if yanked is None else yanked},
+                indent=None,
+                sort_keys=False)
+            if first:
+                yield f'{info}'.encode("utf-8")
+                first = False
+            else:
+                yield f',{info}'.encode("utf-8")
+
+        yield "]}".encode("utf-8")
 
     def _index_refresh_form(self, stage, project):
         url = self.request.route_url(
@@ -635,16 +695,16 @@ class PyPIView:
         to add a / to the end
         """
         request = self.request
-        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
-            request.user_agent or "")
-        if requested_by_installer:
+        if is_simple_json_or_requested_by_installer(request):
             # for performance reasons we return results directly for
             # known installers
             return self.simple_list_all()
-        return HTTPFound(location=request.route_url(
+        response = HTTPFound(location=request.route_url(
             "/{user}/{index}/+simple/",
             user=self.context.username,
             index=self.context.index))
+        response.vary = set(["User-Agent"])
+        return response
 
     @view_config(route_name="/{user}/{index}/+simple/")
     def simple_list_all(self):
@@ -659,13 +719,18 @@ class PyPIView:
             abort(self.request, 502, e.msg)
         # at this point we are sure we can produce the data without
         # depending on remote networks
-        requested_by_installer = INSTALLER_USER_AGENT_REGEXP.match(
-            self.request.user_agent or "")
-        if requested_by_installer:
-            app_iter = buffered_iterator(self._simple_list_all_installer(stage, stage_results))
+        content_type = _select_simple_content_type(self.request)
+        if content_type == SIMPLE_API_V1_JSON:
+            app_iter = self._simple_list_all_json_v1(stage, stage_results)
         else:
-            app_iter = buffered_iterator(self._simple_list_all(stage, stage_results))
-        return Response(app_iter=app_iter)
+            if is_requested_by_installer(self.request):
+                app_iter = self._simple_list_all_installer(stage, stage_results)
+            else:
+                app_iter = self._simple_list_all(stage, stage_results)
+        return Response(
+            app_iter=buffered_iterator(app_iter),
+            content_type=content_type,
+            vary=set(["Accept", "User-Agent"]))
 
     def _simple_list_all(self, stage, stage_results):
         title = "%s: simple list (including inherited indices)" % (stage.name)
@@ -696,6 +761,24 @@ class PyPIView:
                     if index != last_index:
                         seen.add(name)
         yield "</body></html>".encode("utf-8")
+
+    def _simple_list_all_json_v1(self, stage, stage_results):
+        yield '{"meta":{"api-version":"1.0"},"projects":['.encode("utf-8")
+        last_index = len(stage_results) - 1
+        seen = set()
+        first = True
+        for index, (stage, names) in enumerate(stage_results):
+            for name in names:
+                if name not in seen:
+                    info = f'{{"name":"{name}"}}'
+                    if first:
+                        yield f'{info}'.encode("utf-8")
+                        first = False
+                    else:
+                        yield f',{info}'.encode("utf-8")
+                    if index != last_index:
+                        seen.add(name)
+        yield ']}'.encode("utf-8")
 
     @view_config(
         route_name="/{user}/{index}/+simple/{project}/refresh", request_method="POST")
@@ -1142,7 +1225,8 @@ class PyPIView:
     #  per-project and version data
     #
 
-    @view_config(route_name="installer_simple")
+    @view_config(route_name="installer_simple", accept="text/html")
+    @view_config(route_name="installer_simple", accept="application/vnd.pypi.simple.v1+json")
     def installer_simple(self):
         """
         When an installer accesses a project without the /+simple part we
@@ -1348,6 +1432,11 @@ class PyPIView:
         if add_projects:
             result['projects'] = sorted(stage.list_projects_perstage())
         apireturn(200, type="indexconfig", result=result)
+
+    @view_config(route_name="/{user}/{index}", accept="application/vnd.pypi.simple.v1+json", request_method="GET")
+    @view_config(route_name="/{user}/{index}/", accept="application/vnd.pypi.simple.v1+json", request_method="GET")
+    def index_pep691_get(self):
+        return self.simple_list_all()
 
     #
     # login and user handling

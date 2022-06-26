@@ -15,6 +15,7 @@ from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
+from devpi_common.metadata import parse_version
 from devpi_common.validation import normalize_name
 from functools import partial
 from html.parser import HTMLParser
@@ -27,7 +28,17 @@ from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
+from .views import SIMPLE_API_V1_JSON
 from .views import make_uuid_headers
+import json
+
+
+SIMPLE_API_V1_VERSION = parse_version("1.0")
+SIMPLE_API_V2_VERSION = parse_version("2.0")
+SIMPLE_API_ACCEPT = ", ".join((
+    "application/vnd.pypi.simple.v1+html;q=0.2",
+    SIMPLE_API_V1_JSON,
+    "text/html;q=0.01"))
 
 
 class Link(URL):
@@ -37,7 +48,7 @@ class Link(URL):
         URL.__init__(self, url, *args, **kwargs)
 
 
-class ProjectParser(HTMLParser):
+class ProjectHTMLParser(HTMLParser):
     def __init__(self, url):
         HTMLParser.__init__(self)
         self.projects = set()
@@ -71,6 +82,22 @@ class ProjectParser(HTMLParser):
         if tag == 'a' and self.project:
             self.projects.add(self.project)
             self.project = None
+
+
+class ProjectJSONv1Parser:
+    def __init__(self, url):
+        self.baseurl = URL(url)
+
+    def feed(self, data):
+        meta = data['meta']
+        api_version = parse_version(meta.get('api-version', '1.0'))
+        if not (SIMPLE_API_V1_VERSION <= api_version < SIMPLE_API_V2_VERSION):
+            raise ValueError(
+                "Wrong API version %r in mirror json response."
+                % api_version)
+        self.projects = set(
+            normalize_name(x['name'])
+            for x in data['projects'])
 
 
 class IndexParser:
@@ -125,6 +152,32 @@ def parse_index(disturl, html):
     parser = IndexParser(project)
     parser.parse_index(disturl, html)
     return parser
+
+
+def parse_index_v1_json(disturl, text):
+    if not isinstance(disturl, URL):
+        disturl = URL(disturl)
+    data = json.loads(text)
+    meta = data['meta']
+    api_version = parse_version(meta.get('api-version', '1.0'))
+    if not (SIMPLE_API_V1_VERSION <= api_version < SIMPLE_API_V2_VERSION):
+        raise ValueError(
+            "Wrong API version %r in mirror json response."
+            % api_version)
+    result = []
+    for item in data['files']:
+        url = disturl.joinpath(item['url'])
+        hashes = item['hashes']
+        if 'sha256' in hashes:
+            url = url.replace(fragment=f"sha256={hashes['sha256']}")
+        elif hashes:
+            url = url.replace(fragment="=".join(next(hashes.items())))
+        # the BasenameMeta wrapping essentially does link validation
+        result.append(BasenameMeta(Link(
+            url,
+            requires_python=item.get('requires-python'),
+            yanked=item.get('yanked'))).obj)
+    return result
 
 
 class PyPIStage(BaseStage):
@@ -302,7 +355,7 @@ class PyPIStage(BaseStage):
             return c
 
     def _get_remote_projects(self):
-        headers = {"Accept": "text/html"}
+        headers = {"Accept": SIMPLE_API_ACCEPT}
         # use a minimum of 30 seconds as timeout for remote server and
         # 60s when running as replica, because the list can be quite large
         # and the master might take a while to process it
@@ -317,8 +370,12 @@ class PyPIStage(BaseStage):
             raise self.UpstreamError(
                 "URL %r returned %s %s",
                 self.mirror_url, response.status_code, response.reason)
-        parser = ProjectParser(response.url)
-        parser.feed(response.text)
+        if response.headers.get('content-type') == SIMPLE_API_V1_JSON:
+            parser = ProjectJSONv1Parser(response.url)
+            parser.feed(response.json())
+        else:
+            parser = ProjectHTMLParser(response.url)
+            parser.feed(response.text)
         return parser.projects
 
     def list_projects_perstage(self):
@@ -424,7 +481,9 @@ class PyPIStage(BaseStage):
         # get the simple page for the project
         url = self.mirror_url.joinpath(project).asdir()
         threadlog.debug("reading index %r", url)
-        (response, text) = await self.async_httpget(url, allow_redirects=True)
+        headers = {"Accept": SIMPLE_API_ACCEPT}
+        (response, text) = await self.async_httpget(
+            url, allow_redirects=True, extra_headers=headers)
         if response.status != 200:
             if response.status == 404:
                 self.cache_retrieve_times.refresh(project)
@@ -463,7 +522,10 @@ class PyPIStage(BaseStage):
         # make sure we don't store credential in the database
         response_url = URL(response.url).replace(username=None, password=None)
         # parse simple index's link
-        releaselinks = parse_index(response_url, text).releaselinks
+        if response.headers.get('content-type') == SIMPLE_API_V1_JSON:
+            releaselinks = parse_index_v1_json(response_url, text)
+        else:
+            releaselinks = parse_index(response_url, text).releaselinks
         num_releaselinks = len(releaselinks)
         key_hrefs = [None] * num_releaselinks
         requires_python = [None] * num_releaselinks

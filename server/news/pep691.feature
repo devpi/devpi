@@ -1,0 +1,1 @@
+Support `PEP-691 <https://peps.python.org/pep-0691/>`_ conformant fetching for mirrors, and requests with JSON result for installers.
