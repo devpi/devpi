@@ -2,12 +2,15 @@
 name: "CI"
 
 on:
+  pull_request:
+    types: [ "labeled", "opened", "synchronize", "reopened" ]
   push:
   schedule:
     - cron: '10 3 * * 1'
 
 jobs:
   packages:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "Create packages"
     runs-on: "ubuntu-latest"
     env:
@@ -34,7 +37,7 @@ jobs:
           .ci/upload-packages.sh
 
   common-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     strategy:
       matrix:
@@ -85,7 +88,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   bbb-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: "packages"
     strategy:
@@ -126,7 +129,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   client-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: "packages"
     strategy:
@@ -171,7 +174,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   server-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: "packages"
     strategy:
@@ -216,7 +219,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   web-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: "packages"
     strategy:
@@ -261,7 +264,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   nightly-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["client-tests", "server-tests", "web-tests"]
     strategy:
@@ -311,7 +314,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-bbb-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: "packages"
     strategy:
@@ -351,7 +354,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["server-tests"]
     strategy:
@@ -427,7 +430,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-web-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["server-tests", "web-tests"]
     strategy:
@@ -479,7 +482,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   pypy-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["client-tests", "server-tests", "web-tests"]
     strategy:
@@ -528,7 +531,7 @@ jobs:
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-nightly-tests:
-    if: true
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["postgresql-tests", "postgresql-web-tests"]
     strategy:
