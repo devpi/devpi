@@ -782,6 +782,7 @@ class BaseStage(object):
             stable=stable)
 
     def get_last_project_change_serial_perstage(self, project, at_serial=None):
+        project = normalize_name(project)
         tx = self.keyfs.tx
         if at_serial is None:
             at_serial = tx.at_serial

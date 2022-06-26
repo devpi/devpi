@@ -2302,8 +2302,8 @@ class TestOfflineMode:
         # mock two packages and one release
         pypistage.mock_extfile("/package/package-1.0.zip", b"123")
         pypistage.mock_simple("package", pkgver="package-1.0.zip", serial=100)
-        pypistage.mock_simple("other_package", '<a href="/other_package-2.0.zip" />', serial=100)
-        pypistage.mock_simple_projects(["package", "other_package"])
+        pypistage.mock_simple("other-package", '<a href="/other_package-2.0.zip" />', serial=100)
+        pypistage.mock_simple_projects(["package", "other-package"])
         # either create a stage with root/pypi as base, or return root/pypi directly
         if request.param is None:
             api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
@@ -2318,7 +2318,7 @@ class TestOfflineMode:
         links = getlinks(r.text)
         assert len(links) == 2
         hrefs = [a.get("href") for a in links]
-        assert hrefs == ["other_package/", "package/"]
+        assert hrefs == ["other-package/", "package/"]
         # turn offline mode back on
         xom.config.args.offline_mode = True
         assert xom.config.args.offline_mode

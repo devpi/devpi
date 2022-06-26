@@ -56,6 +56,10 @@ class ProjectHTMLParser(HTMLParser):
         self.basehost = self.baseurl.replace(path='')
         self.project = None
 
+    def handle_data(self, data):
+        if self.project:
+            self.project = data.strip()
+
     def handle_starttag(self, tag, attrs):
         if tag == 'a':
             self.project = None
@@ -95,9 +99,7 @@ class ProjectJSONv1Parser:
             raise ValueError(
                 "Wrong API version %r in mirror json response."
                 % api_version)
-        self.projects = set(
-            normalize_name(x['name'])
-            for x in data['projects'])
+        self.projects = set(x['name'] for x in data['projects'])
 
 
 class IndexParser:
@@ -405,14 +407,16 @@ class PyPIStage(BaseStage):
                         # called from the notification thread
                         self.keyfs.restart_read_transaction()
                         k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
-                        if k.get() == 0:
+                        # when 0 it is new, when 1 it is pre 6.6.0 with
+                        # only normalized names
+                        if k.get() in (0, 1):
                             self.keyfs.restart_as_write_transaction()
-                            k.set(1)
+                            k.set(2)
                 else:
                     # mark current without updating contents
                     self.cache_projectnames.mark_current()
 
-        return projects
+        return {normalize_name(x): x for x in projects}
 
     def is_project_cached(self, project):
         """ return True if we have some cached simpelinks information. """
@@ -696,6 +700,7 @@ class PyPIStage(BaseStage):
             return []
 
     def get_last_project_change_serial_perstage(self, project, at_serial=None):
+        project = normalize_name(project)
         tx = self.keyfs.tx
         if at_serial is None:
             at_serial = tx.at_serial
@@ -709,7 +714,9 @@ class PyPIStage(BaseStage):
         return last_serial
 
     def get_versiondata_perstage(self, project, version, readonly=True):
-        project = normalize_name(project)
+        # we do not use normalize_name name here, so the returned data
+        # contains whatever this method was called with, which is hopefully
+        # the title from the project list
         verdata = {}
         for sm in map(SimplelinkMeta, self.get_simplelinks_perstage(project)):
             link_version = sm.version

@@ -36,6 +36,35 @@ def test_devpi_mirror_initialnames(caplog, pypistage):
     assert len(logs) == 1
 
 
+@pytest.mark.nomockprojectsremote
+@pytest.mark.skipif(
+    devpi_server_version < parse_version("6.6.0dev"),
+    reason="Needs un-normalized project names from list_projects_perstage on mirrors")
+def test_devpi_mirror_initialnames_original_name(caplog, pypistage):
+    import logging
+    caplog.set_level(logging.NOTSET)
+    from devpi_common.validation import normalize_name
+    from devpi_web.main import devpiserver_mirror_initialnames
+    from devpi_web.main import get_indexer
+    projects = set(["Django", "pytest", "ploy_ansible"])
+    pypistage.mock_simple_projects(projects)
+    pypistage.mock_simple(
+        "django", pypiserial=10,
+        pkgver="django-1.0.zip")
+    indexer = get_indexer(pypistage.xom)
+    pypistage.xom.thread_pool.start_one(indexer.indexer_thread)
+    with pypistage.keyfs.transaction():
+        devpiserver_mirror_initialnames(pypistage, pypistage.list_projects_perstage())
+    indexer.indexer_thread.wait()
+    for project in projects:
+        (item1,) = indexer.query_projects(project)['items']
+        (item2,) = indexer.query_projects(normalize_name(project))['items']
+        data1 = item1['data']
+        data2 = item2['data']
+        assert data1 == data2
+        assert data1['name'] == project
+
+
 def test_devpi_stage_created(monkeypatch, pypistage, mock):
     from devpi_web.main import devpiserver_stage_created
     list_projects_perstage = mock.MagicMock()

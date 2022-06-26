@@ -1,0 +1,1 @@
+Fix #592: return dict from ``list_projects_perstage`` of mirrors where the values contain the un-normalized project name. This allows support in devpi-web 4.1.0 to index them correctly.
