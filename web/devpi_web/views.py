@@ -517,6 +517,27 @@ def index_get(context, request):
     return result
 
 
+def add_simple_page_navlink(request, context, nav_links):
+    nav_links.append(dict(
+        title="Simple index",
+        url=request.route_url(
+            "/{user}/{index}/+simple/{project}",
+            user=context.username, index=context.index, project=context.project)))
+
+
+def add_mirror_page_navlink(request, context, whitelist_info, nav_links):
+    if whitelist_info['has_mirror_base']:
+        for base in reversed(list(context.stage.sro())):
+            if base.ixconfig["type"] != "mirror":
+                continue
+            mirror_web_url_fmt = base.ixconfig.get("mirror_web_url_fmt")
+            if not mirror_web_url_fmt:
+                continue
+            nav_links.append(dict(
+                title="%s page" % base.ixconfig.get("title", "Mirror"),
+                url=mirror_web_url_fmt.format(name=context.verified_project)))
+
+
 @view_config(
     route_name="/{user}/{index}/{project}",
     accept="text/html", request_method="GET",
@@ -571,6 +592,8 @@ def project_get(context, request):
                 _release=None)
         else:
             version_info[version]['docs'] = docs
+    nav_links = []
+    add_simple_page_navlink(request, context, nav_links)
     versions = []
     for version in get_sorted_versions(version_info):
         versions.append(version_info[version])
@@ -580,6 +603,7 @@ def project_get(context, request):
         whitelist_info = dict(
             has_mirror_base=context.stage.has_mirror_base(context.project),
             blocked_by_mirror_whitelist=None)
+    add_mirror_page_navlink(request, context, whitelist_info, nav_links)
     stage = context.stage
     latest_verdata = {}
     latest_version = stage.get_latest_version_perstage(context.project)
@@ -590,6 +614,7 @@ def project_get(context, request):
         _context=context,
         title="%s/: %s versions" % (context.stage.name, context.project),
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
+        nav_links=nav_links,
         latest_version=latest_version,
         latest_url=request.route_url(
             "/{user}/{index}/{project}/{version}",
@@ -642,27 +667,14 @@ def version_get(context, request):
         nav_links.append(dict(
             title="Homepage",
             url=home_page))
-    nav_links.append(dict(
-        title="Simple index",
-        url=request.route_url(
-            "/{user}/{index}/+simple/{project}",
-            user=context.username, index=context.index, project=context.project)))
+    add_simple_page_navlink(request, context, nav_links)
     if hasattr(stage, 'get_mirror_whitelist_info'):
         whitelist_info = stage.get_mirror_whitelist_info(name)
     else:
         whitelist_info = dict(
             has_mirror_base=stage.has_mirror_base(name),
             blocked_by_mirror_whitelist=False)
-    if whitelist_info['has_mirror_base']:
-        for base in reversed(list(stage.sro())):
-            if base.ixconfig["type"] != "mirror":
-                continue
-            mirror_web_url_fmt = base.ixconfig.get("mirror_web_url_fmt")
-            if not mirror_web_url_fmt:
-                continue
-            nav_links.append(dict(
-                title="%s page" % base.ixconfig.get("title", "Mirror"),
-                url=mirror_web_url_fmt.format(name=name)))
+    add_mirror_page_navlink(request, context, whitelist_info, nav_links)
     cmp_version = Version(version)
     if context._stable_versions:
         stable_version = Version(context._stable_versions[0])
