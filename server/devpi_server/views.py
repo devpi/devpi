@@ -40,7 +40,7 @@ from .config import hookimpl
 from .filestore import BadGateway
 from .filestore import get_checksum_error
 from .fileutil import buffered_iterator
-from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig, ELink
+from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
 from .model import ReadonlyIndex
 from .model import RemoveValue
 from .readonly import get_mutable_deepcopy
@@ -1446,9 +1446,9 @@ class PyPIView:
         apireturn(200, type="list:userconfig", result=d)
 
     @view_config(
-        route_name="/+snapshot/{user}/{index}", request_method="POST")
+        route_name="/{user}/{index}/+copy", request_method="POST")
     @view_config(
-        route_name="/+snapshot/{user}/{index}/", request_method="POST")
+        route_name="/{user}/{index}/+copy/", request_method="POST")
     def snapshot(self):
         request = self.request
         context = self.context
@@ -1464,11 +1464,9 @@ class PyPIView:
         target_index = json["target_index"]
         target_stage = None
         source_stage, projects = context.stage.list_projects()[0]
-        # used to set the devpi_srcpath:
-        front = f"{source_stage.name}/+f/"
-        entrypath_replacement = f"{context.user.name}/{target_index}/+f/"
         if context.user.getstage(target_index):
             apireturn(409, "index %r already exists" % target_index)
+        files_dir = source_stage.filestore.keyfs.basedir / "+files"
         threadlog.info("snapshot %s", source_stage.name)
         # stats:
         failures = []
@@ -1497,7 +1495,9 @@ class PyPIView:
                     for link in release_links:
                         threadlog.debug("snapshot doing %s", link.entrypath)
                         with link.entry.file_open_read() as f:
-                            f.devpi_srcpath = source_linkstore.filestore.keyfs.basedir / "+files" / link.entrypath
+                            # the new index release file will be hard-linked to that value :
+                            f.devpi_srcpath = files_dir / link.entrypath
+                            # assert f.devpi_srcpath.exists()
                             new_link = target_linkstore.create_linked_entry(
                                 rel="releasefile",
                                 basename=link.basename,

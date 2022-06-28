@@ -4,7 +4,7 @@ def main(hub, args):
     target_index = args.target
     if "/" in target_index:
         hub.fatal("'/' not allowed in target index ; snapshot only allowed within one user indices")
-    url = current.root_url.joinpath("+snapshot", source_index)
+    url = current.root_url.joinpath(source_index, "+copy")
     url_authed = current.add_auth_to_url(url)
     r = hub.http.post(url_authed, json={"target_index": target_index})
     if r.status_code != 200:

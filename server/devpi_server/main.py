@@ -463,8 +463,8 @@ class XOM:
         pyramid_config.add_view_predicate('content_type', ContentTypePredicate)
 
         # snapshoting
-        pyramid_config.add_route("/+snapshot/{user}/{index}", "/+snapshot/{user}/{index}")
-        pyramid_config.add_route("/+snapshot/{user}/{index}/", "/+snapshot/{user}/{index}/")
+        pyramid_config.add_route("/{user}/{index}/+copy", "/{user}/{index}/+copy")
+        pyramid_config.add_route("/{user}/{index}/+copy/", "/{user}/{index}/+copy/")
 
         pyramid_config.add_route("/+status", "/+status")
         pyramid_config.add_route("/+api", "/+api", accept="application/json")
