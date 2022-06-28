@@ -1,0 +1,1 @@
+project.pt: add navigation links to original project page for mirrors and to "Simple page" of projects.

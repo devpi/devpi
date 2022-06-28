@@ -198,6 +198,7 @@ def test_project_view(mapp, testapp):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/%s/+simple/pkg-name" % api.stagename),
         ("2.7", "http://localhost/%s/pkg-name/latest" % api.stagename),
         (api.stagename, "http://localhost/%s" % api.stagename),
         ("2.7", "http://localhost/%s/pkg-name/2.7" % api.stagename),
@@ -214,6 +215,7 @@ def test_project_projectname_redirect(mapp, testapp):
     r = testapp.xget(200, api.index + '/pkg_hello', headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/%s/+simple/pkg-hello" % api.stagename),
         ("1.0", "http://localhost/%s/pkg-hello/latest" % api.stagename),
         (api.stagename, "http://localhost/%s" % api.stagename),
         ("1.0", "http://localhost/%s/pkg-hello/1.0" % api.stagename)]
@@ -253,6 +255,8 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/%s/+simple/pkg1" % pypistage.name),
+        ("PyPI page", "https://pypi.org/project/pkg1/"),
         ("2.7", "http://localhost/root/pypi/pkg1/latest"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
@@ -265,7 +269,9 @@ def test_project_view_root_pypi_no_releases(mapp, testapp, pypistage):
     r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
-    assert [(l.text, l.attrs['href']) for l in links] == []
+    assert [(l.text, l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/%s/+simple/pkg1" % pypistage.name),
+        ("PyPI page", "https://pypi.org/project/pkg1/")]
 
 
 def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage):
@@ -280,6 +286,8 @@ def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage)
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/%s/+simple/pkg1" % pypistage.name),
+        ("PyPI page", "https://pypi.org/project/pkg1/"),
         ("2.7", "http://localhost/root/pypi/pkg1/latest"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
@@ -303,6 +311,8 @@ def test_project_view_root_and_docs(mapp, testapp, pypistage):
     r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
+        ("PyPI page", "https://pypi.org/project/pkg1/"),
         ("2.6", "http://localhost/user1/dev/pkg1/latest"),
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.7", "http://localhost/root/pypi/pkg1/2.7"),
@@ -620,6 +630,7 @@ def test_complex_name(mapp, testapp):
         200, api.index + '/%s' % pkgname, headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
+        ("Simple index", "http://localhost/%s/+simple/%s" % (api.stagename, pkgname)),
         ('0.9', 'http://localhost/user1/dev/%s/latest' % pkgname),
         ('user1/dev', 'http://localhost/user1/dev'),
         ('0.9', 'http://localhost/user1/dev/%s/0.9' % pkgname)]
