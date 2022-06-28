@@ -79,7 +79,7 @@ class HTMLPage(object):
                 continue
 
             pyrequire = anchor.get('data-requires-python')
-            yanked = 'data-yanked' in anchor
+            yanked = anchor.get('data-yanked')
             yield Link(url, self, requires_python=pyrequire, yanked=yanked)
 
     def rel_links(self, rels=('homepage', 'download')):

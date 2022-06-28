@@ -645,8 +645,8 @@ class PyPIView:
             attribs = 'href="%s"' % make_url(href).url
             if require_python is not None:
                 attribs += ' data-requires-python="%s"' % escape(require_python)
-            if yanked:
-                attribs += ' data-yanked=""'
+            if yanked is not None and yanked is not False:
+                attribs += ' data-yanked="%s"' % escape(yanked)
             data = dict(stage=stage, attribs=attribs, key=key)
             yield '{stage} <a {attribs}>{key}</a><br/>\n'.format(
                 **data).encode('utf-8')
@@ -661,15 +661,15 @@ class PyPIView:
         first = True
         for key, href, require_python, yanked in result:
             url = make_url(href)
-            info = json.dumps(
-                {
-                    "filename": key,
-                    "url": url.url_nofrag,
-                    "hashes": {url.hash_type: url.hash_value} if url.hash_type else {},
-                    "requires-python": "" if require_python is None else require_python,
-                    "yanked": False if yanked is None else yanked},
-                indent=None,
-                sort_keys=False)
+            data = {
+                "filename": key,
+                "url": url.url_nofrag,
+                "hashes": {url.hash_type: url.hash_value} if url.hash_type else {}}
+            if require_python is not None:
+                data["requires-python"] = require_python
+            if yanked is not None and yanked is not False:
+                data["yanked"] = yanked
+            info = json.dumps(data, indent=None, sort_keys=False)
             if first:
                 yield f'{info}'.encode("utf-8")
                 first = False

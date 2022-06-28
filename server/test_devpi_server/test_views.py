@@ -362,7 +362,7 @@ def test_project_pep_691(mapp, testapp):
     assert item['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
     assert item['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
     assert item['requires-python'] == ''
-    assert item['yanked'] is False
+    assert 'yanked' not in item
 
 
 @pytest.mark.nomockprojectsremote
@@ -390,12 +390,12 @@ def test_project_pep_691_multiple(mapp, testapp):
     assert item1['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
     assert item1['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
     assert item1['requires-python'] == ''
-    assert item1['yanked'] is False
+    assert 'yanked' not in item1
     assert item2['filename'] == 'pkg1-2.7.tgz'
     assert item2['url'] == '../+f/b3a/8e0e1f9ab1bfe/pkg1-2.7.tgz'
     assert item2['hashes'] == dict(sha256='b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0eee8ebb4a5d0')
     assert item2['requires-python'] == ''
-    assert item2['yanked'] is False
+    assert 'yanked' not in item2
 
 
 def test_projects_redirect(pypistage, testapp):

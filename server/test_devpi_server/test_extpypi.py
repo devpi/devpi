@@ -127,7 +127,16 @@ class TestIndexParsing:
         assert len(result.releaselinks) == 1
         link, = result.releaselinks
         assert link.basename == "py-1.0.zip"
-        assert link.yanked is True
+        assert link.yanked == ""
+
+    def test_parse_index_with_yanked_reason(self):
+        result = parse_index(
+            self.simplepy,
+            """<a href="pkg/py-1.0.zip" data-yanked="bad" />""")
+        assert len(result.releaselinks) == 1
+        link, = result.releaselinks
+        assert link.basename == "py-1.0.zip"
+        assert link.yanked == "bad"
 
     def test_parse_index_with_yanked_hash_spec_is_better(self):
         result = parse_index(self.simplepy,
@@ -138,7 +147,7 @@ class TestIndexParsing:
         link, = result.releaselinks
         assert link.basename == "py-1.0.zip"
         assert link.hash_spec == "md5=pony"
-        assert link.yanked is False
+        assert link.yanked is None
 
     def test_parse_index_with_yanked_first_with_hash_spec_kept(self):
         result = parse_index(self.simplepy,
@@ -149,7 +158,7 @@ class TestIndexParsing:
         link, = result.releaselinks
         assert link.basename == "py-1.0.zip"
         assert link.hash_spec == "md5=pony"
-        assert link.yanked is False
+        assert link.yanked is None
 
     @pytest.mark.parametrize("basename", [
         "py-1.3.1.tar.gz",
@@ -272,7 +281,7 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("devpi")
         link, = links
         assert link.hash_spec == 'sha256=b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e'
-        assert link.yanked is False
+        assert link.yanked is None
         assert link.require_python is None
 
     def test_parse_pep691_data(self, pypistage):
@@ -470,12 +479,12 @@ class TestExtPYPIDB:
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-yanked=""></a>')
         with pypistage.keyfs.transaction(write=False):
             (link,) = pypistage.get_releaselinks("foo")
-        assert link.yanked is True
+        assert link.yanked == ""
         # make sure we get the cached data, if not throw an error
         pypistage.httpget = None
         with pypistage.keyfs.transaction(write=False):
             (link,) = pypistage.get_releaselinks("foo")
-        assert link.yanked is True
+        assert link.yanked == ""
 
     @pytest.mark.nomocking
     @pytest.mark.notransaction
@@ -510,7 +519,7 @@ class TestExtPYPIDB:
         # turn off offline mode for preparations
         xom.config.args.offline_mode = False
         content = b'13'
-        simpypi.add_release('pkg', pkgver='pkg-0.5.zip', yanked=True)
+        simpypi.add_release('pkg', pkgver='pkg-0.5.zip', yanked="")
         simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
         simpypi.add_file('/pkg/pkg-0.5.zip', content)
         r = testapp.xget(200, '/root/pypi/+simple/pkg/')

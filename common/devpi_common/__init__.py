@@ -1,2 +1,2 @@
 #
-__version__ = '3.6.1.dev0'
+__version__ = '3.6.1.dev1'

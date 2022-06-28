@@ -541,7 +541,7 @@ class PyPIStage(BaseStage):
                 href = f"{href}#{releaselink.hash_spec}"
             key_hrefs[index] = (releaselink.basename, href)
             requires_python[index] = releaselink.requires_python
-            yanked[index] = releaselink.yanked
+            yanked[index] = None if releaselink.yanked is False else releaselink.yanked
         newlinks_future.set_result(dict(
             serial=serial,
             releaselinks=releaselinks,
@@ -726,7 +726,7 @@ class PyPIStage(BaseStage):
                     verdata['version'] = version
                 if sm.require_python is not None:
                     verdata['requires_python'] = sm.require_python
-                if sm.yanked:
+                if sm.yanked is not None and sm.yanked is not False:
                     verdata['yanked'] = sm.yanked
                 elinks = verdata.setdefault("+elinks", [])
                 entrypath = sm._url.path
