@@ -1050,6 +1050,9 @@ class SearchView:
         return dict(fields=fields, operator=operator)
 
     @view_config(
+        route_name="/{user}/{index}", request_method="POST",
+        content_type="text/xml", is_mutating=False)
+    @view_config(
         route_name="/{user}/{index}/", request_method="POST",
         content_type="text/xml", is_mutating=False)
     def xmlrpc_search(self):
