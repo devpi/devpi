@@ -480,7 +480,7 @@ class TestImportExport:
                 stage.get_simplelinks_perstage("package")))
             assert links == [
                 ('package-1.1.zip', 'root/pypi/+f/a66/5a45920422f9d/package-1.1.zip', None, None),
-                ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, True),
+                ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, ""),
                 ('package-2.0.zip', 'root/pypi/+f/35a/9e381b1a27567/package-2.0.zip', '>=3.5', None)]
 
     def test_mirrordata(self, caplog, impexp):

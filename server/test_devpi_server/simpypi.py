@@ -28,8 +28,8 @@ def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
     attribs = ""
     if requires_python:
         attribs = ' data-requires-python="%s"' % escape(requires_python)
-    if yanked:
-        attribs = ' data-yanked=""'
+    if yanked is not None and yanked is not False:
+        attribs = ' data-yanked="%s"' % escape(yanked)
     if pkgver is not None:
         assert not text
         if hash_type and "#" not in pkgver:
