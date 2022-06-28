@@ -411,6 +411,7 @@ def get_user_info(context, request, user):
 
 @view_config(
     route_name='root',
+    request_method="GET",
     renderer='templates/root.pt')
 def root(context, request):
     rawusers = sorted(
@@ -761,6 +762,7 @@ def toxresult(context, request):
 @view_config(
     route_name="/+status",
     accept="text/html",
+    request_method="GET",
     renderer="templates/status.pt")
 def statusview(request):
     status = StatusView(request)._status()
@@ -1029,6 +1031,7 @@ class SearchView:
 
     @view_config(
         route_name='search_help',
+        request_method="GET",
         renderer='templates/search_help.pt')
     def search_help(self):
         return dict()

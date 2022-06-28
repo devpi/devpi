@@ -36,6 +36,10 @@ def test_root_view_with_index(mapp, testapp):
         (api.stagename, "http://localhost/%s" % api.stagename)]
 
 
+def test_root_view_post(testapp):
+    testapp.post('/', headers=dict(accept="text/html"), code=404)
+
+
 def test_user_view_root_pypi(testapp):
     r = testapp.get('/root', headers=dict(accept="text/html"))
     assert r.status_code == 200
