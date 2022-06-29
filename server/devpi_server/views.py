@@ -1452,7 +1452,7 @@ class PyPIView:
     def snapshot(self):
         request = self.request
         context = self.context
-        if not request.has_permission("upload"):  # TODO: add 'snapshot' perm ?
+        if not request.has_permission("index_create"):  # TODO: add some 'snapshot' permission ?
             # if there is no authenticated user, then issue a basic auth challenge
             if not request.authenticated_userid:
                 response = HTTPUnauthorized()
