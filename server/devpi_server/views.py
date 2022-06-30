@@ -646,6 +646,7 @@ class PyPIView:
             if require_python is not None:
                 attribs += ' data-requires-python="%s"' % escape(require_python)
             if yanked is not None and yanked is not False:
+                yanked = "" if yanked is True else yanked
                 attribs += ' data-yanked="%s"' % escape(yanked)
             data = dict(stage=stage, attribs=attribs, key=key)
             yield '{stage} <a {attribs}>{key}</a><br/>\n'.format(
