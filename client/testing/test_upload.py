@@ -4,12 +4,14 @@ import py
 import pytest
 import re
 import sys
+import tarfile
 from devpi.upload import Checkout
 from devpi.upload import find_parent_subpath
 from devpi.upload import filter_latest
 from devpi.upload import get_pkginfo
 from devpi.upload import main
 from devpi.upload import read_setupcfg
+from io import BytesIO
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
 from devpi_common.viewhelp import ViewLinkStore
@@ -306,6 +308,61 @@ class TestUploadFunctional:
             built:*
             skipped: doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
+
+    @pytest.mark.parametrize("path", [
+        "foo.doc.zip",
+        "foo.docs.zip"])
+    def test_only_docs_with_path_no_version(self, devpi, out_devpi, path, tmpdir):
+        archive_path = tmpdir.join(path)
+        archive_path.ensure()
+        tmpdir.chdir()
+        out = out_devpi("upload", "--no-isolation", "--only-docs", path)
+        assert out.ret == 1
+        out.stdout.fnmatch_lines(
+            "doczip has no version and 'foo' has no releases to derive one from")
+
+    @pytest.mark.parametrize("path", [
+        "foo.doc.tar.gz",
+        "foo.docs.tgz"])
+    def test_only_docs_with_path_no_version_gz(self, devpi, out_devpi, path, tmpdir):
+        archive_path = tmpdir.join(path)
+        with tarfile.TarFile(archive_path.strpath, "w") as tgz:
+            tgz.addfile(tarfile.TarInfo("index.html"), BytesIO(b""))
+        tmpdir.chdir()
+        out = out_devpi("upload", "--no-isolation", "--only-docs", path)
+        assert out.ret == 1
+        out.stdout.fnmatch_lines("""
+            repackaged {path} to foo.doc.zip
+            doczip has no version and 'foo' has no releases to derive one from
+            """.format(path=path))
+
+    @pytest.mark.parametrize("path", [
+        "foo-1.0.doc.zip",
+        "foo-1.0.docs.zip"])
+    def test_only_docs_with_path(self, devpi, out_devpi, path, tmpdir):
+        archive_path = tmpdir.join(path)
+        archive_path.ensure()
+        tmpdir.chdir()
+        out = out_devpi("upload", "--no-isolation", "--only-docs", path)
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            doc_upload of {path}*
+            """.format(path=path))
+
+    @pytest.mark.parametrize("path", [
+        "foo-1.0.doc.tar.gz",
+        "foo-1.0.docs.tgz"])
+    def test_only_docs_with_path_gz(self, devpi, out_devpi, path, tmpdir):
+        archive_path = tmpdir.join(path)
+        with tarfile.TarFile(archive_path.strpath, "w") as tgz:
+            tgz.addfile(tarfile.TarInfo("index.html"), BytesIO(b""))
+        tmpdir.chdir()
+        out = out_devpi("upload", "--no-isolation", "--only-docs", path)
+        assert out.ret == 0
+        out.stdout.fnmatch_lines("""
+            repackaged {path} to foo-1.0.doc.zip
+            doc_upload of foo-1.0.doc.zip*
+            """.format(path=path))
 
     def test_plain_with_docs(self, devpi, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--with-docs", code=[200, 200, 200])

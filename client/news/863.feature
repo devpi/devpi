@@ -1,0 +1,1 @@
+Fix #863: allow ``--only-docs`` upload for files containing ``.docs.`` instead of ``.doc.`` and support gzipped tar files.
