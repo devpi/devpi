@@ -359,8 +359,8 @@ def httpget(pypiurls):
                     xself.allow_redirects = allow_redirects
                     if "content" in fakeresponse:
                         xself.raw = py.io.BytesIO(fakeresponse["content"])
-                    xself.headers['content-type'] = fakeresponse.get(
-                        'content_type', 'text/html')
+                    xself.headers.setdefault('content-type', fakeresponse.get(
+                        'content_type', 'text/html'))
 
                 def close(xself):
                     return
