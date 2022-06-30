@@ -2,11 +2,13 @@ import os
 import sys
 import py
 import re
+import zipfile
 
 import check_manifest
 import pep517.meta
 
 from devpi_common.metadata import Version, get_pyversion_filetype
+from devpi_common.archive import Archive
 from devpi_common.archive import zip_dir
 from devpi_common.types import CompareMixin
 from .main import HTTPReply, set_devpi_auth_header
@@ -98,7 +100,7 @@ class Uploader:
                     hub.error("%s: does not contain PKGINFO, skipping" %
                               archivepath.basename)
                     continue
-                if archivepath.basename.endswith(".doc.zip"):
+                if isinstance(pkginfo, DocZipMeta):
                     doczip2pkginfo[archivepath] = pkginfo
                 else:
                     releasefile2pkginfo[archivepath] = pkginfo
@@ -113,7 +115,21 @@ class Uploader:
 
     def upload_doc(self, path, pkginfo):
         (name, version) = (pkginfo.name, pkginfo.version)
-        self.post("doc_upload", path,
+        with self.hub.workdir() as tmp:
+            if pkginfo.needs_repackage:
+                if version is None:
+                    fn = tmp.join('%s.doc.zip' % name)
+                else:
+                    fn = tmp.join('%s-%s.doc.zip' % (name, version))
+                with zipfile.ZipFile(fn.strpath, "w") as z:
+                    with Archive(path) as archive:
+                        for aname in archive.namelist():
+                            z.writestr(aname, archive.read(aname))
+                self.hub.info(
+                    "repackaged %s to %s" % (path.basename, fn.basename))
+                path = fn
+            self.post(
+                "doc_upload", path,
                 {"name": name, "version": version})
 
     def post(self, action, path, meta):
@@ -215,34 +231,38 @@ VERSION_PATTERN = r"""
 """
 
 
-name_version_regex = re.compile(
-    "(.*)-(" + VERSION_PATTERN + ")",
+NAME_VERSION_PATTERN = "^(?P<name>.*?)(-(?P<version>" + VERSION_PATTERN + "))?"
+
+
+doc_archive_regex = re.compile(
+    NAME_VERSION_PATTERN + r"\.docs?\.(?P<ext>zip|tar\.gz|tgz)$",
     re.VERBOSE | re.IGNORECASE)
 
 
 def get_name_version_doczip(basename):
-    DOCZIPSUFFIX = ".doc.zip"
-    assert basename.endswith(DOCZIPSUFFIX)
-    fn = basename[:-len(DOCZIPSUFFIX)]
-    name, version = name_version_regex.match(fn).groups()[:2]
-    return name, version
+    m = doc_archive_regex.match(basename)
+    if m:
+        d = m.groupdict()
+        needs_repackage = 'zip' not in d['ext']
+        return (d['name'], d['version'], needs_repackage)
 
 
 class DocZipMeta(CompareMixin):
-    def __init__(self, archivepath):
-        basename = py.path.local(archivepath).basename
-        name, version = get_name_version_doczip(basename)
+    def __init__(self, name, version, needs_repackage):
         self.name = name
         self.version = version
+        self.needs_repackage = needs_repackage
         self.cmpval = (name, version)
 
     def __repr__(self):
-        return "<DocZipMeta name=%r version=%r>" % (self.name, self.version)
+        return "<DocZipMeta name=%r version=%r needs_repackage=%r>" % (
+            self.name, self.version, self.needs_repackage)
 
 
 def get_pkginfo(archivepath):
-    if str(archivepath).endswith(".doc.zip"):
-        return DocZipMeta(archivepath)
+    info = get_name_version_doczip(archivepath.basename)
+    if info is not None:
+        return DocZipMeta(*info)
 
     import pkginfo
     info = pkginfo.get_metadata(str(archivepath))
