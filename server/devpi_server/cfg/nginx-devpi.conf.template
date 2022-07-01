@@ -9,6 +9,12 @@ server {
     proxy_read_timeout 60s;
     client_max_body_size 64M;
 
+    # add application/vnd.pypi.simple.v1+json to the gzip_types
+    gzip_types  text/plain text/css text/xml
+                application/json application/vnd.pypi.simple.v1+json
+                application/javascript text/javascript
+                application/xml application/xml+rss;
+
     # set to where your devpi-server state is on the filesystem
     root %(serverdir)s;  
 
