@@ -600,12 +600,17 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     with model.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks("hello").get()
     assert info != {}
+    assert info["links"] == []
+    assert info["serial"] == 10000
+    pypistage.mock_simple("hello", pkgver="hello-1.0.zip", pypiserial=10001)
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/+simple/hello/")
     with model.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks("hello").get()
-    assert info["links"] == []
+    assert info["links"] == [
+        ('hello-1.0.zip', 'root/pypi/+e/https_pypi.org_hello/hello-1.0.zip')]
+    assert info["serial"] == 10001
 
 
 def test_inheritance_project_listing_ignore_bases(mapp):
