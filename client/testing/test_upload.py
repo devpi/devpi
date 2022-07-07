@@ -487,7 +487,24 @@ class TestUploadFunctional:
                        projname_version_norm=projname_version.replace("-", "*")
                        ))
 
-    def test_index_option(self, initproj, devpi, out_devpi, projname_version):
+    def test_upload_to_mirror(
+            self, devpi, initproj, out_devpi, projname_version):
+        initproj(projname_version.rsplit("-", 1), {"doc": {
+            "conf.py": "#nothing",
+            "contents.rst": "",
+            "index.html": "<html/>"}})
+        assert py.path.local("setup.py").check()
+
+        # use mirror
+        out = out_devpi("use", "root/pypi")
+        out.stdout.fnmatch_lines_random("current devpi index*/root/pypi*")
+        out = out_devpi("upload", "--no-isolation", "--dry-run")
+        out.stdout.fnmatch_lines_random("*does not support upload.")
+        out.stdout.fnmatch_lines_random("*it is a mirror.")
+
+    @pytest.mark.parametrize("other_index", ["root/pypi", "/"])
+    def test_index_option(
+            self, devpi, initproj, out_devpi, other_index, projname_version):
         initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
             "contents.rst": "",
@@ -498,11 +515,7 @@ class TestUploadFunctional:
         user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
 
         # go to other index
-        out = out_devpi("use", "root/pypi")
-        out.stdout.fnmatch_lines_random("current devpi index*/root/pypi*")
-        out = out_devpi("upload", "--no-isolation", "--dry-run")
-        out.stdout.fnmatch_lines_random("*does not support upload.")
-        out.stdout.fnmatch_lines_random("*it is a mirror.")
+        out = out_devpi("use", other_index)
 
         # --index option
         out = out_devpi("upload", "--no-isolation", "--index", "%s/dev" % user, "--dry-run")
