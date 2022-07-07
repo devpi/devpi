@@ -1,0 +1,1 @@
+Fix #627: support ``--index`` option when no index is currently selected.

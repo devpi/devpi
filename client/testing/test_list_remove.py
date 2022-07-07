@@ -161,7 +161,8 @@ class TestListRemove:
         out = out_devpi("list", "hello")
         assert url not in out.stdout.str()
 
-    def test_all_index_option(self, initproj, devpi, out_devpi):
+    @pytest.mark.parametrize("other_index", ["root/pypi", "/"])
+    def test_all_index_option(self, initproj, devpi, out_devpi, other_index):
         import re
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
@@ -179,7 +180,7 @@ class TestListRemove:
         user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
 
         # go to other index
-        devpi("use", "root/pypi")
+        devpi("use", other_index)
         out = out_devpi("list", "--index", "%s/dev" % user, "hello")
         out.stdout.fnmatch_lines_random("""
             */hello-1.1.zip

@@ -239,7 +239,8 @@ class Hub:
     @cached_property
     def current(self):
         self.clientdir.ensure(dir=1)
-        url = os.environ.get("DEVPI_INDEX")
+        index_arg = getattr(self.args, "index", None)
+        url = os.environ.get("DEVPI_INDEX", index_arg)
         current = PersistentCurrent(self.auth_path, self.current_path)
         if url is not None:
             current = current.switch_to_local(self, url, None)

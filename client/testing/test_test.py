@@ -53,7 +53,8 @@ def test_passthrough_args_toxargs(makehub, tmpdir, pseudo_current):
     assert args[-2:] == ["--", "-x"]
 
 
-def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi):
+@pytest.mark.parametrize("other_index", ["root/pypi", "/"])
+def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi, other_index):
     import re
 
     def runtox(self, *args, **kwargs):
@@ -68,7 +69,7 @@ def test_index_option(create_and_upload, devpi, monkeypatch, out_devpi):
         r'(https?://.+?)\s+\(logged in as (.+?)\)', out.stdout.str()).groups()
 
     # go to other index
-    devpi("use", "root/pypi")
+    devpi("use", other_index)
 
     out = out_devpi("test", "--index", "%s/dev" % user, "exa")
     out.stdout.fnmatch_lines("""
