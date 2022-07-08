@@ -672,7 +672,7 @@ class TestPyPIStageprojects:
 
     @pytest.mark.nomocking
     @pytest.mark.notransaction
-    def test_auth_mirror_url(self, caplog, mapp, simpypi, testapp):
+    def test_auth_mirror_url_no_hash(self, caplog, mapp, simpypi, testapp):
         import base64
         url = URL(simpypi.simpleurl).replace(username="foo", password="bar").asdir()
         mapp.login('root')
@@ -689,6 +689,47 @@ class TestPyPIStageprojects:
             (link,) = pypistage.get_simplelinks("pkg")
         assert "foo" not in link[1]
         assert "bar" not in link[1]
+        assert "/+e/" in link[1]
+        ((path, headers), *_) = simpypi.requests
+        (kind, data) = headers["Authorization"].split(None, 1)
+        assert kind.lower() == "basic"
+        assert base64.b64decode(data) == b"foo:bar"
+        simpypi.clear_requests()
+        assert not simpypi.requests
+        r = testapp.xget(200, f"/{link[1]}")
+        assert r.body == content
+        ((path, headers),) = simpypi.requests
+        (kind, data) = headers["Authorization"].split(None, 1)
+        assert kind.lower() == "basic"
+        assert base64.b64decode(data) == b"foo:bar"
+        msgs = [x.getMessage() for x in caplog.getrecords()]
+        assert not [
+            x for x in msgs
+            if "foo:bar" in x
+            and "mockresponse" not in x
+            and "modified index" not in x]
+        assert [x for x in msgs if "foo:***" in x]
+
+    @pytest.mark.nomocking
+    @pytest.mark.notransaction
+    def test_auth_mirror_url_with_hash(self, caplog, mapp, simpypi, testapp):
+        import base64
+        url = URL(simpypi.simpleurl).replace(username="foo", password="bar").asdir()
+        mapp.login('root')
+        mapp.modify_index(
+            "root/pypi",
+            indexconfig=dict(type='mirror', mirror_url=url.url))
+        simpypi.add_release("pkg", pkgver="pkg-1.0.zip#sha256=3fdba35f04dc8c462986c992bcf875546257113072a909c162f7e470e581e278")
+        content = b'13'
+        simpypi.add_file('/pkg/pkg-1.0.zip', content)
+        assert not simpypi.requests
+        with mapp.xom.keyfs.transaction(write=False):
+            pypistage = mapp.xom.model.getstage("root/pypi")
+            assert pypistage.mirror_url == url
+            (link,) = pypistage.get_simplelinks("pkg")
+        assert "foo" not in link[1]
+        assert "bar" not in link[1]
+        assert "/+f/" in link[1]
         ((path, headers), *_) = simpypi.requests
         (kind, data) = headers["Authorization"].split(None, 1)
         assert kind.lower() == "basic"
@@ -715,6 +756,19 @@ class TestPyPIStageprojects:
         msgs = [x.getMessage() for x in caplog.getrecords()]
         assert not [x for x in msgs if "foo:bar" in x and "mockresponse" not in x]
         assert [x for x in msgs if "foo:***" in x]
+
+    def test_auth_mirror_url_user_only(self, caplog, pypistage):
+        pypistage.ixconfig["mirror_url"] = "https://foo@example.com/simple/"
+        pypistage.get_releaselinks("pkg")
+        msgs = [x.getMessage() for x in caplog.getrecords()]
+        assert [x for x in msgs if "foo@" in x]
+
+    def test_auth_mirror_url_password_only(self, caplog, pypistage):
+        pypistage.ixconfig["mirror_url"] = "https://:bar@example.com/simple/"
+        pypistage.get_releaselinks("pkg")
+        msgs = [x.getMessage() for x in caplog.getrecords()]
+        assert not [x for x in msgs if "/:bar" in x and "mockresponse" not in x]
+        assert [x for x in msgs if "/:***" in x]
 
 
 def raise_ValueError():
