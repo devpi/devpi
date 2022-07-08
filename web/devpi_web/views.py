@@ -428,6 +428,9 @@ def root(context, request):
 @view_config(
     route_name="/{user}", accept="text/html", request_method="GET",
     renderer="templates/user.pt")
+@view_config(
+    route_name="/{user}/", accept="text/html", request_method="GET",
+    renderer="templates/user.pt")
 def user_get(context, request):
     user = context.user.get()
     return dict(
@@ -437,6 +440,9 @@ def user_get(context, request):
 
 @view_config(
     route_name="/{user}/{index}", accept="text/html", request_method="GET",
+    renderer="templates/index.pt")
+@view_config(
+    route_name="/{user}/{index}/", accept="text/html", request_method="GET",
     renderer="templates/index.pt")
 def index_get(context, request):
     context = ContextWrapper(context)

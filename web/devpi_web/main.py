@@ -166,6 +166,10 @@ def includeme(config):
     config.add_route(
         "toxresult",
         "/{user}/{index}/{project}/{version}/+toxresults/{basename}/{toxresult}")
+    # BBB can be removed once we require devpi-server >= 6.1.0
+    config.add_route(
+        "/{user}/",
+        "/{user:[^+/]+}/")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(status_info, reify=True)
