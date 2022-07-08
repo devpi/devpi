@@ -1325,7 +1325,7 @@ class PyPIView:
             relpath = relpath.split("#", 1)[0]
         return relpath
 
-    def _pkgserv(self, entry, url):
+    def _pkgserv(self, entry):
         request = self.request
         if not entry.meta:
             abort(request, 410, "file existed, deleted in later serial")
@@ -1336,6 +1336,13 @@ class PyPIView:
 
         # getting the stage from context will cause 404 if stage is deleted
         stage = self.context.stage
+
+        # we need to add auth back to the url, as aiohttp doesn't include it
+        # in the response url, unlike requests did.
+        # we do it in _pkgserv now to avoid storing the credentials
+        # in the database and avoid changes in the db when mirror_url changes.
+        mirror_url_auth = getattr(stage, "mirror_url_auth", {})
+        url = URL(entry.url).replace(**mirror_url_auth)
 
         file_exists = entry.file_exists()
         if entry.last_modified is None or not file_exists:
@@ -1383,13 +1390,7 @@ class PyPIView:
         if key is None or not key.exists():
             abort(self.request, 404, "no such file")
         entry = self.xom.filestore.get_file_entry_from_key(key)
-        # we need to add auth back to the url, as aiohttp doesn't include it
-        # in the response url, unlike requests did
-        # we do it in mirror_pkgserv now to avoid storing the credentials
-        # in the database and avoid changes in the db when mirror_url changes
-        mirror_url_auth = getattr(self.context.stage, "mirror_url_auth", {})
-        url = URL(entry.url).replace(**mirror_url_auth)
-        return self._pkgserv(entry, url)
+        return self._pkgserv(entry)
 
     @view_config(route_name="/{user}/{index}/+f/{relpath:.*}")
     def stage_pkgserv(self):
@@ -1397,7 +1398,7 @@ class PyPIView:
         entry = self.xom.filestore.get_file_entry(relpath)
         if entry is None:
             abort(self.request, 404, "no such file")
-        return self._pkgserv(entry, entry.url)
+        return self._pkgserv(entry)
 
     @view_config(route_name="/{user}/{index}/+e/{relpath:.*}",
                  permission="del_entry",
