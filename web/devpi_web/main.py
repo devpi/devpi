@@ -154,6 +154,7 @@ def includeme(config):
     config.add_route('root', '/', accept='text/html')
     config.add_route('search', '/+search', accept='text/html')
     config.add_route('search_help', '/+searchhelp', accept='text/html')
+    config.add_route("project_refresh", "/{user}/{index}/{project}/refresh")
     config.add_route(
         "docroot",
         "/{user}/{index}/{project}/{version}/+doc/{relpath:.*}")

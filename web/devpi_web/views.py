@@ -545,6 +545,27 @@ def add_mirror_page_navlink(request, context, whitelist_info, nav_links):
                 url=mirror_web_url_fmt.format(name=context.verified_project)))
 
 
+def _index_refresh_form(request, stage, project):
+    url = request.route_url(
+        "project_refresh",
+        user=stage.username, index=stage.index, project=project)
+    title = "Refresh" if stage.ixconfig["type"] == "mirror" else "Refresh mirror links"
+    submit = '<input name="refresh" type="submit" value="%s"/>' % title
+    return '<form action="%s" method="post">%s</form>' % (url, submit)
+
+
+@view_config(route_name="project_refresh", request_method="POST")
+def project_refresh(context, request):
+    for stage in context.stage.sro():
+        if stage.ixconfig["type"] != "mirror":
+            continue
+        stage.clear_simplelinks_cache(context.project)
+        stage.get_simplelinks_perstage(context.project)
+    return HTTPFound(location=request.route_url(
+        "/{user}/{index}/{project}",
+        user=context.username, index=context.index, project=context.project))
+
+
 @view_config(
     route_name="/{user}/{index}/{project}",
     accept="text/html", request_method="GET",
@@ -617,6 +638,9 @@ def project_get(context, request):
     if latest_version is not None:
         latest_verdata = stage.get_versiondata_perstage(
             context.project, latest_version)
+    refresh_form = None
+    if whitelist_info['has_mirror_base']:
+        refresh_form = _index_refresh_form(request, stage, name)
     return dict(
         _context=context,
         title="%s/: %s versions" % (context.stage.name, context.project),
@@ -627,6 +651,7 @@ def project_get(context, request):
             "/{user}/{index}/{project}/{version}",
             user=user, index=index, project=name, version='latest'),
         latest_version_data=latest_verdata,
+        refresh_form=refresh_form,
         versions=versions)
 
 

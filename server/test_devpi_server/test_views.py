@@ -650,7 +650,6 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     r = testapp.xget(200, "/%s/+simple/%s/" % (stagename, project))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
-    #assert input.attrs['value'] == 'Refresh PyPI links'
     with model.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks(project).get()
     assert info != {}
