@@ -538,7 +538,7 @@ class Exported:
 sdistformat2option = {
     "tgz": "gztar",  # gzipped tar-file
     "tar": "tar",    # un-compressed tar
-    "zip": "zip",    # comparessed zip file
+    "zip": "zip",    # compressed zip file
     "tz": "ztar",    # compressed tar file
     "tbz": "bztar",  # bzip2'ed tar-file
 }
