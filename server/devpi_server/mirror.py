@@ -358,6 +358,9 @@ class MirrorStage(BaseStage):
 
     def _get_remote_projects(self):
         headers = {"Accept": SIMPLE_API_ACCEPT}
+        etag = self.cache_projectnames.get_etag()
+        if etag is not None:
+            headers["If-None-Match"] = etag
         # use a minimum of 30 seconds as timeout for remote server and
         # 60s when running as replica, because the list can be quite large
         # and the master might take a while to process it
@@ -368,7 +371,9 @@ class MirrorStage(BaseStage):
         response = self.httpget(
             self.mirror_url, allow_redirects=True, extra_headers=headers,
             timeout=timeout)
-        if response.status_code != 200:
+        if response.status_code == 304:
+            return (self.cache_projectnames.get(), etag)
+        elif response.status_code != 200:
             raise self.UpstreamError(
                 "URL %r returned %s %s",
                 self.mirror_url, response.status_code, response.reason)
@@ -378,7 +383,7 @@ class MirrorStage(BaseStage):
         else:
             parser = ProjectHTMLParser(response.url)
             parser.feed(response.text)
-        return parser.projects
+        return (parser.projects, response.headers.get("ETag"))
 
     def list_projects_perstage(self):
         """ return set of all projects served through the mirror. """
@@ -390,7 +395,7 @@ class MirrorStage(BaseStage):
         else:
             # no fresh projects or None at all, let's go remote
             try:
-                projects = self._get_remote_projects()
+                (projects, etag) = self._get_remote_projects()
             except self.UpstreamError as e:
                 threadlog.warn(
                     "upstream error (%s): using stale projects list" % e)
@@ -398,7 +403,7 @@ class MirrorStage(BaseStage):
             else:
                 old = self.cache_projectnames.get()
                 if not self.cache_projectnames.exists() or old != projects:
-                    self.cache_projectnames.set(projects)
+                    self.cache_projectnames.set(projects, etag)
 
                     # trigger an initial-load event on master
                     if not self.xom.is_replica():
@@ -414,7 +419,7 @@ class MirrorStage(BaseStage):
                             k.set(2)
                 else:
                     # mark current without updating contents
-                    self.cache_projectnames.mark_current()
+                    self.cache_projectnames.mark_current(etag)
 
         return {normalize_name(x): x for x in projects}
 
@@ -422,7 +427,7 @@ class MirrorStage(BaseStage):
         """ return True if we have some cached simpelinks information. """
         return self.key_projsimplelinks(project).exists()
 
-    def _save_cache_links(self, project, links, requires_python, yanked, serial):
+    def _save_cache_links(self, project, links, requires_python, yanked, serial, etag):
         assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
@@ -441,7 +446,7 @@ class MirrorStage(BaseStage):
 
         def on_commit():
             threadlog.debug("setting projects cache for %r", project)
-            self.cache_retrieve_times.refresh(project)
+            self.cache_retrieve_times.refresh(project, etag)
             # make project appear in projects list even
             # before we next check up the full list with remote
             self.cache_projectnames.add(project)
@@ -486,11 +491,18 @@ class MirrorStage(BaseStage):
         url = self.mirror_url.joinpath(project).asdir()
         threadlog.debug("reading index %r", url)
         headers = {"Accept": SIMPLE_API_ACCEPT}
+        etag = self.cache_retrieve_times.get_etag(project)
+        if etag is not None:
+            headers["If-None-Match"] = etag
         (response, text) = await self.async_httpget(
             url, allow_redirects=True, extra_headers=headers)
-        if response.status != 200:
+        if response.status == 304:
+            raise self.UpstreamNotModified(
+                "%s status on GET %r" % (response.status, url))
+        elif response.status != 200:
             if response.status == 404:
-                self.cache_retrieve_times.refresh(project)
+                self.cache_retrieve_times.refresh(
+                    project, response.headers.get("Etag"))
                 raise self.UpstreamNotFoundError(
                     "not found on GET %r" % url)
 
@@ -548,7 +560,8 @@ class MirrorStage(BaseStage):
             key_hrefs=key_hrefs,
             requires_python=requires_python,
             yanked=yanked,
-            devpi_serial=response.headers.get("X-DEVPI-SERIAL")))
+            devpi_serial=response.headers.get("X-DEVPI-SERIAL"),
+            etag=response.headers.get("ETag")))
 
     def _update_simplelinks(self, project, info, newlinks):
         if self.xom.is_replica():
@@ -567,7 +580,7 @@ class MirrorStage(BaseStage):
                 self.keyfs.restart_read_transaction()
                 is_expired, links, cache_serial = self._load_cache_links(project)
             if links is not None:
-                self.cache_retrieve_times.refresh(project)
+                self.cache_retrieve_times.refresh(project, info["etag"])
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)
@@ -588,7 +601,8 @@ class MirrorStage(BaseStage):
             self._save_cache_links(
                 project,
                 info["key_hrefs"], info["requires_python"], info["yanked"],
-                info["serial"])
+                info["serial"],
+                info["etag"])
             return newlinks
 
     async def _update_simplelinks_in_future(self, newlinks_future, project):
@@ -653,7 +667,9 @@ class MirrorStage(BaseStage):
                 self.xom.create_task(
                     self._update_simplelinks_in_future(newlinks_future, project))
             # to prevent a buildup of updates we mark the project as fresh
-            self.cache_retrieve_times.refresh(project)
+            # using a possibly existing etag
+            self.cache_retrieve_times.refresh(
+                project, self.cache_retrieve_times.get_etag(project))
             if links is not None:
                 threadlog.warn(
                     "serving stale links for %r, getting data timed out after %s seconds",
@@ -661,6 +677,18 @@ class MirrorStage(BaseStage):
                 return links
             raise self.UpstreamError(
                 f"timeout after {self.timeout} seconds while getting data for {project!r}")
+        except self.UpstreamNotModified:
+            etag = self.cache_retrieve_times.get_etag(project)
+            if links is not None:
+                self.cache_retrieve_times.refresh(project, etag)
+                return links
+            if etag is None:
+                threadlog.error(
+                    "server returned 304 Not Modified, but we have no links")
+                raise
+            # should not happen, but clear ETag and try again
+            self.cache_retrieve_times.refresh(project, None)
+            return self.get_simplelinks_perstage(project)
         except (self.UpstreamNotFoundError, self.UpstreamError) as e:
             # if we have and old result, return it. While this will
             # miss the rare event of actual project deletions it allows
@@ -678,7 +706,7 @@ class MirrorStage(BaseStage):
             info["key_hrefs"], info["requires_python"], info["yanked"])
         if links is not None and set(links) == set(newlinks):
             # no changes
-            self.cache_retrieve_times.refresh(project)
+            self.cache_retrieve_times.refresh(project, info["etag"])
             return links
 
         return self._update_simplelinks(project, info, newlinks)
@@ -752,6 +780,7 @@ class ProjectNamesCache:
     def __init__(self):
         self._timestamp = -1
         self._data = frozenset()
+        self._etag = None
 
     def exists(self):
         return self._timestamp != -1
@@ -763,6 +792,9 @@ class ProjectNamesCache:
         """ Get a copy of the cached data. """
         return self._data
 
+    def get_etag(self):
+        return self._etag
+
     def add(self, project):
         """ Add project to cache. """
         self._data = self._data.union({project})
@@ -771,14 +803,15 @@ class ProjectNamesCache:
         """ Remove project from cache. """
         self._data = self._data.difference({project})
 
-    def set(self, data):
+    def set(self, data, etag):
         """ Set data and update timestamp. """
         if data is not self._data:
             self._data = frozenset(data)
-        self.mark_current()
+        self.mark_current(etag)
 
-    def mark_current(self):
+    def mark_current(self, etag):
         self._timestamp = time.time()
+        self._etag = etag
 
 
 class ProjectUpdateCache:
@@ -787,16 +820,24 @@ class ProjectUpdateCache:
         self._project2time = {}
 
     def is_expired(self, project, expiry_time):
-        t = self._project2time.get(project)
+        (t, etag) = self._project2time.get(project, (None, None))
         if t is not None:
             return (time.time() - t) >= expiry_time
         return True
 
+    def get_etag(self, project):
+        (t, etag) = self._project2time.get(project, (None, None))
+        return etag
+
     def get_timestamp(self, project):
-        return self._project2time.get(project, 0)
+        (ts, etag) = self._project2time.get(project, (0, None))
+        return ts
 
-    def refresh(self, project):
-        self._project2time[project] = time.time()
+    def refresh(self, project, etag):
+        self._project2time[project] = (time.time(), etag)
 
-    def expire(self, project):
-        self._project2time.pop(project, None)
+    def expire(self, project, etag=None):
+        if etag is None:
+            self._project2time.pop(project, None)
+        else:
+            self._project2time[project] = (0, etag)

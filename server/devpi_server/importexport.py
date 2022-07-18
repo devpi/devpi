@@ -584,7 +584,7 @@ class Importer:
                     requires_python.append(require_python)
                     yanked.append(is_yanked)
                 stage._save_cache_links(
-                    project, links, requires_python, yanked, serial)
+                    project, links, requires_python, yanked, serial, None)
             # devpi-server-2.1 exported with md5 checksums
             if "md5" in mapping:
                 assert "hash_spec" not in mapping
