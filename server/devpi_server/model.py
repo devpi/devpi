@@ -397,10 +397,14 @@ class User:
         threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
         return stage
 
+    @cached_property
+    def MirrorStage(self):
+        from .mirror import MirrorStage
+        return MirrorStage
+
     def _getstage(self, indexname, index_type, ixconfig):
         if index_type == "mirror":
-            from .extpypi import PyPIStage
-            cls = PyPIStage
+            cls = self.MirrorStage
         else:
             cls = PrivateStage
         customizer_cls = get_stage_customizer_class(self.xom, index_type)

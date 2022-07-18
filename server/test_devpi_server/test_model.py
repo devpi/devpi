@@ -597,7 +597,7 @@ class TestStage:
         register_and_store(stage, "some_xyz-1.0.zip", b"123")
         # provoke error if called
         monkeypatch.setattr(
-            "devpi_server.extpypi.PyPIStage.list_versions_perstage",
+            "devpi_server.mirror.MirrorStage.list_versions_perstage",
             lambda self, project: 0 / 0)
         assert stage.list_versions('some_xyz') == {'1.0'}
 

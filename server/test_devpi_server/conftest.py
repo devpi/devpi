@@ -15,12 +15,11 @@ import time
 from .reqmock import reqmock, patch_reqsessionmock  # noqa
 from bs4 import BeautifulSoup
 from contextlib import closing
-from devpi_server import extpypi
+from devpi_server import mirror
 from devpi_server.config import get_pluginmanager
 from devpi_server.main import XOM, parseoptions
 from devpi_common.validation import normalize_name
 from devpi_common.url import URL
-from devpi_server.extpypi import PyPIStage
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
 from pyramid.httpexceptions import status_map
@@ -227,7 +226,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             plugin[0] if isinstance(plugin, tuple) else plugin
             for plugin in plugins]
         default_plugins = [
-            auth_basic, auth_devpi, extpypi, model, replica, view_auth, views,
+            auth_basic, auth_devpi, mirror, model, replica, view_auth, views,
             storage_info["_test_plugin"]]
         for plugin in default_plugins:
             if plugin not in plugins:
@@ -261,7 +260,8 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
         else:
             xom = XOM(config, httpget=httpget)
             if not request.node.get_closest_marker("nomockprojectsremote"):
-                monkeypatch.setattr(extpypi.PyPIStage, "_get_remote_projects",
+                monkeypatch.setattr(
+                    mirror.MirrorStage, "_get_remote_projects",
                     lambda self: set())
             add_pypistage_mocks(monkeypatch, httpget)
         # verify storage interface
@@ -434,13 +434,14 @@ def pypistage(devpiserver_makepypistage, xom):
 
 def add_pypistage_mocks(monkeypatch, httpget):
     # add some mocking helpers
-    PyPIStage.url2response = httpget.url2response
+    mirror.MirrorStage.url2response = httpget.url2response
 
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
         self.cache_retrieve_times.expire(name)
         return self.xom.httpget.mock_simple(
             name, text=text, pypiserial=pypiserial, **kw)
-    monkeypatch.setattr(PyPIStage, "mock_simple", mock_simple, raising=False)
+    monkeypatch.setattr(
+        mirror.MirrorStage, "mock_simple", mock_simple, raising=False)
 
     def mock_simple_projects(self, projectlist):
         t = "".join(
@@ -449,8 +450,9 @@ def add_pypistage_mocks(monkeypatch, httpget):
         threadlog.debug("patching simple page with: %s" %(t))
         self.xom.httpget.mockresponse(self.mirror_url, code=200, text=t)
 
-    monkeypatch.setattr(PyPIStage, "mock_simple_projects",
-                        mock_simple_projects, raising=False)
+    monkeypatch.setattr(
+        mirror.MirrorStage, "mock_simple_projects",
+        mock_simple_projects, raising=False)
 
     def mock_extfile(self, path, content, **kw):
         headers = {"content-length": len(content),
@@ -459,18 +461,19 @@ def add_pypistage_mocks(monkeypatch, httpget):
         url = URL(self.mirror_url).joinpath(path)
         return self.xom.httpget.mockresponse(
             url.url, content=content, headers=headers, **kw)
-    monkeypatch.setattr(PyPIStage, "mock_extfile", mock_extfile, raising=False)
+    monkeypatch.setattr(
+        mirror.MirrorStage, "mock_extfile", mock_extfile, raising=False)
 
 
 @pytest.fixture
 def pypiurls():
     from devpi_server.main import _pypi_ixconfig_default
 
-    class PyPIURL:
+    class MirrorURL:
         def __init__(self):
             self.simple = _pypi_ixconfig_default['mirror_url']
 
-    return PyPIURL()
+    return MirrorURL()
 
 
 @pytest.fixture

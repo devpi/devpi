@@ -1,5 +1,5 @@
-from devpi_server.extpypi import PyPIStage
-from devpi_server.extpypi import PyPICustomizer
+from devpi_server.mirror import MirrorStage
+from devpi_server.mirror import MirrorCustomizer
 import pytest
 
 
@@ -18,7 +18,8 @@ def devpiserver_makepypistage():
         from devpi_server.main import _pypi_ixconfig_default
         # we copy _pypi_ixconfig_default, otherwise the defaults will
         # be modified during config updates later on
-        return PyPIStage(xom, username="root", index="pypi",
-                         ixconfig=dict(_pypi_ixconfig_default),
-                         customizer_cls=PyPICustomizer)
+        return MirrorStage(
+            xom, username="root", index="pypi",
+            ixconfig=dict(_pypi_ixconfig_default),
+            customizer_cls=MirrorCustomizer)
     return makepypistage
