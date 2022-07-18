@@ -450,10 +450,10 @@ class TestExtPYPIDB:
         # https://pypi.org/simple/hello-world because of the
         # new pypi normalization code
         pypistage.xom.httpget.mock_simple(
-            "hello-world",
+            "Hello_World",
             '<a href="Hello_World-1.0.tar.gz" /a>',
             code=200,
-            url="https://pypi.org/simple/hello-world",)
+            url="https://pypi.org/simple/hello-world/")
         l = pypistage.get_releaselinks("Hello_World")
         assert len(l) == 1
 
