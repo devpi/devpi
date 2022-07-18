@@ -385,14 +385,14 @@ def httpget(pypiurls):
                 response=r))
             return r
 
-        def mockresponse(self, mockurl, **kw):
+        def mockresponse(self, url, **kw):
             kw.setdefault("status_code", 200)
             kw.setdefault("reason", getattr(
                 status_map.get(kw["status_code"]),
                 "title",
                 "Devpi Mock Error"))
-            log.debug("set mocking response %s %s", mockurl, kw)
-            self.url2response[mockurl] = kw
+            log.debug("set mocking response %s %s", url, kw)
+            self.url2response[url] = kw
 
         def mock_simple(self, name, text="", pkgver=None, hash_type=None,
                         pypiserial=10000, remoteurl=None, requires_python=None,
@@ -405,9 +405,8 @@ def httpget(pypiurls):
             headers = kw.setdefault("headers", {})
             if pypiserial is not None:
                 headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
-            self.mockresponse(
-                URL(remoteurl).joinpath(name).asdir().url,
-                text=text, **kw)
+            kw.setdefault("url", URL(remoteurl).joinpath(name).asdir().url)
+            self.mockresponse(text=text, **kw)
             return ret
 
         def _getmd5digest(self, s):
