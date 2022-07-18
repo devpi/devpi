@@ -103,6 +103,10 @@ class UpstreamNotFoundError(UpstreamError):
     """ If upstream returned a not found error. """
 
 
+class UpstreamNotModified(ModelException):
+    """ If upstream returned a not modified reply. """
+
+
 class MissesRegistration(ModelException):
     """ A prior registration of release metadata is required. """
 
@@ -586,6 +590,7 @@ class BaseStage(object):
     NotFound = NotFound
     UpstreamError = UpstreamError
     UpstreamNotFoundError = UpstreamNotFoundError
+    UpstreamNotModified = UpstreamNotModified
     MissesRegistration = MissesRegistration
     MissesVersion = MissesVersion
     NonVolatile = NonVolatile

@@ -536,6 +536,31 @@ class TestExtPYPIDB:
         assert link.text == 'pkg-0.5.zip'
         assert link.get('data-yanked') == ""
 
+    @pytest.mark.notransaction
+    def test_etag(self, pypistage):
+        pypistage.mock_simple(
+            "foo", text='<a href="foo-1.0.tar.gz"</a>', etag='"foo"')
+        with pypistage.keyfs.transaction(write=False):
+            pypistage.get_simplelinks_perstage("foo")
+        call = pypistage.xom.httpget.call_log.pop()
+        assert 'If-None-Match' not in call['extra_headers']
+        assert pypistage.cache_retrieve_times.get_etag("foo") == '"foo"'
+        pypistage.cache_retrieve_times.expire("foo", etag='"foo"')
+        with pypistage.keyfs.transaction(write=False):
+            pypistage.get_simplelinks_perstage("foo")
+        call = pypistage.xom.httpget.call_log.pop()
+        assert pypistage.cache_retrieve_times.get_etag("foo") == '"foo"'
+        assert call['extra_headers']['If-None-Match'] == '"foo"'
+        pypistage.mock_simple(
+            "foo", text='<a href="foo-1.0.tar.gz"</a>', etag='"bar"')
+        # make sure an expired ETag exists
+        pypistage.cache_retrieve_times.expire("foo", etag='"foo"')
+        with pypistage.keyfs.transaction(write=False):
+            pypistage.get_simplelinks_perstage("foo")
+        call = pypistage.xom.httpget.call_log.pop()
+        assert call['extra_headers']['If-None-Match'] == '"foo"'
+        assert pypistage.cache_retrieve_times.get_etag("foo") == '"bar"'
+
 
 @pytest.mark.nomockprojectsremote
 class TestMirrorStageprojects:
@@ -549,8 +574,8 @@ class TestMirrorStageprojects:
                 <a href='django'>Django</a><br/>
                 <a href='ploy-ansible/'>ploy_ansible</a><br/>
             </body></html>""")
-        x = pypistage._get_remote_projects()
-        assert x == set(["ploy_ansible", "devpi-server", "Django"])
+        (projects, etag) = pypistage._get_remote_projects()
+        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
         s = pypistage.list_projects_perstage()
         assert s == {
             "ploy-ansible": "ploy_ansible",
@@ -568,8 +593,8 @@ class TestMirrorStageprojects:
                     {"name": "Django"},
                     {"name": "ploy_ansible"}
                 ]}""")
-        x = pypistage._get_remote_projects()
-        assert x == set(["ploy_ansible", "devpi-server", "Django"])
+        (projects, etag) = pypistage._get_remote_projects()
+        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
         s = pypistage.list_projects_perstage()
         assert s == {
             "ploy-ansible": "ploy_ansible",
@@ -585,8 +610,51 @@ class TestMirrorStageprojects:
             <body>
                 <a href='devpi-server'>devpi-server</a><br/>
             </body></html>""")
-        x = pypistage._get_remote_projects()
-        assert x == set(["devpi-server"])
+        (projects, etag) = pypistage._get_remote_projects()
+        assert projects == set(["devpi-server"])
+
+    def test_get_remote_projects_etag(self, pypistage):
+        orig_etag = '"foo"'
+        changed_etag = '"bar"'
+        pypistage.xom.httpget.add(
+            pypistage.mirror_url, status_code=200, text="""
+            <html><head><title>Simple Index</title>
+            <meta name="api-version" value="2" /></head>
+            <body>
+                <a href='devpi-server'>devpi-server</a><br/>
+                <a href='django'>Django</a><br/>
+                <a href='ploy-ansible/'>ploy_ansible</a><br/>
+            </body></html>""", headers={"ETag": orig_etag})
+        pypistage.xom.httpget.add(
+            pypistage.mirror_url, status_code=304,
+            text="", headers={"ETag": orig_etag})
+        pypistage.xom.httpget.add(
+            pypistage.mirror_url, status_code=200, text="""
+            <html><head><title>Simple Index</title>
+            <meta name="api-version" value="2" /></head>
+            <body>
+                <a href='devpi-server'>devpi-server</a><br/>
+                <a href='django'>Django</a><br/>
+                <a href='ploy/'>ploy</a><br/>
+            </body></html>""", headers={"ETag": changed_etag})
+        (projects, etag) = pypistage._get_remote_projects()
+        pypistage.cache_projectnames.set(projects, etag)
+        assert etag == orig_etag
+        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
+        call = pypistage.xom.httpget.call_log.pop()
+        assert 'If-None-Match' not in call['extra_headers']
+        (projects, etag) = pypistage._get_remote_projects()
+        pypistage.cache_projectnames.set(projects, etag)
+        assert etag == orig_etag
+        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
+        call = pypistage.xom.httpget.call_log.pop()
+        assert call['extra_headers']['If-None-Match'] == orig_etag
+        (projects, etag) = pypistage._get_remote_projects()
+        pypistage.cache_projectnames.set(projects, etag)
+        assert etag == changed_etag
+        assert projects == set(["ploy", "devpi-server", "Django"])
+        (call,) = pypistage.xom.httpget.call_log
+        assert call['extra_headers']['If-None-Match'] == orig_etag
 
     @pytest.mark.notransaction
     def test_single_project_access_updates_projects(self, pypistage):
@@ -876,8 +944,8 @@ class TestProjectNamesCache:
 
     def test_get_set(self, cache):
         assert cache.get() == set()
-        s = set([1,2,3])
-        cache.set(s)
+        s = set([1, 2, 3])
+        cache.set(s, '"foo"')
         s.add(4)
         assert cache.get() != s
         cache.add(5)
@@ -887,31 +955,39 @@ class TestProjectNamesCache:
 
     def test_is_expired(self, cache, monkeypatch):
         expiry_time = 100
-        s = set([1,2,3])
-        cache.set(s)
+        s = set([1, 2, 3])
+        assert cache.get_etag() is None
+        cache.set(s, '"foo"')
         assert not cache.is_expired(expiry_time)
         t = time.time() + expiry_time + 1
         monkeypatch.setattr("time.time", lambda: t)
         assert cache.is_expired(expiry_time)
         assert cache.get() == s
+        assert cache.get_etag() == '"foo"'
 
 
 def test_ProjectUpdateCache(monkeypatch):
     x = ProjectUpdateCache()
     expiry_time = 30
     assert x.is_expired("x", expiry_time)
-    x.refresh("x")
+    assert x.get_etag("x") is None
+    x.refresh("x", '"foo"')
     assert not x.is_expired("x", expiry_time)
+    assert x.get_etag("x") == '"foo"'
     t = time.time() + 35
     monkeypatch.setattr("time.time", lambda: t)
     assert x.is_expired("x", expiry_time)
-    x.refresh("x")
+    assert x.get_etag("x") == '"foo"'
+    x.refresh("x", '"bar"')
     assert not x.is_expired("x", expiry_time)
+    assert x.get_etag("x") == '"bar"'
     x.expire("x")
     assert x.is_expired("x", expiry_time)
+    assert x.get_etag("x") is None
 
-    x.refresh("y")
+    x.refresh("y", None)
     assert x.get_timestamp("y") == t
+    assert x.get_etag("y") is None
 
 
 @pytest.mark.notransaction

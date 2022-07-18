@@ -262,7 +262,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             if not request.node.get_closest_marker("nomockprojectsremote"):
                 monkeypatch.setattr(
                     mirror.MirrorStage, "_get_remote_projects",
-                    lambda self: set())
+                    lambda self: (set(), None))
             add_pypistage_mocks(monkeypatch, httpget)
         # verify storage interface
         with xom.keyfs.get_connection() as conn:
@@ -347,6 +347,11 @@ def httpget(pypiurls):
             class mockresponse:
                 def __init__(xself, url):
                     fakeresponse = self.url2response.get(url)
+                    if isinstance(fakeresponse, list):
+                        if not fakeresponse:
+                            pytest.fail(
+                                f"http_api call to {url} has no further replies")
+                        fakeresponse = fakeresponse.pop(0)
                     if fakeresponse is None:
                         fakeresponse = dict(
                             status_code=404,
@@ -361,6 +366,8 @@ def httpget(pypiurls):
                         xself.raw = py.io.BytesIO(fakeresponse["content"])
                     xself.headers.setdefault('content-type', fakeresponse.get(
                         'content_type', 'text/html'))
+                    if "etag" in fakeresponse:
+                        fakeresponse["headers"]["ETag"] = fakeresponse["etag"]
 
                 def close(xself):
                     return
@@ -385,14 +392,27 @@ def httpget(pypiurls):
                 response=r))
             return r
 
-        def mockresponse(self, url, **kw):
-            kw.setdefault("status_code", 200)
+        def _prepare_kw(self, kw):
+            kw.setdefault("status_code", kw.pop("code", 200))
             kw.setdefault("reason", getattr(
                 status_map.get(kw["status_code"]),
                 "title",
                 "Devpi Mock Error"))
+
+        def set(self, url, **kw):
+            """ Set a reply for all future uses. """
+            self._prepare_kw(kw)
             log.debug("set mocking response %s %s", url, kw)
             self.url2response[url] = kw
+
+        def add(self, url, **kw):
+            """ Add a one time use reply to the url. """
+            self._prepare_kw(kw)
+            log.debug("add mocking response %s %s", url, kw)
+            self.url2response.setdefault(url, []).append(kw)
+
+        def mockresponse(self, url, **kw):
+            self.set(url, **kw)
 
         def mock_simple(self, name, text="", pkgver=None, hash_type=None,
                         pypiserial=10000, remoteurl=None, requires_python=None,
@@ -406,7 +426,12 @@ def httpget(pypiurls):
             if pypiserial is not None:
                 headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
             kw.setdefault("url", URL(remoteurl).joinpath(name).asdir().url)
-            self.mockresponse(text=text, **kw)
+            if "etag" in kw:
+                etag = kw.pop("etag")
+                self.add(text=text, **kw, etag=etag)
+                self.add(text=text, **kw, status_code=304)
+            else:
+                self.mockresponse(text=text, **kw)
             return ret
 
         def _getmd5digest(self, s):
