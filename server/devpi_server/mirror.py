@@ -182,9 +182,9 @@ def parse_index_v1_json(disturl, text):
     return result
 
 
-class PyPIStage(BaseStage):
+class MirrorStage(BaseStage):
     def __init__(self, xom, username, index, ixconfig, customizer_cls):
-        super(PyPIStage, self).__init__(
+        super().__init__(
             xom, username, index, ixconfig, customizer_cls)
         self.xom = xom
         self.offline = self.xom.config.offline_mode
@@ -736,7 +736,7 @@ class PyPIStage(BaseStage):
         return verdata
 
 
-class PyPICustomizer(BaseStageCustomizer):
+class MirrorCustomizer(BaseStageCustomizer):
     pass
 
 
@@ -744,7 +744,7 @@ class PyPICustomizer(BaseStageCustomizer):
 def devpiserver_get_stage_customizer_classes():
     # prevent plugins from installing their own under the reserved names
     return [
-        ("mirror", PyPICustomizer)]
+        ("mirror", MirrorCustomizer)]
 
 
 class ProjectNamesCache:

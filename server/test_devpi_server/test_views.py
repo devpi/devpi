@@ -17,7 +17,7 @@ from devpi_common.viewhelp import ViewLinkStore
 import devpi_server.views
 from devpi_server.config import hookimpl
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
-from devpi_server.extpypi import parse_index
+from devpi_server.mirror import parse_index
 
 from .functional import TestUserThings, TestIndexThings, TestIndexPushThings  # noqa
 from .functional import TestMirrorIndexThings  # noqa

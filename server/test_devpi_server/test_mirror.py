@@ -4,8 +4,8 @@ import time
 import hashlib
 import pytest
 
-from devpi_server.extpypi import URL, parse_index
-from devpi_server.extpypi import ProjectNamesCache, ProjectUpdateCache
+from devpi_server.mirror import URL, parse_index
+from devpi_server.mirror import ProjectNamesCache, ProjectUpdateCache
 from test_devpi_server.simpypi import getmd5
 
 
@@ -538,7 +538,7 @@ class TestExtPYPIDB:
 
 
 @pytest.mark.nomockprojectsremote
-class TestPyPIStageprojects:
+class TestMirrorStageprojects:
     def test_get_remote_projects(self, pypistage):
         pypistage.xom.httpget.mockresponse(
             pypistage.mirror_url, code=200, text="""

@@ -182,7 +182,6 @@ class Uploader:
         self.post("file_upload", path, meta=meta)
 
 
-# taken from devpi-server/extpypi.py
 ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
 
 

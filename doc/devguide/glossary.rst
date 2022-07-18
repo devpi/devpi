@@ -25,9 +25,9 @@ Glossary devpi-server
       Stage and :term:`index` are used somewhat interchangeably.  ``stage``
       within devpi-server source usually refers to one of:
 
+      - :class:`devpi_server.mirror.MirrorStage`
       - :class:`devpi_server.model.BaseStage`
       - :class:`devpi_server.model.PrivateStage`
-      - :class:`devpi_server.extpypi.PyPIStage`
 
    waitress
 
