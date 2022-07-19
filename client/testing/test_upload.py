@@ -241,6 +241,7 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
         path = None
         python = None
         setupdironly = None
+        verbose = 0
         withdocs = None
 
     initproj("pkg-1.0")
@@ -265,6 +266,62 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
     assert upload2[1]["auth"] == ("basic", "auth")
     assert upload2[1]["cert"] == certpath
     assert "X-Devpi-Auth" in upload2[1]["headers"]
+
+
+@pytest.mark.skipif("sys.version_info < (3, 6)")
+@pytest.mark.skipif("config.option.fast")
+def test_post_derived_devpi_token(initproj, monkeypatch, uploadhub):
+    from base64 import b64decode
+    import pypitoken
+
+    class Session:
+        posts = []
+
+        def post(self, *args, **kwargs):
+            class reply:
+                status_code = 200
+            self.posts.append((args, kwargs))
+            return reply
+
+    class args:
+        dryrun = None
+        formats = None
+        index = None
+        no_isolation = True
+        novcs = None
+        only_latest = None
+        onlydocs = None
+        path = None
+        python = None
+        sdist = False
+        setupdironly = None
+        withdocs = None
+        verbose = 0
+        wheel = True
+
+    initproj("pkg-1.0")
+    passwd = "devpi-AgEAAhFmc2NodWx6ZS1yTlk5a0RuYQAABiBcjsOFkn7_3fn6mFoeJve_cOv-thDRL-4fQzbf_sOGjQ"
+    token = pypitoken.token.Token.load(passwd)
+    assert pypitoken.token.ProjectsRestriction(
+        projects=["pkg"]) not in token.restrictions
+    tmpdir = py.path.local()
+    uploadhub.cwd = tmpdir
+    uploadhub.http = Session()
+    uploadhub.current.reconfigure(dict(
+        index="http://devpi/foo/bar",
+        login="http://devpi/+login",
+        pypisubmit="http://devpi/foo/bar"))
+    uploadhub.current.set_auth("devpi", passwd)
+    main(uploadhub, args)
+    ((post_args, post_kwargs),) = Session.posts
+    auth = post_kwargs['headers']['X-Devpi-Auth']
+    (username, derived_passwd) = (
+        x.decode('ascii') for x in b64decode(auth).split(b':'))
+    assert username == 'devpi'
+    assert derived_passwd != passwd
+    derived_token = pypitoken.token.Token.load(derived_passwd)
+    assert pypitoken.token.ProjectsRestriction(
+        projects=["pkg"]) in derived_token.restrictions
 
 
 class TestUploadFunctional:

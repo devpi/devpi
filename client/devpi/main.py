@@ -1,6 +1,8 @@
 # PYTHON_ARGCOMPLETE_OK
 import os
 import sys
+import time
+import traceback
 import py
 import argparse
 import shlex
@@ -406,6 +408,45 @@ class Hub:
                 break
             self.error("not a valid choice %r" % got)
         return got == "yes"
+
+    def derive_token(self, password, project, now=None):
+        if not password.startswith(('devpi-', 'pypi-')):
+            return password
+        title = {
+            'devpi': 'Devpi',
+            'pypi': 'PyPI'}[password.split('-', 1)[0]]
+        if sys.version_info[:2] < (3, 6):
+            # Python below 3.6 not supported by pypitoken
+            # so don't bother checking or mentioning it
+            return password
+        try:
+            import pypitoken
+        except ImportError:
+            self.info(
+                "Possibly detected a %s token as password. "
+                "If you install 'pypitoken', "
+                "a unique derived token can be created for enhanced security" %
+                title)
+            return password
+        try:
+            token = pypitoken.Token.load(password)
+            if now is None:
+                now = int(time.time())
+            token.restrict(
+                projects=[project],
+                not_before=now - 1,
+                not_after=now + 60)
+            self.info(
+                "Used 'pypitoken' to created a unique %s token "
+                "valid for 60 seconds for upload to the %r project." % (
+                    title, project))
+            return token.dump()
+        except pypitoken.PyPITokenException as e:
+            msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
+            self.warn(
+                "Your password looks like a %s token, "
+                "but 'pypitoken' can not parse it: %s" % (title, msg))
+        return password
 
     # semantic logging
     def debug(self, *msg):

@@ -2,7 +2,6 @@ import pytest
 import json
 import textwrap
 from devpi.main import Hub
-from devpi.push import derive_token
 from devpi.push import parse_target, PyPIPush, DevpiPush
 from subprocess import check_output
 
@@ -215,22 +214,34 @@ def test_fail_push(monkeypatch, tmpdir):
 
 
 def test_derive_token_non_token():
-    assert derive_token(None, "foo", None) == "foo"
+    class MockHub:
+        pass
+    hub = MockHub()
+    hub.derive_token = Hub.derive_token.__get__(hub)
+    assert hub.derive_token("foo", None) == "foo"
 
 
 @pytest.mark.skipif("sys.version_info >= (3, 6)")
-def test_derive_token_old_python():
-    assert derive_token(None, "pypi-foo", None) == "pypi-foo"
+@pytest.mark.parametrize("prefix", ["devpi", "pypi"])
+def test_derive_token_old_python(prefix):
+    class MockHub:
+        pass
+    hub = MockHub()
+    hub.derive_token = Hub.derive_token.__get__(hub)
+    assert hub.derive_token("%s-foo" % prefix, None) == "%s-foo" % prefix
 
 
 @pytest.mark.skipif("sys.version_info < (3, 6)")
-def test_derive_token_invalid_token():
+@pytest.mark.parametrize("prefix", ["devpi", "pypi"])
+def test_derive_token_invalid_token(prefix):
     msgs = []
 
-    class Hub:
+    class MockHub:
         def warn(self, msg):
             msgs.append(msg)
-    derive_token(Hub(), "pypi-foo", None) == "pypi-foo"
+    hub = MockHub()
+    hub.derive_token = Hub.derive_token.__get__(hub)
+    hub.derive_token("%s-foo" % prefix, None) == "%s-foo" % prefix
     (msg,) = msgs
     assert "can not parse it" in msg
 
@@ -245,13 +256,36 @@ def test_derive_token():
     passwd = token.dump()
     msgs = []
 
-    class Hub:
+    class MockHub:
         def info(self, msg):
             msgs.append(msg)
-    derived_passwd = derive_token(Hub(), passwd, 'pkg', now=10)
+    hub = MockHub()
+    hub.derive_token = Hub.derive_token.__get__(hub)
+    derived_passwd = hub.derive_token(passwd, 'pkg', now=10)
     assert derived_passwd != passwd
     (msg,) = msgs
     assert "created a unique PyPI token" in msg
+    derived_token = pypitoken.token.Token.load(derived_passwd)
+    assert derived_token.restrictions == [
+        pypitoken.token.ProjectsRestriction(projects=["pkg"]),
+        pypitoken.token.DateRestriction(not_before=9, not_after=70)]
+
+
+@pytest.mark.skipif("sys.version_info < (3, 6)")
+def test_derive_devpi_token():
+    import pypitoken
+    passwd = "devpi-AgEAAhFmc2NodWx6ZS1yTlk5a0RuYQAABiBcjsOFkn7_3fn6mFoeJve_cOv-thDRL-4fQzbf_sOGjQ"
+    msgs = []
+
+    class MockHub:
+        def info(self, msg):
+            msgs.append(msg)
+    hub = MockHub()
+    hub.derive_token = Hub.derive_token.__get__(hub)
+    derived_passwd = hub.derive_token(passwd, 'pkg', now=10)
+    assert derived_passwd != passwd
+    (msg,) = msgs
+    assert "created a unique Devpi token" in msg
     derived_token = pypitoken.token.Token.load(derived_passwd)
     assert derived_token.restrictions == [
         pypitoken.token.ProjectsRestriction(projects=["pkg"]),

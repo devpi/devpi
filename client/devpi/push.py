@@ -1,44 +1,7 @@
 import py
 from devpi_common.metadata import parse_requirement, splitbasename
 from . import pypirc
-import sys
-import time
 import traceback
-
-
-def derive_token(hub, password, project, now=None):
-    if not password.startswith('pypi-'):
-        return password
-    if sys.version_info[:2] < (3, 6):
-        # Python below 3.6 not supported by pypitoken
-        # so don't bother checking or mentioning it
-        return password
-    try:
-        import pypitoken
-    except ImportError:
-        hub.info(
-            "Possibly detected a PyPI token as password. "
-            "If you install 'pypitoken', "
-            "a unique derived token can be created for enhanced security")
-        return password
-    try:
-        token = pypitoken.Token.load(password)
-        if now is None:
-            now = int(time.time())
-        token.restrict(
-            projects=[project],
-            not_before=now - 1,
-            not_after=now + 60)
-        hub.info(
-            "Used 'pypitoken' to created a unique PyPI token "
-            "valid for 60 seconds for upload to the %r project." % project)
-        return token.dump()
-    except pypitoken.PyPITokenException as e:
-        msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
-        hub.warn(
-            "Your password looks like a PyPI token, "
-            "but 'pypitoken' can not parse it: %s" % msg)
-    return password
 
 
 class PyPIPush:
@@ -48,7 +11,7 @@ class PyPIPush:
         self.password = password
 
     def execute(self, hub, name, version):
-        password = derive_token(hub, self.password, name)
+        password = hub.derive_token(self.password, name)
         req = dict(name=name, version=str(version), posturl=self.posturl,
                    username=self.user, password=password)
         index = hub.current.index
