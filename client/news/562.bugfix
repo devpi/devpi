@@ -1,1 +1,0 @@
-Fix #562: encode username and url in devpiclient_get_password with sys.stdout.encoding.

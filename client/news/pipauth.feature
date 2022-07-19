@@ -1,1 +1,0 @@
-fix #443 and #444: pass authentication info to pip via environment variable for ``devpi install`` and ``devpi test``.

@@ -1,1 +1,0 @@
-fix #38: add ``--user``/``-u`` option to ``use`` command to limit index listing to a specific user.

@@ -1,1 +1,0 @@
-Fix #831: only download matching wheels if ``--select`` is in use.

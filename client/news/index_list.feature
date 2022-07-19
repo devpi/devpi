@@ -1,1 +1,0 @@
-The ``devpi index -l [username]`` command now actually lists indexes of other users and works without login.

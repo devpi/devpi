@@ -1,1 +1,0 @@
-Removed tox dependency, instead ``devpi test`` looks for the ``tox`` binary in the path.

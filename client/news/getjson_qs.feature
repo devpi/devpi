@@ -1,1 +1,0 @@
-Support query strings on ``path`` for ``getjson`` command. This enables using ``?no_projects=``.

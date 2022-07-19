@@ -2,6 +2,81 @@
 
 .. towncrier release notes start
 
+
+6.0.0 (2022-07-19)
+==================
+
+
+Deprecations and Removals
+-------------------------
+
+- Removed support for ``--detox`` option.
+
+- When uploading we no longer "register" the package first. That requirement was removed from PyPI and devpi-server for some time.
+
+- Use ``sphinx-build`` command instead of ``setup.py build_sphinx`` when building documentation.
+
+- Removed tox dependency, instead ``devpi test`` looks for the ``tox`` binary in the path.
+
+- The ``--venv`` option will abort when no virtualenv exists at the location, it will not create a virtualenv anymore.
+
+
+Features
+--------
+
+- Fix #218: use new pip.conf location by default and warn if the legacy location exists.
+
+- Fix #38: add ``--user``/``-u`` option to ``use`` command to limit index listing to a specific user.
+
+- Fix #437: when the ``DEVPI_INDEX`` environment variable is set, it temporarily overwrites the current index.
+
+- Fix #691: allow anonymous uploads if the server has ``acl_upload=:ANONYMOUS:`` set on index.
+
+- Fix #863: allow ``--only-docs`` upload for files containing ``.docs.`` instead of ``.doc.`` and support gzipped tar files.
+
+- The ``--user/-u`` option for ``devpi use`` can be used to switch the current user and the authentication data of previous logins is preserved.
+
+- Use `build <https://pypi.org/project/build/>`_ package when possible and fall back to ``setup.py`` only for deprecated release types.
+
+- When the ``DEVPI_USER`` environment variable is set, it temporarily overwrites the current user name.
+
+- Support query strings on ``path`` for ``getjson`` command. This enables using ``?no_projects=``.
+
+- The ``devpi index -l [username]`` command now actually lists indexes of other users and works without login.
+
+- Fix #443 and #444: pass authentication info to pip via environment variable for ``devpi install`` and ``devpi test``.
+
+- When pushing to an external index with ``pypi:...``, a PyPI token is detected and ``pypitoken`` is installed a new unique time limited token is derived for the upload.
+
+- With ``devpi use --local`` a local configuration is created in the currently active virtualenv and automatically used as long as the virtualenv is activated.
+
+- Warn if the server changes the scheme, host or port during ``devpi use``.
+
+- Using ``--list`` or ``--urls`` with ``use`` command and a URL won't change the current index anymore.
+
+- Existing authentication data is validated on ``devpi use`` and removed if expired.
+
+
+Bug Fixes
+---------
+
+- Fix #562: encode username and url in devpiclient_get_password with sys.stdout.encoding.
+
+- Fix #627: support ``--index`` option when no index is currently selected.
+
+- Fix #808: Use mkdtemp from Python tempfile module to prevent permission and locking errors during ``devpi test`` and ``devpi upload``.
+
+- Fix #831: only download matching wheels if ``--select`` is in use.
+
+- Give helpful error message when specified/configured virtualenv is missing.
+
+
+Other Changes
+-------------
+
+- When there is no json error message only the HTML error code and reason is printed now, to get the full HTML output use the ``--debug`` flag.
+
+
 5.2.3 (2021-11-15)
 ==================
 
