@@ -142,6 +142,7 @@ class Uploader:
         headers = {}
         auth = hub.current.get_auth()
         if auth:
+            auth = (auth[0], hub.derive_token(auth[1], meta['name']))
             set_devpi_auth_header(headers, auth)
         if path:
             files = {"content": (path.basename, path.open("rb"))}
@@ -382,12 +383,6 @@ class Exported:
         self.hub.debug("name, version = %s, %s" % (name, version))
         return name, version
 
-    def _getuserpassword(self):
-        auth = self.hub.current.get_auth()
-        if auth:
-            return auth
-        return "_test", "test"
-
     def prepare(self):
         if self.target_distdir.check():
             self.hub.line("pre-build: cleaning %s" % self.target_distdir)
@@ -452,8 +447,8 @@ class Exported:
                     "you can remove it to get the default sdist and wheel "
                     "releases you get with your currently specified formats.")
         else:
-            sdist = self.hub.args.sdist
-            wheel = self.hub.args.wheel
+            sdist = self.args.sdist
+            wheel = self.args.wheel
 
         cmds = []
         if sdist is not None or wheel is not None:
@@ -491,7 +486,7 @@ class Exported:
                 if distdir.exists():
                     distdir.remove()
 
-            if self.hub.args.verbose:
+            if self.args.verbose:
                 ret = self.hub.popen_check(cmd, cwd=self.rootpath)
             else:
                 ret = self.hub.popen_output(cmd, cwd=self.rootpath)
@@ -515,7 +510,7 @@ class Exported:
                 break
         build = self.rootpath.join("build")
         cmd = ["sphinx-build", "-E", docs, build]
-        if self.hub.args.verbose:
+        if self.args.verbose:
             ret = self.hub.popen_check(cmd, cwd=self.rootpath)
         else:
             ret = self.hub.popen_output(cmd, cwd=self.rootpath)
