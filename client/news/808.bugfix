@@ -1,1 +1,0 @@
-Fix #808: Use mkdtemp from Python tempfile module to prevent permission and locking errors during ``devpi test`` and ``devpi upload``.

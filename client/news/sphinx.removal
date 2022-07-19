@@ -1,1 +1,0 @@
-Use ``sphinx-build`` command instead of ``setup.py build_sphinx`` when building documentation.

@@ -1,1 +1,0 @@
-Using ``--list`` or ``--urls`` with ``use`` command and a URL won't change the current index anymore.
