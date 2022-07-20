@@ -54,6 +54,8 @@ def test_custom_shutdown(pool, TimeoutQueue):
     t.thread.join()
 
 
+# this test is flaky on PyPy
+@pytest.mark.skipif('platform.python_implementation() == "PyPy"')
 def test_run(pool):
     class T:
         def thread_run(self):
