@@ -37,19 +37,17 @@ $(function() {
     $('.toxresult h2, table.projectinfos .is_list .value').click(function () {
         $(this).parent().toggleClass('closed opened');
     });
-    moment.locale("en")
-    moment.locale("en", {
-        longDateFormat: {
-            LT: "HH:mm",
-            L: "YYYY-MM-DD"
-        }
-    });
     $('.timestamp').each(function() {
         var element = $(this);
-        var time = moment.utc(element.text(), "YYYY-MM-DD HH:mm:ss");
-        if (time.isValid()) {
-            element.text(time.local().calendar());
-            element.attr("title", time.local().toISOString());
+        var time = new Date(element.text());
+        if (isNaN(time)) {
+            return;
         }
+        time = new Date(Date.UTC(
+            time.getFullYear(), time.getMonth(), time.getDate(),
+            time.getHours(), time.getMinutes(), time.getSeconds()));
+        var iso = time.toISOString();
+        element.text(iso.slice(0, 10));
+        element.attr("title", iso);
     });
 });

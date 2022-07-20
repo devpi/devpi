@@ -3,8 +3,7 @@
     <metal:headcss define-slot="headcss" />
 </metal:headcss>
 <metal:headscript define-macro="headscript">
-    <script src="${request.static_url('devpi_web:static/jquery-1.11.1.min.js')}"></script>
-    <script src="${request.static_url('devpi_web:static/moment-2.8.2.min.js')}"></script>
+    <script src="${request.static_url('devpi_web:static/jquery-3.6.0.min.js')}"></script>
     <script src="${request.static_url('devpi_web:static/common.js')}"></script>
     <metal:headscript define-slot="headscript" />
 </metal:headscript>
