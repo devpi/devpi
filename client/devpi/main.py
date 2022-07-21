@@ -557,8 +557,22 @@ def try_argcomplete(parser):
 
 
 def print_version(hub):
-    hub.line("devpi-client %s\n" % client_version)
+    hub.line("devpi-client %s" % client_version)
+    version_info = set()
+    for plug, distinfo in hub.pm.list_plugin_distinfo():
+        if distinfo.project_name == "devpi-client":
+            continue
+        key = (distinfo.project_name, distinfo.version)
+        if key in version_info:
+            continue
+        version_info.add(key)
+    if version_info:
+        hub.line()
+        hub.info("plugins:")
+        for item in sorted(version_info):
+            hub.line("    %s %s" % item)
     if hub.current.root_url is not None:
+        hub.line()
         url = hub.current.root_url.addpath('+status').url
         try:
             r = HTTPReply(hub.http.get(
