@@ -29,9 +29,12 @@ def config(gentmp):
 
 
 def test_pkgresources_version_matches_init():
-    import pkg_resources
+    try:
+        import importlib.metadata as importlib_metadata
+    except ImportError:
+        import importlib_metadata as importlib_metadata
     ver = devpi_server.__version__
-    assert pkg_resources.get_distribution("devpi_server").version == ver
+    assert importlib_metadata.version("devpi-server") == ver
 
 
 def test_version(capfd):
