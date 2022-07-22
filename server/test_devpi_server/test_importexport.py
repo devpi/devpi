@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import os
 import sys
-import pkg_resources
 import py
 import pytest
 import json
@@ -15,6 +14,7 @@ from devpi_server.readonly import get_mutable_deepcopy
 from devpi_common.archive import Archive, zip_dict
 from devpi_common.metadata import Version
 from devpi_common.url import URL
+import importlib.resources
 
 import devpi_server
 
@@ -199,9 +199,6 @@ class TestImportExport:
             def __init__(self, options=()):
                 from devpi_server.main import set_state_version
                 self.exportdir = gentmp()
-                self.testdatadir = py.path.local(
-                    pkg_resources.resource_filename(
-                        'test_devpi_server', 'importexportdata'))
                 self.mapp1 = makemapp()
                 set_state_version(self.mapp1.xom.config)
                 self.options = options
@@ -218,16 +215,17 @@ class TestImportExport:
 
             def import_testdata(self, name, options=()):
                 from devpi_server.importexport import import_
-                path = self.testdatadir.join(name).strpath
-                serverdir = gentmp()
-                argv = [
-                    "devpi-import",
-                    "--no-events",
-                    "--serverdir", serverdir]
-                argv.extend(options)
-                argv.extend(["--storage", storage_info["name"]])
-                argv.append(path)
-                assert import_(argv=argv) == 0
+                with importlib.resources.path(
+                        'test_devpi_server', 'importexportdata') as path:
+                    serverdir = gentmp()
+                    argv = [
+                        "devpi-import",
+                        "--no-events",
+                        "--serverdir", serverdir]
+                    argv.extend(options)
+                    argv.extend(["--storage", storage_info["name"]])
+                    argv.append(path / name)
+                    assert import_(argv=argv) == 0
                 mapp = makemapp(options=["--serverdir", serverdir])
                 return mapp
 
