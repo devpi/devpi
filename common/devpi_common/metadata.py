@@ -1,7 +1,8 @@
 import posixpath
 import re
 import py
-from pkg_resources import parse_version, Requirement
+from packaging.version import parse as parse_version
+from packaging.requirements import Requirement as BaseRequirement
 from .types import CompareMixin
 from .types import cached_property
 from .validation import normalize_name
@@ -208,5 +209,20 @@ def is_archive_of_project(basename, targetname):
     return True
 
 
+class Requirement(BaseRequirement):
+    @property
+    def project_name(self):
+        return self.name
+
+    @property
+    def specs(self):
+        return [
+            (spec.operator, spec.version)
+            for spec in self.specifier._specs]
+
+    def __contains__(self, version):
+        return self.specifier.contains(version)
+
+
 def parse_requirement(s):
-    return Requirement.parse(s)
+    return Requirement(s)
