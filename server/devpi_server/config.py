@@ -11,7 +11,6 @@ from tempfile import NamedTemporaryFile
 from pluggy import HookimplMarker, PluginManager
 import py
 from devpi_common.types import cached_property
-from distutils.util import strtobool
 from functools import partial
 from .log import threadlog
 from . import fileutil
@@ -33,6 +32,16 @@ DEFAULT_FILE_REPLICATION_THREADS = 5
 DEFAULT_ARGON2_MEMORY_COST = 524288
 DEFAULT_ARGON2_PARALLELISM = 8
 DEFAULT_ARGON2_TIME_COST = 16
+
+
+def strtobool(val):
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError(f"invalid truth value {val!r}")
 
 
 def get_pluginmanager(load_entrypoints=True):
