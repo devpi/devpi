@@ -8,7 +8,6 @@ from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
 from devpi_server.log import threadlog
 from devpi_server.main import fatal
-from pkg_resources import resource_filename
 from pluggy import HookimplMarker
 from pyramid.renderers import get_renderer
 from pyramid_chameleon.renderer import ChameleonRendererLookup
@@ -29,7 +28,7 @@ def macros(request):
     # returns macros which may partially be overwritten in a theme
     result = {}
     paths = [
-        resource_filename('devpi_web', 'templates/macros.pt'),
+        "devpi_web:templates/macros.pt",
         "templates/macros.pt"]
     for path in paths:
         renderer = get_renderer(path)
