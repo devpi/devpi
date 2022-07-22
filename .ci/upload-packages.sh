@@ -8,21 +8,21 @@ devpi push --index root/pypi devpi-server==5.2.0 "${DEVPI_INDEXNAME}"
 devpi push --index root/pypi devpi-server==6.2.0 "${DEVPI_INDEXNAME}"
 pushd common
 yes | towncrier
-devpi upload
+devpi upload --no-isolation
 popd
 pushd server
 yes | towncrier
-devpi upload
+devpi upload --no-isolation
 popd
 pushd web
 yes | towncrier
-devpi upload
+devpi upload --no-isolation
 popd
 pushd client
 yes | towncrier
-devpi upload
+devpi upload --no-isolation
 popd
 pushd postgresql
 yes | towncrier
-devpi upload
+devpi upload --no-isolation
 popd
