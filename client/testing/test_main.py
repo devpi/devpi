@@ -81,9 +81,12 @@ def test_main_devpi_invocation():
 
 def test_pkgresources_version_matches_init():
     import devpi
-    import pkg_resources
+    try:
+        import importlib.metadata as importlib_metadata
+    except ImportError:
+        import importlib_metadata as importlib_metadata
     ver = devpi.__version__
-    assert pkg_resources.get_distribution("devpi_client").version == ver
+    assert importlib_metadata.version("devpi-client") == ver
 
 
 def test_version(loghub, monkeypatch):
