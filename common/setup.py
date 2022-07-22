@@ -34,6 +34,7 @@ if __name__ == "__main__":
       packages=['devpi_common', 'devpi_common.vendor'],
       install_requires=[
           "lazy",
+          "packaging",
           "py>=1.4.20",
           "requests>=2.3.0"],
       python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
