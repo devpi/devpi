@@ -34,7 +34,7 @@ except ImportError:
 @pytest.fixture(scope="session")
 def server_version():
     from devpi_server import __version__
-    from pkg_resources import parse_version
+    from devpi_common.metadata import parse_version
     return parse_version(__version__)
 
 

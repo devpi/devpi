@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from devpi_common.archive import zip_dict
+from devpi_common.metadata import parse_version
 from devpi_server import __version__ as devpi_server_version
-from pkg_resources import parse_version
 from time import struct_time
 import py
 import pytest
@@ -615,8 +615,8 @@ def test_version_view_latest_stable(mapp, testapp):
 
 def test_complex_name(mapp, testapp):
     from devpi_common import __version__
-    import pkg_resources
-    if pkg_resources.parse_version(__version__) < pkg_resources.parse_version('3.2.0dev'):
+    from devpi_common.metadata import parse_version
+    if parse_version(__version__) < parse_version('3.2.0dev'):
         pytest.skip("Only works with devpi-common >= 3.2.0")
     api = mapp.create_and_use()
     pkgname = "my-binary-package-name-1-4-3-yip"

@@ -461,7 +461,7 @@ class TestUserManagement:
 
 class TestAddRemoveSettings:
     def test_add_remove_index_list_setting(self, mapp, existing_user_id, server_version, url_of_liveserver):
-        from pkg_resources import parse_version
+        from devpi_common.metadata import parse_version
         jsonpatch_devpi_version = parse_version("4.7.2dev")
         if server_version < jsonpatch_devpi_version:
             pytest.skip("devpi-server without key value parsing support")
