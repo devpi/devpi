@@ -17,10 +17,8 @@ write_plist_to_bytes = partial(plist_dumps, sort_keys=False)
 
 def render(confname, format=None, **kw):
     template = confname + ".template"
-    from pkg_resources import resource_string
-    templatestring = resource_string("devpi_server.cfg", template)
-    if not py.builtin._istext(templatestring):
-        templatestring = py.builtin._totext(templatestring, "utf-8")
+    from importlib.resources import read_text
+    templatestring = read_text("devpi_server.cfg", template)
 
     kw = dict((x[0], str(x[1])) for x in kw.items())
     if format is None:
