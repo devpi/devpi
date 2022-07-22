@@ -1,5 +1,6 @@
 # this file is shared via symlink with devpi-client,
 # so for the time being it must continue to work with Python 2
+from devpi_common.metadata import parse_version
 import pytest
 
 try:
@@ -237,7 +238,6 @@ class TestIndexThings:
         assert res["result"]["description"] == "bar"
 
     def test_whitelist_setting(self, mapp, server_version):
-        from pkg_resources import parse_version
         # pypi_whilelist was removed in 5.0.0
         pypi_whitelist_version = parse_version("5dev")
         mapp.create_and_login_user("cuser7")
@@ -472,7 +472,6 @@ class TestMirrorIndexThings:
         assert b'ed7/002b439e9ac84/pkg-1.0.tar.gz' in r.body
 
     def test_releases_urlquoting(self, mapp, server_version, simpypi):
-        from pkg_resources import parse_version
         quoting_devpi_version = parse_version("4.3.1dev")
         if server_version < quoting_devpi_version:
             pytest.skip("devpi-server without mirror url quoting fix")
@@ -492,7 +491,6 @@ class TestMirrorIndexThings:
         assert result[0].endswith('/mirror9/mirror/+e/%s_pkg/pkg-1!2017.4+devpi.zip' % base)
 
     def test_releases_urlquoting_hash(self, mapp, server_version, simpypi):
-        from pkg_resources import parse_version
         quoting_devpi_version = parse_version("4.3.1dev")
         if server_version < quoting_devpi_version:
             pytest.skip("devpi-server without mirror url quoting fix")

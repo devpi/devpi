@@ -1,5 +1,6 @@
 from _pytest.outcomes import Failed
 from devpi_common.metadata import parse_requirement
+from devpi_common.metadata import parse_version
 from devpi.list_remove import get_versions_to_delete
 from devpi.list_remove import confirm_delete
 from devpi.list_remove import out_index
@@ -133,7 +134,6 @@ class TestListRemove:
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
 
     def test_remove_file(self, initproj, devpi, out_devpi, server_version, url_of_liveserver):
-        from pkg_resources import parse_version
         if server_version < parse_version("4.6.0"):
             pytest.skip(
                 "devpi-server before 4.6.0 didn't support deleting "
@@ -276,7 +276,6 @@ class TestListRemove:
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
 
     def test_delete_file_non_volatile(self, initproj, devpi, out_devpi, server_version):
-        from pkg_resources import parse_version
         if server_version < parse_version("6dev"):
             pytest.skip(
                 "devpi-server before 6.0.0 didn't support deleting "
@@ -297,7 +296,6 @@ class TestListRemove:
             out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
 
     def test_delete_project_non_volatile(self, initproj, devpi, out_devpi, server_version):
-        from pkg_resources import parse_version
         if server_version < parse_version("6dev"):
             pytest.skip(
                 "devpi-server before 6.0.0 didn't support deleting "

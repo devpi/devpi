@@ -1,8 +1,8 @@
 from __future__ import print_function
 from contextlib import closing
+from devpi_common.metadata import parse_version
 import codecs
 import os
-import pkg_resources
 import pytest
 import socket
 import textwrap
@@ -204,7 +204,7 @@ def server_executable(request, tmpdir_factory):
 def server_version(server_executable):
     try:
         output = subprocess.check_output([server_executable, "--version"])
-        return pkg_resources.parse_version(output.decode('ascii').strip())
+        return parse_version(output.decode('ascii').strip())
     except subprocess.CalledProcessError as e:
         # this won't output anything on Windows
         print(
@@ -227,11 +227,11 @@ def _liveserver(clientdir, indexer_backend_option, server_executable, server_ver
     try:
         args = [
             "--serverdir", str(clientdir)]
-        if server_version >= pkg_resources.parse_version('5.2.0.dev'):
+        if server_version >= parse_version('5.2.0.dev'):
             init_executable = server_executable.replace(
                 "devpi-server", "devpi-init")
             subprocess.check_call([init_executable] + args)
-        elif server_version >= pkg_resources.parse_version('4.2.0.dev'):
+        elif server_version >= parse_version('4.2.0.dev'):
             subprocess.check_call([server_executable] + args + [
                 '--debug', '--init'])
     except subprocess.CalledProcessError as e:

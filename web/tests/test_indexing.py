@@ -1,11 +1,11 @@
 from __future__ import unicode_literals
 
 from devpi_common.archive import zip_dict
+from devpi_common.metadata import parse_version
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import iter_projects
 from devpi_web.indexing import preprocess_project
 from devpi_server import __version__ as devpi_server_version
-from pkg_resources import parse_version
 import pytest
 
 
