@@ -241,11 +241,25 @@ class Hub:
     @cached_property
     def current(self):
         self.clientdir.ensure(dir=1)
-        index_arg = getattr(self.args, "index", None)
-        url = os.environ.get("DEVPI_INDEX", index_arg)
         current = PersistentCurrent(self.auth_path, self.current_path)
+        url = getattr(self.args, "index", None)
+        if "DEVPI_INDEX" in os.environ:
+            if url is None:
+                if current.index is None:
+                    url = current.root_url
+                else:
+                    url = current.index_url
+            else:
+                url = URL(url)
+            devpi_index = os.environ["DEVPI_INDEX"]
+            url = url.joinpath(devpi_index)
+            if not current.root_url.is_valid_http_url() and not url.is_valid_http_url():
+                self.fatal(
+                    "No server set and DEVPI_INDEX from environment is not a "
+                    "full valid URL: %s" % devpi_index)
+            self.info("Using DEVPI_INDEX from environment: %s" % devpi_index)
         if url is not None:
-            current = current.switch_to_local(self, url, None)
+            current = current.switch_to_local(self, URL(url).url, None)
         return current
 
     def get_existing_file(self, arg):
