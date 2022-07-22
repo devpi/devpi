@@ -442,7 +442,6 @@ class XOM:
         from devpi_server.view_auth import DevpiSecurityPolicy
         from devpi_server.views import ContentTypePredicate
         from devpi_server.views import route_url, INSTALLER_USER_AGENT
-        from pkg_resources import get_distribution
         from pyramid.config import Configurator
         from pyramid.viewderivers import INGRESS
         log = self.log
@@ -451,8 +450,7 @@ class XOM:
         pyramid_config = Configurator(root_factory='devpi_server.view_auth.RootFactory')
         pyramid_config.set_security_policy(DevpiSecurityPolicy(self))
 
-        version_info = [
-            ("devpi-server", get_distribution("devpi_server").version)]
+        version_info = [("devpi-server", server_version)]
         for plug, distinfo in self.config.pluginmanager.list_plugin_distinfo():
             key = (distinfo.project_name, distinfo.version)
             if key not in version_info:
