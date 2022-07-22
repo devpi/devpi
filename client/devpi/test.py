@@ -3,9 +3,9 @@ from __future__ import with_statement
 import re
 import shlex
 import hashlib
-import pkg_resources
 import py
 from devpi_common.archive import Archive
+from devpi_common.metadata import parse_requirement
 import json
 import sys
 
@@ -55,7 +55,7 @@ class DevIndex:
         return pkg
 
     def get_matching_versioninfo(self, pkgname, indexname):
-        req = next(pkg_resources.parse_requirements(pkgname))
+        req = parse_requirement(pkgname)
         projurl = self.current.get_project_url(
             req.project_name, indexname=indexname).url
         r = self.hub.http_api("get", projurl, fatal=False)
