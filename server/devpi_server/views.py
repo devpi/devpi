@@ -1620,6 +1620,10 @@ def iter_cache_remote_file(xom, entry, url):
             tx = None
 
         def set_content():
+            nonlocal entry
+            if entry.readonly:
+                entry = xom.filestore.get_file_entry(
+                    entry.relpath, readonly=False)
             entry.file_set_content(
                 f, r.headers.get("last-modified", None),
                 hash_spec=hash_spec)
@@ -1633,6 +1637,8 @@ def iter_cache_remote_file(xom, entry, url):
 
         if not entry.has_existing_metadata():
             if tx is not None:
+                if not tx.write:
+                    xom.keyfs.restart_as_write_transaction()
                 set_content()
             else:
                 with xom.keyfs.transaction(write=True):
@@ -1645,6 +1651,8 @@ def iter_cache_remote_file(xom, entry, url):
             # it back in place without creating a new serial
             # we need a direct write connection to use the io_file_* methods
             if tx is not None:
+                if not tx.write:
+                    xom.keyfs.restart_as_write_transaction()
                 tx.conn.io_file_set(entry._storepath, f)
                 threadlog.debug(
                     "put missing file back into place: %s", entry._storepath)
@@ -1735,12 +1743,7 @@ def iter_remote_file_replica(xom, entry, url):
 
 
 def iter_fetch_remote_file(xom, entry, url):
-    filestore = xom.filestore
-    keyfs = xom.keyfs
     if not xom.is_replica():
-        if not keyfs.tx.write:
-            keyfs.restart_as_write_transaction()
-        entry = filestore.get_file_entry(entry.relpath, readonly=False)
         yield from iter_cache_remote_file(xom, entry, url)
     else:
         yield from iter_remote_file_replica(xom, entry, url)
