@@ -601,7 +601,7 @@ class PyPIView:
             vary=set(["Accept", "User-Agent"]))
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
-            if serial > 0:
+            if serial is not None and serial > 0:
                 response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
         return response
 
