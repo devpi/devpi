@@ -500,11 +500,12 @@ class MirrorStage(BaseStage):
             url, allow_redirects=True, extra_headers=headers)
         if response.status == 304:
             raise self.UpstreamNotModified(
-                "%s status on GET %r" % (response.status, url))
+                "%s status on GET %r" % (response.status, url),
+                etag=etag)
         elif response.status != 200:
             if response.status == 404:
-                self.cache_retrieve_times.refresh(
-                    project, response.headers.get("Etag"))
+                # immediately cache the not found with no ETag
+                self.cache_retrieve_times.refresh(project, None)
                 raise self.UpstreamNotFoundError(
                     "not found on GET %r" % url)
 
@@ -582,7 +583,8 @@ class MirrorStage(BaseStage):
                 self.keyfs.restart_read_transaction()
                 is_expired, links, cache_serial = self._load_cache_links(project)
             if links is not None:
-                self.cache_retrieve_times.refresh(project, info["etag"])
+                self.keyfs.tx.on_commit_success(partial(
+                    self.cache_retrieve_times.refresh, project, info["etag"]))
                 return links
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)
@@ -651,6 +653,7 @@ class MirrorStage(BaseStage):
                 raise self.UpstreamNotFoundError(
                     "cached not found for project %s" % project)
             elif not self.has_project_perstage(project):
+                # immediately cache the not found with no ETag
                 self.cache_retrieve_times.refresh(project, None)
                 raise self.UpstreamNotFoundError(
                     "project %s not found" % project)
@@ -674,8 +677,9 @@ class MirrorStage(BaseStage):
                     self._update_simplelinks_in_future(newlinks_future, project))
             # to prevent a buildup of updates we mark the project as fresh
             # using a possibly existing etag
-            self.cache_retrieve_times.refresh(
-                project, self.cache_retrieve_times.get_etag(project))
+            self.keyfs.tx.on_commit_success(partial(
+                self.cache_retrieve_times.refresh,
+                project, self.cache_retrieve_times.get_etag(project)))
             if links is not None:
                 threadlog.warn(
                     "serving stale links for %r, getting data timed out after %s seconds",
@@ -683,17 +687,17 @@ class MirrorStage(BaseStage):
                 return links
             raise self.UpstreamError(
                 f"timeout after {self.timeout} seconds while getting data for {project!r}")
-        except self.UpstreamNotModified:
-            etag = self.cache_retrieve_times.get_etag(project)
+        except self.UpstreamNotModified as e:
             if links is not None:
-                self.cache_retrieve_times.refresh(project, etag)
+                self.keyfs.tx.on_commit_success(partial(
+                    self.cache_retrieve_times.refresh, project, e.etag))
                 return links
-            if etag is None:
+            if e.etag is None:
                 threadlog.error(
                     "server returned 304 Not Modified, but we have no links")
                 raise
             # should not happen, but clear ETag and try again
-            self.cache_retrieve_times.refresh(project, None)
+            self.cache_retrieve_times.expire(project, etag=None)
             return self.get_simplelinks_perstage(project)
         except (self.UpstreamNotFoundError, self.UpstreamError) as e:
             # if we have and old result, return it. While this will

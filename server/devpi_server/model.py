@@ -105,6 +105,9 @@ class UpstreamNotFoundError(UpstreamError):
 
 class UpstreamNotModified(ModelException):
     """ If upstream returned a not modified reply. """
+    def __init__(self, msg, *args, etag=None):
+        super().__init__(msg, *args)
+        self.etag = etag
 
 
 class MissesRegistration(ModelException):
