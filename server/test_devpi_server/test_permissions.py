@@ -25,6 +25,7 @@ def permissionrequest(model):
     dummyrequest = Request.blank('/')
     dummyrequest.registry = get_current_registry()
     dummyrequest.registry.registerUtility(policy, ISecurityPolicy)
+    dummyrequest.registry['xom'] = model.xom
     dummyrequest.log = model.xom.log
     return dummyrequest
 
@@ -175,6 +176,64 @@ class TestAuthDenialPlugin:
     def test_deny_login(self, plugin, xom, mapp):
         plugin.results = [None]
         mapp.login("root", "")
+        assert plugin.results == []
         mapp.logout()
         plugin.results = [[('root', 'user_login')]]
         mapp.login("root", "", code=401)
+        assert plugin.results == []
+
+    def test_deny_acl_upload_push(self, makexom, makemapp, maketestapp):
+        from pyramid.authorization import Everyone
+        from pyramid.util import is_nonstr_iter
+        import json
+
+        class Plugin:
+            allowed = None
+            called = 0
+
+            @hookimpl
+            def devpiserver_auth_denials(self, request, acl, user, stage):
+                if self.allowed is None:
+                    return None
+                identity = request.identity
+                if identity is None:
+                    return None
+                self.called += 1
+                denials = set()
+                allowed = self.allowed
+                for ace_action, ace_principal, ace_permissions in acl:
+                    if not is_nonstr_iter(ace_permissions):
+                        ace_permissions = [ace_permissions]
+                    for ace_permission in ace_permissions:
+                        if ace_permission in denials:
+                            continue
+                        deny = (
+                            ace_permission.startswith("user_")
+                            or (allowed is not None and ace_permission not in allowed))
+                        if deny:
+                            denials.add(ace_permission)
+                return {(Everyone, x) for x in denials}
+
+        plugin = Plugin()
+        xom = makexom(plugins=[plugin])
+        testapp = maketestapp(xom)
+        mapp = makemapp(testapp)
+        api1 = mapp.create_and_use()
+        mapp.upload_file_pypi("hello-1.0.tar.gz", b"content", "hello", "1.0")
+        api2 = mapp.create_index('dev2')
+        plugin.allowed = frozenset(('pkg_read', 'toxresult_upload'))
+        plugin.called = 0
+        req = dict(name="hello", version="1.0", targetindex=api2.stagename)
+        r = testapp.push(api1.index, json.dumps(req))
+        assert plugin.called
+        assert r.status_code == 401
+        assert mapp.getreleaseslist(
+            'hello', indexname=api2.stagename, code=404) is None
+        plugin.allowed = frozenset(('pkg_read', 'toxresult_upload', 'upload'))
+        plugin.called = 0
+        req = dict(name="hello", version="1.0", targetindex=api2.stagename)
+        r = testapp.push(api1.index, json.dumps(req))
+        assert plugin.called
+        assert r.status_code == 200
+        assert mapp.getreleaseslist('hello', indexname=api2.stagename) == [
+            f"{api2.index}/+f/ed7/002b439e9ac84/hello-1.0.tar.gz"]

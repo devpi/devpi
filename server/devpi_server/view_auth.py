@@ -5,6 +5,7 @@ from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
 from devpi_server.config import hookimpl
 from devpi_server.views import abort
+from devpi_server.model import BaseStage
 from devpi_server.model import UpstreamError
 from pyramid.authorization import ACLHelper, Allow, Authenticated, Deny, Everyone
 from pyramid.interfaces import ISecurityPolicy
@@ -12,8 +13,12 @@ from pyramid.request import RequestLocalCache
 
 
 class RootFactory(object):
-    def __init__(self, request):
+    def __init__(self, request, context=None):
         self.request = request
+        if context is not None:
+            if not isinstance(context, BaseStage):
+                raise TypeError("context must be a stage")
+        self.context = context
         xom = request.registry['xom']
         self.model = xom.model
         self.restrict_modify = xom.config.restrict_modify
@@ -128,6 +133,8 @@ class RootFactory(object):
 
     @cached_property
     def index(self):
+        if self.context is not None:
+            return self.context.index
         return self.matchdict.get('index')
 
     @cached_property
@@ -181,6 +188,8 @@ class RootFactory(object):
 
     @cached_property
     def username(self):
+        if self.context is not None:
+            return self.context.username
         return self.matchdict.get('user')
 
 
@@ -232,6 +241,8 @@ class DevpiSecurityPolicy:
             principals.add(Authenticated)
             principals.add(identity.username)
             principals.update(":" + g for g in identity.groups)
+        if not isinstance(context, RootFactory):
+            context = RootFactory(request, context)
         return ACLHelper().permits(context, principals, permission)
 
 
