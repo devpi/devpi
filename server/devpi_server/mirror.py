@@ -31,6 +31,8 @@ from .log import threadlog
 from .views import SIMPLE_API_V1_JSON
 from .views import make_uuid_headers
 import json
+import threading
+import weakref
 
 
 SIMPLE_API_V1_VERSION = parse_version("1.0")
@@ -609,7 +611,7 @@ class MirrorStage(BaseStage):
                 info["etag"])
             return newlinks
 
-    async def _update_simplelinks_in_future(self, newlinks_future, project):
+    async def _update_simplelinks_in_future(self, newlinks_future, project, lock):
         threadlog.debug("Awaiting simple links for %r", project)
         info = await newlinks_future
         threadlog.debug("Got simple links for %r", project)
@@ -617,6 +619,7 @@ class MirrorStage(BaseStage):
         newlinks = join_links_data(
             info["key_hrefs"], info["requires_python"], info["yanked"])
         with self.keyfs.transaction(write=True):
+            self.keyfs.tx.on_finished(lock.release)
             # fetch current links
             (is_expired, links, cache_serial) = self._load_cache_links(project)
             if links is None or set(links) != set(newlinks):
@@ -636,7 +639,22 @@ class MirrorStage(BaseStage):
         exist.
         """
         project = normalize_name(project)
+        lock = self.cache_retrieve_times.lock(project, self.timeout)
+        if lock is not None:
+            self.keyfs.tx.on_finished(lock.release)
         is_expired, links, cache_serial = self._load_cache_links(project)
+        if not is_expired and lock is not None:
+            lock.release()
+
+        if lock is None:
+            if links is not None:
+                threadlog.warn(
+                    "serving stale links for %r, waiting for existing request timed out after %s seconds",
+                    project, self.timeout)
+                return links
+            raise self.UpstreamError(
+                f"timeout after {self.timeout} seconds while getting data for {project!r}")
+
         if self.offline and links is None:
             raise self.UpstreamError("offline mode")
         if self.offline or not is_expired:
@@ -674,12 +692,7 @@ class MirrorStage(BaseStage):
                 # but only on master, the replica will get the update
                 # via the replication thread
                 self.xom.create_task(
-                    self._update_simplelinks_in_future(newlinks_future, project))
-            # to prevent a buildup of updates we mark the project as fresh
-            # using a possibly existing etag
-            self.keyfs.tx.on_commit_success(partial(
-                self.cache_retrieve_times.refresh,
-                project, self.cache_retrieve_times.get_etag(project)))
+                    self._update_simplelinks_in_future(newlinks_future, project, lock.defer()))
             if links is not None:
                 threadlog.warn(
                     "serving stale links for %r, getting data timed out after %s seconds",
@@ -700,7 +713,7 @@ class MirrorStage(BaseStage):
             self.cache_retrieve_times.expire(project, etag=None)
             return self.get_simplelinks_perstage(project)
         except (self.UpstreamNotFoundError, self.UpstreamError) as e:
-            # if we have and old result, return it. While this will
+            # if we have an old result, return it. While this will
             # miss the rare event of actual project deletions it allows
             # to stay resilient against server misconfigurations.
             if links is not None:
@@ -824,10 +837,37 @@ class ProjectNamesCache:
         self._etag = etag
 
 
+class ProjectUpdateLock:
+    def __init__(self, project, project_update_cache):
+        self.lock = project_update_cache._project2lock.setdefault(
+            project, threading.Lock())
+        self.project = project
+        self.project_update_cache = project_update_cache
+
+    def acquire(self, timeout):
+        threadlog.debug("Acquiring lock (%r) for %r", self.lock, self.project)
+        result = self.lock.acquire(timeout=timeout)
+        return result
+
+    def defer(self):
+        lock = self.lock
+        self.lock = None
+        return lock
+
+    def release(self):
+        if self.lock is not None:
+            self.lock.release()
+            self.lock = None
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} project={self.project!r} lock={self.lock!r}>"
+
+
 class ProjectUpdateCache:
     """ Helper class to manage when we last updated something project specific. """
     def __init__(self):
         self._project2time = {}
+        self._project2lock = weakref.WeakValueDictionary()
 
     def is_expired(self, project, expiry_time):
         (t, etag) = self._project2time.get(project, (None, None))
@@ -851,3 +891,14 @@ class ProjectUpdateCache:
             self._project2time.pop(project, None)
         else:
             self._project2time[project] = (0, etag)
+
+    def lock(self, project, timeout=-1):
+        lock = ProjectUpdateLock(project, self)
+        if lock.acquire(timeout=timeout):
+            return lock
+        self._project2lock.pop(project, None)
+
+    def release(self, project):
+        lock = self._project2lock.pop(project, None)
+        if lock is not None and lock.locked():
+            lock.release()

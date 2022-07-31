@@ -584,7 +584,8 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
         self.doomed = False
-        self._listeners = []
+        self._finished_listeners = []
+        self._success_listeners = []
 
     @cached_property
     def conn(self):
@@ -717,12 +718,18 @@ class Transaction(object):
     def commit(self):
         if self.doomed:
             threadlog.debug("closing doomed transaction")
-            return self._close()
+            result = self._close()
+            self._run_listeners(self._finished_listeners)
+            return result
         if not self.write:
-            return self._close()
+            result = self._close()
+            self._run_listeners(self._finished_listeners)
+            return result
         if not self.dirty and not self.conn.dirty_files:
             threadlog.debug("nothing to commit, just closing tx")
-            return self._close()
+            result = self._close()
+            self._run_listeners(self._finished_listeners)
+            return result
         try:
             with self.conn.write_transaction() as fswriter:
                 for typedkey in self.dirty:
@@ -736,12 +743,22 @@ class Transaction(object):
         finally:
             self._close()
         self.commit_serial = commit_serial
-        for listener in self._listeners:
-            listener()
+        self._run_listeners(self._success_listeners)
+        self._run_listeners(self._finished_listeners)
         return commit_serial
 
     def on_commit_success(self, callback):
-        self._listeners.append(callback)
+        self._success_listeners.append(callback)
+
+    def on_finished(self, callback):
+        self._finished_listeners.append(callback)
+
+    def _run_listeners(self, listeners):
+        for listener in listeners:
+            try:
+                listener()
+            except Exception:
+                threadlog.exception("Error calling %s", listener)
 
     def _close(self):
         if self.closed:
@@ -761,7 +778,9 @@ class Transaction(object):
         if hasattr(self.conn, 'rollback'):
             self.conn.rollback()
         threadlog.debug("transaction rollback at %s" % (self.at_serial))
-        return self._close()
+        result = self._close()
+        self._run_listeners(self._finished_listeners)
+        return result
 
     def restart(self, write=False):
         self.commit()
