@@ -462,6 +462,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
         cache_expire = kw.pop("cache_expire", True)
         if cache_expire:
             self.cache_retrieve_times.expire(name)
+            self.cache_retrieve_times.release(name)
         add_to_projects = kw.pop("add_to_projects", True)
         if add_to_projects:
             self.mock_simple_projects(
