@@ -19,6 +19,7 @@ from devpi import __version__ as client_version
 from pluggy import HookimplMarker
 from pluggy import PluginManager
 from shutil import rmtree
+import stat
 from tempfile import mkdtemp
 import json
 subcommand = lazydecorator()
@@ -229,6 +230,10 @@ class Hub:
 
     @contextmanager
     def workdir(self, prefix='devpi-'):
+        def remove_readonly(func, path, excinfo):
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+
         workdir = py.path.local(
             mkdtemp(prefix=prefix))
 
@@ -236,7 +241,7 @@ class Hub:
         try:
             yield workdir
         finally:
-            rmtree(workdir.strpath)
+            rmtree(workdir.strpath, onerror=remove_readonly)
 
     @cached_property
     def current(self):
