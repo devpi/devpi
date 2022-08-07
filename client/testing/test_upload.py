@@ -111,6 +111,8 @@ class TestCheckout:
             assert newrepo.join(repo.basename).join(".hg").listdir()
         else:
             assert newrepo.join(repo.basename).join(".git").listdir()
+        with uploadhub.workdir() as uploadbase:
+            exported = checkout.export(uploadbase)
 
     def test_vcs_export_setupdironly(self, uploadhub, setupdir,
                                           tmpdir, monkeypatch):
