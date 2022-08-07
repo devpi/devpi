@@ -113,6 +113,7 @@ class TestCheckout:
             assert newrepo.join(repo.basename).join(".git").listdir()
         with uploadhub.workdir() as uploadbase:
             exported = checkout.export(uploadbase)
+        assert uploadbase.check() is False
 
     def test_vcs_export_setupdironly(self, uploadhub, setupdir,
                                           tmpdir, monkeypatch):
