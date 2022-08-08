@@ -582,3 +582,55 @@ jobs:
           cd $PROJECT
           python -m tox -a -vv
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  windows-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["client-tests", "server-tests", "web-tests"]
+    strategy:
+      matrix:
+        include:
+          - project: "common"
+            python-version: "3.7"
+            os: "windows-latest"
+            tox-envs: "py37"
+          - project: "client"
+            python-version: "3.7"
+            os: "windows-latest"
+            tox-envs: "py37"
+          - project: "server"
+            python-version: "3.7"
+            os: "windows-latest"
+            tox-envs: "py37"
+          - project: "web"
+            python-version: "3.7"
+            os: "windows-latest"
+            tox-envs: "py37"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        continue-on-error: true
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
