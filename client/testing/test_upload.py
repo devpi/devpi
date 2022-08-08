@@ -113,11 +113,12 @@ class TestCheckout:
         else:
             assert newrepo.join(repo.basename).join(".git").listdir()
         with uploadhub.workdir() as uploadbase:
-            exported = checkout.export(uploadbase)
+            checkout.export(uploadbase)
             readonly = uploadbase.join("readonly")
             readonly.write("foo")
             ro_bits = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
             os.chmod(str(readonly), ro_bits)
+        assert readonly.check() is False
         assert uploadbase.check() is False
 
     def test_vcs_export_setupdironly(self, uploadhub, setupdir,
