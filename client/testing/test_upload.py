@@ -1,5 +1,6 @@
 import json
 import os
+import stat
 import py
 import pytest
 import re
@@ -113,6 +114,10 @@ class TestCheckout:
             assert newrepo.join(repo.basename).join(".git").listdir()
         with uploadhub.workdir() as uploadbase:
             exported = checkout.export(uploadbase)
+            readonly = uploadbase.join("readonly")
+            readonly.write("foo")
+            ro_bits = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+            os.chmod(str(readonly), ro_bits)
         assert uploadbase.check() is False
 
     def test_vcs_export_setupdironly(self, uploadhub, setupdir,
