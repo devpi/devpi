@@ -1,1 +1,0 @@
-Prevent concurrent updates of simple links on mirrors with a short lived lock.

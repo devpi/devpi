@@ -1,1 +1,0 @@
-Print info when ``DEVPI_INDEX`` environment variable is in use and allow relative index specification for it.

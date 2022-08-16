@@ -1,1 +1,0 @@
-Support original project names for mirrors with devpi-server 6.6.0.

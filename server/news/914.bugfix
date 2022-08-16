@@ -1,1 +1,0 @@
-Fix #914: switch to write transaction as late as possible when streaming a file from a mirror.

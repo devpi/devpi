@@ -1,1 +1,0 @@
-Fix #880: explicitly register views for GET method, so there is a 404 on POSTs, like when using twine with wrong upload url.

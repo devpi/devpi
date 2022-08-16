@@ -3,6 +3,36 @@
 .. towncrier release notes start
 
 
+6.6.0 (2022-08-16)
+==================
+
+
+Features
+--------
+
+- Fix #592: return dict from ``list_projects_perstage`` of mirrors where the values contain the un-normalized project name. This allows support in devpi-web 4.1.0 to index them correctly.
+
+- Check name in project list instead of fetching project page for mirrors. This improves response times and avoids leaking typos of private package names upstream.
+
+- Use ETag header if provided by mirror to reduce bandwidth usage and latency.
+
+- Prevent concurrent updates of simple links on mirrors with a short lived lock.
+
+- Support `PEP-691 <https://peps.python.org/pep-0691/>`_ conformant fetching for mirrors, and requests with JSON result for installers. Proxy servers should add compression support for the ``application/vnd.pypi.simple.v1+json`` content type (``gzip_types`` for nginx).
+
+
+Bug Fixes
+---------
+
+- Fix #743: support PEP427 escaped wheels with local version, where the + is replaced by _.
+
+- Fix #895: store and return content of data-yanked.
+
+- Fix #908: include basic auth from ``mirror_url`` when fetching packages.
+
+- Fix #914: switch to write transaction as late as possible when streaming a file from a mirror.
+
+
 6.5.1 (2022-04-25)
 ==================
 

@@ -2,6 +2,29 @@
 
 .. towncrier release notes start
 
+
+4.1.0 (2022-08-16)
+==================
+
+
+Features
+--------
+
+- Support original project names for mirrors with devpi-server 6.6.0.
+
+- project.pt: Fix #601: add refresh button to project page.
+
+- project.pt: add navigation links to original project page for mirrors and to "Simple page" of projects.
+
+
+Bug Fixes
+---------
+
+- Fix #880: explicitly register views for GET method, so there is a 404 on POSTs, like when using twine with wrong upload url.
+
+- Fix #867: AttributeError during ``devpi-import`` and maybe other commands.
+
+
 4.0.8 (2021-08-12)
 ==================
 

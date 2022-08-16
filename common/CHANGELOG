@@ -2,6 +2,27 @@
 
 .. towncrier release notes start
 
+
+3.7.0 (2022-08-16)
+==================
+
+
+Features
+--------
+
+- Add ``hash_type`` and ``fragment`` attributes to URL class.
+
+- Replace ``pkg_resources`` usage with ``packaging``.
+
+
+Bug Fixes
+---------
+
+- Fix #895: return content of data-yanked.
+
+- Fixed some cases where name and version weren't split off correctly from filename.
+
+
 3.6.0 (2020-09-13)
 ==================
 

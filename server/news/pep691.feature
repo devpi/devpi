@@ -1,1 +1,0 @@
-Support `PEP-691 <https://peps.python.org/pep-0691/>`_ conformant fetching for mirrors, and requests with JSON result for installers. Proxy servers should add compression support for the ``application/vnd.pypi.simple.v1+json`` content type (``gzip_types`` for nginx).
