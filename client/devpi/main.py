@@ -456,7 +456,7 @@ class Hub:
                 not_before=now - 1,
                 not_after=now + 60)
             self.info(
-                "Used 'pypitoken' to created a unique %s token "
+                "Used 'pypitoken' to create a unique %s token "
                 "valid for 60 seconds for upload to the %r project." % (
                     title, project))
             return token.dump()

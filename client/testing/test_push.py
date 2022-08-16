@@ -264,7 +264,7 @@ def test_derive_token():
     derived_passwd = hub.derive_token(passwd, 'pkg', now=10)
     assert derived_passwd != passwd
     (msg,) = msgs
-    assert "created a unique PyPI token" in msg
+    assert "create a unique PyPI token" in msg
     derived_token = pypitoken.token.Token.load(derived_passwd)
     assert derived_token.restrictions == [
         pypitoken.token.ProjectsRestriction(projects=["pkg"]),
@@ -285,7 +285,7 @@ def test_derive_devpi_token():
     derived_passwd = hub.derive_token(passwd, 'pkg', now=10)
     assert derived_passwd != passwd
     (msg,) = msgs
-    assert "created a unique Devpi token" in msg
+    assert "create a unique Devpi token" in msg
     derived_token = pypitoken.token.Token.load(derived_passwd)
     assert derived_token.restrictions == [
         pypitoken.token.ProjectsRestriction(projects=["pkg"]),
