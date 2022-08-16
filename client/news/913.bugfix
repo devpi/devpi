@@ -1,1 +1,0 @@
-fix #913: ``main.Hub.workdir`` cleanup (exit) can now handle read-only files (like those created by git).

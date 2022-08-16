@@ -1,1 +1,0 @@
-Fix #908: include basic auth from ``mirror_url`` when fetching packages.

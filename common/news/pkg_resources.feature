@@ -1,1 +1,0 @@
-Replace ``pkg_resources`` usage with ``packaging``.
