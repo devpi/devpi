@@ -568,7 +568,7 @@ class MirrorStage(BaseStage):
             devpi_serial=response.headers.get("X-DEVPI-SERIAL"),
             etag=response.headers.get("ETag")))
 
-    def _update_simplelinks(self, project, info, newlinks):
+    def _update_simplelinks(self, project, info, links, newlinks):
         if self.xom.is_replica():
             # on the replica we wait for the changes to arrive (changes were
             # triggered by our http request above) because we have no direct
@@ -600,9 +600,12 @@ class MirrorStage(BaseStage):
             maplink = partial(
                 self.filestore.maplink,
                 user=self.user.name, index=self.index, project=project)
-            # calling maplink on the links creates the entries in the database
-            for x in info["releaselinks"]:
-                maplink(x)
+            existing_info = set(links or ())
+            # calling mapkey on the links creates the entries in the database
+            for newinfo, link in zip(newlinks, info["releaselinks"]):
+                if newinfo in existing_info:
+                    continue
+                maplink(link)
             # this stores the simple links info
             self._save_cache_links(
                 project,
@@ -624,7 +627,7 @@ class MirrorStage(BaseStage):
             (is_expired, links, cache_serial) = self._load_cache_links(project)
             if links is None or set(links) != set(newlinks):
                 # we got changes, so store them
-                self._update_simplelinks(project, info, newlinks)
+                self._update_simplelinks(project, info, links, newlinks)
                 threadlog.debug(
                     "Updated simplelinks for %r in background", project)
             else:
@@ -732,7 +735,7 @@ class MirrorStage(BaseStage):
             self.cache_retrieve_times.refresh(project, info["etag"])
             return links
 
-        return self._update_simplelinks(project, info, newlinks)
+        return self._update_simplelinks(project, info, links, newlinks)
 
     def has_project_perstage(self, project):
         project = normalize_name(project)
