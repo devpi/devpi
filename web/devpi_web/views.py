@@ -9,6 +9,7 @@ from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
 from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
+from devpi_server.views import PyPIView
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs, unpack_docs
 from devpi_web.indexing import is_project_cached
@@ -93,6 +94,13 @@ class ContextWrapper(object):
         except self.stage.MissesRegistration:
             raise HTTPNotFound(
                 "%s-%s is not registered" % (self.project, self.version))
+
+
+# wrapper to make future changes easier
+def ServerViews(context, request):
+    result = PyPIView(request)
+    result.context = context
+    return result
 
 
 def get_doc_info(context, request, version=None, check_content=True):
@@ -556,14 +564,12 @@ def _index_refresh_form(request, stage, project):
 
 @view_config(route_name="project_refresh", request_method="POST")
 def project_refresh(context, request):
-    for stage in context.stage.sro():
-        if stage.ixconfig["type"] != "mirror":
-            continue
-        stage.clear_simplelinks_cache(context.project)
-        stage.get_simplelinks_perstage(context.project)
-    return HTTPFound(location=request.route_url(
-        "/{user}/{index}/{project}",
-        user=context.username, index=context.index, project=context.project))
+    result = ServerViews(context, request).simple_refresh()
+    if isinstance(result, HTTPFound):
+        return HTTPFound(location=request.route_url(
+            "/{user}/{index}/{project}",
+            user=context.username, index=context.index, project=context.project))
+    return result
 
 
 @view_config(

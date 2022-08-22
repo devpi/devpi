@@ -90,6 +90,27 @@ def test_error_html_only(mapp, testapp, monkeypatch):
     assert b"502 Bad Gateway" in r.body
 
 
+def test_refresh_button(mapp, pypistage, testapp):
+    pypistage.mock_simple("hello", "<html/>")
+    r = testapp.xget(200, "/root/pypi/hello/")
+    input, = r.html.select('form input[name=refresh]')
+    assert input.attrs['value'] == 'Refresh'
+    with mapp.xom.keyfs.transaction(write=False):
+        info = pypistage.key_projsimplelinks("hello").get()
+    assert info != {}
+    assert info["links"] == []
+    assert info["serial"] == 10000
+    pypistage.mock_simple("hello", pkgver="hello-1.0.zip", pypiserial=10001)
+    r = testapp.post("/root/pypi/hello/refresh")
+    assert r.status_code == 302
+    assert r.location.endswith("/root/pypi/hello")
+    with mapp.xom.keyfs.transaction(write=False):
+        info = pypistage.key_projsimplelinks("hello").get()
+    assert info["links"] == [
+        ('hello-1.0.zip', 'root/pypi/+e/https_pypi.org_hello/hello-1.0.zip')]
+    assert info["serial"] == 10001
+
+
 @pytest.mark.parametrize("url, headers, selector, expected", [
     (
         "http://localhost:80/{stage}",
