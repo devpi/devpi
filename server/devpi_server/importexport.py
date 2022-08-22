@@ -277,7 +277,8 @@ class IndexDump:
             entry = self.exporter.filestore.get_file_entry(link.entrypath)
             if not entry.last_modified:
                 continue
-            assert entry.file_exists(), entry.relpath
+            if not entry.file_exists():
+                fatal(f"The file for {entry.relpath} is missing.")
             relpath = self.exporter.copy_file(
                 entry,
                 self.basedir.join(linkstore.project, link.version, entry.basename))
@@ -302,7 +303,8 @@ class IndexDump:
                               log=tox_link.get_logs())
 
     def add_filedesc(self, type, project, relpath, **kw):
-        assert self.exporter.basepath.join(relpath).check()
+        if not self.exporter.basepath.join(relpath).check():
+            fatal(f"The file for {relpath} is missing.")
         d = kw.copy()
         d["type"] = type
         d["projectname"] = project
@@ -548,7 +550,8 @@ class Importer:
         rel = filedesc["relpath"]
         project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
-        assert p.check(), p
+        if not p.check():
+            fatal(f"The file at {p} is missing.")
         f = p.open("rb")
         if self.xom.config.hard_links:
             # additional attribute for hard links
