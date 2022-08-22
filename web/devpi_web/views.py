@@ -103,6 +103,18 @@ def ServerViews(context, request):
     return result
 
 
+def tween_trailing_slash_redirect(handler, registry):
+    def request_trailing_slash_redirect_handler(request):
+        if request.method != "GET":
+            return handler(request)
+        if '/+' in request.url:
+            return handler(request)
+        if not request.url.endswith('/'):
+            return handler(request)
+        return HTTPFound(location=request.url.rstrip('/'))
+    return request_trailing_slash_redirect_handler
+
+
 def get_doc_info(context, request, version=None, check_content=True):
     relpath = request.matchdict['relpath']
     if not relpath:
@@ -436,9 +448,6 @@ def root(context, request):
 @view_config(
     route_name="/{user}", accept="text/html", request_method="GET",
     renderer="templates/user.pt")
-@view_config(
-    route_name="/{user}/", accept="text/html", request_method="GET",
-    renderer="templates/user.pt")
 def user_get(context, request):
     user = context.user.get()
     return dict(
@@ -448,9 +457,6 @@ def user_get(context, request):
 
 @view_config(
     route_name="/{user}/{index}", accept="text/html", request_method="GET",
-    renderer="templates/index.pt")
-@view_config(
-    route_name="/{user}/{index}/", accept="text/html", request_method="GET",
     renderer="templates/index.pt")
 def index_get(context, request):
     context = ContextWrapper(context)
