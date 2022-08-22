@@ -170,6 +170,7 @@ def includeme(config):
     config.add_route(
         "/{user}/",
         "/{user:[^+/]+}/")
+    config.add_tween("devpi_web.views.tween_trailing_slash_redirect")
     config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(status_info, reify=True)
