@@ -642,7 +642,7 @@ class MirrorStage(BaseStage):
         exist.
         """
         project = normalize_name(project)
-        lock = self.cache_retrieve_times.lock(project, self.timeout)
+        lock = self.cache_retrieve_times.acquire(project, self.timeout)
         if lock is not None:
             self.keyfs.tx.on_finished(lock.release)
         is_expired, links, cache_serial = self._load_cache_links(project)
@@ -840,12 +840,33 @@ class ProjectNamesCache:
         self._etag = etag
 
 
+class ProjectUpdateInnerLock:
+    # this is the object which is stored in the cache
+    # it is needed to add the is_from_current_thread method
+    # and to allow the WeakValueDictionary work correctly
+
+    __slots__ = (
+        '__weakref__', 'acquire', 'locked', 'release', 'thread_ident')
+
+    def __init__(self):
+        self.thread_ident = threading.get_ident()
+        lock = threading.Lock()
+        self.acquire = lock.acquire
+        self.locked = lock.locked
+        self.release = lock.release
+
+    def is_from_current_thread(self):
+        return self.thread_ident == threading.get_ident()
+
+
 class ProjectUpdateLock:
-    def __init__(self, project, project_update_cache):
-        self.lock = project_update_cache._project2lock.setdefault(
-            project, threading.Lock())
+    # this is a wrapper around ProjectUpdateInnerLock to allow
+    # the WeakValueDictionary to work correctly
+
+    def __init__(self, project, lock):
+        self.lock = lock
+        self.locked = lock.locked
         self.project = project
-        self.project_update_cache = project_update_cache
 
     def acquire(self, timeout):
         threadlog.debug("Acquiring lock (%r) for %r", self.lock, self.project)
@@ -856,6 +877,11 @@ class ProjectUpdateLock:
         lock = self.lock
         self.lock = None
         return lock
+
+    def is_from_current_thread(self):
+        if self.lock is not None:
+            return self.lock.is_from_current_thread()
+        return False
 
     def release(self):
         if self.lock is not None:
@@ -895,8 +921,14 @@ class ProjectUpdateCache:
         else:
             self._project2time[project] = (0, etag)
 
-    def lock(self, project, timeout=-1):
-        lock = ProjectUpdateLock(project, self)
+    def acquire(self, project, timeout=-1):
+        lock = ProjectUpdateLock(
+            project,
+            self._project2lock.setdefault(project, ProjectUpdateInnerLock()))
+        if lock.locked() and lock.is_from_current_thread():
+            # remove inner lock, so this is just a dummy
+            lock.lock = None
+            return lock
         if lock.acquire(timeout=timeout):
             return lock
         self._project2lock.pop(project, None)
