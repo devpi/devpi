@@ -23,7 +23,7 @@ from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl
 from .filestore import FileEntry
-from .filestore import get_file_hash
+from .filestore import get_hash_spec
 from .log import threadlog
 from .readonly import get_mutable_deepcopy
 
@@ -1459,7 +1459,8 @@ class ELink(object):
         hash_algo, hash_value = parse_hash_spec(self.hash_spec)
         if not hash_algo:
             return True
-        return get_file_hash(content_or_file, hash_algo().name) == hash_value
+        return get_hash_spec(
+            content_or_file, hash_algo().name) == self.hash_spec
 
     def __getattr__(self, name):
         try:

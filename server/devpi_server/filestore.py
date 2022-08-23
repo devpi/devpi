@@ -23,23 +23,7 @@ def get_default_hash_algo():
 
 
 def get_default_hash_spec(content_or_file):
-    if not isinstance(content_or_file, bytes):
-        if content_or_file.seekable():
-            content_or_file.seek(0)
-            hash_type = get_default_hash_type()
-            hexdigest = get_file_hash(
-                content_or_file, hash_type)
-            content_or_file.seek(0)
-            return f"{hash_type}={hexdigest}"
-        else:
-            content_or_file = content_or_file.read()
-            if len(content_or_file) > 1048576:
-                threadlog.warn(
-                    "Read %.1f megabytes into memory in get_default_hash_spec",
-                    len(content_or_file) / 1048576)
-    if isinstance(content_or_file, bytes):
-        running_hash = get_default_hash_algo()(content_or_file)
-        return f"{running_hash.name}={running_hash.hexdigest()}"
+    return get_hash_spec(content_or_file, get_default_hash_type())
 
 
 def get_default_hash_type():
@@ -54,6 +38,25 @@ def get_file_hash(fp, hash_type):
             break
         running_hash.update(data)
     return running_hash.hexdigest()
+
+
+def get_hash_spec(content_or_file, hash_type):
+    if not isinstance(content_or_file, bytes):
+        if content_or_file.seekable():
+            content_or_file.seek(0)
+            hexdigest = get_file_hash(
+                content_or_file, hash_type)
+            content_or_file.seek(0)
+            return f"{hash_type}={hexdigest}"
+        else:
+            content_or_file = content_or_file.read()
+            if len(content_or_file) > 1048576:
+                threadlog.warn(
+                    "Read %.1f megabytes into memory in get_default_hash_spec",
+                    len(content_or_file) / 1048576)
+    if isinstance(content_or_file, bytes):
+        running_hash = getattr(hashlib, hash_type)(content_or_file)
+        return f"{running_hash.name}={running_hash.hexdigest()}"
 
 
 def make_splitdir(hash_spec):
