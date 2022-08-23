@@ -1,0 +1,1 @@
+Preserve toxresult filenames during import to keep them being accessible on the same URLs after the fix for #686 in 5.2.0.

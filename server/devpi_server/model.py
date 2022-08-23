@@ -748,7 +748,7 @@ class BaseStage(object):
         assert len(links) < 2
         return links[0] if links else None
 
-    def store_toxresult(self, link, toxresultdata):
+    def store_toxresult(self, link, toxresultdata, filename=None):
         if self.customizer.readonly:
             raise ReadonlyIndex("index is marked read only")
         linkstore = self.get_linkstore_perstage(link.project, link.version, readonly=False)
@@ -757,7 +757,8 @@ class BaseStage(object):
         return linkstore.new_reflink(
             rel="toxresult",
             content_or_file=toxresultdata,
-            for_entrypath=link)
+            for_entrypath=link,
+            filename=filename)
 
     def get_toxresults(self, link):
         l = []
@@ -1539,16 +1540,17 @@ class LinkStore:
             link.add_log('overwrite', None, count=overwrite + 1)
         return link
 
-    def new_reflink(self, rel, content_or_file, for_entrypath):
+    def new_reflink(self, rel, content_or_file, for_entrypath, filename=None):
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
         links = self.get_links(entrypath=for_entrypath)
         assert len(links) == 1, f"need exactly one reference, got {links}"
         base_entry = links[0].entry
-        other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
-        timestamp = strftime("%Y%m%d%H%M%S", gmtime())
-        filename = "%s.%s-%s-%d" % (
-            base_entry.basename, rel, timestamp, len(other_reflinks))
+        if filename is None:
+            other_reflinks = self.get_links(rel=rel, for_entrypath=for_entrypath)
+            timestamp = strftime("%Y%m%d%H%M%S", gmtime())
+            filename = "%s.%s-%s-%d" % (
+                base_entry.basename, rel, timestamp, len(other_reflinks))
         entry = self._create_file_entry(
             filename, content_or_file, ref_hash_spec=base_entry.hash_spec)
         return self._add_link_to_file_entry(
