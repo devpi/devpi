@@ -1427,9 +1427,30 @@ def devpiserver_get_stage_customizer_classes():
         ("stage", StageCustomizer)]
 
 
+def linkdictprop(name, default=notset):
+    def fget(self):
+        try:
+            return self.linkdict[name]
+        except KeyError:
+            if default is notset:
+                raise AttributeError(name)
+            return default
+
+    return property(fget)
+
+
 class ELink(object):
     """ model Link using entrypathes for referencing. """
     __slots__ = ('_entry', 'basename', 'filestore', 'linkdict', 'project', 'version')
+
+    _log = linkdictprop("_log")
+    entrypath = linkdictprop("entrypath")
+    for_entrypath = linkdictprop("for_entrypath", default=None)
+    hash_spec = linkdictprop("hash_spec", default="")
+    rel = linkdictprop("rel", default=None)
+    relpath = linkdictprop("entrypath")
+    require_python = linkdictprop("require_python")
+    yanked = linkdictprop("yanked")
 
     def __init__(self, filestore, linkdict, project, version):
         self._entry = notset
@@ -1438,14 +1459,6 @@ class ELink(object):
         self.basename = posixpath.basename(self.entrypath)
         self.project = project
         self.version = version
-
-    @property
-    def relpath(self):
-        return self.linkdict["entrypath"]
-
-    @property
-    def hash_spec(self):
-        return self.linkdict.get("hash_spec", "")
 
     @property
     def hash_value(self):
@@ -1461,14 +1474,6 @@ class ELink(object):
             return True
         return get_hash_spec(
             content_or_file, hash_algo().name) == self.hash_spec
-
-    def __getattr__(self, name):
-        try:
-            return self.linkdict[name]
-        except KeyError:
-            if name in ("for_entrypath", "rel"):
-                return None
-            raise AttributeError(name)
 
     def __repr__(self):
         return "<ELink rel=%r entrypath=%r>" % (self.rel, self.entrypath)
