@@ -1021,9 +1021,7 @@ class FileReplicationThread:
             return
         # run hook
         with keyfs.transaction(write=False, at_serial=serial):
-            user = entry.key.params['user']
-            index = entry.key.params['index']
-            stage = self.xom.model.getstage(user, index)
+            stage = self.xom.model.getstage(entry.user, entry.index)
             if stage is None:
                 return
             stage.offline = True
