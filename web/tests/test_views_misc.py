@@ -168,6 +168,35 @@ def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
     assert links == expected
 
 
+def test_redirects(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    r = testapp.get('http://localhost', follow=False)
+    assert r.status_code == 200
+    r = testapp.get('http://localhost/', follow=False)
+    assert r.status_code == 200
+    r = testapp.get('http://localhost/%s' % api.user, follow=False)
+    assert r.status_code == 200
+    r = testapp.get('http://localhost/%s/' % api.user, follow=False)
+    assert r.status_code == 302
+    assert r.headers["Location"] == 'http://localhost/%s' % api.user
+    r = testapp.get('http://localhost/%s' % api.stagename, follow=False)
+    assert r.status_code == 200
+    r = testapp.get('http://localhost/%s/' % api.stagename, follow=False)
+    assert r.status_code == 302
+    assert r.headers["Location"] == 'http://localhost/%s' % api.stagename
+    r = testapp.get('http://localhost/%s/pkg1' % api.stagename, follow=False)
+    assert r.status_code == 200
+    r = testapp.get('http://localhost/%s/pkg1/' % api.stagename, follow=False)
+    assert r.status_code == 302
+    assert r.headers["Location"] == 'http://localhost/%s/pkg1' % api.stagename
+    r = testapp.get('http://localhost/%s/pkg1/2.6' % api.stagename, follow=False)
+    assert r.status_code == 200
+    r = testapp.get('http://localhost/%s/pkg1/2.6/' % api.stagename, follow=False)
+    assert r.status_code == 302
+    assert r.headers["Location"] == 'http://localhost/%s/pkg1/2.6' % api.stagename
+
+
 def test_static_404(testapp):
     from devpi_web import __version__
     r = testapp.xget(404, '/+static-%s/foo.png' % __version__)

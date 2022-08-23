@@ -105,6 +105,8 @@ def ServerViews(context, request):
 
 def tween_trailing_slash_redirect(handler, registry):
     def request_trailing_slash_redirect_handler(request):
+        if request.path == "/":
+            return handler(request)
         if request.method != "GET":
             return handler(request)
         if '/+' in request.url:
