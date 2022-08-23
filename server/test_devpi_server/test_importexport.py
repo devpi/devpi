@@ -582,6 +582,17 @@ class TestImportExport:
             assert history_log[0]['who'] == 'user1'
             assert history_log[0]['dst'] == 'user1/dev'
 
+    def test_import_with_old_toxresult_naming_scheme(self, impexp):
+        mapp = impexp.import_testdata('toxresult_naming_scheme')
+        with mapp.xom.keyfs.transaction(write=False):
+            stage = mapp.xom.model.getstage("root/dev")
+            ls = stage.get_linkstore_perstage("hello", "0.9")
+            (release,) = ls.get_links(rel="releasefile")
+            (toxresult,) = ls.get_links(rel="toxresult")
+            assert toxresult.for_entrypath == release.relpath
+            # we expect the name from the imported data
+            assert toxresult.basename == "hello-0.9.tar.gz.toxresult0"
+
     def test_import_without_history_log(self, impexp, tox_result_data):
         DUMP_FILE = {
           "users": {

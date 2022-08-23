@@ -608,7 +608,8 @@ class Importer:
             # it might use a different checksum
             basename = posixpath.basename(filedesc["for_entrypath"])
             link, = linkstore.get_links(basename=basename)
-            link = stage.store_toxresult(link, f)
+            link = stage.store_toxresult(
+                link, f, filename=posixpath.basename(filedesc["relpath"]))
         else:
             fatal("unknown file type: %s" % (type,))
         if link is not None:
