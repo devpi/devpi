@@ -119,8 +119,8 @@ class TxNotificationThread:
                 self.thread.sleep(1.0)
 
     def get_ixconfig(self, entry, event_serial):
-        user = entry.key.params['user']
-        index = entry.key.params['index']
+        user = entry.user
+        index = entry.index
         if getattr(self, '_get_ixconfig_cache_serial', None) != event_serial:
             self._get_ixconfig_cache = {}
             self._get_ixconfig_cache_serial = event_serial

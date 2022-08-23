@@ -196,6 +196,14 @@ class FileEntry(object):
             self._meta = meta or {}
 
     @property
+    def index(self):
+        return self.key.params['index']
+
+    @property
+    def user(self):
+        return self.key.params['user']
+
+    @property
     def hash_algo(self):
         if self.hash_spec:
             return parse_hash_spec(self.hash_spec)[0]

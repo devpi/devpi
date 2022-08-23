@@ -1462,6 +1462,14 @@ class ELink(object):
         self.version = version
 
     @property
+    def index(self):
+        return self.entry.index
+
+    @property
+    def user(self):
+        return self.entry.user
+
+    @property
     def hash_value(self):
         return self.hash_spec.split("=")[1]
 
