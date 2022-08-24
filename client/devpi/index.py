@@ -51,7 +51,12 @@ def index_list(hub, username):
 def index_show(hub, url):
     if not url:
         hub.fatal("no index specified and no index in use")
-    reply = hub.http_api("get", url, None, quiet=True, type="indexconfig")
+    reply = hub.http_api(
+        "get", url, fatal=False, quiet=True, type="indexconfig")
+    if reply.status_code == 403:
+        hub.requires_login()
+    elif reply.status_code >= 400:
+        raise SystemExit(1)
     ixconfig = reply.result
     hub.info(url.url + ":")
     key_order = ["type", "bases", "volatile", "acl_upload"]
