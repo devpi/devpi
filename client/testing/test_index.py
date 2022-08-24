@@ -23,6 +23,23 @@ def test_index_show_without_login(loghub, mock_http_api):
     main(loghub, loghub.args)
 
 
+def test_index_show_requiring_login(loghub, mock_http_api):
+    loghub.current.reconfigure(dict(
+        simpleindex="http://devpi/index",
+        index="http://devpi/root/dev/",
+        login="http://devpi/+login"))
+    loghub.args.indexname = "hello/dev"
+    loghub.args.keyvalues = []
+    loghub.args.create = None
+    loghub.args.delete = None
+    loghub.args.list = None
+    loghub.args.no_projects = None
+    mock_http_api.set("http://devpi/hello/dev", 403, result={})
+    with pytest.raises(SystemExit):
+        main(loghub, loghub.args)
+    loghub._getmatcher().fnmatch_lines("*you need to be logged in*")
+
+
 def test_index_list_without_login(loghub):
     loghub.args.indexname = None
     loghub.args.keyvalues = []

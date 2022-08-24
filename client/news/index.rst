@@ -1,0 +1,1 @@
+Better error message when trying to use ``devpi index`` which requires authentication (devpi-lockdown).
