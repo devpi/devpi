@@ -1,0 +1,24 @@
+-e common
+-e client
+-e server
+-e web
+PdbEditorSupport
+Sphinx
+beautifulsoup4
+certauth
+execnet
+flake8<5
+mock
+pytest
+pytest-cov
+pytest-flake8
+pytest-icdiff
+pytest-instafail
+pytest-pdb
+pytest-sugar
+pytest-timeout
+supervisor
+towncrier>=21.9.0
+tox
+webtest
+wheel
