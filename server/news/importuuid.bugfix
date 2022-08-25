@@ -1,0 +1,1 @@
+Removed preservation of original server uuid during import. Imported state is different from the original server. Replicas could not detect the change and get into an inconsistent state.

@@ -57,7 +57,7 @@ if __name__ == "__main__":
         'Documentation': 'https://doc.devpi.net',
         'Source Code': 'https://github.com/devpi/devpi'
       },
-      version='6.6.1.dev1',
+      version='6.6.1.dev2',
       maintainer="Florian Schulze",
       maintainer_email="mail@pyfidelity.com",
       packages=[
