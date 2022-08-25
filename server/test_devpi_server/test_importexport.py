@@ -203,7 +203,7 @@ class TestImportExport:
                 set_state_version(self.mapp1.xom.config)
                 self.options = options
 
-            def export(self, initnodeinfo=True):
+            def export(self):
                 from devpi_server.importexport import export
                 argv = [
                     "devpi-export",
@@ -317,10 +317,10 @@ class TestImportExport:
             '/user1/dev6/+f/dab/741b6289e7dcc/pkg1-1.0.tar.gz']
 
     def test_uuid(self, impexp):
+        nodeinfo1 = impexp.mapp1.xom.config.nodeinfo
         impexp.export()
-        mapp2 = impexp.new_import()
-        assert mapp2.xom.config.nodeinfo["uuid"] == \
-              impexp.mapp1.xom.config.nodeinfo["uuid"]
+        nodeinfo2 = impexp.new_import().xom.config.nodeinfo
+        assert nodeinfo1["uuid"] != nodeinfo2["uuid"]
 
     def test_two_indexes_inheriting(self, impexp):
         mapp1 = impexp.mapp1
@@ -854,23 +854,6 @@ class TestImportExport:
         impexp.export()
         mapp2 = impexp.new_import()
         mapp2.login("exp", "pass")
-
-    def test_import_replica_preserves_master_uuid(self, impexp):
-        mapp1 = impexp.mapp1
-        mapp1.create_and_login_user("exp", "pass")
-        # fake it's a replica
-        # delete cached value
-        del mapp1.xom.config._master_url
-        mapp1.xom.config.nodeinfo["role"] = "replica"
-        mapp1.xom.config.nodeinfo["masterurl"] = "http://xyz"
-        mapp1.xom.config.init_nodeinfo()
-        mapp1.xom.config.set_master_uuid("mm")
-        mapp1.xom.config.set_uuid("1111")
-        impexp.export(initnodeinfo=False)
-        mapp2 = impexp.new_import()
-        assert mapp2.xom.config.nodeinfo["role"] == "standalone"
-        assert mapp2.xom.config.get_master_uuid() == "mm"
-        assert mapp2.xom.config.nodeinfo["uuid"] == "mm"
 
     def test_docs_are_preserved(self, impexp):
         mapp1 = impexp.mapp1

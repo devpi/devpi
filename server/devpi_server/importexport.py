@@ -200,7 +200,6 @@ class Exporter:
         self.export["dumpversion"] = self.DUMPVERSION
         self.export["pythonversion"] = list(sys.version_info)
         self.export["devpi_server"] = server_version
-        self.export["uuid"] = self.xom.config.get_master_uuid()
         for user in self.xom.model.get_userlist():
             userdir = path.join(user.name)
             data = user.get(credentials=True)
@@ -404,9 +403,6 @@ class Importer:
         self.dumpversion = self.import_data["dumpversion"]
         if self.dumpversion not in ("1", "2"):
             fatal(f"incompatible dumpversion: {self.dumpversion!r}")
-        uuid = self.import_data.get("uuid")
-        if uuid is not None:
-            self.xom.config.set_uuid(uuid)
         self.import_users = self.import_data["users"]
         self.import_indexes = self.import_data["indexes"]
         self.display_import_header(path)
