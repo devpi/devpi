@@ -70,13 +70,58 @@ def gen_nginx(tw, config, argv, writer):
         parts.append(80)
     outside_host, outside_port = parts
 
-    nginxconf = render("nginx-devpi.conf", format=1,
-                       outside_url=outside_url,
-                       outside_host=outside_host,
-                       outside_port=outside_port,
-                       port=config.args.port,
-                       serverdir=config.serverdir)
+    nginxconf = render(
+        "nginx-devpi.conf", format=1,
+        caching_http="",
+        caching_server="",
+        caching_location="        ",
+        caching_proxy="        ",
+        outside_url=outside_url,
+        outside_host=outside_host,
+        outside_port=outside_port,
+        port=config.args.port,
+        serverdir=config.serverdir)
     writer("nginx-devpi.conf", nginxconf)
+
+
+def gen_nginx_caching(tw, config, argv, writer):
+    outside_url = config.args.outside_url
+    if outside_url is None:  # default
+        outside_url = "http://localhost:80"
+
+    parts = URL(outside_url).netloc.split(":")
+    if len(parts) < 2:
+        parts.append(80)
+    outside_host, outside_port = parts
+
+    caching_http = render(
+        "nginx-devpi-caching-http.conf",
+        format=1,
+        cache_expiry=f"{config.args.mirror_cache_expiry}s")
+    caching_server = render(
+        "nginx-devpi-caching-server.conf",
+        format=1,
+        cache_expiry=f"{config.args.mirror_cache_expiry}s")
+    caching_location = render(
+        "nginx-devpi-caching-location.conf",
+        format=1,
+        cache_expiry=f"{config.args.mirror_cache_expiry}s")
+    caching_proxy = render(
+        "nginx-devpi-caching-proxy.conf",
+        format=1,
+        cache_expiry=f"{config.args.mirror_cache_expiry}s")
+    nginxconf = render(
+        "nginx-devpi.conf", format=1,
+        caching_http=caching_http,
+        caching_server=caching_server,
+        caching_location=caching_location + "        ",
+        caching_proxy=caching_proxy + "        ",
+        outside_url=outside_url,
+        outside_host=outside_host,
+        outside_port=outside_port,
+        port=config.args.port,
+        serverdir=config.serverdir)
+    writer("nginx-devpi-caching.conf", nginxconf)
 
 
 def gen_launchd(tw, config, argv, writer):
@@ -117,6 +162,7 @@ def devpiserver_genconfig(tw, config, argv, writer):
     gen_cron(tw, config, argv, writer)
     gen_launchd(tw, config, argv, writer)
     gen_nginx(tw, config, argv, writer)
+    gen_nginx_caching(tw, config, argv, writer)
     gen_supervisor(tw, config, argv, writer)
     gen_systemd(tw, config, argv, writer)
     gen_windows_service(tw, config, argv, writer)

@@ -1,0 +1,18 @@
+# adjust the path for your system,
+# the size (in keys_zone) and the life time to your liking,
+# by default the life time matches the mirror cache expiry setting
+proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=devpi_cache:10m inactive=%(cache_expiry)s use_temp_path=off;
+
+map $http_user_agent $devpi_installer_agent {
+        default         0;
+        ~*distribute/   1;
+        ~*setuptools/   1;
+        ~*pip/          1;
+        ~*pex/          1;
+}
+
+map $http_accept $devpi_installer_accept {
+        default                                     0;
+        ~*application/vnd\.pypi\.simple\.v1\+json   1;
+}
+

@@ -1,4 +1,4 @@
-map $http_x_forwarded_proto $x_scheme {
+%(caching_http)smap $http_x_forwarded_proto $x_scheme {
     default $scheme;
     http http;
     https https;
@@ -21,7 +21,7 @@ server {
 
     # set to where your devpi-server state is on the filesystem
     root %(serverdir)s;
-
+%(caching_server)s
     # try serving static files directly
     location ~ /\+f/ {
         # workaround to pass non-GET/HEAD requests through to the named location below
@@ -31,7 +31,7 @@ server {
         }
 
         expires max;
-        try_files /+files$uri @proxy_to_app;
+%(caching_location)stry_files /+files$uri @proxy_to_app;
     }
 
     # try serving docs directly
@@ -39,7 +39,7 @@ server {
         # if the --documentation-path option of devpi-web is used,
         # then the root must be set accordingly here
         root %(serverdir)s;
-        try_files $uri @proxy_to_app;
+%(caching_location)stry_files $uri @proxy_to_app;
     }
 
     location / {
@@ -49,7 +49,7 @@ server {
     }
 
     location @proxy_to_app {
-        proxy_pass http://localhost:%(port)s;
+%(caching_proxy)sproxy_pass http://localhost:%(port)s;
         # the $x_scheme variable is only required if nginx is behind another
         # proxy (often the case in container environments),
         # if your nginx is the only proxy server, the $scheme variable can be

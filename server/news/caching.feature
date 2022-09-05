@@ -1,0 +1,1 @@
+Add nginx example to ``devpi-gen-config`` with caching of simple pages for installers like pip.

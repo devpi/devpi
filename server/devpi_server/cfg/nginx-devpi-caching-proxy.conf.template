@@ -1,0 +1,7 @@
+        # use the keys_zone defined above
+        proxy_cache devpi_cache;
+        proxy_cache_bypass $bypass_caching;
+        add_header X-Cached $upstream_cache_status;
+        # adjust the life time to your liking, by default it matches
+        # the mirror cache expiry setting
+        proxy_cache_valid 200 %(cache_expiry)s;
