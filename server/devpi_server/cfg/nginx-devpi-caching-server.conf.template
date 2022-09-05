@@ -1,0 +1,15 @@
+
+    # by default we bypass the cache
+    set $bypass_caching 1;
+
+    # if we detect a known installer, we enable caching
+    if ($devpi_installer_agent)
+    {
+        set $bypass_caching 0;
+    }
+
+    # for https://peps.python.org/pep-0691/ we also enable caching
+    if ($devpi_installer_accept)
+    {
+        set $bypass_caching 0;
+    }

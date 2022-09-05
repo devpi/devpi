@@ -1,0 +1,4 @@
+        # in case we let nginx cache responses, we disable it here.
+        # if you use a backend which doesn't have files on the filesystem
+        # or your nginx can't access them, set it to 0 instead:
+        set $bypass_caching 1;
