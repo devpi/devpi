@@ -1,3 +1,9 @@
+map $http_x_forwarded_proto $x_scheme {
+    default $scheme;
+    http http;
+    https https;
+}
+
 server {
     server_name %(outside_host)s $hostname "";
     listen %(outside_port)s;
@@ -44,7 +50,12 @@ server {
 
     location @proxy_to_app {
         proxy_pass http://localhost:%(port)s;
-        proxy_set_header X-outside-url $scheme://$http_host;
+        # the $x_scheme variable is only required if nginx is behind another
+        # proxy (often the case in container environments),
+        # if your nginx is the only proxy server, the $scheme variable can be
+        # used and the map $http_x_forwarded_proto $x_scheme above be removed
+        proxy_set_header X-Forwarded-Proto $x_scheme;
+        proxy_set_header X-outside-url $x_scheme://$http_host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
