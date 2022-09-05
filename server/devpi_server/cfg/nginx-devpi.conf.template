@@ -1,34 +1,33 @@
 server {
-    server_name %(outside_host)s $hostname "";   
+    server_name %(outside_host)s $hostname "";
     listen %(outside_port)s;
     gzip             on;
     gzip_min_length  2000;
     gzip_proxied     any;
-    gzip_types       application/json; 
-
-    proxy_read_timeout 60s;
-    client_max_body_size 64M;
-
     # add application/vnd.pypi.simple.v1+json to the gzip_types
     gzip_types  text/plain text/css text/xml
                 application/json application/vnd.pypi.simple.v1+json
                 application/javascript text/javascript
                 application/xml application/xml+rss;
 
+    proxy_read_timeout 60s;
+    client_max_body_size 64M;
+
     # set to where your devpi-server state is on the filesystem
-    root %(serverdir)s;  
+    root %(serverdir)s;
 
     # try serving static files directly
     location ~ /\+f/ {
         # workaround to pass non-GET/HEAD requests through to the named location below
         error_page 418 = @proxy_to_app;
         if ($request_method !~ (GET)|(HEAD)) {
-            return 418; 
+            return 418;
         }
 
         expires max;
         try_files /+files$uri @proxy_to_app;
     }
+
     # try serving docs directly
     location ~ /\+doc/ {
         # if the --documentation-path option of devpi-web is used,
@@ -36,14 +35,16 @@ server {
         root %(serverdir)s;
         try_files $uri @proxy_to_app;
     }
+
     location / {
         # workaround to pass all requests to / through to the named location below
         error_page 418 = @proxy_to_app;
         return 418;
     }
+
     location @proxy_to_app {
         proxy_pass http://localhost:%(port)s;
         proxy_set_header X-outside-url $scheme://$http_host;
         proxy_set_header X-Real-IP $remote_addr;
     }
-} 
+}
