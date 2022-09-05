@@ -1,0 +1,1 @@
+Fix #840: Correct url scheme in config if nginx is behind another proxy.
