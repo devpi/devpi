@@ -3,7 +3,7 @@
 basic mechanics for turning a mutable dict/list/seq/tuple
 into a readonly view.
 """
-
+from functools import total_ordering
 import py
 
 
@@ -62,6 +62,7 @@ def is_sequence(val):
     return isinstance(val, (SeqViewReadonly, list, tuple))
 
 
+@total_ordering
 class ReadonlyView(object):
     __slots__ = ('_data',)
 
@@ -69,10 +70,14 @@ class ReadonlyView(object):
         self._data = data
 
     def __eq__(self, other):
+        if isinstance(other, ReadonlyView):
+            other = other._data
         return self._data == other
 
-    def __ne__(self, other):
-        return self._data != other
+    def __lt__(self, other):
+        if isinstance(other, ReadonlyView):
+            other = other._data
+        return self._data < other
 
     def __contains__(self, key):
         return key in self._data

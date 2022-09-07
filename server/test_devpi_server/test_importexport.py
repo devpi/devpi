@@ -10,7 +10,6 @@ from devpi_server.importexport import Exporter
 from devpi_server.importexport import IndexTree
 from devpi_server.importexport import do_export, do_import
 from devpi_server.main import Fatal
-from devpi_server.readonly import get_mutable_deepcopy
 from devpi_common.archive import Archive, zip_dict
 from devpi_common.metadata import Version
 from devpi_common.url import URL
@@ -474,8 +473,7 @@ class TestImportExport:
             stage.offline = True
             projects = stage.list_projects_perstage()
             assert projects == {'package': 'package'}
-            links = sorted(get_mutable_deepcopy(
-                stage.get_simplelinks_perstage("package")))
+            links = sorted(stage.get_simplelinks_perstage("package"))
             assert links == [
                 ('package-1.1.zip', 'root/pypi/+f/a66/5a45920422f9d/package-1.1.zip', None, None),
                 ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, ""),
