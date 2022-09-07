@@ -570,7 +570,9 @@ class PyPIView:
         stage = self.context.stage
         requested_by_installer = is_simple_json_or_requested_by_installer(request)
         try:
-            result = stage.get_simplelinks(project, sorted_links=not requested_by_installer)
+            result = stage.SimpleLinks(
+                stage.get_simplelinks(
+                    project, sorted_links=not requested_by_installer))
         except stage.UpstreamError as e:
             threadlog.error(e.msg)
             abort(request, 502, e.msg)
@@ -602,6 +604,8 @@ class PyPIView:
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial is not None and serial > 0:
                 response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
+        if result.stale:
+            response.cache_expires()
         return response
 
     def _makeurl_factory(self):

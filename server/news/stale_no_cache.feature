@@ -1,0 +1,1 @@
+Set headers to prevent caching for simple links with stale results.

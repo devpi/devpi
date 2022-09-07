@@ -585,7 +585,7 @@ class MirrorStage(BaseStage):
             if links is not None:
                 self.keyfs.tx.on_commit_success(partial(
                     self.cache_retrieve_times.refresh, project, info["etag"]))
-                return links
+                return self.SimpleLinks(links)
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)
         else:
@@ -610,7 +610,7 @@ class MirrorStage(BaseStage):
                 info["key_hrefs"], info["requires_python"], info["yanked"],
                 info["serial"],
                 info["etag"])
-            return newlinks
+            return self.SimpleLinks(newlinks)
 
     async def _update_simplelinks_in_future(self, newlinks_future, project, lock):
         threadlog.debug("Awaiting simple links for %r", project)
@@ -652,7 +652,7 @@ class MirrorStage(BaseStage):
                 threadlog.warn(
                     "serving stale links for %r, waiting for existing request timed out after %s seconds",
                     project, self.timeout)
-                return links
+                return self.SimpleLinks(links, stale=True)
             raise self.UpstreamError(
                 f"timeout after {self.timeout} seconds while getting data for {project!r}")
 
@@ -663,7 +663,7 @@ class MirrorStage(BaseStage):
                 threadlog.debug(
                     "using stale links for %r due to offline mode", project)
                 self._offline_logging.add(project)
-            return links
+            return self.SimpleLinks(links, stale=True)
 
         if links is None:
             is_retrieval_expired = self.cache_retrieve_times.is_expired(
@@ -698,14 +698,14 @@ class MirrorStage(BaseStage):
                 threadlog.warn(
                     "serving stale links for %r, getting data timed out after %s seconds",
                     project, self.timeout)
-                return links
+                return self.SimpleLinks(links, stale=True)
             raise self.UpstreamError(
                 f"timeout after {self.timeout} seconds while getting data for {project!r}")
         except self.UpstreamNotModified as e:
             if links is not None:
                 self.keyfs.tx.on_commit_success(partial(
                     self.cache_retrieve_times.refresh, project, e.etag))
-                return links
+                return self.SimpleLinks(links)
             if e.etag is None:
                 threadlog.error(
                     "server returned 304 Not Modified, but we have no links")
@@ -721,7 +721,7 @@ class MirrorStage(BaseStage):
                 threadlog.warn(
                     "serving stale links, because of exception %s",
                     lazy_format_exception(e))
-                return links
+                return self.SimpleLinks(links, stale=True)
             raise
 
         info = newlinks_future.result()
@@ -731,7 +731,7 @@ class MirrorStage(BaseStage):
         if links is not None and set(links) == set(newlinks):
             # no changes
             self.cache_retrieve_times.refresh(project, info["etag"])
-            return links
+            return self.SimpleLinks(links)
 
         return self._update_simplelinks(project, info, links, newlinks)
 
