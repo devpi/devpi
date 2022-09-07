@@ -580,6 +580,36 @@ class UnknownCustomizer(BaseStageCustomizer):
     get_principals_for_del_verdata = get_principals_for_index_modify
 
 
+@total_ordering
+class SimpleLinks:
+    __slots__ = ('_links', 'stale')
+
+    def __init__(self, links, stale=False):
+        assert links is not None
+        if isinstance(links, SimpleLinks):
+            self._links = links._links
+            self.stale = links.stale or stale
+        else:
+            self._links = links
+            self.stale = stale
+
+    def __iter__(self):
+        return self._links.__iter__()
+
+    def __len__(self):
+        return len(self._links)
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            other = other._links
+        return self._links == other
+
+    def __lt__(self, other):
+        if isinstance(other, type(self)):
+            other = other._links
+        return self._links < other
+
+
 class BaseStage(object):
     InvalidIndex = InvalidIndex
     InvalidIndexconfig = InvalidIndexconfig
@@ -591,6 +621,7 @@ class BaseStage(object):
     MissesRegistration = MissesRegistration
     MissesVersion = MissesVersion
     NonVolatile = NonVolatile
+    SimpleLinks = SimpleLinks
 
     def __init__(self, xom, username, index, ixconfig, customizer_cls):
         self.xom = xom
@@ -850,10 +881,14 @@ class BaseStage(object):
         """
         all_links = []
         seen = set()
+        stale = False
 
         try:
             for stage, res in self.op_sro_check_mirror_whitelist(
                     "get_simplelinks_perstage", project=project):
+                if res is not None:
+                    res = self.SimpleLinks(res)
+                    stale = stale or res.stale
                 iterator = self.customizer.get_simple_links_filter_iter(project, res)
                 if iterator is not None:
                     res = apply_filter_iter(res, iterator)
@@ -863,12 +898,13 @@ class BaseStage(object):
                         seen.add(key)
                         all_links.append(link_info)
         except self.UpstreamNotFoundError:
-            return []
+            return self.SimpleLinks([])
 
         if sorted_links:
-            all_links = [(v.key, v.href, v.require_python, v.yanked)
-                        for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
-        return all_links
+            all_links = [
+                (v.key, v.href, v.require_python, v.yanked)
+                for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
+        return self.SimpleLinks(all_links, stale=stale)
 
     def get_whitelist_inheritance(self):
         return self.ixconfig.get("mirror_whitelist_inheritance", "union")
@@ -1267,7 +1303,8 @@ class PrivateStage(BaseStage):
         links = data.get("links", [])
         requires_python = data.get("requires_python", [])
         yanked = []  # PEP 592 isn't supported for private stages yet
-        return join_links_data(links, requires_python, yanked)
+        return self.SimpleLinks(
+            join_links_data(links, requires_python, yanked))
 
     def _regen_simplelinks(self, project_input):
         project = normalize_name(project_input)
