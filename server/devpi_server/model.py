@@ -6,11 +6,11 @@ import re
 import json
 import warnings
 from devpi_common.metadata import get_latest_version
-from devpi_common.metadata import CompareMixin
 from devpi_common.metadata import splitbasename, parse_version
 from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
+from functools import total_ordering
 try:
     from itertools import zip_longest
 except ImportError:
@@ -729,7 +729,7 @@ class BaseStage(object):
 
     def _make_elink(self, project, link_info):
         rp = SimplelinkMeta(link_info)
-        linkdict = {"entrypath": rp._url.path, "hash_spec": rp._url.hash_spec,
+        linkdict = {"entrypath": rp.path, "hash_spec": rp.hash_spec,
                     "require_python": rp.require_python, "yanked": rp.yanked}
         return ELink(self.filestore, linkdict, project, rp.version)
 
@@ -1623,16 +1623,105 @@ class LinkStore:
                      self.version)
 
 
-class SimplelinkMeta(CompareMixin):
+@total_ordering
+class SimplelinkMeta:
     """ helper class to provide information for items from get_simplelinks() """
-    def __init__(self, link_info):
-        self.key, self.href, self.require_python, self.yanked = link_info
-        self._url = URL(self.href)
-        self.name, self.version, self.ext = splitbasename(self._url.basename, checkarch=False)
 
-    @cached_property
+    __slots__ = (
+        '__basename', '__cmpval', '__ext', '__hash_spec',
+        '__name', '__path', '__url', '__version',
+        'key', 'href', 'require_python', 'yanked')
+
+    def __init__(self, link_info):
+        self.__basename = notset
+        self.__cmpval = notset
+        self.__ext = notset
+        self.__hash_spec = notset
+        self.__name = notset
+        self.__path = notset
+        self.__url = notset
+        self.__version = notset
+        (self.key, self.href, self.require_python, self.yanked) = link_info
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            other = other.cmpval
+        return self.cmpval == other
+
+    def __lt__(self, other):
+        if isinstance(other, type(self)):
+            other = other.cmpval
+        return self.cmpval < other
+
+    def __getitem__(self, index):
+        warnings.warn(
+            "Item access for SimplelinkMeta is deprecated, "
+            "use attributes instead.",
+            DeprecationWarning)
+        if index == 0:
+            return self.key
+        elif index == 1:
+            return self.href
+        elif index == 2:
+            return self.require_python
+        elif index == 3:
+            return self.yanked
+        raise IndexError(f"{self.__class__.__name__} index out of range")
+
+    def __splitbasename(self):
+        (self.__name, self.__version, self.__ext) = splitbasename(
+            self.basename, checkarch=False)
+
+    def __parse_url(self):
+        url = URL(self.href)
+        self.__basename = url.basename
+        self.__hash_spec = url.hash_spec
+        self.__path = url.path
+
+    @property
+    def basename(self):
+        if self.__basename is notset:
+            self.__parse_url()
+        return self.__basename
+
+    @property
+    def hash_spec(self):
+        if self.__hash_spec is notset:
+            self.__parse_url()
+        return self.__hash_spec
+
+    @property
+    def path(self):
+        if self.__path is notset:
+            self.__parse_url()
+        return self.__path
+
+    @property
+    def name(self):
+        if self.__name is notset:
+            self.__splitbasename()
+        return self.__name
+
+    @property
+    def version(self):
+        if self.__version is notset:
+            self.__splitbasename()
+        return self.__version
+
+    @property
+    def ext(self):
+        if self.__ext is notset:
+            self.__splitbasename()
+        return self.__ext
+
+    @property
     def cmpval(self):
-        return parse_version(self.version), normalize_name(self.name), self.ext
+        if self.__cmpval is notset:
+            self.__cmpval = (
+                parse_version(self.version),
+                normalize_name(self.name),
+                self.ext)
+        return self.__cmpval
 
 
 def make_key_and_href(entry):
