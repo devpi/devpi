@@ -3,6 +3,22 @@
 .. towncrier release notes start
 
 
+6.6.1 (2022-09-12)
+==================
+
+
+Bug Fixes
+---------
+
+- Fix slowdown introduced in 6.6.0 when simple links for mirrors are requested more than once in the same thread.
+
+- Removed preservation of original server uuid during import. Imported state is different from the original server. Replicas could not detect the change and get into an inconsistent state.
+
+- Prevent cache trashing when updating simple links on mirrors for projects with huge number of releases.
+
+- Preserve toxresult filenames during import to keep them being accessible on the same URLs after the fix for #686 in 5.2.0.
+
+
 6.6.0 (2022-08-16)
 ==================
 
