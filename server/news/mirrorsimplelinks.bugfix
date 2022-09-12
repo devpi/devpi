@@ -1,1 +1,0 @@
-Prevent cache trashing when updating simple links on mirrors for projects with huge number of releases.

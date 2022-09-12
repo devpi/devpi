@@ -1,1 +1,0 @@
-Fix slowdown introduced in 6.6.0 when simple links for mirrors are requested more than once in the same thread.
