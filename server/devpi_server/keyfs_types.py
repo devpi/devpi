@@ -1,16 +1,17 @@
-import attr
+from attrs import define
+from typing import Any
 import contextlib
 import py
 import re
 
 
-@attr.s(slots=True)
-class RelpathInfo(object):
-    relpath = attr.ib(type=str)
-    keyname = attr.ib(type=str)
-    serial = attr.ib(type=int)
-    back_serial = attr.ib(type=int)
-    value = attr.ib()
+@define
+class RelpathInfo:
+    relpath: str
+    keyname: str
+    serial: int
+    back_serial: int
+    value: Any
 
 
 class PTypedKey:
