@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from devpi_web.indexing import ProjectIndexingInfo
 import pytest
 

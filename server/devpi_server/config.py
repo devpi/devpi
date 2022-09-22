@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import argon2
 import base64
 import os.path

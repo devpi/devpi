@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from chameleon.config import AUTO_RELOAD
 from devpi_common.metadata import get_latest_version
 from devpi_web.config import add_indexer_backend_option

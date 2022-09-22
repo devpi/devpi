@@ -1,5 +1,3 @@
-# coding: utf-8
-from __future__ import unicode_literals
 from defusedxml.xmlrpc import DefusedExpatParser
 from devpi_common.metadata import Version
 from devpi_common.metadata import get_pyversion_filetype
@@ -18,14 +16,6 @@ from email.utils import parsedate
 from io import TextIOWrapper
 from operator import attrgetter, itemgetter
 from py.xml import html
-try:
-    from pyramid.compat import decode_path_info
-except ImportError:
-    # pyramid is >= 2.0, which means we can assume Python 3
-    # see PEP 3333 for why we encode WSGI PATH_INFO to latin-1 before
-    # decoding it to utf-8
-    def decode_path_info(path):
-        return path.encode('latin-1').decode('utf-8')
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
@@ -34,15 +24,18 @@ from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse, Response
 from pyramid.view import notfound_view_config, view_config
 from time import gmtime
-try:
-    from xmlrpc.client import Fault, Unmarshaller, dumps
-except ImportError:
-    from xmlrpclib import Fault, Unmarshaller, dumps
+from xmlrpc.client import Fault, Unmarshaller, dumps
 import functools
 import json
 import py
 
 seq_types = (list, tuple, SeqViewReadonly)
+
+
+# see PEP 3333 for why we encode WSGI PATH_INFO to latin-1 before
+# decoding it to utf-8
+def decode_path_info(path):
+    return path.encode('latin-1').decode('utf-8')
 
 
 class ContextWrapper(object):

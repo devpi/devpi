@@ -1,4 +1,3 @@
-from __future__ import print_function
 import re
 from webtest.forms import Upload
 import json
@@ -23,12 +22,8 @@ from devpi_common.url import URL
 from devpi_server.log import threadlog, thread_clear_log
 from pyramid.authentication import b64encode
 from pyramid.httpexceptions import status_map
-
+from queue import Queue as BaseQueue
 import hashlib
-try:
-    from queue import Queue as BaseQueue
-except ImportError:
-    from Queue import Queue as BaseQueue
 
 
 @pytest.fixture(scope="session")
@@ -186,10 +181,7 @@ def speed_up_sqlite_fs():
 
 @pytest.fixture(scope="session")
 def mock():
-    try:
-        from unittest import mock
-    except ImportError:
-        import mock
+    from unittest import mock
     return mock
 
 

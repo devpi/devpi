@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from devpi_common.archive import zip_dict
 from devpi_common.metadata import parse_version
 from devpi_web.indexing import ProjectIndexingInfo
