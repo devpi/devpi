@@ -601,7 +601,7 @@ devpi command reference (server)
                             path to existing files to try before downloading from
                             master. These could be from a previous replication
                             attempt or downloaded separately. Expects the
-                            structure from inside +files. [None]
+                            structure from previous state or +files. [None]
       --hard-links          use hard links during export, import or with
                             --replica-file-search-path instead of copying or
                             downloading files. All limitations for hard links on

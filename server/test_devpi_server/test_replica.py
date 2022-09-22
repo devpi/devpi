@@ -450,7 +450,15 @@ def make_replica_xom(makexom, secretfile):
 
 
 class TestUseExistingFiles:
-    def test_use_existing_files(self, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+    def test_missing_search_path(self, make_replica_xom, tmpdir):
+        from devpi_server.main import Fatal
+        existing_base = tmpdir.join('existing')
+        with pytest.raises(Fatal, match="search path for existing replica files doesn't exist"):
+            make_replica_xom(options=[
+                '--replica-file-search-path', existing_base.strpath])
+
+    @pytest.mark.parametrize('additional_path', [None, '+files'])
+    def test_use_existing_files(self, additional_path, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
         # this will be the folder to find existing files in the replica
         existing_base = tmpdir.join('existing').ensure_dir()
         # prepare data on master
@@ -460,7 +468,10 @@ class TestUseExistingFiles:
         # get the path of the release
         (path,) = mapp.get_release_paths('hello')
         # create the file
-        existing_path = existing_base.join(path)
+        existing_path = existing_base
+        if additional_path:
+            existing_path = existing_path.join(additional_path)
+        existing_path = existing_path.join(path)
         existing_path.dirpath().ensure_dir()
         existing_path.write_binary(content1)
         # create the replica with the path to existing files

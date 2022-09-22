@@ -27,6 +27,7 @@ from .filestore import get_file_hash
 from .fileutil import buffered_iterator
 from .fileutil import dumps, load, loads
 from .log import thread_push_log, threadlog
+from .main import fatal
 from .views import H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
 
@@ -828,7 +829,18 @@ class FileReplicationThread:
         self.xom = xom
         self.shared_data = shared_data
         self.session = self.xom.new_http_session("replica")
-        self.file_search_path = self.xom.config.replica_file_search_path
+        self.file_search_path = None
+        if self.xom.config.replica_file_search_path is not None:
+            search_path = os.path.join(
+                self.xom.config.replica_file_search_path, '+files')
+            if os.path.isdir(search_path):
+                self.file_search_path = search_path
+            else:
+                self.file_search_path = self.xom.config.replica_file_search_path
+            if not os.path.isdir(self.file_search_path):
+                fatal(
+                    "path for existing files doesn't exist: %s",
+                    self.xom.config.replica_file_search_path)
         self.use_hard_links = self.xom.config.hard_links
         self.uuid, master_uuid = make_uuid_headers(xom.config.nodeinfo)
         assert self.uuid != master_uuid
@@ -840,10 +852,6 @@ class FileReplicationThread:
     def find_pre_existing_file(self, entry):
         if self.file_search_path is None:
             return
-        if not os.path.exists(self.file_search_path):
-            threadlog.error(
-                "path for existing files doesn't exist: %s",
-                self.file_search_path)
         path = os.path.join(self.file_search_path, entry.relpath)
         if not os.path.exists(path):
             threadlog.debug("path for existing file not found: %s", path)
