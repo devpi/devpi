@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from devpi_common.archive import zip_dict
 from io import BytesIO
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.response import HTTPResponse
+from requests.packages.urllib3.response import HTTPResponse  # type: ignore
 from webob.request import cgi_FieldStorage
 import json
 import pytest

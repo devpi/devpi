@@ -2,6 +2,7 @@ from contextlib import closing
 from devpi_postgresql import main
 from pluggy import HookimplMarker
 from certauth.certauth import CertificateAuthority
+from typing import Set
 import sys
 import os
 import getpass
@@ -136,8 +137,8 @@ def devpipostgresql_postgresql(request):
 
 
 class Storage(main.Storage):
-    _dbs_created = set()
-    _connections = []
+    _dbs_created: Set[str] = set()
+    _connections: list = []
 
     @classmethod
     def _get_test_db(cls, basedir):

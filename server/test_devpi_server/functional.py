@@ -4,9 +4,9 @@ from devpi_common.metadata import parse_version
 import pytest
 
 try:
-    from urllib import quote as url_quote
-except ImportError:
     from urllib.parse import quote as url_quote
+except ImportError:
+    from urllib import quote as url_quote  # type: ignore
 
 
 class API:

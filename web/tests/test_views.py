@@ -1,13 +1,13 @@
 from devpi_common.archive import zip_dict
 from devpi_common.metadata import parse_version
-from devpi_server import __version__ as devpi_server_version
+from devpi_server import __version__ as _devpi_server_version
 from time import struct_time
 import py
 import pytest
 import re
 
 
-devpi_server_version = parse_version(devpi_server_version)
+devpi_server_version = parse_version(_devpi_server_version)
 
 
 def compareable_text(text):
