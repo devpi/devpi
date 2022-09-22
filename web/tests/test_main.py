@@ -1,10 +1,10 @@
 from devpi_common.metadata import parse_version
-from devpi_server import __version__ as devpi_server_version
+from devpi_server import __version__ as _devpi_server_version
 import pytest
 import textwrap
 
 
-devpi_server_version = parse_version(devpi_server_version)
+devpi_server_version = parse_version(_devpi_server_version)
 
 
 def test_importable():

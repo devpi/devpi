@@ -4,12 +4,12 @@ from __future__ import print_function
 try:
     from html import escape
 except ImportError:
-    from cgi import escape
+    from cgi import escape  # type: ignore
 import hashlib
 try:
     import http.server as httpserver
 except ImportError:
-    import BaseHTTPServer as httpserver
+    import BaseHTTPServer as httpserver  # type: ignore
 import sys
 
 

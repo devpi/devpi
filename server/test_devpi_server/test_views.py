@@ -304,11 +304,11 @@ user_agent_parameter_args = (
         'setuptools/6.1 Python-urllib/3.5',
         'pex/1.0.1',
         'pip/6.0.dev1 {"cpu":"x86_64","distro":{"name":"OS X","version":"10.9.5"},"implementation":{"name":"CPython","version":"2.7.8"},"installer":{"name":"pip","version":"6.0.dev1"},"python":"2.7.8","system":{"name":"Darwin","release":"13.4.0"}}'])
-user_agent_parameter_kw = dict(
-    ids=['pip', 'setuptools', 'urllib-setuptools', 'setuptools-urllib', 'pex', 'pip6'])
+user_agent_parameter_ids = [
+    'pip', 'setuptools', 'urllib-setuptools', 'setuptools-urllib', 'pex', 'pip6']
 
 
-@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
+@pytest.mark.parametrize(*user_agent_parameter_args, ids=user_agent_parameter_ids)
 def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
     # installers should get the simple projects info directly without redirect
     pypistage.mock_simple_projects(["hello1", "hello2"])
@@ -421,7 +421,7 @@ def test_projects_redirect(pypistage, testapp):
     assert r.status_code == 404
 
 
-@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
+@pytest.mark.parametrize(*user_agent_parameter_args, ids=user_agent_parameter_ids)
 def test_project_simple_results_for_installers(pypistage, testapp, user_agent):
     import os.path
     # installers should get the simple page info directly without redirect
@@ -456,7 +456,7 @@ def test_project_redirect(pypistage, testapp):
     assert r.status_code == 404
 
 
-@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
+@pytest.mark.parametrize(*user_agent_parameter_args, ids=user_agent_parameter_ids)
 def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testapp, user_agent):
     from devpi_server.model import BaseStage
     import os.path
@@ -488,7 +488,7 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
     assert "<input" not in r.text
 
 
-@pytest.mark.parametrize(*user_agent_parameter_args, **user_agent_parameter_kw)
+@pytest.mark.parametrize(*user_agent_parameter_args, ids=user_agent_parameter_ids)
 def test_simple_list_all_no_redirect_for_installers(pypistage, testapp, user_agent):
     pypistage.mock_simple_projects(["hello1", "hello2"])
     headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}

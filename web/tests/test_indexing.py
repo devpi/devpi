@@ -3,11 +3,11 @@ from devpi_common.metadata import parse_version
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import iter_projects
 from devpi_web.indexing import preprocess_project
-from devpi_server import __version__ as devpi_server_version
+from devpi_server import __version__ as _devpi_server_version
 import pytest
 
 
-devpi_server_version = parse_version(devpi_server_version)
+devpi_server_version = parse_version(_devpi_server_version)
 
 
 @pytest.mark.skipif(

@@ -9,6 +9,8 @@ certauth
 execnet
 flake8<5
 mock
+mypy[python2]
+mypy-zope
 pytest
 pytest-cov
 pytest-flake8
@@ -20,5 +22,8 @@ pytest-timeout
 supervisor
 towncrier>=21.9.0
 tox
+types-requests
+types-urllib3
+types-waitress
 webtest
 wheel

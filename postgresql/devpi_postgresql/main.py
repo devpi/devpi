@@ -9,7 +9,7 @@ from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy
 try:
     from devpi_server.sizeof import gettotalsizeof
 except ImportError:
-    def gettotalsizeof(obj, maxlen=None):
+    def gettotalsizeof(obj, maxlen=None):  # type: ignore
         # dummy value for old devpi_server releases
         return None
 from functools import partial

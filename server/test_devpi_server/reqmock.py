@@ -1,7 +1,7 @@
 # this file is shared via symlink with devpi-client,
 # so for the time being it must continue to work with Python 2
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.response import HTTPResponse
+from requests.packages.urllib3.response import HTTPResponse  # type: ignore
 import fnmatch
 import pytest
 import py

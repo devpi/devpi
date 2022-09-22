@@ -634,3 +634,32 @@ jobs:
           cd $PROJECT
           python -m tox -a -vv
           python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+
+  mypy-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    needs: "packages"
+
+    env:
+      PY_COLORS: 1
+
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "3.7"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel -r dev-requirements.txt
+      - name: "Run mypy"
+        continue-on-error: true
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -m mypy

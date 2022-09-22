@@ -1,7 +1,8 @@
 import sys
 from requests import Session
 from requests.adapters import HTTPAdapter
-from requests.exceptions import ConnectionError, RequestException, BaseHTTPError, SSLError
+from requests.exceptions import ConnectionError, RequestException, SSLError
+from urllib3.exceptions import HTTPError as BaseHTTPError
 
 
 class RetrySession(Session):
