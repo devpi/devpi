@@ -5,12 +5,31 @@ from devpi_server.readonly import is_sequence
 import pytest
 
 
+class TestEnsureDeeplyReadonly:
+    def test_bool(self) -> None:
+        result = ensure_deeply_readonly(True)
+        assert isinstance(result, bool)
+        assert result is True
+
+    def test_frozenset(self) -> None:
+        result = ensure_deeply_readonly(frozenset({1}))
+        assert isinstance(result, frozenset)
+        assert result == frozenset({1})
+
+
+class TestGetMutableDeepcopy:
+    def test_frozenset(self) -> None:
+        result = get_mutable_deepcopy(frozenset({1}))
+        assert isinstance(result, frozenset)
+        assert result == frozenset({1})
+
+
 class TestDictReadonlyView:
-    def test_nonzero(self):
+    def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly({})
         assert ensure_deeply_readonly({1:2})
 
-    def test_simple(self):
+    def test_simple(self) -> None:
         d = {1:2}
         r = ensure_deeply_readonly(d)
         assert r[1] == 2
@@ -20,26 +39,26 @@ class TestDictReadonlyView:
         assert r == d
         assert not (r != d)
 
-    def test_recursive(self):
-        d = {1:[]}
+    def test_recursive(self) -> None:
+        d: dict = {1: []}
         r = ensure_deeply_readonly(d)
         assert r[1] == []
         with pytest.raises(AttributeError):
             r[1].append(1)
 
-    def test_update(self):
+    def test_update(self) -> None:
         d = {1:2}
         d.update(ensure_deeply_readonly({2:3}))
         assert d == {1:2, 2:3}
 
 
 class TestSetReadonlyView:
-    def test_nonzero(self):
+    def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly(set())
         assert ensure_deeply_readonly(set([1]))
 
-    def test_simple(self):
-        x = set()
+    def test_simple(self) -> None:
+        x: set = set()
         assert not is_deeply_readonly(x)
         r = ensure_deeply_readonly(x)
         assert is_deeply_readonly(r)
@@ -49,21 +68,21 @@ class TestSetReadonlyView:
             r.add(2)
         assert len(r) == 0
 
-    def test_nogetitem(self):
+    def test_nogetitem(self) -> None:
         with pytest.raises(TypeError):
             ensure_deeply_readonly(set([1,2]))[0]
 
-    def test_iter(self):
+    def test_iter(self) -> None:
         l = list(ensure_deeply_readonly(set([1,2])))
         assert l == [1,2]
 
 
 class TestListReadonlyView:
-    def test_nonzero(self):
+    def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly([])
         assert ensure_deeply_readonly([1])
 
-    def test_simple(self):
+    def test_simple(self) -> None:
         x = [1]
         assert not is_deeply_readonly(x)
         r = ensure_deeply_readonly(x)
@@ -77,7 +96,7 @@ class TestListReadonlyView:
         c.append(1)
         assert c != x
 
-    def test_recursive(self):
+    def test_recursive(self) -> None:
         x = [[1]]
         r = ensure_deeply_readonly(x)
         y = r[0]
@@ -87,11 +106,11 @@ class TestListReadonlyView:
 
 
 class TestTupleReadonlyView:
-    def test_nonzero(self):
+    def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly(())
         assert ensure_deeply_readonly((1,))
 
-    def test_simple(self):
+    def test_simple(self) -> None:
         x = (1,)
         assert not is_deeply_readonly(x)
         r = ensure_deeply_readonly(x)
@@ -102,7 +121,7 @@ class TestTupleReadonlyView:
         c = get_mutable_deepcopy(r)
         assert c == x
 
-    def test_recursive(self):
+    def test_recursive(self) -> None:
         x = ([1],)
         r = ensure_deeply_readonly(x)
         with pytest.raises(AttributeError):
@@ -110,7 +129,7 @@ class TestTupleReadonlyView:
         assert r[0] == [1]
 
 
-def test_is_sequence():
+def test_is_sequence() -> None:
     assert is_sequence([])
     assert is_sequence(())
     assert is_sequence(ensure_deeply_readonly(()))
