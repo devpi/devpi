@@ -201,7 +201,7 @@ def add_replica_options(parser, pluginmanager):
         help="path to existing files to try before downloading "
              "from master. These could be from a previous "
              "replication attempt or downloaded separately. "
-             "Expects the structure from inside +files.")
+             "Expects the structure from previous state or +files.")
 
     add_hard_links_option(parser, pluginmanager)
 
