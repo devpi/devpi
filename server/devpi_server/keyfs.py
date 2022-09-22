@@ -6,7 +6,6 @@ write Transaction is ongoing.  Each Transaction will see a consistent
 view of key/values referring to the point in time it was started,
 independent from any future changes.
 """
-from __future__ import unicode_literals
 import re
 import contextlib
 import py

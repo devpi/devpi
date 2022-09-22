@@ -3,7 +3,6 @@ Module for handling storage and proxy-streaming and caching of release files
 for all indexes.
 
 """
-from __future__ import unicode_literals
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time

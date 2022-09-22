@@ -13,11 +13,7 @@ import sys
 
 
 def get_username():
-    msg = "User to set password for: "
-    try:
-        return raw_input(msg)
-    except NameError:
-        return input(msg)
+    return input("User to set password for: ")
 
 
 def passwd():

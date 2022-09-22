@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from devpi_common.archive import zip_dict
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.main import get_indexer

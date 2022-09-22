@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 from devpi_server.config import hookimpl
 import pytest
 

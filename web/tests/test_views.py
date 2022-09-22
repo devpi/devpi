@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from devpi_common.archive import zip_dict
 from devpi_common.metadata import parse_version
 from devpi_server import __version__ as devpi_server_version

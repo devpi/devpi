@@ -1,8 +1,4 @@
-from __future__ import unicode_literals
-try:
-    from UserDict import DictMixin
-except ImportError:
-    from collections.abc import MutableMapping as DictMixin
+from collections.abc import MutableMapping as DictMixin
 from bs4 import BeautifulSoup
 from contextlib import contextmanager
 from devpi_common.archive import Archive

@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from collections import defaultdict
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
@@ -226,10 +225,7 @@ class IndexingSharedData(object):
     ERROR_QUEUE_MAX_DELAY = 60 * 60
 
     def __init__(self):
-        try:
-            from queue import Empty, PriorityQueue
-        except ImportError:
-            from Queue import Empty, PriorityQueue
+        from queue import Empty, PriorityQueue
         self.Empty = Empty
         self.queue = PriorityQueue()
         self.error_queue = PriorityQueue()

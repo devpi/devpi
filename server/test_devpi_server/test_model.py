@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import getpass
 import inspect
 import itertools

@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+
 import getpass
 import posixpath
 import py
@@ -11,14 +11,8 @@ from devpi_common.url import URL
 from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from functools import total_ordering
-try:
-    from itertools import zip_longest
-except ImportError:
-    from itertools import izip_longest as zip_longest
-try:
-    from pyramid.authorization import Allow, Authenticated, Everyone
-except ImportError:
-    from pyramid.security import Allow, Authenticated, Everyone
+from itertools import zip_longest
+from pyramid.security import Allow, Authenticated, Everyone
 from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl

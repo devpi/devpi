@@ -3,7 +3,6 @@
 a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
-from __future__ import unicode_literals
 import aiohttp
 import inspect
 import os
