@@ -643,15 +643,15 @@ class PyPIView:
 
         make_url = self._makeurl_factory()
 
-        for key, href, require_python, yanked in result:
-            stage = "/".join(href.split("/", 2)[:2])
-            attribs = 'href="%s"' % make_url(href).url
-            if require_python is not None:
-                attribs += ' data-requires-python="%s"' % escape(require_python)
-            if yanked is not None and yanked is not False:
-                yanked = "" if yanked is True else yanked
+        for link in result:
+            stage = "/".join(link.href.split("/", 2)[:2])
+            attribs = 'href="%s"' % make_url(link.href).url
+            if link.require_python is not None:
+                attribs += ' data-requires-python="%s"' % escape(link.require_python)
+            if link.yanked is not None and link.yanked is not False:
+                yanked = "" if link.yanked is True else link.yanked
                 attribs += ' data-yanked="%s"' % escape(yanked)
-            data = dict(stage=stage, attribs=attribs, key=key)
+            data = dict(stage=stage, attribs=attribs, key=link.key)
             yield '{stage} <a {attribs}>{key}</a><br/>\n'.format(
                 **data).encode('utf-8')
 
@@ -663,16 +663,16 @@ class PyPIView:
         make_url = self._makeurl_factory()
 
         first = True
-        for key, href, require_python, yanked in result:
-            url = make_url(href)
+        for link in result:
+            url = make_url(link.href)
             data = {
-                "filename": key,
+                "filename": link.key,
                 "url": url.url_nofrag,
                 "hashes": {url.hash_type: url.hash_value} if url.hash_type else {}}
-            if require_python is not None:
-                data["requires-python"] = require_python
-            if yanked is not None and yanked is not False:
-                data["yanked"] = yanked
+            if link.require_python is not None:
+                data["requires-python"] = link.require_python
+            if link.yanked is not None and link.yanked is not False:
+                data["yanked"] = link.yanked
             info = json.dumps(data, indent=None, sort_keys=False)
             if first:
                 yield f'{info}'.encode("utf-8")

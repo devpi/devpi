@@ -199,8 +199,7 @@ def test_package_filters(makemapp, maketestapp, makexom):
 
         def get_simple_links_filter_iter(self, project, links):
             for link_info in links:
-                key = link_info[0]
-                yield '1.0' not in key
+                yield '1.0' not in link_info.key
 
     xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
     testapp = maketestapp(xom)

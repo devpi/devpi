@@ -21,7 +21,7 @@ from .config import hookimpl
 from .exceptions import lazy_format_exception
 from .filestore import key_from_link
 from .model import BaseStageCustomizer
-from .model import BaseStage, SimplelinkMeta
+from .model import BaseStage
 from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
@@ -743,10 +743,9 @@ class MirrorStage(BaseStage):
 
     def list_versions_perstage(self, project):
         try:
-            return set(x.version
-                       for x in map(SimplelinkMeta, self.get_simplelinks_perstage(project)))
+            return set(x.version for x in self.get_simplelinks_perstage(project))
         except self.UpstreamNotFoundError:
-            return []
+            return set()
 
     def get_last_project_change_serial_perstage(self, project, at_serial=None):
         project = normalize_name(project)
@@ -767,7 +766,7 @@ class MirrorStage(BaseStage):
         # contains whatever this method was called with, which is hopefully
         # the title from the project list
         verdata = {}
-        for sm in map(SimplelinkMeta, self.get_simplelinks_perstage(project)):
+        for sm in self.get_simplelinks_perstage(project):
             link_version = sm.version
             if version == link_version:
                 if not verdata:

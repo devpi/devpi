@@ -807,16 +807,16 @@ class TestMirrorStageprojects:
             pypistage = mapp.xom.model.getstage("root/pypi")
             assert pypistage.mirror_url == url
             (link,) = pypistage.get_simplelinks("pkg")
-        assert "foo" not in link[1]
-        assert "bar" not in link[1]
-        assert "/+e/" in link[1]
+        assert "foo" not in link.href
+        assert "bar" not in link.href
+        assert "/+e/" in link.href
         ((path, headers), *_) = simpypi.requests
         (kind, data) = headers["Authorization"].split(None, 1)
         assert kind.lower() == "basic"
         assert base64.b64decode(data) == b"foo:bar"
         simpypi.clear_requests()
         assert not simpypi.requests
-        r = testapp.xget(200, f"/{link[1]}")
+        r = testapp.xget(200, f"/{link.href}")
         assert r.body == content
         ((path, headers),) = simpypi.requests
         (kind, data) = headers["Authorization"].split(None, 1)
@@ -847,16 +847,16 @@ class TestMirrorStageprojects:
             pypistage = mapp.xom.model.getstage("root/pypi")
             assert pypistage.mirror_url == url
             (link,) = pypistage.get_simplelinks("pkg")
-        assert "foo" not in link[1]
-        assert "bar" not in link[1]
-        assert "/+f/" in link[1]
+        assert "foo" not in link.href
+        assert "bar" not in link.href
+        assert "/+f/" in link.href
         ((path, headers), *_) = simpypi.requests
         (kind, data) = headers["Authorization"].split(None, 1)
         assert kind.lower() == "basic"
         assert base64.b64decode(data) == b"foo:bar"
         simpypi.clear_requests()
         assert not simpypi.requests
-        r = testapp.xget(200, f"/{link[1]}")
+        r = testapp.xget(200, f"/{link.href}")
         assert r.body == content
         ((path, headers),) = simpypi.requests
         (kind, data) = headers["Authorization"].split(None, 1)
@@ -1111,7 +1111,7 @@ def test_get_last_project_change_serial_perstage(xom, pypistage):
         assert pypistage.get_last_project_change_serial_perstage('pkg') == -1
         pypistage.mock_simple("pkg", pkgver="pkg-1.0.zip")
         (link,) = pypistage.get_simplelinks_perstage('pkg')
-        assert link[0] == 'pkg-1.0.zip'
+        assert link.key == 'pkg-1.0.zip'
     with xom.keyfs.transaction() as tx:
         # the new project has been updated in the db
         assert tx.at_serial == (first_serial + 2)
@@ -1121,7 +1121,7 @@ def test_get_last_project_change_serial_perstage(xom, pypistage):
         assert tx.at_serial == (first_serial + 2)
         pypistage.mock_simple("other", pkgver="other-1.0.zip")
         (link,) = pypistage.get_simplelinks_perstage('other')
-        assert link[0] == 'other-1.0.zip'
+        assert link.key == 'other-1.0.zip'
     with xom.keyfs.transaction() as tx:
         # the new project has been updated in the db
         assert tx.at_serial == (first_serial + 3)

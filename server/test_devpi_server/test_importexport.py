@@ -471,7 +471,9 @@ class TestImportExport:
             stage.offline = True
             projects = stage.list_projects_perstage()
             assert projects == {'package': 'package'}
-            links = sorted(stage.get_simplelinks_perstage("package"))
+            links = sorted(
+                (x.key, x.href, x.require_python, x.yanked)
+                for x in stage.get_simplelinks_perstage("package"))
             assert links == [
                 ('package-1.1.zip', 'root/pypi/+f/a66/5a45920422f9d/package-1.1.zip', None, None),
                 ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, ""),
@@ -483,7 +485,7 @@ class TestImportExport:
             stage = mapp.xom.model.getstage('root/pypi')
             stage.offline = True
             (link,) = stage.get_simplelinks_perstage("dddttt")
-            link = stage.get_link_from_entrypath(link[1])
+            link = stage.get_link_from_entrypath(link.href)
             assert link.project == "dddttt"
             assert link.version == "0.1.dev1"
             assert link.relpath == 'root/pypi/+f/100/7f0cd10aaa290/dddttt-0.1.dev1.tar.gz'

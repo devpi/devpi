@@ -590,7 +590,7 @@ class SimpleLinks:
             self._links = links._links
             self.stale = links.stale or stale
         else:
-            self._links = links
+            self._links = [SimplelinkMeta(x) for x in links]
             self.stale = stale
 
     def __iter__(self):
@@ -608,6 +608,12 @@ class SimpleLinks:
         if isinstance(other, type(self)):
             other = other._links
         return self._links < other
+
+    def append(self, item):
+        self._links.append(item)
+
+    def sort(self, *args, **kw):
+        self._links.sort(*args, **kw)
 
 
 class BaseStage(object):
@@ -752,11 +758,14 @@ class BaseStage(object):
         return [self._make_elink(project, link_info)
                 for link_info in self.get_simplelinks_perstage(project)]
 
-    def _make_elink(self, project, link_info):
-        rp = SimplelinkMeta(link_info)
-        linkdict = {"entrypath": rp.path, "hash_spec": rp.hash_spec,
-                    "require_python": rp.require_python, "yanked": rp.yanked}
-        return ELink(self.filestore, linkdict, project, rp.version)
+    def _make_elink(self, project, link_meta):
+        return ELink(
+            self.filestore, dict(
+                entrypath=link_meta.path,
+                hash_spec=link_meta.hash_spec,
+                require_python=link_meta.require_python,
+                yanked=link_meta.yanked),
+            project, link_meta.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
         if self.customizer.readonly and not readonly:
@@ -879,21 +888,20 @@ class BaseStage(object):
         and "key" is usually the basename of the link or else
         the egg-ID if the link points to an egg.
         """
-        all_links = []
+        all_links = self.SimpleLinks([])
         seen = set()
-        stale = False
 
         try:
             for stage, res in self.op_sro_check_mirror_whitelist(
                     "get_simplelinks_perstage", project=project):
                 if res is not None:
                     res = self.SimpleLinks(res)
-                    stale = stale or res.stale
+                    all_links.stale = all_links.stale or res.stale
                 iterator = self.customizer.get_simple_links_filter_iter(project, res)
                 if iterator is not None:
                     res = apply_filter_iter(res, iterator)
                 for link_info in res:
-                    key = link_info[0]
+                    key = link_info.key
                     if key not in seen:
                         seen.add(key)
                         all_links.append(link_info)
@@ -901,10 +909,8 @@ class BaseStage(object):
             return self.SimpleLinks([])
 
         if sorted_links:
-            all_links = [
-                (v.key, v.href, v.require_python, v.yanked)
-                for v in sorted(map(SimplelinkMeta, all_links), reverse=True)]
-        return self.SimpleLinks(all_links, stale=stale)
+            all_links.sort(reverse=True)
+        return all_links
 
     def get_whitelist_inheritance(self):
         return self.ixconfig.get("mirror_whitelist_inheritance", "union")
