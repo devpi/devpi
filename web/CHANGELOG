@@ -3,6 +3,16 @@
 .. towncrier release notes start
 
 
+4.1.1 (2022-09-28)
+==================
+
+
+Bug Fixes
+---------
+
+- Generalize GET redirect from URLs with trailing slash to ones without for consistency.
+
+
 4.1.0 (2022-08-16)
 ==================
 

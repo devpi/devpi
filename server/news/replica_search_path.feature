@@ -1,1 +1,0 @@
-Automatically check for ``+files`` when using ``--replica-file-search-path``.
