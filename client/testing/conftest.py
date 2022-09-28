@@ -120,8 +120,6 @@ def wait_for_port(host, port, timeout=60):
 
 def find_python3():
     locations = [
-        "C:\\Python36-x64\\python.exe",
-        "C:\\Python36\\python.exe",
         "C:\\Python37-x64\\python.exe",
         "C:\\Python37\\python.exe",
         "C:\\Python38-x64\\python.exe",
@@ -138,7 +136,6 @@ def find_python3():
         except subprocess.CalledProcessError:
             continue
     names = [
-        'python3.6',
         'python3.7',
         'python3.8',
         'python3.9',
