@@ -227,13 +227,9 @@ def _liveserver(clientdir, indexer_backend_option, server_executable, server_ver
     try:
         args = [
             "--serverdir", str(clientdir)]
-        if server_version >= parse_version('5.2.0.dev'):
-            init_executable = server_executable.replace(
-                "devpi-server", "devpi-init")
-            subprocess.check_call([init_executable] + args)
-        elif server_version >= parse_version('4.2.0.dev'):
-            subprocess.check_call([server_executable] + args + [
-                '--debug', '--init'])
+        init_executable = server_executable.replace(
+            "devpi-server", "devpi-init")
+        subprocess.check_call([init_executable] + args)
     except subprocess.CalledProcessError as e:
         # this won't output anything on Windows
         print(
