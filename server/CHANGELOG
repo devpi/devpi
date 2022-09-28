@@ -3,6 +3,26 @@
 .. towncrier release notes start
 
 
+6.7.0 (2022-09-28)
+==================
+
+
+Features
+--------
+
+- Add nginx example to ``devpi-gen-config`` with caching of simple pages for installers like pip.
+
+- Automatically check for ``+files`` when using ``--replica-file-search-path``.
+
+- Set headers to prevent caching for simple links with stale results.
+
+
+Bug Fixes
+---------
+
+- Fix #840: Correct url scheme in config if nginx is behind another proxy.
+
+
 6.6.1 (2022-09-12)
 ==================
 
