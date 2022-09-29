@@ -257,6 +257,7 @@ def add_storage_options(parser, pluginmanager):
     parser.addoption(
         "--storage", type=str, metavar="NAME",
         action="store",
+        default="sqlite",
         help="the storage backend to use.\n" + ", ".join(
              '"%s": %s' % (x['name'], x['description']) for x in backends))
 
@@ -857,21 +858,17 @@ class Config(object):
         return self._storage_info()["storage"]
 
     def _determine_storage(self):
-        if self.args.storage:
-            if isinstance(self.args.storage, dict):
-                # a yaml config may return a dict
-                settings = dict(self.args.storage)
-                name = settings.pop('name')
-            else:
-                name, sep, setting_str = self.args.storage.partition(':')
-                settings = {}
-                if setting_str:
-                    for item in setting_str.split(','):
-                        key, value = item.split('=', 1)
-                        settings[key] = value
+        if isinstance(self.args.storage, dict):
+            # a yaml config may return a dict
+            settings = dict(self.args.storage)
+            name = settings.pop('name')
         else:
-            name = "sqlite"
+            name, sep, setting_str = self.args.storage.partition(':')
             settings = {}
+            if setting_str:
+                for item in setting_str.split(','):
+                    key, value = item.split('=', 1)
+                    settings[key] = value
         storage_info = self._storage_info_from_name(name, settings)
         self.storage_info = dict(
             name=storage_info['name'],

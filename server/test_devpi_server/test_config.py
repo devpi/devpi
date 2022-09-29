@@ -272,7 +272,7 @@ class TestConfig:
         from devpi_server import keyfs_sqlite
         from devpi_server import keyfs_sqlite_fs
         config = make_config(("devpi-server",))
-        assert config.args.storage is None
+        assert config.args.storage == "sqlite"
         xom = makexom(plugins=(keyfs_sqlite, keyfs_sqlite_fs))
         assert xom.config.storage is keyfs_sqlite_fs.Storage
 
