@@ -12,8 +12,13 @@ def compareable_text(text):
     return re.sub(r'\s+', ' ', text.strip())
 
 
+@pytest.fixture(autouse=True)
+def keep_docs_packed(keep_docs_packed):
+    return keep_docs_packed
+
+
 @pytest.mark.with_notifier
-def test_docs_raw_view(mapp, testapp):
+def test_docs_raw_view(keep_docs_packed, mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})

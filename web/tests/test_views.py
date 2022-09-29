@@ -132,7 +132,7 @@ def test_index_view_project_files(mapp, testapp):
 
 
 @pytest.mark.with_notifier
-def test_index_view_project_docs(mapp, testapp):
+def test_index_view_project_docs(keep_docs_packed, mapp, testapp):
     api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
@@ -237,7 +237,7 @@ def test_project_not_found(mapp, testapp):
 
 
 @pytest.mark.with_notifier
-def test_project_view_docs_only(mapp, testapp):
+def test_project_view_docs_only(keep_docs_packed, mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
@@ -299,7 +299,7 @@ def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage)
 
 
 @pytest.mark.with_notifier
-def test_project_view_root_and_docs(mapp, testapp, pypistage):
+def test_project_view_root_and_docs(keep_docs_packed, mapp, testapp, pypistage):
     pypistage.mock_simple("pkg1", text='''
             <a href="../../pkg/pkg1-2.7.zip" />
             <a href="../../pkg/pkg1-2.6.zip" />

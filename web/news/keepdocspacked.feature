@@ -1,0 +1,1 @@
+Add ``--keep-docs-packed`` option.

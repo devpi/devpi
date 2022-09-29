@@ -9,7 +9,11 @@ from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
 from devpi_server.views import PyPIView
 from devpi_web.description import get_description
-from devpi_web.doczip import Docs, unpack_docs
+from devpi_web.doczip import Docs
+from devpi_web.doczip import docs_exist
+from devpi_web.doczip import docs_file_content
+from devpi_web.doczip import docs_file_exists
+from devpi_web.doczip import docs_file_path
 from devpi_web.indexing import is_project_cached
 from devpi_web.main import navigation_version
 from email.utils import parsedate
@@ -27,6 +31,7 @@ from time import gmtime
 from xmlrpc.client import Fault, Unmarshaller, dumps
 import functools
 import json
+import mimetypes
 import py
 
 seq_types = (list, tuple, SeqViewReadonly)
@@ -123,7 +128,7 @@ def get_doc_info(context, request, version=None, check_content=True):
         versions = context.stable_versions
     else:
         versions = [version]
-    doc_path = None
+    entry = None
     for doc_version in versions:
         try:
             linkstore = context.stage.get_linkstore_perstage(name, doc_version)
@@ -132,21 +137,35 @@ def get_doc_info(context, request, version=None, check_content=True):
         links = linkstore.get_links(rel='doczip')
         if not links:
             continue
-        doc_path = unpack_docs(context.stage, name, doc_version, links[0].entry)
-        if doc_path.isdir():
+        if docs_exist(context.stage, name, doc_version, links[0].entry):
+            entry = links[0].entry
             break
-    if doc_path is None or not doc_path.isdir():
+    if entry is None:
         if version == 'stable':
             raise HTTPNotFound("No stable documentation available.")
         raise HTTPNotFound("No documentation available.")
-    doc_path = doc_path.join(relpath)
-    if check_content and not doc_path.check():
-        raise HTTPNotFound("File %s not found in documentation." % relpath)
-    return dict(
-        doc_path=doc_path,
+    if check_content:
+        relpath_exists = docs_file_exists(
+            context.stage, name, doc_version, entry, relpath)
+        if not relpath_exists:
+            raise HTTPNotFound("File %s not found in documentation." % relpath)
+    result = dict(
         relpath=relpath,
         doc_version=doc_version,
         version_mismatch=doc_version != navigation_version(context))
+    if check_content:
+        result['body'] = docs_file_content(
+            context.stage, name, doc_version, entry, relpath)
+        result['doc_path'] = docs_file_path(
+            context.stage, name, doc_version, entry, relpath)
+    return result
+
+
+def _guess_type(path):
+    (content_type, content_encoding) = mimetypes.guess_type(path, strict=False)
+    if content_type is None:
+        content_type = 'application/octet-stream'
+    return (content_type, content_encoding)
 
 
 @view_config(route_name="docroot", request_method="GET")
@@ -154,7 +173,16 @@ def doc_serve(context, request):
     """ Serves the raw documentation files. """
     context = ContextWrapper(context)
     doc_info = get_doc_info(context, request)
-    response = FileResponse(str(doc_info['doc_path']))
+    if doc_info['doc_path'] is None:
+        relpath = request.matchdict['relpath']
+        (content_type, content_encoding) = _guess_type(relpath)
+        response = Response(
+            body=doc_info['body'],
+            conditional_response=True,
+            content_type=content_type,
+            content_encoding=content_encoding)
+    else:
+        response = FileResponse(str(doc_info['doc_path']))
     if context.version in ('latest', 'stable'):
         response.cache_expires()
     return response
@@ -390,8 +418,7 @@ def get_docs_info(request, stage, linkstore):
     if not links:
         return
     name, ver = normalize_name(linkstore.project), linkstore.version
-    doc_path = unpack_docs(stage, name, ver, links[0].entry)
-    if doc_path.isdir():
+    if docs_exist(stage, name, ver, links[0].entry):
         return dict(
             title="%s-%s" % (name, ver),
             url=request.route_url(
