@@ -70,6 +70,16 @@ class BaseConnection:
         for row in rows:
             print(row)
 
+    def executemany(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
+        r = c.executemany(query, *args)
+        result = r.fetchall()
+        c.close()
+        return result
+
     def fetchall(self, query, *args):
         c = self._sqlconn.cursor()
         # print(query)
@@ -123,9 +133,9 @@ class BaseConnection:
             raise KeyError(relpath)
         return tuple(row[:2])
 
-    def db_write_typedkey(self, relpath, name, next_serial):
+    def db_write_typedkeys(self, keys):
         q = "INSERT OR REPLACE INTO kv (key, keyname, serial) VALUES (?, ?, ?)"
-        self.fetchone(q, (relpath, name, next_serial))
+        self.executemany(q, keys)
 
     def write_changelog_entry(self, serial, entry):
         threadlog.debug("writing changelog for serial %s", serial)
@@ -584,40 +594,52 @@ class Writer:
         self.conn = conn
         self.storage = storage
         self.changes = {}
-        self.commit_serial = conn.last_changelog_serial + 1
 
     def record_set(self, typedkey, value=None, back_serial=None):
         """ record setting typedkey to value (None means it's deleted) """
         assert not isinstance(value, ReadonlyView), value
-        if back_serial is None:
-            try:
-                _, back_serial = self.conn.db_read_typedkey(typedkey.relpath)
-            except KeyError:
-                back_serial = -1
-        self.conn.db_write_typedkey(typedkey.relpath, typedkey.name, self.commit_serial)
         # at __exit__ time we write out changes to the _changelog_cache
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
 
     def __enter__(self):
+        self.commit_serial = self.conn.last_changelog_serial + 1
         self.log = thread_push_log("fswriter%s:" % self.commit_serial)
         return self
 
     def __exit__(self, cls, val, tb):
         commit_serial = self.commit_serial
-        thread_pop_log("fswriter%s:" % commit_serial)
-        if cls is None:
-            changes_formatter = self.commit(commit_serial)
-            self.log.info("committed at %s", commit_serial)
-            self.log.debug("committed: %s", changes_formatter)
+        try:
+            del self.commit_serial
+            if cls is None:
+                changes_formatter = self.commit(commit_serial)
+                self.log.info("committed at %s", commit_serial)
+                self.log.debug("committed: %s", changes_formatter)
 
-            self.storage._notify_on_commit(commit_serial)
-        else:
+                self.storage._notify_on_commit(commit_serial)
+            else:
+                self.rollback()
+                self.log.info("roll back at %s", commit_serial)
+        except BaseException:
             self.rollback()
-            self.log.info("roll back at %s", commit_serial)
+            raise
+        finally:
+            thread_pop_log("fswriter%s:" % commit_serial)
 
     def commit(self, commit_serial):
+        data = []
+        for relpath, (keyname, back_serial, value) in self.changes.items():
+            if back_serial is None:
+                try:
+                    _, back_serial = self.conn.db_read_typedkey(relpath)
+                except KeyError:
+                    back_serial = -1
+                # update back_serial for write_changelog_entry
+                self.changes[relpath] = (keyname, back_serial, value)
+            data.append((relpath, keyname, commit_serial))
+        self.conn.db_write_typedkeys(data)
+        del data
         rel_renames = self.conn._get_rel_renames()
         entry = (self.changes, rel_renames)
         self.conn.write_changelog_entry(commit_serial, entry)
