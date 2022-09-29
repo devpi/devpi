@@ -261,6 +261,10 @@ def devpiserver_add_parser_options(parser):
         "--documentation-path", action="store",
         help="path for unzipped documentation. "
              "By default the --serverdir is used.")
+    doczip.addoption(
+        "--keep-docs-packed", default=False,
+        action="store_true",
+        help="fetch data from doczips instead of unpacking them")
     indexing = parser.addgroup("devpi-web search indexing")
     add_indexer_backend_option(indexing)
 

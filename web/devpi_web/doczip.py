@@ -46,6 +46,45 @@ def locked_unpack_path(stage, name, version, remove_lock_file=False):
                 pass
 
 
+def keep_docs_packed(config):
+    return config.args.keep_docs_packed
+
+
+def docs_exist(stage, name, version, entry):
+    return docs_file_exists(stage, name, version, entry, 'index.html')
+
+
+def docs_file_content(stage, name, version, entry, relpath):
+    if not keep_docs_packed(stage.xom.config):
+        return None
+    with entry.file_open_read() as f:
+        with Archive(f) as archive:
+            return archive.read(relpath)
+
+
+def docs_file_exists(stage, name, version, entry, relpath):
+    if keep_docs_packed(stage.xom.config):
+        with entry.file_open_read() as f:
+            with Archive(f) as archive:
+                try:
+                    if archive.getfile(relpath):
+                        return True
+                except archive.FileNotExist:
+                    return False
+    else:
+        doc_path = unpack_docs(stage, name, version, entry)
+        if doc_path.join(relpath).isfile():
+            return True
+    return False
+
+
+def docs_file_path(stage, name, version, entry, relpath):
+    if keep_docs_packed(stage.xom.config):
+        return None
+    doc_path = unpack_docs(stage, name, version, entry)
+    return doc_path.join(relpath)
+
+
 def unpack_docs(stage, name, version, entry):
     # unpack, maybe a bit uncarefully but in principle
     # we are not losing the original zip file anyway
@@ -70,9 +109,21 @@ def unpack_docs(stage, name, version, entry):
         return unpack_path
 
 
+class PackedEntry:
+    def __init__(self, basename, body):
+        self.basename = basename
+        self.body = body
+
+    def read(self, mode='rb'):
+        if mode != 'rb':
+            raise RuntimeError("Unsupported mode %r" % mode)
+        return self.body
+
+
 class Docs(DictMixin):
     def __init__(self, stage, name, version):
         self.stage = stage
+        self.keep_docs_packed = keep_docs_packed(self.stage.xom.config)
         self.name = name
         self.version = version
         self.entry = None
@@ -92,6 +143,33 @@ class Docs(DictMixin):
             # aren't uploaded yet
             threadlog.warn("Tried to access %s, but it doesn't exist.", self.unpack_path)
             return {}
+        if self.keep_docs_packed:
+            return self._packed_entries()
+        else:
+            return self._unpacked_entries()
+
+    def _packed_entries(self):
+        html = set()
+        fjson = set()
+        with self.entry.file_open_read() as f:
+            with Archive(f) as archive:
+                for item in archive.namelist():
+                    if item.endswith('.fjson'):
+                        fjson.add(item)
+                    elif item.endswith('.html'):
+                        html.add(item)
+                if fjson:
+                    # if there is fjson, then we get structured data
+                    # see http://www.sphinx-doc.org/en/master/usage/builders/index.html#serialization-builder-details
+                    return {
+                        k[:-6]: PackedEntry(k, archive.read(k))
+                        for k in fjson}
+                else:
+                    return {
+                        k[:-5]: PackedEntry(k, archive.read(k))
+                        for k in html}
+
+    def _unpacked_entries(self):
         unpack_path = unpack_docs(self.stage, self.name, self.version, self.entry)
         if not unpack_path.isdir():
             return {}

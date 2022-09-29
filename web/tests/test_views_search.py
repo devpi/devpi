@@ -43,7 +43,7 @@ def test_search_no_results(testapp):
 
 @pytest.mark.with_indexer
 @pytest.mark.with_notifier
-def test_search_docs(mapp, testapp):
+def test_search_docs(keep_docs_packed, mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata({
         "name": "pkg_hello",

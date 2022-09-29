@@ -38,3 +38,14 @@ def tox_result_data(request):
         retcode = int(tox_result_data['testenvs']['py27']['test'][0]['retcode'])
         tox_result_data['testenvs']['py27']['test'][0]['retcode'] = retcode
     return tox_result_data
+
+
+@pytest.fixture(params=[True, False])
+def keep_docs_packed(monkeypatch, request):
+    value = request.param
+
+    def func(config):
+        return value
+
+    monkeypatch.setattr("devpi_web.doczip.keep_docs_packed", func)
+    return value
