@@ -250,8 +250,9 @@ def add_storage_options(parser, pluginmanager):
         default='~/.devpi/server',
         help="directory for server data.")
 
+    storages = pluginmanager.hook.devpiserver_storage_backend(settings=None)
     backends = sorted(
-        pluginmanager.hook.devpiserver_storage_backend(settings=None),
+        (s for s in storages if not s.get('hidden', False)),
         key=itemgetter("name"))
     parser.addoption(
         "--storage", type=str, metavar="NAME",
