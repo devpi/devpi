@@ -1,8 +1,9 @@
-import sys
 from devpi_common.archive import zip_dict
+from hashlib import sha256
 import py
 import pytest
 import re
+import sys
 
 
 pytestmark = pytest.mark.xfail(sys.platform.startswith("win"), run=False, reason="flaky test on windows")
@@ -21,6 +22,7 @@ def keep_docs_packed(keep_docs_packed):
 def test_docs_raw_view(keep_docs_packed, mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
+    etag = sha256(content).hexdigest()
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
@@ -29,10 +31,12 @@ def test_docs_raw_view(keep_docs_packed, mapp, testapp):
     assert r.cache_control.no_cache is None
     r = testapp.xget(302, api.index + "/pkg1/latest/+doc/")
     r = testapp.xget(200, r.location)
-    assert r.cache_control.no_cache
+    assert r.etag == etag
+    assert r.cache_control.max_age == 60
     r = testapp.xget(302, api.index + "/pkg1/stable/+doc/")
     r = testapp.xget(200, r.location)
-    assert r.cache_control.no_cache
+    assert r.etag == etag
+    assert r.cache_control.max_age == 60
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+doc/index.html")
     content, = r.html.select('#content')
     assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)

@@ -23,6 +23,7 @@ from py.xml import html
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
+from pyramid.httpexceptions import HTTPNotModified
 from pyramid.httpexceptions import default_exceptionresponse_view
 from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse, Response
@@ -137,7 +138,7 @@ def get_doc_info(context, request, version=None, check_content=True):
         links = linkstore.get_links(rel='doczip')
         if not links:
             continue
-        if docs_exist(context.stage, name, doc_version, links[0].entry):
+        if not check_content or docs_exist(context.stage, name, doc_version, links[0].entry):
             entry = links[0].entry
             break
     if entry is None:
@@ -150,6 +151,7 @@ def get_doc_info(context, request, version=None, check_content=True):
         if not relpath_exists:
             raise HTTPNotFound("File %s not found in documentation." % relpath)
     result = dict(
+        etag=entry.hash_value,
         relpath=relpath,
         doc_version=doc_version,
         version_mismatch=doc_version != navigation_version(context))
@@ -171,6 +173,11 @@ def _guess_type(path):
 @view_config(route_name="docroot", request_method="GET")
 def doc_serve(context, request):
     """ Serves the raw documentation files. """
+    if_none_match = request.if_none_match
+    if if_none_match:
+        doc_info = get_doc_info(context, request, check_content=False)
+        if doc_info['etag'] in if_none_match.etags:
+            return HTTPNotModified()
     context = ContextWrapper(context)
     doc_info = get_doc_info(context, request)
     if doc_info['doc_path'] is None:
@@ -183,8 +190,8 @@ def doc_serve(context, request):
             content_encoding=content_encoding)
     else:
         response = FileResponse(str(doc_info['doc_path']))
-    if context.version in ('latest', 'stable'):
-        response.cache_expires()
+    response.etag = doc_info['etag']
+    response.cache_expires(60)
     return response
 
 
