@@ -599,6 +599,21 @@ class TestTransactionIsolation:
 
 
 @notransaction
+def test_changelog(keyfs):
+    D = keyfs.add_key("NAME", "hello", dict)
+    with keyfs.transaction(write=True):
+        D.set({1: 1})
+    with keyfs.transaction(write=True):
+        D.set({2: 2})
+    with keyfs.transaction(write=False) as tx:
+        changes = list(
+            tx.iter_serial_and_value_backwards(D.relpath, tx.at_serial))
+    assert changes == [
+        (1, {2: 2}),
+        (0, {1: 1})]
+
+
+@notransaction
 class TestDeriveKey:
     def test_direct_from_file(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
