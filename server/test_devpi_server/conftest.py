@@ -550,14 +550,14 @@ class Mapp(MappMixin):
         self.auth = self.testapp.auth = None
 
     def getuserlist(self):
-        r = self.testapp.get("/", {"indexes": False}, {"Accept": "application/json"})
+        r = self.testapp.get_json("/", {"indexes": False})
         assert r.status_code == 200
         return r.json["result"]
 
     def getindexlist(self, user=None):
         if user is None:
             user = self.testapp.auth[0]
-        r = self.testapp.get("/%s" % user, accept="application/json")
+        r = self.testapp.get_json("/%s" % user)
         assert r.status_code == 200
         name = r.json["result"]["username"]
         result = {}
@@ -569,7 +569,7 @@ class Mapp(MappMixin):
         indexname = self._getindexname(indexname)
         if user is None:
             user = self.testapp.auth[0]
-        r = self.testapp.get("/%s" % indexname, accept="application/json")
+        r = self.testapp.get_json("/%s" % indexname)
         assert r.status_code == 200
         return r.json["result"]["projects"]
 
@@ -577,7 +577,7 @@ class Mapp(MappMixin):
         indexname = self._getindexname(indexname)
         if user is None:
             user = self.testapp.auth[0]
-        r = self.testapp.get("/%s/%s" % (indexname, name), accept="application/json")
+        r = self.testapp.get_json("/%s/%s" % (indexname, name))
         assert r.status_code == code
         if r.status_code >= 300:
             return
