@@ -84,7 +84,7 @@ def test_error_html_only(mapp, testapp, monkeypatch):
         from pyramid.httpexceptions import HTTPBadGateway
         raise HTTPBadGateway()
     monkeypatch.setattr("devpi_server.views.PyPIView.user_list", error)
-    r = testapp.get("/", headers=dict(accept="application/json"))
+    r = testapp.get_json("/")
     assert r.status_code == 502
     assert r.content_type != "text/html"
     assert b"502 Bad Gateway" in r.body

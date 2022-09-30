@@ -697,10 +697,10 @@ def test_indexroot(testapp, model):
         user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
     assert r.status_code == 200
-    r = testapp.get("/user/index", accept="application/json")
+    r = testapp.get_json("/user/index")
     assert r.status_code == 200
     assert "projects" in r.json["result"]
-    r = testapp.get("/user/index?no_projects", accept="application/json")
+    r = testapp.get_json("/user/index?no_projects")
     assert r.status_code == 200
     assert "projects" not in r.json["result"]
 
@@ -709,10 +709,10 @@ def test_indexroot_root_pypi(testapp, xom):
     r = testapp.get("/root/pypi")
     assert r.status_code == 200
     assert b"in-stage" not in r.body
-    r = testapp.get("/root/pypi", accept="application/json")
+    r = testapp.get_json("/root/pypi")
     assert r.status_code == 200
     assert "projects" in r.json["result"]
-    r = testapp.get("/root/pypi?no_projects=", accept="application/json")
+    r = testapp.get_json("/root/pypi?no_projects=")
     assert r.status_code == 200
     assert "projects" not in r.json["result"]
 
@@ -726,7 +726,7 @@ def test_indexroot_root_pypi(testapp, xom):
 def test_upstream_not_reachable(reqmock, pypistage, testapp, code, url):
     name = "whatever{code}".format(code=code+100)
     pypistage.mock_simple(name, '', status_code=code)
-    r = testapp.get(url.format(name=name), accept="application/json")
+    r = testapp.get_json(url.format(name=name))
     assert r.status_code == 502
 
 
@@ -744,17 +744,17 @@ def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testap
         register=True)
     # first we check what happens if the cache is empty
     pypistage.mock_simple(name, '', status_code=502)
-    r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
+    r = testapp.get_json(f'/{index_name}/{name}')
     assert r.status_code == 200
     assert set(r.json['result']) == set(['1.0'])
     # then we simulate that the mirror is available to fill the cache
     pypistage.mock_simple(name, '<a href="/%s-1.1.zip" />' % name)
-    r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
+    r = testapp.get_json(f'/{index_name}/{name}')
     assert r.status_code == 200
     assert set(r.json['result']) == set(['1.0', '1.1'])
     # and check once more with the filled cache
     pypistage.mock_simple(name, '', status_code=502)
-    r = testapp.get('/{index_name}/{name}'.format(index_name=index_name, name=name), accept="application/json")
+    r = testapp.get_json(f'/{index_name}/{name}')
     assert r.status_code == 200
     assert set(r.json['result']) == set(['1.0', '1.1'])
 
@@ -1080,8 +1080,7 @@ class TestSubmitValidation:
         assert path1 == path2
         r = testapp.xget(200, path2)
         assert r.body == b'123'
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
-                         accept="application/json")
+        r = testapp.get_json("%s/Pkg5/2.6" % mapp.api.index)
         links = r.json['result']['+links']
         assert len(links) == 2
         for link in links:
@@ -1103,8 +1102,7 @@ class TestSubmitValidation:
         path2, = mapp.get_release_paths("Pkg5")
         testapp.xget(410, path1)  # existed once but deleted during overwrite
         testapp.xget(200, path2)
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
-                         accept="application/json")
+        r = testapp.get_json("%s/Pkg5/2.6" % mapp.api.index)
         links = r.json['result']['+links']
         assert len(links) == 2
         for link in links:
@@ -1124,8 +1122,7 @@ class TestSubmitValidation:
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.tgz", b"1234", {"name": "Pkg5"}, code=200)
         submit.file("pkg5-2.6.tgz", b"12345", {"name": "Pkg5"}, code=200)
-        r = testapp.xget(200, "%s/Pkg5/2.6" % mapp.api.index,
-                         accept="application/json")
+        r = testapp.get_json("%s/Pkg5/2.6" % mapp.api.index)
         link, = r.json['result']['+links']
         log1, log2 = link['log']
         assert sorted(log1.keys()) == ['count', 'what', 'when', 'who']
@@ -1142,8 +1139,7 @@ class TestSubmitValidation:
         mapp.use(old_stage)
         req = dict(name="Pkg5", version="2.6", targetindex=new_stage)
         r = testapp.push("/%s" % old_stage, json.dumps(req))
-        r = testapp.xget(200, "/%s/Pkg5/2.6" % new_stage,
-                         accept="application/json")
+        r = testapp.get_json("/%s/Pkg5/2.6" % new_stage)
         link, = r.json['result']['+links']
         # the overwrite info should be gone
         log1, log2 = link['log']
