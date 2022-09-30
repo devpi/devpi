@@ -678,3 +678,19 @@ def test_filter_latest():
     filtered = d[path]
     assert filtered.name == 'test-abc'
     assert filtered.version == u'0.10'
+
+
+@pytest.mark.parametrize("structure", [
+    {"doc": {"conf.py": "", "index.rst": ""}},
+    {"docs": {"conf.py": "", "index.rst": ""}},
+    {"doc": {"source": {"conf.py": "", "index.rst": ""}}},
+    {"docs": {"source": {"conf.py": "", "index.rst": ""}}},
+    {"source": {"conf.py": "", "index.rst": ""}},
+])
+def test_build_docs(initproj, out_devpi, structure):
+    proj = initproj("hello1.1", structure)
+    out = out_devpi("upload", "--no-isolation", "--dry-run", "--only-docs")
+    assert out.ret == 0
+
+    docs = proj.join("dist/hello1.1-0.1.doc.zip")
+    assert docs.isfile()
