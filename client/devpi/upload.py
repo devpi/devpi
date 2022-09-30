@@ -504,11 +504,17 @@ class Exported:
 
     def setup_build_docs(self):
         name, version = self.setup_name_and_version()
-        for guess in ("doc", "docs"):
-            docs = self.rootpath.join(guess)
-            if docs.join("conf.py").exists():
-                break
         build = self.rootpath.join("build")
+        for guess in ("doc", "docs", "source"):
+            docs = self.rootpath.join(guess)
+            if docs.isdir():
+                if docs.join("conf.py").exists():
+                    break
+                else:
+                    source = docs.join("source")
+                    if source.isdir() and source.join("conf.py").exists():
+                        build, docs = docs.join("build"), source
+                        break
         cmd = ["sphinx-build", "-E", docs, build]
         if self.args.verbose:
             ret = self.hub.popen_check(cmd, cwd=self.rootpath)
