@@ -1168,6 +1168,9 @@ class PrivateStage(BaseStage):
             xom, username, index, ixconfig, customizer_cls)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name})"
+
     def get_possible_indexconfig_keys(self):
         return tuple(dict(self.get_default_config_items())) + (
             "custom_data", "description", "title")
@@ -1554,6 +1557,9 @@ class LinkStore:
                 "%s-%s on stage %s at %s",
                 project, version, stage.name, stage.keyfs.tx.at_serial)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.project}, {self.stage.name}, {self.version})"
+
     @property
     def metadata(self):
         metadata = {}
@@ -1565,7 +1571,7 @@ class LinkStore:
     def get_file_entry(self, relpath):
         return self.filestore.get_file_entry(relpath)
 
-    def create_linked_entry(self, rel, basename, content_or_file, last_modified=None):
+    def create_linked_entry(self, rel, basename, content_or_file, last_modified=None, ref_hash_spec=None):
         overwrite = None
         for link in self.get_links(rel=rel, basename=basename):
             if not self.stage.ixconfig.get("volatile"):
@@ -1577,7 +1583,7 @@ class LinkStore:
             overwrite = sum(x.get('count', 0)
                             for x in link.get_logs() if x.get('what') == 'overwrite')
         self.remove_links(rel=rel, basename=basename)
-        file_entry = self._create_file_entry(basename, content_or_file)
+        file_entry = self._create_file_entry(basename, content_or_file, ref_hash_spec=ref_hash_spec)
         if last_modified is not None:
             file_entry.last_modified = last_modified
         link = self._add_link_to_file_entry(rel, file_entry)
@@ -1606,7 +1612,8 @@ class LinkStore:
         del_links = self.get_links(rel=rel, basename=basename, for_entrypath=for_entrypath)
         was_deleted = []
         for link in del_links:
-            link.entry.delete()
+            if link.entry is not None:
+                link.entry.delete()
             linkdicts.remove(link.linkdict)
             was_deleted.append(link.entrypath)
             threadlog.info("deleted %r link %s", link.rel, link.entrypath)

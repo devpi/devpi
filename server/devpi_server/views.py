@@ -44,7 +44,6 @@ from .model import ReadonlyIndex
 from .model import RemoveValue
 from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
-
 from .auth import Auth
 
 devpiweb_hookimpl = HookimplMarker("devpiweb")
@@ -1551,6 +1550,89 @@ class PyPIView:
         for user in self.model.get_userlist():
             d[user.name] = user.get()
         apireturn(200, type="list:userconfig", result=d)
+
+    @view_config(
+        route_name="/{user}/{index}/+copy", request_method="POST")
+    @view_config(
+        route_name="/{user}/{index}/+copy/", request_method="POST")
+    def snapshot(self):
+        request = self.request
+        context = self.context
+        if not request.has_permission("index_create"):  # TODO: add some 'snapshot' permission ?
+            # if there is no authenticated user, then issue a basic auth challenge
+            if not request.authenticated_userid:
+                response = HTTPUnauthorized()
+                response.headers.update(forget(request))
+                return response
+            abort_submit(request, 403, "no permission to snapshot")
+            assert 0
+        json = getjson(request)
+        target_index = json["target_index"]
+        target_stage = None
+        source_stage, projects = context.stage.list_projects()[0]
+        if context.user.getstage(target_index):
+            apireturn(409, "index %r already exists" % target_index)
+        files_dir = source_stage.filestore.keyfs.basedir / "+files"
+        threadlog.info("snapshot %s", source_stage.name)
+        # stats:
+        failures = []
+        notices = []
+        tot_wheels = 0
+        tot_project_versions = 0
+        try:
+            target_stage = context.user.create_stage(target_index)
+            for project_name in projects:
+                threadlog.info("snapshot doing %s", project_name)
+                project_versions = source_stage.list_versions(project_name)
+                tot_project_versions += len(project_versions)
+                for version in project_versions:
+                    threadlog.debug("snapshot doing %s-%s", project_name, version)
+                    try:
+                        source_linkstore = source_stage.get_linkstore_perstage(project_name, version)
+                        release_links = source_linkstore.get_links("releasefile", None)
+                    except Exception as err:
+                        failure = f"failed during read of {project_name}-{version}: {err}\n{traceback.format_exc()}"
+                        threadlog.error("%s", failure)
+                        failures.append(failure)
+                        continue
+                    target_stage.set_versiondata({'name': project_name, 'version': version})
+                    target_linkstore = target_stage.get_linkstore_perstage(project_name, version, readonly=False)
+                    # then we can create the (hard-)links for each release:
+                    for link in release_links:
+                        threadlog.debug("snapshot doing %s", link.entrypath)
+                        with link.entry.file_open_read() as f:
+                            # the new index release file will be hard-linked to that value :
+                            f.devpi_srcpath = files_dir / link.entrypath
+                            # assert f.devpi_srcpath.exists()
+                            new_link = target_linkstore.create_linked_entry(
+                                rel="releasefile",
+                                basename=link.basename,
+                                content_or_file=f,
+                                last_modified=None,
+                                ref_hash_spec=link.hash_spec)
+                        new_link.add_log(
+                            'snapshot', request.authenticated_userid, src=context.stage.name)
+                    tot_wheels += len(release_links)
+        except Exception as err:
+            threadlog.error("Got error during snapshot %s: %s\n%s", source_stage, err, traceback.format_exc())
+            if target_stage is not None:
+                target_stage.delete()
+            apireturn(500,
+                      type="failures",
+                      result={'failures': failures,
+                              'tot_projects': len(projects),
+                              'tot_project_versions': tot_project_versions,
+                              'tot_wheels': tot_wheels,
+                              'notices': notices,
+                              'error': str(err)})
+        else:
+            apireturn(200,
+                      type="results",
+                      result={'failures': failures,
+                              'tot_projects': len(projects),
+                              'tot_project_versions': tot_project_versions,
+                              'tot_wheels': tot_wheels,
+                              'notices': notices})
 
 
 def should_fetch_remote_file(entry, headers):

@@ -13,7 +13,6 @@ from devpi_common.types import parse_hash_spec
 from devpi_server.log import threadlog
 from urllib.parse import unquote
 
-
 _nodefault = object()
 
 
@@ -98,6 +97,9 @@ class FileStore:
     def __init__(self, keyfs):
         self.keyfs = keyfs
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({repr(self.keyfs)})"
+
     def maplink(self, link, user, index, project):
         key = key_from_link(self.keyfs, link, user, index)
         entry = FileEntry(key, readonly=False)
@@ -135,11 +137,10 @@ class FileStore:
 
     def store(self, user, index, basename, content_or_file, dir_hash_spec=None):
         # dir_hash_spec is set for toxresult files
-        hash_spec = None
         if dir_hash_spec is None:
             dir_hash_spec = get_default_hash_spec(content_or_file)
-            # prevent hashing twice
-            hash_spec = dir_hash_spec
+        # prevent hashing twice
+        hash_spec = dir_hash_spec
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
         key = self.keyfs.STAGEFILE(
             user=user, index=index,

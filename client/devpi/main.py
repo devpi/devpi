@@ -1139,6 +1139,14 @@ def refresh(parser):
         help="package name to refresh.""")
 
 
+@subcommand("devpi.snapshot")
+def snapshot(parser):
+    """ snapshot an index into another."""
+    parser.add_argument("target", metavar="TARGETSPEC",
+                        action="store",
+                        help="target index name")
+
+
 def verify_reply_version(hub, reply):
     acceptable_api_version = ("2",)
     version = reply.headers.get("X-DEVPI-API-VERSION", None)
