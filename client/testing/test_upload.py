@@ -681,11 +681,11 @@ def test_filter_latest():
 
 
 @pytest.mark.parametrize("structure", [
-    {"doc": {"conf.py": "", "index.rst": ""}},
-    {"docs": {"conf.py": "", "index.rst": ""}},
-    {"doc": {"source": {"conf.py": "", "index.rst": ""}}},
-    {"docs": {"source": {"conf.py": "", "index.rst": ""}}},
-    {"source": {"conf.py": "", "index.rst": ""}},
+    {"doc": {"conf.py": "", "index.rst": "", "contents.rst": ""}},
+    {"docs": {"conf.py": "", "index.rst": "", "contents.rst": ""}},
+    {"doc": {"source": {"conf.py": "", "index.rst": "", "contents.rst": ""}}},
+    {"docs": {"source": {"conf.py": "", "index.rst": "", "contents.rst": ""}}},
+    {"source": {"conf.py": "", "index.rst": "", "contents.rst": ""}},
 ])
 def test_build_docs(initproj, out_devpi, structure):
     proj = initproj("hello1.1", structure)
