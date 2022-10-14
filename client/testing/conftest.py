@@ -175,6 +175,7 @@ def server_executable(request, tmpdir_factory):
         # first try installed devpi-server for quick runs during development
         path = py.path.local.sysfind("devpi-server")
         if path:
+            print("server_executable: Using existing devpi-server at %s" % path)
             return str(path)
     # there is no devpi-server installed
     python3 = find_python3()
@@ -191,6 +192,7 @@ def server_executable(request, tmpdir_factory):
         env=env)
     # install devpi-server
     venv_pip = get_venv_script(venv_path, ('pip', 'pip.exe'))
+    print("server_executable: Installing %r with %s" % (requirements, venv_pip))
     subprocess.check_call(
         [venv_pip, 'install', '--pre'] + requirements,
         env=env)
