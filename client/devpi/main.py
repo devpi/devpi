@@ -177,8 +177,8 @@ class Hub:
         else:
             self._last_http_stati.append(r.status_code)
 
-        if r.url != url:
-            self.info("*redirected: %s" %(r.url,))
+        if r.url.rstrip('/') != url.rstrip('/'):
+            self.info("*redirected from %s to %s" % (url, r.url))
 
         reply = HTTPReply(r)
 
