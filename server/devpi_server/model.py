@@ -142,6 +142,39 @@ class RootModel:
             threadlog.info("created user %r" % username)
         return user
 
+    def create_stage(self, user, index, type="stage", **kwargs):
+        if index in user.get().get("indexes", {}):
+            raise InvalidIndex("indexname '%s' already exists" % index)
+        if not is_valid_name(index):
+            raise InvalidIndex(
+                "indexname '%s' contains characters that aren't allowed. "
+                "Any ascii symbol besides -.@_ is blocked." % index)
+        stage = user._getstage(index, type, {"type": type})
+        if isinstance(stage.customizer, UnknownCustomizer):
+            raise InvalidIndexconfig("unknown index type %r" % type)
+        # apply default values for new indexes
+        for key, value in stage.get_default_config_items():
+            kwargs.setdefault(key, value)
+        # apply default values from customizer class for new indexes
+        for key, value in stage.customizer.get_default_config_items():
+            kwargs.setdefault(key, value)
+        stage._modify(**kwargs)
+        threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
+        return stage
+
+    def delete_user(self, username):
+        with self.keyfs.USERLIST.update() as userlist:
+            userlist.remove(username)
+
+    def delete_stage(self, username, index):
+        user = self.get_user(username)
+        with user.key.update() as userconfig:
+            indexes = userconfig.get("indexes", {})
+            if index not in indexes:
+                threadlog.info("index %s not exists" % self.index)
+                return False
+            del indexes[index]
+
     def get_user(self, name):
         user = User(self, name)
         if user.key.exists():
@@ -165,10 +198,14 @@ class RootModel:
         return user, index
 
     def getstage(self, user, index=None):
-        username, index = self._get_user_and_index(user, index)
-        user = self.get_user(username)
-        if user is not None:
-            return user.getstage(index)
+        (username, indexname) = self._get_user_and_index(user, index)
+        _user = self.get_user(username)
+        if _user is None:
+            return None
+        ixconfig = _user.get()["indexes"].get(indexname, {})
+        if not ixconfig:
+            return None
+        return _user._getstage(indexname, ixconfig["type"], ixconfig)
 
 
 def ensure_boolean(value):
@@ -273,7 +310,7 @@ class User:
     visible_keys = ignored_keys.union(info_keys, public_keys)
 
     def __init__(self, parent, name):
-        self.__parent__ = parent
+        self.parent = parent
         self.keyfs = parent.keyfs
         self.xom = parent.xom
         self.name = name
@@ -351,8 +388,7 @@ class User:
             self.getstage(name).delete()
         # delete the user information itself
         self.key.delete()
-        with self.keyfs.USERLIST.update() as userlist:
-            userlist.remove(self.name)
+        self.parent.delete_user(self.name)
 
     def validate(self, password):
         userconfig = self.key.get()
@@ -379,24 +415,7 @@ class User:
         return d
 
     def create_stage(self, index, type="stage", **kwargs):
-        if index in self.get().get("indexes", {}):
-            raise InvalidIndex("indexname '%s' already exists" % index)
-        if not is_valid_name(index):
-            raise InvalidIndex(
-                "indexname '%s' contains characters that aren't allowed. "
-                "Any ascii symbol besides -.@_ is blocked." % index)
-        stage = self._getstage(index, type, {"type": type})
-        if isinstance(stage.customizer, UnknownCustomizer):
-            raise InvalidIndexconfig("unknown index type %r" % type)
-        # apply default values for new indexes
-        for key, value in stage.get_default_config_items():
-            kwargs.setdefault(key, value)
-        # apply default values from customizer class for new indexes
-        for key, value in stage.customizer.get_default_config_items():
-            kwargs.setdefault(key, value)
-        stage._modify(**kwargs)
-        threadlog.info("created index %s: %s", stage.name, stage.ixconfig)
-        return stage
+        return self.parent.create_stage(self, index, type=type, **kwargs)
 
     @cached_property
     def MirrorStage(self):
@@ -416,10 +435,7 @@ class User:
             customizer_cls=customizer_cls)
 
     def getstage(self, indexname):
-        ixconfig = self.get()["indexes"].get(indexname, {})
-        if not ixconfig:
-            return None
-        return self._getstage(indexname, ixconfig["type"], ixconfig)
+        return self.parent.getstage(self.name, indexname)
 
     def getstages(self):
         stages = []
@@ -735,12 +751,7 @@ class BaseStage(object):
         return userconfig.get("indexes", {}).get(self.index)
 
     def delete(self):
-        with self.user.key.update() as userconfig:
-            indexes = userconfig.get("indexes", {})
-            if self.index not in indexes:
-                threadlog.info("index %s not exists" % self.index)
-                return False
-            del indexes[self.index]
+        self.model.delete_stage(self.username, self.index)
 
     def key_projsimplelinks(self, project):
         return self.keyfs.PROJSIMPLELINKS(user=self.username,
