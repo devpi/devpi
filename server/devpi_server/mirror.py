@@ -385,8 +385,7 @@ class MirrorStage(BaseStage):
             parser.feed(response.text)
         return (parser.projects, response.headers.get("ETag"))
 
-    def list_projects_perstage(self):
-        """ return set of all projects served through the mirror. """
+    def _list_projects_perstage(self):
         if self.offline:
             threadlog.warn("offline mode: using stale projects list")
             return {normalize_name(x): x for x in self.key_projects.get()}
@@ -424,6 +423,19 @@ class MirrorStage(BaseStage):
                     self.cache_projectnames.mark_current(etag)
 
         return {normalize_name(x): x for x in projects}
+
+    def list_projects_perstage(self):
+        """ return set of all projects served through the mirror. """
+        cached = getattr(self, "_list_projects_perstage_cache", None)
+        if cached is not None:
+            (offline, cache_expiry, projects) = cached
+            if self.offline == offline and self.cache_expiry == cache_expiry:
+                if not self.cache_projectnames.is_expired(cache_expiry):
+                    return projects
+        projects = self._list_projects_perstage()
+        self._list_projects_perstage_cache = (
+            self.offline, self.cache_expiry, projects)
+        return projects
 
     def is_project_cached(self, project):
         """ return True if we have some cached simpelinks information. """
