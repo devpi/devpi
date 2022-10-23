@@ -21,11 +21,15 @@ class Auth:
     class Expired(Exception):
         """ proxy authentication expired. """
 
-    def __init__(self, model, secret):
-        self.model = model
+    def __init__(self, xom, secret):
+        self.xom = xom
         self.serializer = itsdangerous.TimedSerializer(secret)
-        self.hook = self.model.xom.config.hook.devpiserver_auth_request
-        self.legacy_hook = self.model.xom.config.hook.devpiserver_auth_user
+        self.hook = xom.config.hook.devpiserver_auth_request
+        self.legacy_hook = xom.config.hook.devpiserver_auth_user
+
+    @property
+    def model(self):
+        return self.xom.model
 
     def _legacy_auth(self, authuser, authpassword, is_root, user):
         results = []
