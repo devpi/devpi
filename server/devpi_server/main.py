@@ -22,6 +22,7 @@ from .config import parseoptions, get_pluginmanager
 from .log import configure_logging, threadlog
 from .log import thread_push_log
 from .model import BaseStage
+from .model import RootModel
 from .views import apireturn
 from . import mythread
 from . import __version__ as server_version
@@ -288,11 +289,15 @@ class XOM:
             results.update(features)
         return tuple(sorted(results))
 
-    @cached_property
+    @property
     def model(self):
         """ root model object. """
-        from devpi_server.model import RootModel
-        return RootModel(self)
+        try:
+            tx = self.keyfs.tx
+        except AttributeError:
+            return RootModel(self)
+        else:
+            return tx.get_model(self)
 
     def main(self):
         xom = self

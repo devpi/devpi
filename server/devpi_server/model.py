@@ -187,14 +187,13 @@ class RootModel:
         return set(user.name for user in self.get_userlist())
 
     def _get_user_and_index(self, user, index=None):
-        if not py.builtin._istext(user):
-            user = user.decode("utf8")
+        assert isinstance(user, str)
         if index is None:
-            user = user.strip("/")
+            assert not user.startswith('/')
+            assert not user.endswith('/')
             user, index = user.split("/")
         else:
-            if not py.builtin._istext(index):
-                index = index.decode("utf8")
+            assert isinstance(index, str)
         return user, index
 
     def getstage(self, user, index=None):
@@ -653,12 +652,15 @@ class BaseStage(object):
         self.ixconfig = ixconfig
         self.customizer = customizer_cls(self)
         # the following attributes are per-xom singletons
-        self.model = xom.model
         self.keyfs = xom.keyfs
         self.filestore = xom.filestore
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.name}>"
+
+    @property
+    def model(self):
+        return self.xom.model
 
     def get_indexconfig_from_kwargs(self, **kwargs):
         """Normalizes values and validates keys.
