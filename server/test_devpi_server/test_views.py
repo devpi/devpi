@@ -582,13 +582,13 @@ def test_simple_page_pypi_serial(pypistage, testapp):
     assert "X-PYPI-LAST-SERIAL" not in r.headers
 
 
-def test_simple_refresh(mapp, model, pypistage, testapp):
+def test_simple_refresh(mapp, xom, pypistage, testapp):
     pypistage.mock_simple("hello", "<html/>")
     r = testapp.xget(200, "/root/pypi/+simple/hello/")
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
     assert input.attrs['value'] == 'Refresh'
-    with model.keyfs.transaction(write=False):
+    with xom.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks("hello").get()
     assert info != {}
     assert info["links"] == []
@@ -597,7 +597,7 @@ def test_simple_refresh(mapp, model, pypistage, testapp):
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/+simple/hello/")
-    with model.keyfs.transaction(write=False):
+    with xom.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks("hello").get()
     assert info["links"] == [
         ('hello-1.0.zip', 'root/pypi/+e/https_pypi.org_hello/hello-1.0.zip')]
@@ -628,7 +628,7 @@ def test_inheritance_versiondata(mapp):
 
 @pytest.mark.parametrize("project", ["pkg", "pkg-some"])
 @pytest.mark.parametrize("stagename", [None, "root/pypi"])
-def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
+def test_simple_refresh_inherited(mapp, xom, pypistage, testapp, project,
                                   stagename):
     pypistage.mock_simple(project, '<a href="/%s-1.0.zip" />' % project,
                           serial=100)
@@ -641,7 +641,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     r = testapp.xget(200, "/%s/+simple/%s/" % (stagename, project))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
-    with model.keyfs.transaction(write=False):
+    with xom.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks(project).get()
     assert info != {}
     pypistage.mock_simple(project, '<a href="/%s-2.0.zip" />' % project,
@@ -649,7 +649,7 @@ def test_simple_refresh_inherited(mapp, model, pypistage, testapp, project,
     r = testapp.post("/%s/+simple/%s/refresh" % (stagename, project))
     assert r.status_code == 302
     assert r.location.endswith("/%s/+simple/%s/" % (stagename, project))
-    with model.keyfs.transaction(write=False):
+    with xom.keyfs.transaction(write=False):
         info = pypistage.key_projsimplelinks(project).get()
     elist = info["links"]
     assert len(elist) == 1
@@ -691,8 +691,8 @@ def test_simple_with_removed_base(caplog, mapp, testapp):
         ('user1/dev', 'user1/prod')]
 
 
-def test_indexroot(testapp, model):
-    with model.keyfs.transaction(write=True):
+def test_indexroot(testapp, model, xom):
+    with xom.keyfs.transaction(write=True):
         user = model.create_user("user", "123")
         user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
@@ -1166,7 +1166,7 @@ class TestSubmitValidation:
         req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
         time.sleep(1.5)  # needed to test last_modified below
         testapp.push("/%s" % old_stagename, json.dumps(req))
-        with mapp.xom.model.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.transaction(write=False):
             old_stage = mapp.xom.model.getstage(old_stagename)
             new_stage = mapp.xom.model.getstage(new_stagename)
             old_entry = old_stage.get_releaselinks('Pkg5')[0].entry
@@ -1183,7 +1183,7 @@ class TestSubmitValidation:
         mapp.use(old_stagename)
         req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
         testapp.push("/%s" % old_stagename, json.dumps(req))
-        with mapp.xom.model.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.transaction(write=False):
             new_stage = mapp.xom.model.getstage(new_stagename)
             verdata = new_stage.get_versiondata('Pkg5', '2.6')
             assert ':action' not in list(verdata.keys())
@@ -2339,20 +2339,20 @@ class TestOfflineMode:
         (link,) = getlinks(r.text)
         assert link.get("href") == "package/"
 
-    def test_file_not_available(self, model, monkeypatch, testapp, pypistage, stagename):
+    def test_file_not_available(self, xom, monkeypatch, testapp, pypistage, stagename):
         monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: False)
         r = testapp.xget(200, "/%s/+simple/package/" % stagename)
         assert getlinks(r.text) == []
-        with model.keyfs.transaction(write=False):
+        with xom.keyfs.transaction(write=False):
             is_expired, links, serial = pypistage._load_cache_links("package")
 
         assert len(links) == 0
 
-    def test_file_available(self, model, testapp, pypistage, stagename):
+    def test_file_available(self, xom, testapp, pypistage, stagename):
         r = testapp.xget(200, "/%s/+simple/package/" % stagename)
         (link,) = getlinks(r.text)
         assert '/package-1.0.zip' in link.get("href")
-        with model.keyfs.transaction(write=False):
+        with xom.keyfs.transaction(write=False):
             is_expired, links, serial = pypistage._load_cache_links("package")
 
         assert links[0][0] == "package-1.0.zip"
