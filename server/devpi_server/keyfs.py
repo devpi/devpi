@@ -370,6 +370,10 @@ class KeyFS(object):
         tx = self.tx
         if tx.write:
             raise RuntimeError("Can only restart a read transaction.")
+        if tx.at_serial == tx.conn.db_read_last_changelog_serial():
+            threadlog.debug(
+                "already at current serial, not restarting transactions")
+            return
         old_prefix = self._tx_prefix()
         tx.restart(write=False)
         thread_change_log_prefix(self._tx_prefix(), old_prefix)
