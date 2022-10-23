@@ -421,7 +421,7 @@ class PyPIView:
 
     @lazy
     def auth(self):
-        return Auth(self.model, self.xom.config.get_auth_secret())
+        return Auth(self.xom, self.xom.config.get_auth_secret())
 
     def get_auth_status(self):
         identity = self.request.identity

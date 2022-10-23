@@ -11,9 +11,9 @@ pytestmark = [pytest.mark.writetransaction]
 
 class TestAuth:
     @pytest.fixture
-    def auth(self, model):
+    def auth(self, xom):
         from devpi_server.views import Auth
-        return Auth(model, "qweqwe")
+        return Auth(xom, "qweqwe")
 
     def test_auth_direct(self, model, auth):
         model.create_user("user", password="world")
@@ -123,9 +123,9 @@ class TestAuthPlugin:
         return xom
 
     @pytest.fixture
-    def auth(self, model):
+    def auth(self, xom):
         from devpi_server.views import Auth
-        return Auth(model, "qweqwe")
+        return Auth(xom, "qweqwe")
 
     def test_auth_plugin_no_user(self, auth, plugin):
         plugin.results = [None]
@@ -197,9 +197,9 @@ class TestAuthPlugins:
         return xom
 
     @pytest.fixture
-    def auth(self, model):
+    def auth(self, xom):
         from devpi_server.views import Auth
-        return Auth(model, "qweqwe")
+        return Auth(xom, "qweqwe")
 
     def test_auth_plugins_groups_combined(self, auth, plugin1, plugin2):
         plugin1.results = [dict(status="ok", groups=['group1', 'common'])]

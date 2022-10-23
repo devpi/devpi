@@ -1000,7 +1000,7 @@ def test_replica_user_auth_before_other_plugins(makexom):
     plugin = Plugin()
     # register both plugins, so the above plugin would normally be called first
     xom = makexom(plugins=[replica, plugin])
-    auth = Auth(xom.model, "qweqwe")
+    auth = Auth(xom, "qweqwe")
     with xom.keyfs.transaction(write=False):
         # because the replica auth has tryfirst our plugin shouldn't be called
         with pytest.raises(HTTPForbidden):

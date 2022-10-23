@@ -202,7 +202,7 @@ class CredentialsIdentity:
 class DevpiSecurityPolicy:
     def __init__(self, xom):
         self.realm = "pypi"
-        self.auth = Auth(xom.model, xom.config.get_auth_secret())
+        self.auth = Auth(xom, xom.config.get_auth_secret())
         self.hook = xom.config.hook
         self.identity_cache = RequestLocalCache(self.load_identity)
 
