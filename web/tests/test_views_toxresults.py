@@ -84,7 +84,7 @@ def test_testdata_missing(mapp, testapp, tox_result_data):
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
-    with mapp.xom.model.keyfs.transaction(write=True):
+    with mapp.xom.keyfs.transaction(write=True):
         stage = mapp.xom.model.getstage(api.stagename)
         link, = stage.get_releaselinks('pkg1')
         linkstore = stage.get_linkstore_perstage(link.project, link.version)

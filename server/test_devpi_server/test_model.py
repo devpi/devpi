@@ -132,7 +132,7 @@ def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
         {"name": "pkg1", "version": "2.6", "description": "foo"},
         set_whitelist=False)
     # test that getting the whitelist info doesn't reveal package name, see #451
-    with mapp.xom.model.keyfs.transaction(write=False):
+    with mapp.xom.keyfs.transaction(write=False):
         with monkeypatch.context() as m:
             # make sure we get an error if data is fetched
             m.setattr(mapp.xom, 'httpget', None)
@@ -145,7 +145,7 @@ def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
         "https://pypi.org/simple/", text='<a href="pkg1"></a>')
     mapp.xom.httpget.mock_simple("pkg1", text="")
     mapp.get_simple("pkg1")
-    with mapp.xom.model.keyfs.transaction(write=False):
+    with mapp.xom.keyfs.transaction(write=False):
         with monkeypatch.context() as m:
             # make sure we get an error if data is fetched
             m.setattr(mapp.xom, 'httpget', None)
@@ -160,7 +160,7 @@ def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
             assert info['blocked_by_mirror_whitelist'] == "root/pypi"
     # now we whitelist the package
     testapp.patch_json("/" + api.stagename, ["mirror_whitelist+=pkg1"])
-    with mapp.xom.model.keyfs.transaction(write=False):
+    with mapp.xom.keyfs.transaction(write=False):
         stage = mapp.xom.model.getstage(api.stagename)
         info = stage.get_mirror_whitelist_info("pkg1")
         assert info['has_mirror_base'] is True
@@ -1567,11 +1567,11 @@ def test_user_set_without_indexes(model):
 @pytest.mark.notransaction
 def test_setdefault_indexes(xom, model):
     from devpi_server.main import set_default_indexes
-    with model.keyfs.transaction(write=True):
+    with xom.keyfs.transaction(write=True):
         set_default_indexes(xom.model)
-    with model.keyfs.transaction(write=False):
+    with xom.keyfs.transaction(write=False):
         assert model.getstage("root/pypi").ixconfig["type"] == "mirror"
-    with model.keyfs.transaction(write=False):
+    with xom.keyfs.transaction(write=False):
         ixconfig = model.getstage("root/pypi").ixconfig
         for key in ixconfig:
             assert py.builtin._istext(key)
