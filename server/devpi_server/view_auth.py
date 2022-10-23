@@ -19,10 +19,9 @@ class RootFactory(object):
             if not isinstance(context, BaseStage):
                 raise TypeError("context must be a stage")
         self.context = context
-        xom = request.registry['xom']
-        self.model = xom.model
-        self.restrict_modify = xom.config.restrict_modify
-        self.hook = xom.config.hook
+        self.xom = request.registry['xom']
+        self.restrict_modify = self.xom.config.restrict_modify
+        self.hook = self.xom.config.hook
 
     def __repr__(self):
         cls = self.__class__
@@ -30,6 +29,10 @@ class RootFactory(object):
             f"<{cls.__module__}.{cls.__name__} "
             f"username={self.username!r} "
             f"index={self.index!r}>")
+
+    @property
+    def model(self):
+        return self.xom.model
 
     @cached_property
     def _user(self):

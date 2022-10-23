@@ -1155,8 +1155,23 @@ class TestFileReplicationSharedData:
 
         # simulate deleted index
         l = []
+
+        class RootModel:
+            def getstage(self, user, index):
+                l.append((user, index))
+
+        class Transaction:
+            model = None
+
+            def get_model(self, xom):
+                if self.model is None:
+                    self.model = RootModel()
+                return self.model
+
         monkeypatch.setattr(
-            shared_data.xom.model, "getstage", lambda u, i: l.append((u, i)))
+            shared_data.xom.keyfs._threadlocal,
+            "tx", Transaction(), raising=False)
+
         shared_data.on_import_file(None, 1, key, None, -1)
         # it should still be queued to check master and get a 410 for sure
         assert shared_data.queue.qsize() == 1

@@ -14,6 +14,7 @@ from .interfaces import IStorageConnection3
 from .keyfs_types import PTypedKey, RelpathInfo, TypedKey
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
+from .model import RootModel
 from .readonly import ensure_deeply_readonly
 from .readonly import get_mutable_deepcopy
 from .readonly import is_deeply_readonly
@@ -471,6 +472,54 @@ def iter_relpaths_at(self, typedkeys, at_serial):
                     value=val)
 
 
+class TransactionRootModel(RootModel):
+    def __init__(self, xom):
+        super().__init__(xom)
+        self.model_cache = {}
+
+    def create_user(self, username, password, **kwargs):
+        if username in self.model_cache:
+            assert self.model_cache[username] is None
+        self.model_cache[username] = super().create_user(
+            username, password, **kwargs)
+        return self.model_cache[username]
+
+    def create_stage(self, user, index, type="stage", **kwargs):
+        key = (user.name, index)
+        if key in self.model_cache:
+            assert self.model_cache[key] is None
+        self.model_cache[key] = super().create_stage(
+            user, index, type=type, **kwargs)
+        return self.model_cache[key]
+
+    def delete_user(self, username):
+        if username in self.model_cache:
+            assert self.model_cache[username] is not None
+            del self.model_cache[username]
+        super().delete_user(username)
+
+    def delete_stage(self, username, index):
+        key = (username, index)
+        if key in self.model_cache:
+            assert self.model_cache[key] is not None
+            del self.model_cache[key]
+        super().delete_stage(username, index)
+
+    def get_user(self, name):
+        if name not in self.model_cache:
+            self.model_cache[name] = super().get_user(name)
+        return self.model_cache[name]
+
+    def getstage(self, user, index=None):
+        if index is None:
+            user = user.strip('/')
+            (user, index) = user.split('/')
+        key = (user, index)
+        if key not in self.model_cache:
+            self.model_cache[key] = super().getstage(user, index)
+        return self.model_cache[key]
+
+
 class Transaction(object):
     def __init__(self, keyfs, at_serial=None, write=False):
         self.keyfs = keyfs
@@ -487,6 +536,7 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
         self.doomed = False
+        self.model = notset
         self._finished_listeners = []
         self._success_listeners = []
 
@@ -494,6 +544,11 @@ class Transaction(object):
     def conn(self):
         return self.keyfs.get_connection(
             write=self.write, closing=False)
+
+    def get_model(self, xom):
+        if self.model is notset:
+            self.model = TransactionRootModel(xom)
+        return self.model
 
     def iter_relpaths_at(self, typedkeys, at_serial):
         return self.conn.iter_relpaths_at(typedkeys, at_serial)

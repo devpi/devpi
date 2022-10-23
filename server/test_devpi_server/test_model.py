@@ -765,9 +765,8 @@ class TestStage:
     @pytest.mark.notransaction
     def test_mirror_whitelist_inheritance_bbb(self, xom):
         keyfs = xom.keyfs
-        model = xom.model
         with keyfs.transaction(write=True):
-            user = model.create_user("hello", password="123")
+            user = xom.model.create_user("hello", password="123")
             config = udict(index="world", bases=(), type="stage", volatile=True)
             stage = user.create_stage(**config)
             assert stage.ixconfig["mirror_whitelist_inheritance"] == "intersection"
@@ -1131,9 +1130,8 @@ class TestStage:
     @pytest.mark.notransaction
     def test_get_last_change_serial_perstage(self, xom):
         current_serial = xom.keyfs.get_current_serial()
-        model = xom.model
         with xom.keyfs.transaction(write=True):
-            user = model.create_user("hello", password="123")
+            user = xom.model.create_user("hello", password="123")
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.transaction(write=True):
@@ -1565,17 +1563,17 @@ def test_user_set_without_indexes(model):
 
 
 @pytest.mark.notransaction
-def test_setdefault_indexes(xom, model):
+def test_setdefault_indexes(xom):
     from devpi_server.main import set_default_indexes
     with xom.keyfs.transaction(write=True):
         set_default_indexes(xom.model)
     with xom.keyfs.transaction(write=False):
-        assert model.getstage("root/pypi").ixconfig["type"] == "mirror"
+        assert xom.model.getstage("root/pypi").ixconfig["type"] == "mirror"
     with xom.keyfs.transaction(write=False):
-        ixconfig = model.getstage("root/pypi").ixconfig
+        ixconfig = xom.model.getstage("root/pypi").ixconfig
         for key in ixconfig:
             assert py.builtin._istext(key)
-        userconfig = model.get_user("root").get()
+        userconfig = xom.model.get_user("root").get()
         for key in userconfig["indexes"]["pypi"]:
             assert py.builtin._istext(key)
 
