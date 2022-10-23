@@ -540,7 +540,7 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
         self.doomed = False
-        self.model = notset
+        self._model = notset
         self._finished_listeners = []
         self._success_listeners = []
 
@@ -550,9 +550,9 @@ class Transaction(object):
             write=self.write, closing=False)
 
     def get_model(self, xom):
-        if self.model is notset:
-            self.model = TransactionRootModel(xom)
-        return self.model
+        if self._model is notset:
+            self._model = TransactionRootModel(xom)
+        return self._model
 
     def iter_relpaths_at(self, typedkeys, at_serial):
         return self.conn.iter_relpaths_at(typedkeys, at_serial)
@@ -730,6 +730,8 @@ class Transaction(object):
             # ``rollback``, which then arrives here.
             return
         threadlog.debug("closing transaction at %s", self.at_serial)
+        del self._model
+        del self._original
         del self.cache
         del self.dirty
         self.conn.close()
