@@ -6,7 +6,6 @@ for all indexes.
 import hashlib
 import mimetypes
 from wsgiref.handlers import format_date_time
-import py
 import re
 from devpi_common.metadata import splitbasename
 from devpi_common.types import parse_hash_spec
@@ -87,8 +86,8 @@ def key_from_link(keyfs, link, user, index):
 
 
 def unicode_if_bytes(val):
-    if isinstance(val, py.builtin.bytes):
-        val = py.builtin._totext(val)
+    if isinstance(val, bytes):
+        return val.decode('ascii')
     return val
 
 

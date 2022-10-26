@@ -1,6 +1,7 @@
 """
 remotely based on some code from https://pypi.org/project/Archive/0.3/
 """
+from io import BytesIO
 import os
 import tarfile
 import zipfile
@@ -131,7 +132,7 @@ class ZipArchive(BaseArchive):
 
 def zip_dir(basedir, dest=None):
     if dest is None:
-        f = py.io.BytesIO()
+        f = BytesIO()
     else:
         f = open(str(dest), "wb")
     zip = zipfile.ZipFile(f, "w")
@@ -156,11 +157,18 @@ def _writezip(zip, basedir):
 
 
 def zip_dict(contentdict):
-    f = py.io.BytesIO()
+    f = BytesIO()
     zip = zipfile.ZipFile(f, "w")
     _writezip_fromdict(zip, contentdict)
     zip.close()
     return f.getvalue()
+
+
+# BBB for Python 2.7
+try:
+    unicode
+except NameError:
+    unicode = str
 
 
 def _writezip_fromdict(zip, contentdict, prefixes=()):
@@ -175,6 +183,6 @@ def _writezip_fromdict(zip, contentdict, prefixes=()):
                 _writezip_fromdict(zip, val, newprefixes)
         else:
             path = os.sep.join(prefixes + (name,))
-            if py.builtin._istext(val):
+            if isinstance(val, unicode):
                 val = val.encode("ascii")
             zip.writestr(path, val)

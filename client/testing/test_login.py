@@ -1,8 +1,9 @@
 from devpi.main import Hub, hookimpl
 from devpi.login import main
 from functools import partial
-import py
+from io import BytesIO, StringIO
 import pytest
+import sys
 
 
 class GetPassException(Exception):
@@ -24,7 +25,11 @@ def args(tmpdir):
 
 @pytest.fixture
 def hub(args):
-    out = py.io.TextIO()
+    # BBB for Python 2.7
+    if sys.version_info < (3,):
+        out = BytesIO()
+    else:
+        out = StringIO()
     hub = Hub(args, file=out)
     hub._out = out
     return hub

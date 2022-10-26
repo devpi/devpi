@@ -1,6 +1,8 @@
 from __future__ import print_function
 from contextlib import closing
 from devpi_common.metadata import parse_version
+from io import BytesIO
+from io import StringIO
 import codecs
 import os
 import pytest
@@ -17,7 +19,12 @@ from devpi_common.url import URL
 
 import subprocess
 
-print_ = py.builtin.print_
+
+# BBB for Python 2.7
+try:
+    basestring
+except NameError:
+    basestring = str
 
 
 def pytest_addoption(parser):
@@ -33,7 +40,7 @@ def pytest_addoption(parser):
 
 def print_info(*args, **kwargs):
     kwargs.setdefault("file", sys.stderr)
-    return py.builtin.print_(*args, **kwargs)
+    return print(*args, **kwargs)
 
 
 class PopenFactory:
@@ -336,7 +343,7 @@ def create_files(base, filedefs):
     for key, value in filedefs.items():
         if isinstance(value, dict):
             create_files(base.ensure(key, dir=1), value)
-        elif isinstance(value, py.builtin._basestring):
+        elif isinstance(value, basestring):
             s = textwrap.dedent(value)
             base.join(key).write(s)
 
@@ -372,7 +379,7 @@ def initproj(tmpdir):
             filedefs = {}
         if not src_root:
             src_root = "."
-        if isinstance(nameversion, py.builtin._basestring):
+        if isinstance(nameversion, basestring):
             parts = nameversion.split(str("-"))
             if len(parts) == 1:
                 parts.append("0.1")
@@ -494,7 +501,7 @@ class Gen:
         res = ReprResultLog("/%s-%s.tgz" % (name, version),
                             md5 or self.md5(),
                             **getplatforminfo())
-        out = py.io.TextIO()
+        out = StringIO()
         for i in range(passed):
             out.write(". test_pass.py::test_pass%s\n" %i)
         for i in range(failed):
@@ -577,11 +584,11 @@ def out_devpi(devpi):
                 out, err = cap.reset()
                 del cap
         except:
-            print_(out)
-            print_(err)
+            print(out)
+            print(err)
             raise
-        print_(out)
-        print_(err, file=sys.stderr)
+        print(out)
+        print(err, file=sys.stderr)
         return RunResult(ret, out.split("\n"), None, time.time()-now)
     return out_devpi_func
 
@@ -702,7 +709,11 @@ def loghub(tmpdir):
         verbose = False
         settrusted = False
 
-    out = py.io.TextIO()
+    # BBB for Python 2.7
+    if sys.version_info < (3,):
+        out = BytesIO()
+    else:
+        out = StringIO()
     hub = Hub(args, file=out)
 
     def _getmatcher():

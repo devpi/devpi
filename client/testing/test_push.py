@@ -237,6 +237,9 @@ def test_derive_token_invalid_token(prefix):
     msgs = []
 
     class MockHub:
+        def info(self, msg):
+            msgs.append(msg)
+
         def warn(self, msg):
             msgs.append(msg)
     hub = MockHub()

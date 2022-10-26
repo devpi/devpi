@@ -1,6 +1,5 @@
 import contextlib
 import os
-import py
 import re
 import traceback
 from time import time
@@ -1195,7 +1194,7 @@ class PyPIView:
                 val = form.get(key, "")
                 if val == "UNKNOWN":
                     val = ""
-                assert py.builtin._istext(val), val
+                assert isinstance(val, str), val
             metadata[key] = val
         return metadata
 

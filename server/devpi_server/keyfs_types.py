@@ -1,7 +1,6 @@
 from attrs import define
 from typing import Any
 import contextlib
-import py
 import re
 
 
@@ -20,7 +19,8 @@ class PTypedKey:
 
     def __init__(self, keyfs, key, type, name):
         self.keyfs = keyfs
-        self.pattern = py.builtin._totext(key)
+        assert isinstance(key, str)
+        self.pattern = key
         self.type = type
         self.name = name
 

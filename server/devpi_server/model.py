@@ -1,7 +1,6 @@
 
 import getpass
 import posixpath
-import py
 import re
 import json
 import warnings
@@ -284,7 +283,7 @@ def is_valid_name(name):
 
 class InvalidUserconfig(Exception):
     def __init__(self, messages):
-        if isinstance(messages, py.builtin._basestring):
+        if isinstance(messages, str):
             messages = [messages]
         self.messages = messages
         Exception.__init__(self, messages)
@@ -445,7 +444,7 @@ class User:
 
 class InvalidIndexconfig(Exception):
     def __init__(self, messages):
-        if isinstance(messages, py.builtin._basestring):
+        if isinstance(messages, str):
             messages = [messages]
         self.messages = messages
         Exception.__init__(self, messages)
@@ -825,7 +824,7 @@ class BaseStage(object):
         return frozenset(apply_filter_iter(versions, iterator))
 
     def list_versions(self, project):
-        assert py.builtin._istext(project), "project %r not text" % project
+        assert isinstance(project, str), "project %r not text" % project
         versions = set()
         for stage, res in self.op_sro_check_mirror_whitelist(
                 "list_versions_perstage", project=project):
@@ -883,7 +882,7 @@ class BaseStage(object):
         return max(last_serial, version_serial)
 
     def get_versiondata(self, project, version):
-        assert py.builtin._istext(project), "project %r not text" % project
+        assert isinstance(project, str), "project %r not text" % project
         result = {}
         if not self.filter_versions(project, [version]):
             return result

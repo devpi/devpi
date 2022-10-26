@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import itsdangerous
-import py
 import secrets
 from .log import threadlog
 from passlib.context import CryptContext
@@ -132,7 +131,7 @@ class Auth:
                 username,
                 result.get("groups", []),
                 result.get("from_user_object", False)])
-            assert py.builtin._totext(pseudopass, 'ascii')
+            assert pseudopass.encode('ascii')
             return {"password": pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
 
@@ -141,11 +140,11 @@ def getpwhash(password, salt):
     hash = hashlib.sha256()
     hash.update(salt.encode("ascii"))
     hash.update(password.encode("utf-8"))
-    return py.builtin._totext(hash.hexdigest())
+    return hash.hexdigest()
 
 
 def newsalt():
-    return py.builtin._totext(base64.b64encode(secrets.token_bytes(16)), "ascii")
+    return base64.b64encode(secrets.token_bytes(16)).decode("ascii")
 
 
 class DevpiHandler(MinimalHandler):
@@ -186,10 +185,9 @@ def verify_and_update_password_hash(password, hash, salt=None):
     if salt is not None:
         hash = "%s:%s" % (salt, hash)
     (valid, newhash) = pwd_context.verify_and_update(password, hash)
-    if newhash:
-        newhash = py.builtin._totext(newhash)
+    assert newhash is None or isinstance(newhash, str)
     return (valid, newhash)
 
 
 def hash_password(password):
-    return py.builtin._totext(pwd_context.hash(password))
+    return pwd_context.hash(password)

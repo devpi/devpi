@@ -1,6 +1,5 @@
 import hashlib
 import pytest
-import py
 import json
 import posixpath
 from bs4 import BeautifulSoup
@@ -15,7 +14,7 @@ import devpi_server.views
 from devpi_server.config import hookimpl
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from devpi_server.mirror import parse_index
-
+from io import BytesIO
 from .functional import TestUserThings, TestIndexThings, TestIndexPushThings  # noqa
 from .functional import TestMirrorIndexThings  # noqa
 
@@ -506,7 +505,7 @@ def test_simple_project_unicode_rejected(pypistage, testapp, dummyrequest):
     dummyrequest.log = pypistage.xom.log
     dummyrequest.context = RootFactory(dummyrequest)
     view = PyPIView(dummyrequest)
-    project = py.builtin._totext(b"qpw\xc3\xb6", "utf-8")
+    project = b"qpw\xc3\xb6".decode("utf-8")
     dummyrequest.matchdict.update(user="x", index="y", project=project)
     with pytest.raises(HTTPClientError):
         view.simple_list_project()
@@ -1402,7 +1401,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     assert history_log[1]['dst'] == 'user2/prod'
     assert link.href.endswith("/pkg1-2.6.doc.zip")
     r = testapp.get(link.href)
-    archive = Archive(py.io.BytesIO(r.body))
+    archive = Archive(BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
     # reconfigure inheritance and see if get shadowing information
@@ -2193,7 +2192,7 @@ def test_upload_docs_no_version(mapp, testapp, proj):
     link = vv.get_link("doczip")
     assert link.href.endswith("/pkg1-1.0.doc.zip")
     r = testapp.get(link.href)
-    archive = Archive(py.io.BytesIO(r.body))
+    archive = Archive(BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
 
@@ -2217,7 +2216,7 @@ def test_upload_docs(mapp, testapp, proj):
     assert link.log[0]['who'] == 'user1'
     assert link.log[0]['dst'] == 'user1/dev'
     r = testapp.get(link.href)
-    archive = Archive(py.io.BytesIO(r.body))
+    archive = Archive(BytesIO(r.body))
     assert 'index.html' in archive.namelist()
 
 

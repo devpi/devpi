@@ -1,10 +1,10 @@
 # this file is shared via symlink with devpi-client,
 # so for the time being it must continue to work with Python 2
+from io import BytesIO
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.response import HTTPResponse  # type: ignore
 import fnmatch
 import pytest
-import py
 
 
 @pytest.fixture
@@ -73,11 +73,18 @@ class mocked_request:
     mock = mockresponse
 
 
+# BBB for Python 2.7
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
 class ReqReply(HTTPResponse):
     def __init__(self, code, data, headers, on_request, reason=None):
-        if py.builtin._istext(data):
+        if isinstance(data, unicode):
             data = data.encode("utf-8")
-        super(ReqReply, self).__init__(body=py.io.BytesIO(data),
+        super(ReqReply, self).__init__(body=BytesIO(data),
                                        status=code,
                                        headers=headers,
                                        reason=reason,

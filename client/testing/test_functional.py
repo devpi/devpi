@@ -1,6 +1,5 @@
 from io import BytesIO
 import json
-import py
 import pytest
 import requests
 import tarfile
@@ -231,7 +230,6 @@ class Mapp(MappMixin):
 
     def upload_file_pypi(self, basename, content,
                          name=None, version=None):
-        assert py.builtin._isbytes(content)
         pkg = self.tmpdir.join(basename)
         pkg.write_binary(content)
         self.devpi('upload', pkg.strpath)

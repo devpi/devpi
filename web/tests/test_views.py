@@ -2,7 +2,6 @@ from devpi_common.archive import zip_dict
 from devpi_common.metadata import parse_version
 from devpi_server import __version__ as _devpi_server_version
 from time import struct_time
-import py
 import pytest
 import re
 
@@ -375,9 +374,7 @@ def test_version_view(mapp, testapp, monkeypatch):
     description = r.html.select('#description')
     assert len(description) == 1
     description = description[0]
-    assert py.builtin._totext(
-        description.renderContents().strip(),
-        'utf-8') == u'<p>föö</p>'
+    assert description.renderContents().strip().decode('utf-8') == u'<p>föö</p>'
     filesinfo = [
         tuple(
             compareable_text(t.text).split()
@@ -418,9 +415,7 @@ def test_markdown_description_without_content_type(mapp, testapp, monkeypatch):
 
     description = r.html.select('#description')
     assert len(description) == 1
-    assert '#' in py.builtin._totext(
-        description[0].renderContents().strip(),
-        'utf-8')
+    assert '#' in description[0].renderContents().strip().decode('utf-8')
 
 
 @pytest.mark.with_notifier
@@ -440,9 +435,7 @@ def test_markdown_description_with_content_type(mapp, testapp, monkeypatch):
 
     description = r.html.select('#description')
     assert len(description) == 1
-    assert py.builtin._totext(
-        description[0].renderContents().strip(),
-        'utf-8') == u'<h1>Description</h1>'
+    assert description[0].renderContents().strip().decode('utf-8') == u'<h1>Description</h1>'
 
 
 @pytest.mark.with_notifier
@@ -464,12 +457,12 @@ def test_description_updated(mapp, testapp):
         "name": "pkg-hello", "version": "1.0", "description": "foo"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>foo</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
+    assert '<p>foo</p>' == description.renderContents().strip().decode('utf-8')
     mapp.set_versiondata({
         "name": "pkg-hello", "version": "1.0", "description": "bar"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>bar</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
+    assert '<p>bar</p>' == description.renderContents().strip().decode('utf-8')
 
 
 @pytest.mark.with_notifier
@@ -479,7 +472,7 @@ def test_description_empty(mapp, testapp):
         "name": "pkg-hello", "version": "1.0"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>No description in metadata</p>' == py.builtin._totext(description.renderContents().strip(), 'utf-8')
+    assert '<p>No description in metadata</p>' == description.renderContents().strip().decode('utf-8')
 
 
 def test_version_not_found(mapp, testapp):
