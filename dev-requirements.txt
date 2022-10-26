@@ -11,6 +11,7 @@ flake8<5
 mock
 mypy[python2]
 mypy-zope
+pypitoken
 pytest
 pytest-cov
 pytest-flake8
