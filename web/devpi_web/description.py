@@ -1,5 +1,5 @@
+from html import escape
 import io
-import py
 import readme_renderer.markdown
 import readme_renderer.rst
 import readme_renderer.txt
@@ -53,9 +53,9 @@ class DescriptionRenderer:
 
         :return: string
         """
-        if py.builtin._istext(html):
+        if isinstance(html, str):
             return html
-        return py.builtin._totext(html, 'utf-8')
+        return html.decode('utf-8')
 
     def _render_mirror_description(self):
         """ Generate a description with a link to the remote mirror's description.
@@ -65,10 +65,9 @@ class DescriptionRenderer:
         link = self._get_mirror_web_url_fmt().format(
             name=self.name).rstrip('/') + '/%s/' % self.version
 
-        html = py.xml.html
-        return html.div(
-            'Please refer to description on remote server ',
-            html.a(link, href=link)).unicode(indent=2)
+        return (
+            '<div>Please refer to description on remote server '
+            '<a href="{link}">{link}</a></div>').format(link=escape(link))
 
     def _render_description(self, desc):
         """ Render a markdown or RST description.

@@ -1,6 +1,5 @@
 import os
 import sys
-import py
 import pytest
 import json
 from devpi_server.config import hookimpl
@@ -11,6 +10,7 @@ from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict
 from devpi_common.metadata import Version
 from devpi_common.url import URL
+from io import BytesIO
 import importlib.resources
 
 import devpi_server
@@ -864,10 +864,9 @@ class TestImportExport:
         with mapp2.xom.keyfs.transaction(write=False):
             stage = mapp2.xom.model.getstage(api.stagename)
             doczip = stage.get_doczip("hello", "1.0")
-            archive = Archive(py.io.BytesIO(doczip))
+            archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()
-            assert py.builtin._totext(
-                archive.read("index.html"), 'utf-8') == "<html/>"
+            assert archive.read("index.html").decode('utf-8') == "<html/>"
 
     def test_name_mangling_relates_to_issue132(self, impexp):
         mapp1 = impexp.mapp1
@@ -927,10 +926,9 @@ class TestImportExport:
             assert len(links) == 1
             assert links[0].entry.file_get_content() == b'content'
             doczip = stage.get_doczip("he_llo", "1.0")
-            archive = Archive(py.io.BytesIO(doczip))
+            archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()
-            assert py.builtin._totext(
-                archive.read("index.html"), 'utf-8') == "<html/>"
+            assert archive.read("index.html").decode('utf-8') == "<html/>"
 
     @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
@@ -968,10 +966,9 @@ class TestImportExport:
             assert links[0].entry.file_get_content() == b'content'
             # assert os.stat(links[0].entry.file_os_path()).st_nlink == 2
             doczip = stage.get_doczip("he_llo", "1.0")
-            archive = Archive(py.io.BytesIO(doczip))
+            archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()
-            assert py.builtin._totext(
-                archive.read("index.html"), 'utf-8') == "<html/>"
+            assert archive.read("index.html").decode('utf-8') == "<html/>"
 
         # and the exported files should now have additional links
         assert impexp.exportdir.join(

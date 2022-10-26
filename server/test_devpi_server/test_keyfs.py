@@ -185,7 +185,7 @@ class Test_addkey_combinations:
 
     def test_addkey_unicode(self, keyfs, type, val):
         pattr = keyfs.add_key("NAME", "hello/{some}", type)
-        attr = pattr(some=py.builtin._totext(b'\xe4', "latin1"))
+        attr = pattr(some=b'\xe4'.decode("latin1"))
         assert not attr.exists()
         assert attr.get() == type()
         assert not attr.exists()
@@ -243,7 +243,7 @@ class TestKey:
         with key1.update() as d:
             with key2.update() as l:
                 l.append(1)
-                d[py.builtin._totext("hello")] = l
+                d["hello"] = l
         assert key1.get()["hello"] == l
 
     def test_get_inplace(self, keyfs):

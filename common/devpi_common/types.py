@@ -3,7 +3,6 @@ from lazy import lazy as cached_property  # noqa
 from types import FunctionType
 import hashlib
 import operator
-import py
 
 
 # re-introduced for 2.0 series but not used anymore
@@ -134,10 +133,23 @@ class lazydecorator:
             assert newfunc == func
 
 
+# BBB for Python 2.7
+try:
+    basestring
+except NameError:
+    basestring = str
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
 def ensure_unicode(x):
-    if py.builtin._istext(x):
+    if isinstance(x, unicode):
         return x
-    return py.builtin._totext(x, "utf8")
+    if not isinstance(x, basestring):
+        return unicode(x)
+    return x.decode("utf8")
 
 
 def parse_hash_spec(fragment):

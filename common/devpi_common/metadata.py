@@ -1,6 +1,5 @@
 import posixpath
 import re
-import py
 from packaging.version import parse as parse_version
 from packaging.requirements import Requirement as BaseRequirement
 from .types import CompareMixin
@@ -151,13 +150,20 @@ class Version(CompareMixin):
         return False
 
 
+# BBB for Python 2.7
+try:
+    basestring
+except NameError:
+    basestring = str
+
+
 class BasenameMeta(CompareMixin):
     def __init__(self, obj, sameproject=False):
         self.obj = obj
         # none of the below should be done lazily, as devpi_server.mirror
         # essentially uses this to validate parsed links
         basename = getattr(obj, "basename", obj)
-        if not isinstance(basename, py.builtin._basestring):
+        if not isinstance(basename, basestring):
             raise ValueError("need object with basename attribute")
         assert "/" not in basename, (obj, basename)
         name, version, ext = splitbasename(basename, checkarch=False)

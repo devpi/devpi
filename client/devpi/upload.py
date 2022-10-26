@@ -1,3 +1,4 @@
+import iniconfig
 import os
 import sys
 import py
@@ -557,7 +558,7 @@ def sdistformat(format):
 def read_setupcfg(hub, path):
     setup_cfg = path.join("setup.cfg")
     if setup_cfg.exists():
-        cfg = py.iniconfig.IniConfig(setup_cfg)
+        cfg = iniconfig.IniConfig(setup_cfg)
         hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)
         return cfg.sections.get("devpi:upload", {})
     return {}

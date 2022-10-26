@@ -2,6 +2,7 @@ from devpi_common.archive import Archive
 from devpi_common.archive import UnsupportedArchive
 from devpi_common.archive import zip_dict
 from devpi_common.archive import zip_dir
+from io import BytesIO
 from subprocess import Popen, PIPE
 import py
 import pytest
@@ -74,7 +75,7 @@ class TestArchive:
 
     def test_unknown_archive(self):
         with pytest.raises(UnsupportedArchive):
-            Archive(py.io.BytesIO(b"123"))
+            Archive(BytesIO(b"123"))
 
     def test_read(self, archive):
         assert archive.read("1") == b"file1"
@@ -109,7 +110,7 @@ def test_tarfile_outofbound(tmpdir):
 
 def test_zip_dict(tmpdir):
     content = zip_dict({"one": {"nested": "1"}, "two": {}})
-    with Archive(py.io.BytesIO(content)) as archive:
+    with Archive(BytesIO(content)) as archive:
         archive.extract(tmpdir)
     assert tmpdir.join("one", "nested").read() == "1"
     assert tmpdir.join("two").isdir()
@@ -128,7 +129,7 @@ def test_zip_dir(tmpdir):
     assert newdest.join("sub", "subfile").isfile()
 
     newdest.remove()
-    with Archive(py.io.BytesIO(zip_dir(source))) as archive:
+    with Archive(BytesIO(zip_dir(source))) as archive:
         archive.extract(newdest)
     assert newdest.join("file").isfile()
     assert newdest.join("sub", "subfile").isfile()

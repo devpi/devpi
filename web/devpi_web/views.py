@@ -18,6 +18,7 @@ from devpi_web.indexing import is_project_cached
 from devpi_web.main import navigation_version
 from email.utils import parsedate
 from io import TextIOWrapper
+from html import escape
 from operator import attrgetter, itemgetter
 from py.xml import html
 from pyramid.decorator import reify
@@ -33,7 +34,6 @@ from xmlrpc.client import Fault, Unmarshaller, dumps
 import functools
 import json
 import mimetypes
-import py
 
 seq_types = (list, tuple, SeqViewReadonly)
 
@@ -724,8 +724,8 @@ def version_get(context, request):
         else:
             if not value:
                 continue
-            value = py.xml.escape(value)
-        infos.append((py.xml.escape(key), value))
+            value = escape(value)
+        infos.append((escape(key), value))
     show_toxresults = (stage.ixconfig['type'] != 'mirror')
     linkstore = stage.get_linkstore_perstage(name, version)
     files = get_files_info(request, linkstore, show_toxresults)
@@ -774,7 +774,7 @@ def version_get(context, request):
         nav_links=nav_links,
         infos=infos,
         metadata_list_fields=frozenset(
-            py.xml.escape(x)
+            escape(x)
             for x in getattr(stage, 'metadata_list_fields', ())),
         files=files,
         blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],

@@ -49,7 +49,7 @@ class TxNotificationThread:
             raise RuntimeError(
                 "cannot register handlers after thread has started")
         keyname = getattr(key, "name", key)
-        assert py.builtin._istext(keyname) or py.builtin._isbytes(keyname)
+        assert isinstance(keyname, str)
         self._on_key_change.setdefault(keyname, []).append(subscriber)
 
     def wait_event_serial(self, serial):
@@ -316,7 +316,7 @@ class KeyFS(object):
         return getattr(self._threadlocal, "tx")
 
     def add_key(self, name, path, type):
-        assert isinstance(path, py.builtin._basestring)
+        assert isinstance(path, str)
         if "{" in path:
             key = PTypedKey(self, path, type, name)
         else:
@@ -762,9 +762,9 @@ class Transaction(object):
 
 def check_unicode_keys(d):
     for key, val in d.items():
-        assert not isinstance(key, py.builtin.bytes), repr(key)
+        assert not isinstance(key, bytes), repr(key)
         # not allowing bytes seems ok for now, we might need to relax that
         # it certainly helps to get unicode clean
-        assert not isinstance(val, py.builtin.bytes), repr(key) + "=" + repr(val)
+        assert not isinstance(val, bytes), repr(key) + "=" + repr(val)
         if isinstance(val, dict):
             check_unicode_keys(val)

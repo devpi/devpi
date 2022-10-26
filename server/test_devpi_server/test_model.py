@@ -1,7 +1,6 @@
 import getpass
 import inspect
 import itertools
-import py
 import pytest
 import json
 
@@ -15,7 +14,7 @@ from devpi_server.model import ensure_acl_list
 from devpi_server.model import ensure_list
 from devpi_server.model import run_passwd
 from devpi_server.model import StageCustomizer
-from py.io import BytesIO
+from io import BytesIO
 
 pytestmark = [pytest.mark.writetransaction]
 
@@ -24,7 +23,8 @@ def udict(**kw):
     """ return a dict where the keys are normalized to unicode. """
     d = {}
     for name, val in kw.items():
-        d[py.builtin._totext(name)] = val
+        name = str(name)
+        d[name] = val
     return d
 
 
@@ -40,7 +40,7 @@ def get_release_basenames(stage, project):
 
 
 def register_and_store(stage, basename, content=b"123", name=None):
-    assert py.builtin._isbytes(content), content
+    assert isinstance(content, bytes), content
     n, version = splitbasename(basename)[:2]
     if name is None:
         name = n
@@ -1572,10 +1572,10 @@ def test_setdefault_indexes(xom):
     with xom.keyfs.transaction(write=False):
         ixconfig = xom.model.getstage("root/pypi").ixconfig
         for key in ixconfig:
-            assert py.builtin._istext(key)
+            assert isinstance(key, str)
         userconfig = xom.model.get_user("root").get()
         for key in userconfig["indexes"]["pypi"]:
-            assert py.builtin._istext(key)
+            assert isinstance(key, str)
 
 
 @pytest.mark.parametrize("key", ("acl_upload", "acl_toxresult_upload", "mirror_whitelist"))

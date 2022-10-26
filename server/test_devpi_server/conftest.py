@@ -20,6 +20,7 @@ from devpi_server.main import XOM, parseoptions
 from devpi_common.validation import normalize_name
 from devpi_common.url import URL
 from devpi_server.log import threadlog, thread_clear_log
+from io import BytesIO
 from pyramid.authentication import b64encode
 from pyramid.httpexceptions import status_map
 from queue import Queue as BaseQueue
@@ -354,7 +355,7 @@ def httpget(pypiurls):
                         xself.url = url
                     xself.allow_redirects = allow_redirects
                     if "content" in fakeresponse:
-                        xself.raw = py.io.BytesIO(fakeresponse["content"])
+                        xself.raw = BytesIO(fakeresponse["content"])
                     xself.headers.setdefault('content-type', fakeresponse.get(
                         'content_type', 'text/html'))
                     if "etag" in fakeresponse:
@@ -780,7 +781,7 @@ class Mapp(MappMixin):
                          name=None, version=None, indexname=None,
                          register=True, code=200, waithooks=False,
                          set_whitelist=True):
-        assert py.builtin._isbytes(content)
+        assert isinstance(content, bytes)
         indexname = self._getindexname(indexname)
         #name_version = splitbasename(basename, checkarch=False)
         #if not name:

@@ -1,4 +1,5 @@
 from devpi_server.views import iter_cache_remote_file
+from io import BytesIO
 from webob.headers import ResponseHeaders
 import hashlib
 import pytest
@@ -6,8 +7,6 @@ import py
 
 
 zip_types = ("application/zip", "application/x-zip-compressed")
-
-BytesIO = py.io.BytesIO
 
 
 @pytest.fixture
@@ -27,7 +26,7 @@ class TestFileStore:
         entry2 = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry1.relpath == entry2.relpath
         assert entry1.basename == entry2.basename == "pytest-1.2.zip"
-        assert py.builtin._istext(entry1.hash_spec)
+        assert isinstance(entry1.hash_spec, str)
 
     @pytest.mark.parametrize("hash_spec", [
         "sha256=%s" %(hashlib.sha256(b'qwe').hexdigest()),
@@ -340,6 +339,6 @@ def test_maplink_nochange(filestore, gen):
     entry2 = filestore.maplink(link, "root", "pypi", "pytest")
     assert entry1.relpath == entry2.relpath
     assert entry1.basename == entry2.basename == "pytest-1.2.zip"
-    assert py.builtin._istext(entry1.hash_spec)
+    assert isinstance(entry1.hash_spec, str)
     filestore.keyfs.commit_transaction_in_thread()
     assert filestore.keyfs.get_current_serial() == last_serial

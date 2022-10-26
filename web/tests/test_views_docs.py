@@ -1,6 +1,5 @@
 from devpi_common.archive import zip_dict
 from hashlib import sha256
-import py
 import pytest
 import re
 import sys
@@ -90,12 +89,12 @@ def test_docs_raw_projectname(mapp, testapp):
     # the regular name should work
     location = '%s/pkg_hello/1.0/+doc/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
-    html = py.builtin._totext(r.html.renderContents().strip(), 'utf-8')
+    html = r.html.renderContents().strip().decode('utf-8')
     assert '<html><body>foo</body></html>' == html
     # as well as the normalized name
     location = '%s/pkg-hello/1.0/+doc/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
-    html = py.builtin._totext(r.html.renderContents().strip(), 'utf-8')
+    html = r.html.renderContents().strip().decode('utf-8')
     assert '<html><body>foo</body></html>' == html
 
 
