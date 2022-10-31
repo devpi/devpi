@@ -33,11 +33,14 @@ def server_version():
     return parse_version(__version__)
 
 
-def make_file_url(basename, content, stagename=None, baseurl="http://localhost/"):
+def make_file_url(basename, content, stagename=None, baseurl="http://localhost/", add_hash=True):
     from devpi_server.filestore import get_default_hash_spec, make_splitdir
     hash_spec = get_default_hash_spec(content)
     hashdir = "/".join(make_splitdir(hash_spec))
-    s = "%s{stage}/+f/%s/%s#%s" %(baseurl, hashdir, basename, hash_spec)
+    if add_hash:
+        s = "%s{stage}/+f/%s/%s#%s" % (baseurl, hashdir, basename, hash_spec)
+    else:
+        s = "%s{stage}/+f/%s/%s" % (baseurl, hashdir, basename)
     if stagename is not None:
         s = s.format(stage=stagename)
     return s
@@ -797,6 +800,8 @@ class Mapp(MappMixin):
         # return the file url so users/callers can easily use it
         # (probably the official server response should include the url)
         r.file_url = make_file_url(basename, content, stagename=indexname)
+        r.file_url_no_hash = make_file_url(
+            basename, content, stagename=indexname, add_hash=False)
         return r
 
     def push(self, name, version, index, indexname=None, code=200):

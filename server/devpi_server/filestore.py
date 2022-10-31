@@ -213,7 +213,10 @@ class FileEntry(object):
 
     @property
     def hash_value(self):
-        return self.hash_spec.split("=", 1)[1]
+        if self.hash_spec:
+            return self.hash_spec.split("=", 1)[1]
+        else:
+            return self.hash_spec
 
     @property
     def hash_type(self):
