@@ -1,5 +1,5 @@
 function get_anchor(document, hash) {
-    hash = hash.replace('#', '')
+    hash = decodeURIComponent(hash.replace('#', ''));
     if (!hash) {
         return;
     }

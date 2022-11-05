@@ -1,0 +1,1 @@
+common.js: Fix #764: Jumping to anchors with whitespace in documentation now works.
