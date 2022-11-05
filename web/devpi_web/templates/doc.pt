@@ -20,26 +20,13 @@
             <iframe
                 id="devpi-doc"
                 src="${url}" data-base_url="${base_url}" data-baseview_url="${baseview_url}"
-                width="100%" height="100%" scrolling="yes">
+                scrolling="no">
             </iframe>
         </div>
+        <metal:footer use-macro="request.macros['footer']" />
         <script type="text/javascript">
         //<![CDATA[
-            var $iframe = $('iframe#devpi-doc'),
-                iframe = $iframe[0],
-                $body = $('body'),
-                $header = $('.header');
-            $iframe.on('load', {$body: $body, $header: $header}, onIFrameLoad);
-            $(window).on('resize', function() {
-                var $doc = $(iframe.contentWindow.document),
-                    $docHtml = $doc.find('html');
-                updateHeaderMargins($header, $body, $doc, $docHtml)
-            });
-            $(window).load(function () {
-                // make keyboard actions affect the actual documentation
-                // in the iframe by default
-                iframe.contentWindow.focus();
-            });
+            $('iframe#devpi-doc').on('load', onIFrameLoad);
         //]]>
         </script>
     </body>

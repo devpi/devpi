@@ -1,48 +1,38 @@
-function updateHeaderMargins($header, $body, $doc, $docHtml) {
-    // create enough space for letting devpi header overlap iframe
-    // without hiding iframe content
-    $docHtml.css('margin-top', $header.outerHeight(true));
-    // make scrollbar visible by adding a margin to the header
-    $header.css("margin-right", $body.width() - $doc.width());
-}
-
 function scrollToAnchor(iframe, hash) {
     var anchor = get_anchor(iframe.contentWindow.document, hash);
     if (!anchor)
         return;
     var iframe_y = $(iframe).position().top;
     var anchor_y = $(anchor).position().top;
-    $(iframe.contentWindow).scrollTop(iframe_y + anchor_y);
+    $(window).scrollTop(iframe_y + anchor_y);
 }
 
 function onIFrameLoad(event) {
-    var $body = event.data.$body,
-        $header = event.data.$header,
-        iframe = this,
+    var iframe = this,
+        $iframe = $(iframe),
         $doc = $(iframe.contentWindow.document),
-        $docHtml = $doc.find('html');
+        $docHtml = $doc.find('html'),
+        scrolled_to_anchor = false,
+        iframeResizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                if (entry.contentRect) {
+                    const height = Math.ceil(entry.contentRect.height);
+                    if (height) {
+                        $iframe.height(height);
+                        if (!scrolled_to_anchor) {
+                            scrollToAnchor(iframe, window.location.hash);
+                            scrolled_to_anchor = true;
+                        }
+                    }
+                }
+            }
+        });
 
-    // make devpi header move away on iframe down-scrolling
-    // and reappear on up-scrolling...
-    function scroll() {
-        var headerTop = -$doc.scrollTop(),
-            headerHeight = $header.outerHeight(true);
-        // move header along with iframe scrolling...
-        if (headerTop < -headerHeight) {
-            // don't move header further down than initial state
-            headerTop = -headerHeight;
-        }
-        $header.css('top', headerTop);
-        updateHeaderMargins($header, $body, $doc, $docHtml)
-    }
-
-    scrollToAnchor(iframe, window.location.hash);
-
-    // initialize header size and position on first load
-    scroll();
-
-    // update header position on scroll
-    $doc.scroll(scroll);
+    // make keyboard actions affect the actual documentation
+    // in the iframe by default
+    iframe.contentWindow.focus();
+    // watch for content size changes to update iframe height
+    iframeResizeObserver.observe(iframe.contentWindow.document.body.parentElement);
 
     // fixup link target, so external links are opened outside the window
     var base_url = $('iframe').data('base_url');
