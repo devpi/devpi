@@ -810,18 +810,22 @@ def devpiserver_get_stage_customizer_classes():
 class ProjectNamesCache:
     """ Helper class for maintaining project names from a mirror. """
     def __init__(self):
+        self._lock = threading.RLock()
         self._timestamp = -1
         self._data = frozenset()
         self._etag = None
 
     def exists(self):
-        return self._timestamp != -1
+        with self._lock:
+            return self._timestamp != -1
 
     def expire(self):
-        self._timestamp = 0
+        with self._lock:
+            self._timestamp = 0
 
     def is_expired(self, expiry_time):
-        return (time.time() - self._timestamp) >= expiry_time
+        with self._lock:
+            return (time.time() - self._timestamp) >= expiry_time
 
     def get(self):
         """ Get a copy of the cached data. """
@@ -832,21 +836,25 @@ class ProjectNamesCache:
 
     def add(self, project):
         """ Add project to cache. """
-        self._data = self._data.union({project})
+        with self._lock:
+            self._data = self._data.union({project})
 
     def discard(self, project):
         """ Remove project from cache. """
-        self._data = self._data.difference({project})
+        with self._lock:
+            self._data = self._data.difference({project})
 
     def set(self, data, etag):
         """ Set data and update timestamp. """
-        if data is not self._data:
-            self._data = frozenset(data)
-        self.mark_current(etag)
+        with self._lock:
+            if data is not self._data:
+                self._data = frozenset(data)
+            self.mark_current(etag)
 
     def mark_current(self, etag):
-        self._timestamp = time.time()
-        self._etag = etag
+        with self._lock:
+            self._timestamp = time.time()
+            self._etag = etag
 
 
 class ProjectUpdateInnerLock:

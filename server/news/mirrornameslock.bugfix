@@ -1,0 +1,1 @@
+Add locking to mirror name cache to prevent race condition on updates.
