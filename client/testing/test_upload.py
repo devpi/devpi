@@ -277,7 +277,7 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
     assert "X-Devpi-Auth" in upload2[1]["headers"]
 
 
-@pytest.mark.skipif("sys.version_info < (3, 6)")
+@pytest.mark.skipif("sys.version_info < (3, 7)")
 @pytest.mark.skipif("config.option.fast")
 def test_post_derived_devpi_token(initproj, monkeypatch, uploadhub):
     from base64 import b64decode
@@ -311,8 +311,8 @@ def test_post_derived_devpi_token(initproj, monkeypatch, uploadhub):
     initproj("pkg-1.0")
     passwd = "devpi-AgEAAhFmc2NodWx6ZS1yTlk5a0RuYQAABiBcjsOFkn7_3fn6mFoeJve_cOv-thDRL-4fQzbf_sOGjQ"
     token = pypitoken.token.Token.load(passwd)
-    assert pypitoken.token.ProjectsRestriction(
-        projects=["pkg"]) not in token.restrictions
+    assert pypitoken.ProjectNamesRestriction(
+        project_names=["pkg"]) not in token.restrictions
     tmpdir = py.path.local()
     uploadhub.cwd = tmpdir
     uploadhub.http = Session()
@@ -329,8 +329,8 @@ def test_post_derived_devpi_token(initproj, monkeypatch, uploadhub):
     assert username == 'devpi'
     assert derived_passwd != passwd
     derived_token = pypitoken.token.Token.load(derived_passwd)
-    assert pypitoken.token.ProjectsRestriction(
-        projects=["pkg"]) in derived_token.restrictions
+    assert pypitoken.ProjectNamesRestriction(
+        project_names=["pkg"]) in derived_token.restrictions
 
 
 class TestUploadFunctional:

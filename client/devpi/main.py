@@ -434,8 +434,8 @@ class Hub:
         title = {
             'devpi': 'Devpi',
             'pypi': 'PyPI'}[password.split('-', 1)[0]]
-        if sys.version_info[:2] < (3, 6):
-            # Python below 3.6 not supported by pypitoken
+        if sys.version_info[:2] < (3, 7):
+            # Python below 3.7 not supported by pypitoken
             # so don't bother checking or mentioning it
             return password
         try:
@@ -443,7 +443,7 @@ class Hub:
         except ImportError:
             self.info(
                 "Possibly detected a %s token as password. "
-                "If you install 'pypitoken', "
+                "If you install 'pypitoken>=6.0.1', "
                 "a unique derived token can be created for enhanced security" %
                 title)
             return password
@@ -452,7 +452,7 @@ class Hub:
             if now is None:
                 now = int(time.time())
             token.restrict(
-                projects=[project],
+                project_names=[project],
                 not_before=now - 1,
                 not_after=now + 60)
             self.info(
