@@ -249,7 +249,7 @@ def test_derive_token_invalid_token(prefix):
     assert "can not parse it" in msg
 
 
-@pytest.mark.skipif("sys.version_info < (3, 6)")
+@pytest.mark.skipif("sys.version_info < (3, 7)")
 def test_derive_token():
     import pypitoken.token
     token = pypitoken.token.Token.create(
@@ -269,12 +269,14 @@ def test_derive_token():
     (msg,) = msgs
     assert "create a unique PyPI token" in msg
     derived_token = pypitoken.token.Token.load(derived_passwd)
-    assert derived_token.restrictions == [
-        pypitoken.token.ProjectsRestriction(projects=["pkg"]),
-        pypitoken.token.DateRestriction(not_before=9, not_after=70)]
+    assert derived_token.restrictions == sorted(
+        [
+            pypitoken.DateRestriction(not_before=9, not_after=70),
+            pypitoken.ProjectNamesRestriction(project_names=["pkg"])],
+        key=lambda x: x.__class__.__name__)
 
 
-@pytest.mark.skipif("sys.version_info < (3, 6)")
+@pytest.mark.skipif("sys.version_info < (3, 7)")
 def test_derive_devpi_token():
     import pypitoken
     passwd = "devpi-AgEAAhFmc2NodWx6ZS1yTlk5a0RuYQAABiBcjsOFkn7_3fn6mFoeJve_cOv-thDRL-4fQzbf_sOGjQ"
@@ -290,9 +292,11 @@ def test_derive_devpi_token():
     (msg,) = msgs
     assert "create a unique Devpi token" in msg
     derived_token = pypitoken.token.Token.load(derived_passwd)
-    assert derived_token.restrictions == [
-        pypitoken.token.ProjectsRestriction(projects=["pkg"]),
-        pypitoken.token.DateRestriction(not_before=9, not_after=70)]
+    assert derived_token.restrictions == sorted(
+        [
+            pypitoken.DateRestriction(not_before=9, not_after=70),
+            pypitoken.ProjectNamesRestriction(project_names=["pkg"])],
+        key=lambda x: x.__class__.__name__)
 
 
 class TestPush:
