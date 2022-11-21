@@ -1,3 +1,4 @@
+import aiohttp
 import requests.exceptions
 import time
 import hashlib
@@ -928,6 +929,24 @@ def test_requests_httpget_error(exc, xom, monkeypatch):
 
     monkeypatch.setattr(xom._httpsession, "get", httpget)
     r = xom.httpget("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.nomocking
+@pytest.mark.parametrize("exc", [
+    OSError,
+    aiohttp.ClientError])
+async def test_async_httpget_error(exc, xom, monkeypatch):
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def async_httpget(self, url, **kw):
+        raise exc()
+        yield
+
+    monkeypatch.setattr(aiohttp.ClientSession, "get", async_httpget)
+    r = await xom.async_httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 
 

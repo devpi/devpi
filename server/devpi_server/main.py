@@ -12,13 +12,13 @@ import py
 import ssl
 import sys
 import time
-import traceback
 
 from requests import Response, exceptions
 from requests.utils import DEFAULT_CA_BUNDLE_PATH
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
 from .config import parseoptions, get_pluginmanager
+from .exceptions import lazy_format_exception_only
 from .log import configure_logging, threadlog
 from .log import thread_push_log
 from .model import BaseStage
@@ -377,15 +377,28 @@ class XOM:
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         timeout = aiohttp.ClientTimeout(total=timeout)
         connector = aiohttp.TCPConnector(ssl=self._ssl_context)
-        async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True) as session:
-            async with session.get(
-                url, allow_redirects=allow_redirects, headers=extra_headers
-            ) as response:
-                if response.status < 300:
-                    text = await response.text()
-                else:
-                    text = None
-                return (response, text)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True) as session:
+                async with session.get(
+                    url, allow_redirects=allow_redirects, headers=extra_headers
+                ) as response:
+                    if response.status < 300:
+                        text = await response.text()
+                    else:
+                        text = None
+                    return (response, text)
+        except OSError as e:
+            location = get_caller_location()
+            threadlog.warn(
+                "OS error during async_httpget of %s at %s: %s",
+                url, location, lazy_format_exception_only(e))
+            return FatalResponse(url, repr(sys.exc_info()[1]))
+        except aiohttp.ClientError as e:
+            location = get_caller_location()
+            threadlog.warn(
+                "OS error during async_httpget of %s at %s: %s",
+                url, location, lazy_format_exception_only(e))
+            return FatalResponse(url, repr(sys.exc_info()[1]))
 
     def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         if self.config.offline_mode:
@@ -406,19 +419,19 @@ class XOM:
             location = get_caller_location()
             threadlog.warn(
                 "OS error during httpget of %s at %s: %s",
-                url, location, traceback.format_exception_only(e.__class__, e))
+                url, location, lazy_format_exception_only(e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
         except exceptions.ConnectionError as e:
             location = get_caller_location()
             threadlog.warn(
                 "Connection error during httpget of %s at %s: %s",
-                url, location, traceback.format_exception_only(e.__class__, e))
+                url, location, lazy_format_exception_only(e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
         except self._httpsession.Errors as e:
             location = get_caller_location()
             threadlog.warn(
                 "HTTPError during httpget of %s at %s: %s",
-                url, location, traceback.format_exception_only(e.__class__, e))
+                url, location, lazy_format_exception_only(e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
 
     def view_deriver(self, view, info):
