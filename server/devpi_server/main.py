@@ -11,6 +11,7 @@ import asyncio
 import py
 import ssl
 import sys
+import threading
 import time
 
 from requests import Response, exceptions
@@ -226,6 +227,7 @@ class XOM:
         self.log = threadlog
         self.polling_replicas = {}
         self._stagecache = {}
+        self._stagecache_lock = threading.Lock()
         if self.is_replica():
             from devpi_server.replica import ReplicaThread
             from devpi_server.replica import register_key_subscribers
@@ -269,16 +271,19 @@ class XOM:
         """ return a per-xom singleton for the given indexpath and key
         or raise KeyError if no such singleton was set yet.
         """
-        return self._stagecache[indexpath][key]
+        with self._stagecache_lock:
+            return self._stagecache[indexpath][key]
 
     def set_singleton(self, indexpath, key, obj):
         """ set the singleton for indexpath/key to obj. """
-        s = self._stagecache.setdefault(indexpath, {})
-        s[key] = obj
+        with self._stagecache_lock:
+            s = self._stagecache.setdefault(indexpath, {})
+            s[key] = obj
 
     def del_singletons(self, indexpath):
         """ delete all singletones for the given indexpath """
-        self._stagecache.pop(indexpath, None)
+        with self._stagecache_lock:
+            self._stagecache.pop(indexpath, None)
 
     @cached_property
     def supported_features(self):
