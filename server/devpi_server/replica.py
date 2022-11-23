@@ -878,7 +878,7 @@ class FileReplicationThread:
         entry = self.xom.filestore.get_file_entry_from_key(key, meta=val)
         if val is None:
             if back_serial >= 0:
-                with keyfs._storage.get_connection(write=True) as conn:
+                with keyfs.get_connection(write=True) as conn:
                     # file was deleted, still might never have been replicated
                     if conn.io_file_exists(entry._storepath):
                         threadlog.info("mark for deletion: %s", relpath)
@@ -890,7 +890,7 @@ class FileReplicationThread:
             # there is no remote file
             self.shared_data.errors.remove(entry)
             return
-        with keyfs._storage.get_connection(write=False) as conn:
+        with keyfs.get_connection(write=False) as conn:
             if conn.io_file_exists(entry._storepath):
                 # we already have a file
                 self.shared_data.errors.remove(entry)
@@ -899,7 +899,7 @@ class FileReplicationThread:
         f = self.find_pre_existing_file(entry)
         if f is not None:
             # we found a matching existing file
-            with keyfs._storage.get_connection(write=True) as conn:
+            with keyfs.get_connection(write=True) as conn:
                 conn.io_file_set(entry._storepath, f)
                 # on Windows we need to close the file
                 # before the transaction closes
@@ -965,7 +965,7 @@ class FileReplicationThread:
             running_hash = entry.hash_algo()
             hash_spec = entry.hash_spec
 
-            with keyfs._storage.get_connection(write=False) as conn:
+            with keyfs.get_connection(write=False) as conn:
                 # get a new file, but close the transaction again
                 f = conn.io_file_new_open(entry._storepath)
 
@@ -1003,7 +1003,7 @@ class FileReplicationThread:
 
                 # in case there were errors before, we can now remove them
                 self.shared_data.errors.remove(entry)
-                with keyfs._storage.get_connection(write=True) as conn:
+                with keyfs.get_connection(write=True) as conn:
                     conn.io_file_set(entry._storepath, f)
                     # on Windows we need to close the file
                     # before the transaction closes
