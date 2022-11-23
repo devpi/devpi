@@ -414,7 +414,7 @@ class BaseStorage(object):
             self._get_sqlconn = self._get_sqlconn_path
             return conn
 
-    def get_connection(self, closing=True, write=False):
+    def get_connection(self, closing=True, write=False, timeout=30):
         # we let the database serialize all writers at connection time
         # to play it very safe (we don't have massive amounts of writes).
         mode = "ro"
@@ -431,14 +431,15 @@ class BaseStorage(object):
                 try:
                     sqlconn.execute("begin immediate")
                     break
-                except sqlite3.OperationalError:
+                except sqlite3.OperationalError as e:
                     # another thread may be writing, give it a chance to finish
                     time.sleep(0.01)
                     if hasattr(thread, "exit_if_shutdown"):
                         thread.exit_if_shutdown()
-                    if time.monotonic() - start_time > 30:
+                    elapsed = time.monotonic() - start_time
+                    if elapsed > timeout:
                         # if it takes this long, something is wrong
-                        raise
+                        raise TimeoutError(f"Timeout after {elapsed} seconds.") from e
         conn = self.Connection(sqlconn, self.basedir, self)
         if closing:
             return contextlib.closing(conn)
