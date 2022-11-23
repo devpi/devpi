@@ -229,6 +229,9 @@ def tween_keyfs_transaction(handler, registry):
 
 
 def set_header_devpi_serial(response, tx):
+    if "X-DEVPI-SERIAL" in response.headers:
+        # already set explicitly
+        return
     if tx.commit_serial is not None:
         serial = tx.commit_serial
     else:
