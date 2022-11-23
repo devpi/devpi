@@ -603,7 +603,10 @@ class TestMirrorStageprojects:
                 <a href='ploy-ansible/'>ploy_ansible</a><br/>
             </body></html>""")
         (projects, etag) = pypistage._get_remote_projects()
-        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
+        assert projects == {
+            "ploy-ansible": "ploy_ansible",
+            "devpi-server": "devpi-server",
+            "django": "Django"}
         s = pypistage.list_projects_perstage()
         assert s == {
             "ploy-ansible": "ploy_ansible",
@@ -622,7 +625,10 @@ class TestMirrorStageprojects:
                     {"name": "ploy_ansible"}
                 ]}""")
         (projects, etag) = pypistage._get_remote_projects()
-        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
+        assert projects == {
+            "ploy-ansible": "ploy_ansible",
+            "devpi-server": "devpi-server",
+            "django": "Django"}
         s = pypistage.list_projects_perstage()
         assert s == {
             "ploy-ansible": "ploy_ansible",
@@ -639,7 +645,7 @@ class TestMirrorStageprojects:
                 <a href='devpi-server'>devpi-server</a><br/>
             </body></html>""")
         (projects, etag) = pypistage._get_remote_projects()
-        assert projects == set(["devpi-server"])
+        assert projects == {"devpi-server": "devpi-server"}
 
     def test_get_remote_projects_etag(self, pypistage):
         orig_etag = '"foo"'
@@ -668,19 +674,28 @@ class TestMirrorStageprojects:
         (projects, etag) = pypistage._get_remote_projects()
         pypistage.cache_projectnames.set(projects, etag)
         assert etag == orig_etag
-        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
+        assert projects == {
+            "ploy-ansible": "ploy_ansible",
+            "devpi-server": "devpi-server",
+            "django": "Django"}
         call = pypistage.xom.httpget.call_log.pop()
         assert 'If-None-Match' not in call['extra_headers']
         (projects, etag) = pypistage._get_remote_projects()
         pypistage.cache_projectnames.set(projects, etag)
         assert etag == orig_etag
-        assert projects == set(["ploy_ansible", "devpi-server", "Django"])
+        assert projects == {
+            "ploy-ansible": "ploy_ansible",
+            "devpi-server": "devpi-server",
+            "django": "Django"}
         call = pypistage.xom.httpget.call_log.pop()
         assert call['extra_headers']['If-None-Match'] == orig_etag
         (projects, etag) = pypistage._get_remote_projects()
         pypistage.cache_projectnames.set(projects, etag)
         assert etag == changed_etag
-        assert projects == set(["ploy", "devpi-server", "Django"])
+        assert projects == {
+            "ploy": "ploy",
+            "devpi-server": "devpi-server",
+            "django": "Django"}
         (call,) = pypistage.xom.httpget.call_log
         assert call['extra_headers']['If-None-Match'] == orig_etag
 
@@ -1026,19 +1041,19 @@ class TestProjectNamesCache:
         return ProjectNamesCache()
 
     def test_get_set(self, cache):
-        assert cache.get() == set()
-        s = set([1, 2, 3])
+        assert cache.get() == dict()
+        s = {1: 1, 2: 2, 3: 3}
         cache.set(s, '"foo"')
-        s.add(4)
-        assert cache.get() != s
-        cache.add(5)
-        assert 5 in cache.get()
-        cache.discard(5)
-        assert 5 not in cache.get()
+        s[4] = 4
+        assert cache.get() == s
+        cache.add('Foo')
+        assert 'foo' in cache.get()
+        cache.discard('foo')
+        assert 'foo' not in cache.get()
 
     def test_is_expired(self, cache, monkeypatch):
         expiry_time = 100
-        s = set([1, 2, 3])
+        s = {1: 1, 2: 2, 3: 3}
         assert cache.get_etag() is None
         cache.set(s, '"foo"')
         assert not cache.is_expired(expiry_time)
