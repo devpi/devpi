@@ -1,0 +1,1 @@
+Fix #914: add locking to list_projects_perstage of mirror indexes to prevent multiple slow concurrent updates of the full project name list.
