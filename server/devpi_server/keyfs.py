@@ -234,9 +234,14 @@ class KeyFS(object):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.basedir}>"
 
-    def get_connection(self, closing=True, write=False):
-        conn = IStorageConnection3(
-            self._storage.get_connection(closing=False, write=write))
+    def get_connection(self, closing=True, write=False, timeout=30):
+        try:
+            conn = self._storage.get_connection(
+                closing=False, write=write, timeout=timeout)
+        except TypeError:
+            conn = self._storage.get_connection(
+                closing=False, write=write)
+        conn = IStorageConnection3(conn)
         if closing:
             return contextlib.closing(conn)
         return conn
