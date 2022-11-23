@@ -71,6 +71,7 @@ class TestChangelog:
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         r = reqchangelog(latest_serial)
+        assert r.headers['X-DEVPI-SERIAL'] == str(latest_serial)
         body = b''.join(r.app_iter)
         data = loads(body)
         assert "this" in str(data)
@@ -80,7 +81,7 @@ class TestChangelog:
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME", 0.01)
-        r = reqchangelog(latest_serial+1)
+        r = reqchangelog(latest_serial + 1)
         assert r.status_code == 202
         assert int(r.headers["X-DEVPI-SERIAL"]) == latest_serial
 
@@ -135,6 +136,7 @@ class TestMultiChangelog:
         latest_serial = self.get_latest_serial(testapp)
         assert latest_serial > 1
         r = reqchangelogs(0)
+        assert int(r.headers['X-DEVPI-SERIAL']) == latest_serial
         body = b''.join(r.app_iter)
         data = loads(body)
         assert isinstance(data, list)
