@@ -433,7 +433,7 @@ class BaseStorage(object):
                     break
                 except sqlite3.OperationalError as e:
                     # another thread may be writing, give it a chance to finish
-                    time.sleep(0.01)
+                    time.sleep(0.1)
                     if hasattr(thread, "exit_if_shutdown"):
                         thread.exit_if_shutdown()
                     elapsed = time.monotonic() - start_time
