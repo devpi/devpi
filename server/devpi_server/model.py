@@ -1083,7 +1083,7 @@ class BaseStage(object):
                 # If we are currently checking ourself raise the error, it is fatal
                 if stage is self:
                     raise
-                threadlog.warn('Failed to check mirror whitelist. Assume it does not exists (%s)', exc)
+                threadlog.warn('Failed to check mirror whitelist. Assume it does not exist (%s)', exc)
 
     def sro(self):
         """ return stage resolution order. """
