@@ -332,6 +332,16 @@ class MirrorStage(BaseStage):
                 self.key_projects.set(projects)
 
     @property
+    def _list_projects_perstage_lock(self):
+        """ get server wide lock for this index """
+        try:
+            return self.xom.get_singleton(self.name, "projects_update_lock")
+        except KeyError:
+            lock = threading.Lock()
+            self.xom.set_singleton(self.name, "projects_update_lock", lock)
+            return lock
+
+    @property
     def cache_projectnames(self):
         """ cache for full list of projectnames. """
         # we could keep this info inside keyfs but pypi.org
@@ -389,38 +399,39 @@ class MirrorStage(BaseStage):
         if self.offline:
             threadlog.warn("offline mode: using stale projects list")
             return {normalize_name(x): x for x in self.key_projects.get()}
-        if not self.cache_projectnames.is_expired(self.cache_expiry):
-            projects = self.cache_projectnames.get()
-        else:
-            # no fresh projects or None at all, let's go remote
-            try:
-                (projects, etag) = self._get_remote_projects()
-            except self.UpstreamError as e:
-                threadlog.warn(
-                    "upstream error (%s): using stale projects list" % e)
-                return {normalize_name(x): x for x in self.key_projects.get()}
+        with self._list_projects_perstage_lock:
+            if not self.cache_projectnames.is_expired(self.cache_expiry):
+                projects = self.cache_projectnames.get()
             else:
-                old = self.cache_projectnames.get()
-                if not self.cache_projectnames.exists() or old != projects:
-                    self.cache_projectnames.set(projects, etag)
-
-                    # trigger an initial-load event on master
-                    if not self.xom.is_replica():
-                        # make sure we are at the current serial
-                        # this avoids setting the value again when
-                        # called from the notification thread
-                        if not self.keyfs.tx.write:
-                            self.keyfs.restart_read_transaction()
-                        k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
-                        # when 0 it is new, when 1 it is pre 6.6.0 with
-                        # only normalized names
-                        if k.get() in (0, 1):
-                            if not self.keyfs.tx.write:
-                                self.keyfs.restart_as_write_transaction()
-                            k.set(2)
+                # no fresh projects or None at all, let's go remote
+                try:
+                    (projects, etag) = self._get_remote_projects()
+                except self.UpstreamError as e:
+                    threadlog.warn(
+                        "upstream error (%s): using stale projects list" % e)
+                    return {normalize_name(x): x for x in self.key_projects.get()}
                 else:
-                    # mark current without updating contents
-                    self.cache_projectnames.mark_current(etag)
+                    old = self.cache_projectnames.get()
+                    if not self.cache_projectnames.exists() or old != projects:
+                        self.cache_projectnames.set(projects, etag)
+
+                        # trigger an initial-load event on master
+                        if not self.xom.is_replica():
+                            # make sure we are at the current serial
+                            # this avoids setting the value again when
+                            # called from the notification thread
+                            if not self.keyfs.tx.write:
+                                self.keyfs.restart_read_transaction()
+                            k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
+                            # when 0 it is new, when 1 it is pre 6.6.0 with
+                            # only normalized names
+                            if k.get() in (0, 1):
+                                if not self.keyfs.tx.write:
+                                    self.keyfs.restart_as_write_transaction()
+                                k.set(2)
+                    else:
+                        # mark current without updating contents
+                        self.cache_projectnames.mark_current(etag)
 
         return {normalize_name(x): x for x in projects}
 
