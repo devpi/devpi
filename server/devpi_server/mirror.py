@@ -393,60 +393,61 @@ class MirrorStage(BaseStage):
         else:
             parser = ProjectHTMLParser(response.url)
             parser.feed(response.text)
-        return (parser.projects, response.headers.get("ETag"))
+        return (
+            {normalize_name(x): x for x in parser.projects},
+            response.headers.get("ETag"))
 
-    def _list_projects_perstage(self):
-        if self.offline:
-            threadlog.warn("offline mode: using stale projects list")
-            return {normalize_name(x): x for x in self.key_projects.get()}
-        with self._list_projects_perstage_lock:
-            if not self.cache_projectnames.is_expired(self.cache_expiry):
-                projects = self.cache_projectnames.get()
-            else:
-                # no fresh projects or None at all, let's go remote
-                try:
-                    (projects, etag) = self._get_remote_projects()
-                except self.UpstreamError as e:
-                    threadlog.warn(
-                        "upstream error (%s): using stale projects list" % e)
-                    return {normalize_name(x): x for x in self.key_projects.get()}
-                else:
-                    old = self.cache_projectnames.get()
-                    if not self.cache_projectnames.exists() or old != projects:
-                        self.cache_projectnames.set(projects, etag)
+    def _stale_list_projects_perstage(self):
+        return {normalize_name(x): x for x in self.key_projects.get()}
 
-                        # trigger an initial-load event on master
-                        if not self.xom.is_replica():
-                            # make sure we are at the current serial
-                            # this avoids setting the value again when
-                            # called from the notification thread
-                            if not self.keyfs.tx.write:
-                                self.keyfs.restart_read_transaction()
-                            k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
-                            # when 0 it is new, when 1 it is pre 6.6.0 with
-                            # only normalized names
-                            if k.get() in (0, 1):
-                                if not self.keyfs.tx.write:
-                                    self.keyfs.restart_as_write_transaction()
-                                k.set(2)
-                    else:
-                        # mark current without updating contents
-                        self.cache_projectnames.mark_current(etag)
+    def _update_projects(self):
+        try:
+            (projects, etag) = self._get_remote_projects()
+        except self.UpstreamError as e:
+            threadlog.warn(
+                "upstream error (%s): using stale projects list" % e)
+            return self._stale_list_projects_perstage()
+        old = self.cache_projectnames.get()
+        if not self.cache_projectnames.exists() or old != projects:
+            self.cache_projectnames.set(projects, etag)
 
-        return {normalize_name(x): x for x in projects}
+            # trigger an initial-load event on master
+            if not self.xom.is_replica():
+                # make sure we are at the current serial
+                # this avoids setting the value again when
+                # called from the notification thread
+                if not self.keyfs.tx.write:
+                    self.keyfs.restart_read_transaction()
+                k = self.keyfs.MIRRORNAMESINIT(user=self.username, index=self.index)
+                # when 0 it is new, when 1 it is pre 6.6.0 with
+                # only normalized names
+                if k.get() in (0, 1):
+                    if not self.keyfs.tx.write:
+                        self.keyfs.restart_as_write_transaction()
+                    k.set(2)
+        else:
+            # mark current without updating contents
+            self.cache_projectnames.mark_current(etag)
+        return projects
 
     def list_projects_perstage(self):
-        """ return set of all projects served through the mirror. """
-        cached = getattr(self, "_list_projects_perstage_cache", None)
-        if cached is not None:
-            (offline, cache_expiry, projects) = cached
-            if self.offline == offline and self.cache_expiry == cache_expiry:
-                if not self.cache_projectnames.is_expired(cache_expiry):
-                    return projects
-        projects = self._list_projects_perstage()
-        self._list_projects_perstage_cache = (
-            self.offline, self.cache_expiry, projects)
-        return projects
+        if self.offline:
+            threadlog.warn("offline mode: using stale projects list")
+            return self._stale_list_projects_perstage()
+        # try without lock first
+        if not self.cache_projectnames.is_expired(self.cache_expiry):
+            projects = self.cache_projectnames.get()
+        else:
+            with self._list_projects_perstage_lock:
+                # retry in case it was updated in another thread
+                if not self.cache_projectnames.is_expired(self.cache_expiry):
+                    projects = self.cache_projectnames.get()
+                else:
+                    # no fresh projects or None at all, let's go remote
+                    projects = self._update_projects()
+
+        # return a copy of the cached data
+        return dict(projects)
 
     def is_project_cached(self, project):
         """ return True if we have some cached simpelinks information. """
@@ -823,7 +824,7 @@ class ProjectNamesCache:
     def __init__(self):
         self._lock = threading.RLock()
         self._timestamp = -1
-        self._data = frozenset()
+        self._data = dict()
         self._etag = None
 
     def exists(self):
@@ -839,7 +840,6 @@ class ProjectNamesCache:
             return (time.time() - self._timestamp) >= expiry_time
 
     def get(self):
-        """ Get a copy of the cached data. """
         return self._data
 
     def get_etag(self):
@@ -848,18 +848,19 @@ class ProjectNamesCache:
     def add(self, project):
         """ Add project to cache. """
         with self._lock:
-            self._data = self._data.union({project})
+            self._data[normalize_name(project)] = project
 
     def discard(self, project):
         """ Remove project from cache. """
         with self._lock:
-            self._data = self._data.difference({project})
+            del self._data[normalize_name(project)]
 
     def set(self, data, etag):
         """ Set data and update timestamp. """
         with self._lock:
-            if data is not self._data:
-                self._data = frozenset(data)
+            if data != self._data:
+                assert isinstance(data, dict)
+                self._data = data
             self.mark_current(etag)
 
     def mark_current(self, etag):
