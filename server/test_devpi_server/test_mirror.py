@@ -906,6 +906,14 @@ class TestMirrorStageprojects:
         assert not [x for x in msgs if "/:bar" in x and "mockresponse" not in x]
         assert [x for x in msgs if "/:***" in x]
 
+    @pytest.mark.notransaction
+    def test_del_singletons(self, pypistage):
+        with pypistage.xom.keyfs.transaction(write=True):
+            pypistage.has_project_perstage("pkg")
+            assert pypistage.name in pypistage.xom._stagecache
+            pypistage.delete()
+            assert pypistage.name not in pypistage.xom._stagecache
+
 
 def raise_ValueError():
     raise ValueError(42)

@@ -173,6 +173,7 @@ class RootModel:
                 threadlog.info("index %s not exists" % self.index)
                 return False
             del indexes[index]
+            self.xom.del_singletons(f"{username}/{index}")
 
     def get_user(self, name):
         user = User(self, name)

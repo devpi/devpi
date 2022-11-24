@@ -70,7 +70,8 @@ def test_devpi_stage_created(monkeypatch, pypistage, mock):
     from devpi_web.main import devpiserver_stage_created
     list_projects_perstage = mock.MagicMock()
     list_projects_perstage.return_value = []
-    monkeypatch.setattr(pypistage, "list_projects_perstage", list_projects_perstage)
+    monkeypatch.setattr(
+        pypistage.__class__, "list_projects_perstage", list_projects_perstage)
     with pypistage.keyfs.transaction():
         devpiserver_stage_created(pypistage)
     assert list_projects_perstage.called
