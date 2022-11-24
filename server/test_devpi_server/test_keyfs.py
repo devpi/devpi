@@ -128,6 +128,17 @@ class TestKeyFS:
         with keyfs.transaction(write=False) as tx:
             assert tx.get(key) == after
 
+    @notransaction
+    def test_not_exists_cached(self, keyfs, monkeypatch):
+        key = keyfs.add_key("NAME", "somekey", dict)
+        with keyfs.transaction() as tx:
+            assert key not in tx.cache
+            assert not tx.exists(key)
+            assert key in tx.cache
+            # make get_value_at fail if it is called
+            monkeypatch.setattr(tx, "get_value_at", lambda k, s: 0 / 0)
+            assert not tx.exists(key)
+
 
 class TestGetKey:
     def test_typed_keys(self, keyfs):
