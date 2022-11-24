@@ -25,7 +25,7 @@ import time
 from devpi_common.types import cached_property
 
 
-notset = object()
+absent = object()
 
 
 class MissingFileException(Exception):
@@ -545,7 +545,7 @@ class Transaction(object):
         self.dirty = set()
         self.closed = False
         self.doomed = False
-        self._model = notset
+        self._model = absent
         self._finished_listeners = []
         self._success_listeners = []
 
@@ -555,7 +555,7 @@ class Transaction(object):
             write=self.write, closing=False)
 
     def get_model(self, xom):
-        if self._model is notset:
+        if self._model is absent:
             self._model = TransactionRootModel(xom)
         return self._model
 
@@ -627,13 +627,13 @@ class Transaction(object):
         try:
             val = self.cache[typedkey]
         except KeyError:
-            absent = typedkey in self.dirty
-            if not absent:
+            absent_from_dirty = typedkey in self.dirty
+            if not absent_from_dirty:
                 try:
                     val = self.get_original(typedkey)
                 except KeyError:
-                    absent = True
-            if absent:
+                    absent_from_dirty = True
+            if absent_from_dirty:
                 # for convenience we return an empty instance
                 # but below we still respect the readonly property
                 val = typedkey.type()
@@ -675,7 +675,7 @@ class Transaction(object):
         try:
             old_val = self.get_original(typedkey)
         except KeyError:
-            old_val = notset
+            old_val = absent
         self.cache[typedkey] = val
         if val != old_val:
             self.dirty.add(typedkey)
@@ -703,8 +703,8 @@ class Transaction(object):
                     val = self.cache.get(typedkey)
                     # None signals deletion
                     fswriter.record_set(typedkey, val)
-                commit_serial = getattr(fswriter, "commit_serial", notset)
-                if commit_serial is notset:
+                commit_serial = getattr(fswriter, "commit_serial", absent)
+                if commit_serial is absent:
                     # for storages which don't have the attribute yet
                     commit_serial = self.conn.last_changelog_serial + 1
         finally:
