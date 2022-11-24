@@ -430,7 +430,11 @@ class MirrorStage(BaseStage):
             self.cache_projectnames.mark_current(etag)
         return projects
 
-    def list_projects_perstage(self):
+    def _list_projects_perstage(self):
+        """ Return the cached project names.
+
+            Only for internal use which makes sure the data isn't modified.
+        """
         if self.offline:
             threadlog.warn("offline mode: using stale projects list")
             return self._stale_list_projects_perstage()
@@ -445,9 +449,13 @@ class MirrorStage(BaseStage):
                 else:
                     # no fresh projects or None at all, let's go remote
                     projects = self._update_projects()
+        return projects
 
-        # return a copy of the cached data
-        return dict(projects)
+    def list_projects_perstage(self):
+        """ Return the project names. """
+        # return a read-only version of the cached data,
+        # so it can't be modified accidentally and we avoid a copy
+        return ensure_deeply_readonly(self._list_projects_perstage())
 
     def is_project_cached(self, project):
         """ return True if we have some cached simpelinks information. """
@@ -763,7 +771,8 @@ class MirrorStage(BaseStage):
         project = normalize_name(project)
         if self.is_project_cached(project):
             return True
-        return project in self.list_projects_perstage()
+        # use the internal method to avoid a copy
+        return project in self._list_projects_perstage()
 
     def list_versions_perstage(self, project):
         try:
