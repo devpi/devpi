@@ -602,7 +602,7 @@ class Transaction(object):
 
     def get_key_in_transaction(self, relpath):
         for key in self.cache:
-            if key.relpath == relpath:
+            if key.relpath == relpath and self.cache[key] is not absent:
                 return key
         raise KeyError(relpath)
 
@@ -626,6 +626,8 @@ class Transaction(object):
             either as a readonly-view or as a mutable deep copy. """
         try:
             val = self.cache[typedkey]
+            if val is absent:
+                raise KeyError
         except KeyError:
             absent_from_dirty = typedkey in self.dirty
             if not absent_from_dirty:
@@ -647,14 +649,16 @@ class Transaction(object):
 
     def exists(self, typedkey):
         if typedkey in self.cache:
-            return True
+            return self.cache[typedkey] is not absent
         if typedkey in self.dirty:
             return False
         try:
             val = self.get_value_at(typedkey, self.at_serial)
         except KeyError:
+            self.cache[typedkey] = absent
             return False
         else:
+            assert val is not absent
             assert is_deeply_readonly(val)
             self.cache[typedkey] = val
             return True
@@ -701,6 +705,7 @@ class Transaction(object):
             with self.conn.write_transaction() as fswriter:
                 for typedkey in self.dirty:
                     val = self.cache.get(typedkey)
+                    assert val is not absent
                     # None signals deletion
                     fswriter.record_set(typedkey, val)
                 commit_serial = getattr(fswriter, "commit_serial", absent)
