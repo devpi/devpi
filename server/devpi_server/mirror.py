@@ -334,12 +334,8 @@ class MirrorStage(BaseStage):
     @property
     def _list_projects_perstage_lock(self):
         """ get server wide lock for this index """
-        try:
-            return self.xom.get_singleton(self.name, "projects_update_lock")
-        except KeyError:
-            lock = threading.Lock()
-            self.xom.set_singleton(self.name, "projects_update_lock", lock)
-            return lock
+        return self.xom.setdefault_singleton(
+            self.name, "projects_update_lock", factory=threading.Lock)
 
     @property
     def cache_projectnames(self):
@@ -347,24 +343,16 @@ class MirrorStage(BaseStage):
         # we could keep this info inside keyfs but pypi.org
         # produces a several MB list of names and it changes often which
         # would spam the database.
-        try:
-            return self.xom.get_singleton(self.name, "projectnames")
-        except KeyError:
-            cache_projectnames = ProjectNamesCache()
-            self.xom.set_singleton(self.name, "projectnames", cache_projectnames)
-            return cache_projectnames
+        return self.xom.setdefault_singleton(
+            self.name, "projectnames", factory=ProjectNamesCache)
 
     @property
     def cache_retrieve_times(self):
         """ per-xom RAM cache for keeping track when we last updated simplelinks. """
         # we could keep this info in keyfs but it would lead to a write
         # for each remote check.
-        try:
-            return self.xom.get_singleton(self.name, "project_retrieve_times")
-        except KeyError:
-            c = ProjectUpdateCache()
-            self.xom.set_singleton(self.name, "project_retrieve_times", c)
-            return c
+        return self.xom.setdefault_singleton(
+            self.name, "project_retrieve_times", factory=ProjectUpdateCache)
 
     def _get_remote_projects(self):
         headers = {"Accept": SIMPLE_API_ACCEPT}
