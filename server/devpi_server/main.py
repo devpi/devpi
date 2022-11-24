@@ -280,6 +280,17 @@ class XOM:
             s = self._stagecache.setdefault(indexpath, {})
             s[key] = obj
 
+    def setdefault_singleton(self, indexpath, key, *, default=None, factory=None):
+        """ get existing singleton, or set the default for indexpath/key to obj. """
+        assert default is None or factory is None
+        with self._stagecache_lock:
+            s = self._stagecache.setdefault(indexpath, {})
+            if key not in s:
+                if default is None:
+                    default = factory()
+                s[key] = default
+            return s[key]
+
     def del_singletons(self, indexpath):
         """ delete all singletones for the given indexpath """
         with self._stagecache_lock:
