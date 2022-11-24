@@ -288,6 +288,12 @@ def devpiserver_mirror_initialnames(stage, projectnames):
 
 @devpiserver_hookimpl
 def devpiserver_stage_created(stage):
+    # make sure we are at the current state
+    stage.keyfs.restart_read_transaction()
+    stage = stage.model.getstage(stage.name)
+    if stage is None:
+        # the stage was deleted
+        return
     if stage.ixconfig["type"] == "mirror":
         threadlog.info("triggering load of initial projectnames for %s", stage.name)
         stage.list_projects_perstage()
