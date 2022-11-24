@@ -9,7 +9,7 @@ certauth
 execnet
 flake8<5
 mock
-mypy[python2]
+mypy[python2]==0.971
 mypy-zope
 pypitoken
 pytest
