@@ -6,7 +6,18 @@ into a readonly view.
 from abc import ABC, abstractmethod
 from functools import singledispatch
 from functools import total_ordering
-from typing import Any, Hashable, Iterator, Union, Tuple
+from typing import AbstractSet
+from typing import Any
+from typing import Hashable
+from typing import ItemsView
+from typing import Iterator
+from typing import KeysView
+from typing import Mapping
+from typing import Union
+from typing import Sequence
+from typing import Tuple
+from typing import ValuesView
+from typing import overload
 
 
 _immutable = (bool, bytes, float, frozenset, int, str, type(None))
@@ -47,7 +58,7 @@ Readonly = Union[
 
 
 @total_ordering
-class DictViewReadonly(ReadonlyView):
+class DictViewReadonly(ReadonlyView, Mapping[Hashable, Readonly]):
     __slots__ = ()
 
     def __init__(self, data: dict) -> None:
@@ -59,21 +70,46 @@ class DictViewReadonly(ReadonlyView):
     def __getitem__(self, key: Hashable) -> Readonly:
         return ensure_deeply_readonly(self._data[key])
 
-    def items(self) -> Iterator[Tuple[Any, Readonly]]:
-        for x, y in self._data.items():
-            yield x, ensure_deeply_readonly(y)
+    def items(self) -> ItemsView[Hashable, Readonly]:
+        return DictItemsViewReadonly(self)
 
-    def keys(self) -> Iterator[Hashable]:
+    def keys(self) -> KeysView[Hashable]:
         return self._data.keys()
 
-    def get(self, key: Hashable, default: Readonly = None) -> Readonly:
+    @overload
+    def get(self, key: Hashable) -> Readonly:
+        pass
+
+    @overload
+    def get(self, key: Hashable, default: Union[Readonly, Any]) -> Readonly:
+        pass
+
+    def get(self, key: Hashable, default: Union[Readonly, Any] = None) -> Readonly:
         val = self._data.get(key, default)
         return ensure_deeply_readonly(val)
 
-    def values(self) -> Iterator[Any]:
-        yield from (ensure_deeply_readonly(x) for x in self._data.values())
+    def values(self) -> ValuesView[Readonly]:
+        return DictValuesViewReadonly(self)
 
-class SeqViewReadonly(ReadonlyView, ABC):
+
+class DictItemsViewReadonly(ItemsView[Hashable, Readonly]):
+    __slots__ = ()
+    _mapping: DictViewReadonly
+
+    def __iter__(self) -> Iterator[Tuple[Hashable, Readonly]]:
+        for x, y in self._mapping._data.items():
+            yield (x, ensure_deeply_readonly(y))
+
+
+class DictValuesViewReadonly(ValuesView[Readonly]):
+    __slots__ = ()
+    _mapping: DictViewReadonly
+
+    def __iter__(self) -> Iterator[Readonly]:
+        yield from (ensure_deeply_readonly(x) for x in self._mapping._data.values())
+
+
+class SeqViewReadonly(ReadonlyView, ABC, Sequence[Readonly]):
     __slots__ = ()
 
     @abstractmethod
@@ -84,7 +120,15 @@ class SeqViewReadonly(ReadonlyView, ABC):
         for x in self._data:
             yield ensure_deeply_readonly(x)
 
-    def __getitem__(self, key: Union[int, slice]) -> Readonly:
+    @overload
+    def __getitem__(self, key: int) -> Readonly:
+        pass
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[Readonly]:
+        pass
+
+    def __getitem__(self, key: Union[int, slice]) -> Union[Readonly, Sequence[Readonly]]:
         return ensure_deeply_readonly(self._data[key])
 
 
@@ -96,10 +140,10 @@ class ListViewReadonly(SeqViewReadonly):
         self._data = data
 
 
-class SetViewReadonly(ReadonlyView):
+class SetViewReadonly(ReadonlyView, AbstractSet):
     __slots__ = ()
 
-    def __init__(self, data: set) -> None:
+    def __init__(self, data: AbstractSet) -> None:
         self._data = data
 
     def __iter__(self) -> Iterator[Hashable]:
