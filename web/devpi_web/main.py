@@ -1,6 +1,7 @@
 from chameleon.config import AUTO_RELOAD
 from collections.abc import Mapping
 from devpi_common.metadata import get_latest_version
+from devpi_common.validation import normalize_name
 from devpi_web.config import add_indexer_backend_option
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
@@ -73,7 +74,8 @@ def navigation_info(request):
     else:
         return result
     if 'project' in context.matchdict:
-        name = context.project
+        project = context.matchdict['project']
+        name = normalize_name(project)
         path.append(dict(
             url=request.route_url(
                 "/{user}/{index}/{project}", user=user, index=index, project=name),

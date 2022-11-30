@@ -61,6 +61,20 @@ def test_not_found_redirect(testapp, outside_url, subpath):
     assert r.location == 'http://localhost%s/+status?foo=bar' % subpath
 
 
+def test_not_found_project_normalization(testapp):
+    r = testapp.get("/foo/bar/pkg.foo", follow=False)
+    assert r.status_code == 404
+    assert 'The following resource could not be found' in r.text
+
+
+def test_normalize_project_redirect(mapp, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg.foo-2.6.tgz", b"123", "pkg.foo", "2.6")
+    r = testapp.get("%s/pkg.foo" % api.index, follow=False)
+    assert r.status_code == 302
+    assert r.location.endswith('/pkg-foo')
+
+
 def test_not_found_on_post(testapp):
     testapp.post('/foo/bar/', {"hello": ""}, code=404)
 
