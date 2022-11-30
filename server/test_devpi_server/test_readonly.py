@@ -27,10 +27,10 @@ class TestGetMutableDeepcopy:
 class TestDictReadonlyView:
     def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly({})
-        assert ensure_deeply_readonly({1:2})
+        assert ensure_deeply_readonly({1: 2})
 
     def test_simple(self) -> None:
-        d = {1:2}
+        d = {1: 2}
         r = ensure_deeply_readonly(d)
         assert r[1] == 2
         with pytest.raises(KeyError):
@@ -47,9 +47,14 @@ class TestDictReadonlyView:
             r[1].append(1)
 
     def test_update(self) -> None:
-        d = {1:2}
-        d.update(ensure_deeply_readonly({2:3}))
-        assert d == {1:2, 2:3}
+        d = {1: 2}
+        d.update(ensure_deeply_readonly({2: 3}))
+        assert d == {1: 2, 2: 3}
+
+    def test_values(self) -> None:
+        d = ensure_deeply_readonly({1: []})
+        (value,) = d.values()
+        assert is_deeply_readonly(value)
 
 
 class TestSetReadonlyView:
