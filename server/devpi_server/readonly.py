@@ -70,6 +70,8 @@ class DictViewReadonly(ReadonlyView):
         val = self._data.get(key, default)
         return ensure_deeply_readonly(val)
 
+    def values(self) -> Iterator[Any]:
+        yield from (ensure_deeply_readonly(x) for x in self._data.values())
 
 class SeqViewReadonly(ReadonlyView, ABC):
     __slots__ = ()
