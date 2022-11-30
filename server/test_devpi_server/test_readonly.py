@@ -1,3 +1,6 @@
+from collections.abc import Mapping
+from collections.abc import Sequence
+from collections.abc import Set
 from devpi_server.readonly import ensure_deeply_readonly
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_server.readonly import is_deeply_readonly
@@ -25,6 +28,9 @@ class TestGetMutableDeepcopy:
 
 
 class TestDictReadonlyView:
+    def test_type(self) -> None:
+        assert isinstance(ensure_deeply_readonly({}), Mapping)
+
     def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly({})
         assert ensure_deeply_readonly({1: 2})
@@ -58,6 +64,9 @@ class TestDictReadonlyView:
 
 
 class TestSetReadonlyView:
+    def test_type(self) -> None:
+        assert isinstance(ensure_deeply_readonly(set()), Set)
+
     def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly(set())
         assert ensure_deeply_readonly(set([1]))
@@ -75,14 +84,17 @@ class TestSetReadonlyView:
 
     def test_nogetitem(self) -> None:
         with pytest.raises(TypeError):
-            ensure_deeply_readonly(set([1,2]))[0]
+            ensure_deeply_readonly(set([1, 2]))[0]
 
     def test_iter(self) -> None:
-        l = list(ensure_deeply_readonly(set([1,2])))
-        assert l == [1,2]
+        l = list(ensure_deeply_readonly(set([1, 2])))
+        assert l == [1, 2]
 
 
 class TestListReadonlyView:
+    def test_type(self) -> None:
+        assert isinstance(ensure_deeply_readonly([]), Sequence)
+
     def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly([])
         assert ensure_deeply_readonly([1])
@@ -111,6 +123,9 @@ class TestListReadonlyView:
 
 
 class TestTupleReadonlyView:
+    def test_type(self) -> None:
+        assert isinstance(ensure_deeply_readonly(()), Sequence)
+
     def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly(())
         assert ensure_deeply_readonly((1,))
