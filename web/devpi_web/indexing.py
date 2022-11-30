@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from devpi_common.types import ensure_unicode
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.validation import normalize_name
@@ -96,8 +97,8 @@ def iter_projects(xom):
         if stage is None:  # this is async, so the stage may be gone
             continue
         names = stage.list_projects_perstage()
-        if isinstance(names, dict):
-            # since devpi-server 6.6.0 mirrors return a dictionary where
+        if isinstance(names, Mapping):
+            # since devpi-server 6.6.0 mirrors return a mapping where
             # the un-normalized names are in the values
             names = names.values()
         for name in names:

@@ -1,4 +1,5 @@
 from chameleon.config import AUTO_RELOAD
+from collections.abc import Mapping
 from devpi_common.metadata import get_latest_version
 from devpi_web.config import add_indexer_backend_option
 from devpi_web.config import get_pluginmanager
@@ -276,8 +277,8 @@ def devpiserver_mirror_initialnames(stage, projectnames):
         "indexing '%s' mirror with %s projects",
         stage.name,
         len(projectnames))
-    if isinstance(projectnames, dict):
-        # since devpi-server 6.6.0 mirrors return a dictionary where
+    if isinstance(projectnames, Mapping):
+        # since devpi-server 6.6.0 mirrors return a mapping where
         # the un-normalized names are in the values
         projectnames = projectnames.values()
     ix.update_projects(
