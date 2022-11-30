@@ -323,9 +323,10 @@ class MirrorStage(BaseStage):
         entry.delete()
         (is_expired, links, cache_serial) = self._load_cache_links(project)
         if links is not None:
-            links = ensure_deeply_readonly(
-                list(filter(self._is_file_cached, links)))
-        if not links and cleanup:
+            has_links = any(self._is_file_cached(x) for x in links)
+        else:
+            has_links = False
+        if not has_links and cleanup:
             projects = self.key_projects.get(readonly=False)
             if project in projects:
                 projects.remove(project)
