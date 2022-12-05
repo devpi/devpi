@@ -1,1 +1,0 @@
-Set ETag header to the doczip hash and max-age to 60 seconds for all documentation files.

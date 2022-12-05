@@ -2,10 +2,27 @@
 
 .. towncrier release notes start
 
+6.8.0 (2022-12-05)
+==================
+
+Features
+--------
+
+- Fix #929: Cache normalized project names per transaction on mirror index instances.
+
+
+Bug Fixes
+---------
+
+- Fix #914: add locking to list_projects_perstage of mirror indexes to prevent multiple slow concurrent updates of the full project name list.
+
+- Catch exceptions in async_httpget analog to httpget.
+
+- Add locking to mirror name cache to prevent race condition on updates.
+
 
 6.7.0 (2022-09-28)
 ==================
-
 
 Features
 --------
@@ -26,7 +43,6 @@ Bug Fixes
 6.6.1 (2022-09-12)
 ==================
 
-
 Bug Fixes
 ---------
 
@@ -41,7 +57,6 @@ Bug Fixes
 
 6.6.0 (2022-08-16)
 ==================
-
 
 Features
 --------
