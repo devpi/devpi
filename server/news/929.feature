@@ -1,1 +1,0 @@
-Fix #929: Cache normalized project names per transaction on mirror index instances.
