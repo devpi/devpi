@@ -34,7 +34,7 @@ setup(
         'Documentation': 'https://doc.devpi.net',
         'Source Code': 'https://github.com/devpi/devpi'
     },
-    version='4.2.0',
+    version='4.2.1.dev0',
     maintainer="Florian Schulze",
     maintainer_email="mail@pyfidelity.com",
     license="MIT",
