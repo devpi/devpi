@@ -42,6 +42,7 @@ if __name__ == "__main__":
                         'ruamel.yaml',
                         "strictyaml",
                         "lazy",
+                        "packaging<=21.3",
                         ]
     extras_require = {}
 
