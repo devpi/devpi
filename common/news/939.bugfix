@@ -1,0 +1,1 @@
+Fix #939: custom legacy version parsing (non PEP 440) after packaging >= 22.0 removed support.
