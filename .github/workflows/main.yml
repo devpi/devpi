@@ -85,7 +85,7 @@ jobs:
           set -xe -o nounset
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   bbb-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -126,7 +126,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   client-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -171,7 +171,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   server-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -216,7 +216,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   web-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -261,7 +261,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   nightly-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -311,7 +311,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-bbb-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -351,7 +351,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -427,7 +427,7 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-web-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -479,7 +479,7 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   pypy-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -528,7 +528,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   postgresql-nightly-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -581,7 +581,7 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   windows-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -633,7 +633,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          python -m tox --pre -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
   mypy-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
