@@ -9,7 +9,6 @@ import asyncio
 import time
 
 import re
-from devpi_common.vendor._pip import HTMLPage
 from devpi_common.url import URL
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
@@ -26,6 +25,7 @@ from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
 from .log import threadlog
+from .vendor._pip import HTMLPage
 from .views import SIMPLE_API_V1_JSON
 from .views import make_uuid_headers
 import json

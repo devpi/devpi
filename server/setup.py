@@ -63,6 +63,7 @@ if __name__ == "__main__":
       packages=[
         'devpi_server',
         'devpi_server.cfg',
+        'devpi_server.vendor',
         'pytest_devpi_server',
         'test_devpi_server'],
       include_package_data=True,
