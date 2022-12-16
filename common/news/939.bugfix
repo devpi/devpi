@@ -1,1 +1,0 @@
-Fix #939: pin packaging to <22 as it removed the deprecated LegacyVersion.

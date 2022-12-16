@@ -2,10 +2,17 @@
 
 .. towncrier release notes start
 
+3.7.1 (2022-12-16)
+==================
+
+Bug Fixes
+---------
+
+- Fix #939: pin packaging to <22 as it removed the deprecated LegacyVersion.
+
 
 3.7.0 (2022-08-16)
 ==================
-
 
 Features
 --------
