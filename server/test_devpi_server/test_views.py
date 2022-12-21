@@ -2256,45 +2256,46 @@ def test_wrong_login_format(testapp, mapp):
     assert r.status_code == 400
 
 
-@pytest.mark.parametrize("headers, environ, outsideurl, expected", [
+@pytest.mark.parametrize("headers, environ, path, outsideurl, expected", [
     (
-        {"X-outside-url": "http://outside.com"}, {},
+        {"X-outside-url": "http://outside.com"}, {}, "",
         None, "http://outside.com"),
     (
-        {"X-outside-url": "http://outside.com/foo"}, {},
+        {"X-outside-url": "http://outside.com/foo"}, {}, "/foo",
         None, "http://outside.com/foo"),
     (
-        {"Host": "outside3.com"}, {},
+        {"Host": "outside3.com"}, {}, "",
         None, "http://outside3.com"),
     (
-        {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
+        {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'}, "",
         None, "https://outside3.com"),
     (
-        {"Host": "outside3.com:3141"}, {},
+        {"Host": "outside3.com:3141"}, {}, "",
         None, "http://outside3.com:3141"),
     (
-        {"Host": "outside3.com:3141"}, {'wsgi.url_scheme': 'https'},
+        {"Host": "outside3.com:3141"}, {'wsgi.url_scheme': 'https'}, "",
         None, "https://outside3.com:3141"),
     # x-outside-url header takes precedence over outside url option
     (
-        {"X-outside-url": "http://outside.com"}, {},
+        {"X-outside-url": "http://outside.com"}, {}, "",
         "http://outside2.com", "http://outside.com"),
     (
-        {"X-outside-url": "http://outside.com"}, {},
+        {"X-outside-url": "http://outside.com"}, {}, "",
         "http://outside2.com/foo", "http://outside.com"),
     # outside url option takes precedence over host and environ
     (
-        {"Host": "outside3.com"}, {},
+        {"Host": "outside3.com"}, {}, "",
         "http://out.com", "http://out.com"),
     (
-        {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'},
+        {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'}, "",
         "http://out.com", "http://out.com")])
-def test_outside_url_middleware(headers, environ, outsideurl, expected, testapp):
+def test_outside_url_middleware(headers, environ, path, outsideurl, expected, testapp):
     headers = dict((str(k), str(v)) for k, v in headers.items())
     environ = dict((str(k), str(v)) for k, v in environ.items())
     testapp.xom.config.args.outside_url = outsideurl
-    r = testapp.get('/+api', headers=headers, extra_environ=environ)
+    r = testapp.get(f'{path}/+api', headers=headers, extra_environ=environ)
     assert r.json['result']['login'] == "%s/+login" % expected
+    testapp.xget(200, path, headers=headers, extra_environ=environ, follow=False)
 
 
 class TestOfflineMode:
