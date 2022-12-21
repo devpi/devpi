@@ -1,0 +1,1 @@
+Fix #934: Properly set PATH_INFO when outside URL is used with sub-path.

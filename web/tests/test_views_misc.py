@@ -1,7 +1,12 @@
+from devpi_common.metadata import parse_version
+from devpi_server import __version__ as _devpi_server_version
 from devpi_web.main import hookimpl
 from test_devpi_server.conftest import make_file_url
 import pytest
 import re
+
+
+devpi_server_version = parse_version(_devpi_server_version)
 
 
 def compareable_text(text):
@@ -209,6 +214,16 @@ def test_redirects(mapp, testapp):
     r = testapp.get('http://localhost/%s/pkg1/2.6/' % api.stagename, follow=False)
     assert r.status_code == 302
     assert r.headers["Location"] == 'http://localhost/%s/pkg1/2.6' % api.stagename
+
+
+@pytest.mark.skipif(devpi_server_version < parse_version("6.8.1.dev"), reason="Needs PATH_INFO fix")
+def test_redirects_outside_url(mapp, testapp):
+    headers = {'X-outside-url': 'http://outside.com/foo', 'Host': 'outside.com'}
+    r = testapp.get('/foo', headers=headers, follow=False)
+    assert r.status_code == 200
+    r = testapp.get('/foo/', headers=headers, follow=False)
+    assert r.status_code == 302
+    assert r.location == 'http://outside.com/foo'
 
 
 def test_static_404(testapp):
