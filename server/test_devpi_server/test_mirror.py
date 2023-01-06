@@ -973,6 +973,33 @@ async def test_async_httpget_error(exc, xom, monkeypatch):
     assert r.status_code == -1
 
 
+@pytest.mark.asyncio
+@pytest.mark.nomocking
+@pytest.mark.parametrize("exc", [
+    OSError,
+    aiohttp.ClientError])
+async def test_get_simplelinks_perstage_when_http_error(exc, pypistage, monkeypatch):
+    from contextlib import asynccontextmanager
+    from devpi_server.model import SimpleLinks
+
+    # to reach the code path in question, we must have cached links
+    links = [("key", "href", "req_py", "yanked")]
+
+    def mock_load_cache_links(project):
+        return (True, links, 42)
+
+    monkeypatch.setattr(pypistage, "_load_cache_links", mock_load_cache_links)
+
+    @asynccontextmanager
+    async def async_httpget(self, url, **kw):
+        raise exc()
+        yield
+
+    monkeypatch.setattr(aiohttp.ClientSession, "get", async_httpget)
+
+    assert pypistage.get_simplelinks_perstage("def_missing") == SimpleLinks(links)
+
+
 def test_is_project_cached(pypistage):
     assert not pypistage.is_project_cached("xyz")
     assert not pypistage.has_project("xyz")
