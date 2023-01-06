@@ -618,9 +618,15 @@ class FatalResponse:
     def __init__(self, url, reason):
         self.url = url
         self.reason = reason
+        self.status = self.status_code
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.reason)
+
+    # an adapter to allow this to be used in async_httpget
+    def __iter__(self):
+        yield self
+        yield self.reason
 
     def close(self):
         pass
