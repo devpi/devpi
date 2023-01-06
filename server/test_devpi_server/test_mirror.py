@@ -6,6 +6,7 @@ import pytest
 
 from devpi_server.mirror import URL, parse_index
 from devpi_server.mirror import ProjectNamesCache, ProjectUpdateCache
+from devpi_server.model import SimpleLinks
 from test_devpi_server.simpypi import getmd5
 
 
@@ -971,6 +972,31 @@ async def test_async_httpget_error(exc, xom, monkeypatch):
     monkeypatch.setattr(aiohttp.ClientSession, "get", async_httpget)
     r = await xom.async_httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.nomocking
+@pytest.mark.parametrize("exc", [
+    OSError,
+    aiohttp.ClientError])
+async def test_get_simplelinks_perstage_when_http_error(exc, pypistage, monkeypatch):
+    from contextlib import asynccontextmanager
+
+    # to reach the code path in question, we must have cached links
+    links = [("key", "href", "req_py", "yanked")]
+    def mock_load_cache_links(project):
+        return (True, links, 42)
+
+    monkeypatch.setattr(pypistage, "_load_cache_links", mock_load_cache_links)
+
+    @asynccontextmanager
+    async def async_httpget(self, url, **kw):
+        raise exc()
+        yield
+
+    monkeypatch.setattr(aiohttp.ClientSession, "get", async_httpget)
+
+    assert pypistage.get_simplelinks_perstage("def_missing") == SimpleLinks(links)
 
 
 def test_is_project_cached(pypistage):
