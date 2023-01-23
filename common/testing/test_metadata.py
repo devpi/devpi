@@ -53,7 +53,11 @@ def test_splitbasename(releasename, expected):
     ("greenlet-0.4.0.linux-x86_64.tar.gz", ("any", "bdist_dumb")),
     ("cffi-1.6.0-pp251-pypy_41-macosx_10_11_x86_64.whl", ("2.5.1", "bdist_wheel")),
     ("cryptography-1.4-pp253-pypy_41-linux_x86_64.whl", ("2.5.3", "bdist_wheel")),
+    ("cryptography-39.0.0-pp38-pypy38_pp73-macosx_10_12_x86_64.whl", ("3.8", "bdist_wheel")),
     ("argon2_cffi-18.2.0.dev0.0-pp2510-pypy_41-macosx_10_13_x86_64.whl", ("2.5.1.0", "bdist_wheel")),
+    ("h5py-3.6.0-cp310-cp310-win_amd64.whl", ("3.10", "bdist_wheel")),
+    ("h5py-3.6.0-cp319-cp319-win_amd64.whl", ("3.19", "bdist_wheel")),
+    ("h5py-3.6.0-cp399-cp399-win_amd64.whl", ("3.99", "bdist_wheel")),
 ])
 def test_get_pyversion_filetype(releasename, expected):
     result = get_pyversion_filetype(releasename)
