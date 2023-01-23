@@ -404,10 +404,14 @@ class Hub:
         env = os.environ.copy()
         if extraenv is not None:
             env.update({k: str(v) for k, v in extraenv.items()})
-        ret = subprocess.call(args, env=env, **kwargs)
-        if ret != 0:
-            self.fatal_code("command failed", code=ret)
-        return ret
+        assert kwargs.get('stderr') != subprocess.PIPE
+        assert kwargs.get('stdout') != subprocess.PIPE
+        try:
+            subprocess.check_call(args, env=env, **kwargs)
+        except subprocess.CalledProcessError as e:
+            self.fatal_code("command failed", code=e.returncode)
+            return e.returncode
+        return 0
 
     def line(self, *msgs, **kwargs):
         msg = " ".join(map(str, msgs))
