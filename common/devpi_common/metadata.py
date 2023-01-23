@@ -27,7 +27,7 @@ _releasefile_suffix_rx = re.compile(
 
 # see also PEP425 for supported "python tags"
 _pyversion_type_rex = re.compile(
-        r"(?:py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
+        r"(py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
 _ext2type = dict(exe="bdist_wininst", egg="bdist_egg", msi="bdist_msi",
                  whl="bdist_wheel")
 
@@ -61,19 +61,22 @@ _legacy_nameversion_re = re.compile(
 
 
 def get_pyversion_filetype(basename):
-    _,_,suffix = splitbasename(basename)
+    _, _, suffix = splitbasename(basename)
     if suffix in (".zip", ".tar.gz", ".tgz", "tar.bz2"):
         return ("source", "sdist")
     m = _pyversion_type_rex.search(suffix)
     if not m:
         return ("any", "bdist_dumb")
-    pyversion, ext = m.groups()
+    (tag, pyversion, ext) = m.groups()
     if pyversion == "2.py3":  # "universal" wheel with no C
         # arbitrary but pypi/devpi makes no special use
         # of "pyversion" anyway?!
         pyversion = "2.7"
     elif "." not in pyversion:
-        pyversion = ".".join(pyversion)
+        if tag in ("cp", "pp") and pyversion.startswith("3"):
+            pyversion = ".".join((pyversion[0], pyversion[1:]))
+        else:
+            pyversion = ".".join(pyversion)
     return (pyversion, _ext2type[ext])
 
 
