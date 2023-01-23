@@ -32,6 +32,11 @@ devpi-server managed index.  For more information see http://doc.devpi.net
 
 hookimpl = HookimplMarker("devpiclient")
 
+try:
+    PermissionError
+except NameError:
+    PermissionError = OSError
+
 
 def main(argv=None):
     if argv is None:
@@ -232,7 +237,17 @@ class Hub:
     def workdir(self, prefix='devpi-'):
         def remove_readonly(func, path, excinfo):
             os.chmod(path, stat.S_IWRITE)
-            func(path)
+            count = 3
+            while count:
+                try:
+                    func(path)
+                    return
+                except PermissionError:
+                    count = count - 1
+                    if count == 0:
+                        raise
+                    # wait a moment for other processes to finish
+                    time.sleep(1)
 
         workdir = py.path.local(
             mkdtemp(prefix=prefix))
