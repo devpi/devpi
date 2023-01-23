@@ -1,1 +1,0 @@
-Fix #928: correct default for pre-release matching after switching from ``pkg_resources`` to ``packaging``.
