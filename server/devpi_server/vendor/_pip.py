@@ -6,12 +6,7 @@ note XXX for changes:
 
 """
 import re
-
-try:
-    import HTMLParser as html_parser
-except ImportError:
-    import html.parser as html_parser
-
+import html.parser as html_parser
 from devpi_common.url import urljoin
 
 
@@ -97,10 +92,10 @@ class HTMLPage(object):
                     break
             else:
                 continue
-            match = self._href_re.search(match.group(0))
-            if not match:
+            m = self._href_re.search(match.group(0))
+            if not m:
                 continue
-            url = match.group(1) or match.group(2) or match.group(3)
+            url = m.group(1) or m.group(2) or m.group(3)
             url = self.clean_link(urljoin(self.base_url, url))
             yield Link(url, self)
 
@@ -126,8 +121,8 @@ class HTMLPage(object):
         % or other characters)."""
         # XXX CHANGE from PIP ORIGINAL
         return url
-        return self._clean_re.sub(
-            lambda match: '%%%2x' % ord(match.group(0)), url)
+        # return self._clean_re.sub(
+        #     lambda match: '%%%2x' % ord(match.group(0)), url)
 
 
 class Link(object):
