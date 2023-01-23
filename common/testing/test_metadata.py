@@ -167,4 +167,13 @@ def test_parse_requirement():
     req = parse_requirement("hello>=1.0")
     assert req.project_name == "hello"
     assert "1.0" in req
+    assert "1.1.dev0" in req
+    assert "1.0.dev0" not in req
     assert "0.9" not in req
+
+
+def test_parse_requirement_without_version():
+    req = parse_requirement("hello")
+    assert req.project_name == "hello"
+    assert "1.0" in req
+    assert "1.0.dev0" in req

@@ -234,4 +234,6 @@ class Requirement(BaseRequirement):
 
 
 def parse_requirement(s):
-    return Requirement(s)
+    req = Requirement(s)
+    req.specifier.prereleases = True
+    return req
