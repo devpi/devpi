@@ -86,7 +86,8 @@ def test_confirm_delete(loghub, monkeypatch):
     m.fnmatch_lines("""
         *x-1.1.tar.gz*
     """)
-    assert "x-1.0" not in req
+    assert "1.0" not in req
+    assert "1.1" in req
 
 
 def test_showcommands(loghub):
