@@ -1,5 +1,4 @@
 [flake8]
 ignore = E501
 per-file-ignores =
-    setup.py:E121,E123
     *.py:E126,E127,E128,E225,E226,E231,E265,E272,E301,E741
