@@ -31,7 +31,7 @@ if __name__ == "__main__":
                         "argon2-cffi",
                         "attrs>=21.3.0",
                         "defusedxml",
-                        "devpi_common<4,>3.6.0",
+                        "devpi_common<5,>3.6.0",
                         "itsdangerous>=0.24",
                         "platformdirs",
                         "pyramid>=2",
