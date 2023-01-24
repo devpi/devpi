@@ -30,14 +30,14 @@ if __name__ == "__main__":
       name="devpi-common",
       description="utilities jointly used by devpi-server and devpi-client",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='3.7.2',
+      version='4.0.0.dev0',
       packages=['devpi_common', 'devpi_common.vendor'],
       install_requires=[
           "lazy",
           "packaging<22",
           "py>=1.4.20",
           "requests>=2.3.0"],
-      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
+      python_requires=">=3.7",
       url="https://github.com/devpi/devpi",
       maintainer="Florian Schulze",
       maintainer_email="mail@pyfidelity.com",
@@ -51,5 +51,5 @@ if __name__ == "__main__":
         "Programming Language :: Python :: Implementation :: PyPy",
       ] + [
           ("Programming Language :: Python :: %s" % x)
-          for x in "2.7 3.4 3.5 3.6 3.7 3.8 3.9 3.10 3.11".split()],
+          for x in "3.7 3.8 3.9 3.10 3.11".split()],
       )
