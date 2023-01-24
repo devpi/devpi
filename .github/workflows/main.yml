@@ -43,13 +43,9 @@ jobs:
       matrix:
         include:
           - project: "common"
-            python-version: "pypy-2.7"
+            python-version: "3.7"
             os: "ubuntu-latest"
-            tox-envs: "pypy"
-          - project: "common"
-            python-version: "3.5"
-            os: "ubuntu-20.04"
-            tox-envs: "py35"
+            tox-envs: "py37"
           - project: "common"
             python-version: "3.11"
             os: "ubuntu-latest"
@@ -132,9 +128,9 @@ jobs:
       matrix:
         include:
           - project: "client"
-            python-version: "3.5"
-            os: "ubuntu-20.04"
-            tox-envs: "py35"
+            python-version: "3.7"
+            os: "ubuntu-latest"
+            tox-envs: "py37,py37-version"
           - project: "client"
             python-version: "3.11"
             os: "ubuntu-latest"
@@ -480,10 +476,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - project: "client"
-            python-version: "pypy-2.7"
-            os: "ubuntu-latest"
-            tox-envs: "pypy"
           - project: "client"
             python-version: "pypy-3.8"
             os: "ubuntu-latest"

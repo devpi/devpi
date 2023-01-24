@@ -29,7 +29,7 @@ if __name__ == "__main__":
     install_requires = [
         "build",
         "check-manifest>=0.28",
-        "devpi_common<4,>=3.6.0",
+        "devpi_common<5,>=4dev",
         "iniconfig",
         "pep517",
         "pkginfo>=1.4.2",
@@ -44,11 +44,11 @@ if __name__ == "__main__":
       description="devpi upload/install/... workflow commands for Python "
                   "developers",
       long_description="\n\n".join([README, CHANGELOG]),
-      version='6.0.6',
+      version='7.0.0.dev2',
       packages=['devpi'],
       install_requires=install_requires,
       extras_require=extras_require,
-      python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*",
+      python_requires=">=3.7",
       url="https://devpi.net",
       project_urls={
           'Bug Tracker': 'https://github.com/devpi/devpi/issues',
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         "Programming Language :: Python :: Implementation :: PyPy",
         ] + [
             ("Programming Language :: Python :: %s" % x) for x in
-            "2.7 3.4 3.5 3.6 3.7 3.8 3.9 3.10 3.11".split()],
+            "3.7 3.8 3.9 3.10 3.11".split()],
       entry_points = {
         'console_scripts': [
           "devpi = devpi.main:main"],
