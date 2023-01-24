@@ -478,6 +478,7 @@ class Hub:
                 "Used 'pypitoken' to create a unique %s token "
                 "valid for 60 seconds for upload to the %r project." % (
                     title, project))
+            self.debug("token info:", now, token.restrictions)
             return token.dump()
         except pypitoken.PyPITokenException as e:
             msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
