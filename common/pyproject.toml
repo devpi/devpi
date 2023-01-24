@@ -1,3 +1,60 @@
+[build-system]
+requires = ["setuptools", "setuptools_changelog_shortener", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+dynamic = ["version", "readme"]
+name = "devpi-common"
+description = "Utilities jointly used by devpi-server, devpi-client and others."
+dependencies = [
+    "lazy",
+    "packaging>=22",
+    "py>=1.4.20",
+    "requests>=2.3.0",
+]
+requires-python = ">=3.7"
+maintainers = [
+    {name = "Florian Schulze", email = "mail@pyfidelity.com"}
+]
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+
+
+[project.urls]
+repository = "https://github.com/devpi/devpi"
+
+
+[tool.setuptools]
+packages = ['devpi_common']
+
+
+[tool.setuptools.dynamic]
+version = {attr = "devpi_common.__version__"}
+readme = {file = ["README.rst", "CHANGELOG.short.rst"]}
+
+
+[tool.setuptools_changelog_shortener]
+read_from = "CHANGELOG"
+write_to = "CHANGELOG.short.rst"
+count = 5
+delimiter = "^==+"
+title = "=========\nChangelog\n========="
+
+
 [tool.towncrier]
 package = "devpi_common"
 filename = "CHANGELOG"

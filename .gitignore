@@ -72,3 +72,4 @@ ENV/
 /tmp/
 *.sw[po]
 **/tags
+CHANGELOG.short.rst
