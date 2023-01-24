@@ -2,6 +2,7 @@ from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import Version
 from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_latest_version
+from devpi_common.metadata import get_sorted_versions
 from devpi_common.metadata import parse_requirement
 from devpi_common.metadata import sorted_sameproject_links
 from devpi_common.metadata import splitbasename
@@ -102,6 +103,24 @@ def test_get_latest_version(expected, versions):
 ])
 def test_get_latest_stable_version(expected, versions):
     assert get_latest_version(versions, stable=True) == expected
+
+
+@pytest.mark.parametrize(("versions", "expected"), [
+    (
+        ["2022.7.1", "2022.7", "2005i", "2004d"],
+        ["2004d", "2005i", "2022.7", "2022.7.1"]
+    ),
+    (
+        ["1.0alpha1", "1.0beta5prerelease2"],
+        ["1.0beta5prerelease2", "1.0alpha1"],
+    ),
+    (
+        ["1.0", "2.0", "2005i", "2004d"],
+        ["2004d", "2005i", "1.0", "2.0"]
+    ),
+])
+def test_get_sorted_versions_legacy(versions, expected):
+    assert get_sorted_versions(versions, reverse=False) == expected
 
 
 def test_version():
