@@ -260,6 +260,9 @@ def test_derive_token():
     msgs = []
 
     class MockHub:
+        def debug(self, *msg):
+            pass
+
         def info(self, msg):
             msgs.append(msg)
     hub = MockHub()
@@ -311,6 +314,9 @@ def test_derive_devpi_token():
     msgs = []
 
     class MockHub:
+        def debug(self, *msg):
+            pass
+
         def info(self, msg):
             msgs.append(msg)
     hub = MockHub()
