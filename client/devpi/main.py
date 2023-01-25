@@ -468,12 +468,21 @@ class Hub:
             return password
         try:
             token = pypitoken.Token.load(password)
+            legacy = any(
+                isinstance(x, pypitoken.LegacyNoopRestriction)
+                for x in token.restrictions)
             if now is None:
                 now = int(time.time())
-            token.restrict(
-                project_names=[project],
-                not_before=now - 1,
-                not_after=now + 60)
+            if legacy:
+                token.restrict(
+                    legacy_project_names=[project],
+                    legacy_not_before=now - 1,
+                    legacy_not_after=now + 60)
+            else:
+                token.restrict(
+                    project_names=[project],
+                    not_before=now - 1,
+                    not_after=now + 60)
             self.info(
                 "Used 'pypitoken' to create a unique %s token "
                 "valid for 60 seconds for upload to the %r project." % (
