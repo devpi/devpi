@@ -251,8 +251,8 @@ def test_derive_token_invalid_token(prefix):
 
 @pytest.mark.skipif("sys.version_info < (3, 7)")
 def test_derive_token():
-    import pypitoken.token
-    token = pypitoken.token.Token.create(
+    import pypitoken
+    token = pypitoken.Token.create(
         domain="example.com",
         identifier="devpi",
         key="secret")
@@ -268,12 +268,40 @@ def test_derive_token():
     assert derived_passwd != passwd
     (msg,) = msgs
     assert "create a unique PyPI token" in msg
-    derived_token = pypitoken.token.Token.load(derived_passwd)
-    assert derived_token.restrictions == sorted(
-        [
-            pypitoken.DateRestriction(not_before=9, not_after=70),
-            pypitoken.ProjectNamesRestriction(project_names=["pkg"])],
-        key=lambda x: x.__class__.__name__)
+    derived_token = pypitoken.Token.load(derived_passwd)
+    assert sorted(derived_token.restrictions, key=lambda x: x.__class__.__name__) == [
+        pypitoken.DateRestriction(not_before=9, not_after=70),
+        pypitoken.ProjectNamesRestriction(project_names=["pkg"])]
+
+
+@pytest.mark.skipif("sys.version_info < (3, 7)")
+def test_derive_legacy_token():
+    import pypitoken
+    token = pypitoken.Token.create(
+        domain="example.com",
+        identifier="devpi",
+        key="secret")
+    token.restrict(legacy_noop=True)
+    passwd = token.dump()
+    msgs = []
+
+    class MockHub:
+        def debug(self, *msg):
+            pass
+
+        def info(self, msg):
+            msgs.append(msg)
+    hub = MockHub()
+    hub.derive_token = Hub.derive_token.__get__(hub)
+    derived_passwd = hub.derive_token(passwd, 'pkg', now=10)
+    assert derived_passwd != passwd
+    (msg,) = msgs
+    assert "create a unique PyPI token" in msg
+    derived_token = pypitoken.Token.load(derived_passwd)
+    assert sorted(derived_token.restrictions, key=lambda x: x.__class__.__name__) == [
+        pypitoken.LegacyDateRestriction(not_before=9, not_after=70),
+        pypitoken.LegacyNoopRestriction(),
+        pypitoken.LegacyProjectNamesRestriction(project_names=["pkg"])]
 
 
 @pytest.mark.skipif("sys.version_info < (3, 7)")
@@ -291,7 +319,7 @@ def test_derive_devpi_token():
     assert derived_passwd != passwd
     (msg,) = msgs
     assert "create a unique Devpi token" in msg
-    derived_token = pypitoken.token.Token.load(derived_passwd)
+    derived_token = pypitoken.Token.load(derived_passwd)
     assert derived_token.restrictions == sorted(
         [
             pypitoken.DateRestriction(not_before=9, not_after=70),
