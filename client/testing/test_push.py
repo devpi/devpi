@@ -244,7 +244,7 @@ def test_derive_token_invalid_token(prefix):
             msgs.append(msg)
     hub = MockHub()
     hub.derive_token = Hub.derive_token.__get__(hub)
-    hub.derive_token("%s-foo" % prefix, None) == "%s-foo" % prefix
+    assert hub.derive_token("%s-foo" % prefix, None) == "%s-foo" % prefix
     (msg,) = msgs
     assert "can not parse it" in msg
 
