@@ -1,0 +1,58 @@
+[tool.ruff]
+select = [
+    "B", "COM", "DTZ", "E", "ERA", "EXE", "F",
+    "ICN", "ISC", "PIE", "PLC", "PLE", "PLR", "PLW",
+    "RUF", "SIM", "T10", "TID", "TRY", "W", "YTT",
+]
+ignore = [
+    "B007", # maybe cleanup later
+    "B008", # cleanup later
+    "B026", # devpi-common 4.x
+    "B904", # maybe cleanup later
+    "COM812", # cleanup later
+    "COM818", # ****** investigate soon ******
+    "COM819", # cleanup later
+    "DTZ001", # cleanup soon
+    "DTZ005", # cleanup soon
+    "E402", # cleanup later
+    "E501",
+    "E712", # cleanup soon
+    "E713", # cleanup soon
+    "E741",
+    "ERA001", # cleanup soon
+    "EXE002", # cleanup soon
+    "PIE790", # cleanup soon
+    "PIE804", # cleanup later
+    "PIE810", # cleanup soon
+    "PLR0911", # cleanup later
+    "PLR0912", # cleanup later
+    "PLR0913",
+    "PLR0915", # maybe cleanup later
+    "PLR2004",
+    "PLW0120", # cleanup soon
+    "PLW2901", # maybe cleanup later
+    "RUF004", # devpi-common 4.x
+    "RUF005", # cleanup later
+    "RUF006", # ****** investigate soon ******
+    "RUF100", # after soon to cleanup
+    "SIM102", # maybe cleanup later
+    "SIM105", # cleanup soon
+    "SIM108", # cleanup later
+    "SIM110", # cleanup soon
+    "SIM114", # maybe cleanup later
+    "SIM115", # cleanup soon
+    "SIM116", # cleanup soon
+    "SIM117", # cleanup later
+    "SIM201", # cleanup soon
+    "SIM300", # cleanup soon
+    "TRY003",
+    "TRY004", # maybe cleanup later
+    "TRY200", # cleanup later
+    "TRY300", # cleanup soon
+    "TRY301", # maybe cleanup later
+    "TRY400", # maybe cleanup later
+]
+exclude = [
+    "doc/",
+]
+target-version = "py37"
