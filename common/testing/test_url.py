@@ -74,11 +74,11 @@ class TestURL:
     def test_hashtypes(self, hashtype, hash_value):
         link = URL('py-1.4.12.zip#%s=%s' % (hashtype, hash_value))
         assert link.hash_algo == getattr(hashlib, hashtype)
-        link.hash_type == hashtype
+        assert link.hash_type == hashtype
         assert link.hash_value == hash_value
         link = URL('py-1.4.12.zip?foo=bar#%s=%s' % (hashtype, hash_value))
         assert link.hash_algo == getattr(hashlib, hashtype)
-        link.hash_type == hashtype
+        assert link.hash_type == hashtype
         assert link.hash_value == hash_value
         assert link.query == "foo=bar"
 
