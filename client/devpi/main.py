@@ -1151,7 +1151,7 @@ def install(parser):
         help="Install from the given requirements file.")
     parser.add_argument("pkgspecs", metavar="pkg", type=str,
         action="store", default=None, nargs="*",
-        help="uri or package file for installation from current index. """)
+        help="uri or package file for installation from current index. ")
 
 
 @subcommand("devpi.refresh")
@@ -1165,7 +1165,7 @@ def refresh(parser):
         help="index to refresh (defaults to current index)")
     parser.add_argument(
         "pkgnames", metavar="pkg", type=str, action="store", nargs="+",
-        help="package name to refresh.""")
+        help="package name to refresh.")
 
 
 def verify_reply_version(hub, reply):
