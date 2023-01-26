@@ -663,3 +663,29 @@ jobs:
         run: |
           set -xe -o nounset
           python -m mypy
+
+  ruff-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+
+    env:
+      PY_COLORS: 1
+
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.x"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip ruff setuptools wheel
+      - name: "Run ruff"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          ruff --format=github .
