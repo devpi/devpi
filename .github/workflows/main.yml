@@ -323,7 +323,7 @@ jobs:
           - project: "postgresql"
             python-version: "3.7"
             os: "ubuntu-latest"
-            tox-envs: "py37-server620"
+            tox-envs: "py37-server680"
 
     env:
       PY_COLORS: 1
