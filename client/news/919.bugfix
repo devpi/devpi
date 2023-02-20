@@ -1,1 +1,0 @@
-Fix #919: Retry 3 times and wait a moment on PermissionError during file removal to fix race condition after running tox.

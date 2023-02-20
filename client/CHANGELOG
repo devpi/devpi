@@ -2,10 +2,21 @@
 
 .. towncrier release notes start
 
+6.0.3 (2023-02-20)
+==================
+
+Bug Fixes
+---------
+
+- Fix #919: Retry 3 times and wait a moment on PermissionError during file removal to fix race condition after running tox.
+
+- Restore ability to build docs if project uses separate build and source directories for documentation.
+
+- Fix for changes in pypitoken 6.x.
+
 
 6.0.2 (2022-09-28)
 ==================
-
 
 Bug Fixes
 ---------
@@ -15,7 +26,6 @@ Bug Fixes
 
 6.0.1 (2022-08-16)
 ==================
-
 
 Bug Fixes
 ---------
@@ -27,7 +37,6 @@ Bug Fixes
 
 6.0.0 (2022-07-19)
 ==================
-
 
 Deprecations and Removals
 -------------------------
