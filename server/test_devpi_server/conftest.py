@@ -1185,7 +1185,14 @@ http {
 """
 
 
-def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
+@pytest.fixture(scope="class")
+def adjust_nginx_conf_content():
+    def adjust_nginx_conf_content(content):
+        return content
+    return adjust_nginx_conf_content
+
+
+def _nginx_host_port(host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
     # let xproc find the correct executable instead of py.test
     nginx = py.path.local.sysfind("nginx")
     if nginx is None:
@@ -1209,6 +1216,7 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
     nginx_devpi_conf_content = nginx_devpi_conf_content.replace(
         "listen 80;",
         "listen %s;" % nginx_port)
+    nginx_devpi_conf_content = adjust_nginx_conf_content(nginx_devpi_conf_content)
     nginx_devpi_conf.write(nginx_devpi_conf_content)
     nginx_conf = nginx_directory.join("nginx.conf")
     nginx_conf.write(nginx_conf_content)
@@ -1226,13 +1234,13 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory):
 
 
 @pytest.fixture(scope="class")
-def nginx_host_port(request, call_devpi_in_dir, server_directory):
+def nginx_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
     # we need the skip above before master_host_port is called
     (host, port) = request.getfixturevalue("master_host_port")
     (p, nginx_port) = _nginx_host_port(
-        host, port, call_devpi_in_dir, server_directory)
+        host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content)
     try:
         wait_for_port(host, nginx_port)
         yield (host, nginx_port)
@@ -1242,13 +1250,13 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory):
 
 
 @pytest.fixture(scope="class")
-def nginx_replica_host_port(request, call_devpi_in_dir, server_directory):
+def nginx_replica_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
     # we need the skip above before master_host_port is called
     (host, port) = request.getfixturevalue("replica_host_port")
     (p, nginx_port) = _nginx_host_port(
-        host, port, call_devpi_in_dir, server_directory)
+        host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content)
     try:
         wait_for_port(host, nginx_port)
         yield (host, nginx_port)
