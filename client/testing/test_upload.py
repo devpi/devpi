@@ -241,7 +241,9 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
 
     class args:
         dryrun = None
-        formats = "sdist,bdist_wheel"
+        sdist = False
+        wheel = False
+        formats = None
         index = None
         no_isolation = True
         novcs = None
@@ -652,6 +654,36 @@ class TestUploadFunctional:
         links = dict((x.rel, x.basename.lower()) for x in vv.get_links())
         assert links["releasefile"] == "%s.zip" % name_version_str
         assert links["doczip"] == "%s.doc.zip" % name_version_str
+
+    def test_cli_sdist_precedence(self, initproj, devpi, out_devpi):
+        initproj("pkg-1.0")
+        tmpdir = py.path.local()
+        tmpdir.join("setup.cfg").write(dedent("""
+            [devpi:upload]
+            formats=bdist_wheel,sdist.zip"""))
+        hub = devpi("upload", "--sdist", "--no-isolation")
+        url = hub.current.get_index_url().url + 'pkg/1.0/'
+        out = out_devpi("getjson", url)
+        data = json.loads(out.stdout.str())
+        vv = ViewLinkStore(url, data["result"])
+        assert len(vv.get_links()) == 1
+        assert vv.get_links()[0].basename in ('pkg-1.0.tar.gz', 'pkg-1.0.zip')
+
+    def test_cli_wheel_precedence(self, initproj, devpi, out_devpi):
+        initproj("pkg-1.0")
+        tmpdir = py.path.local()
+        tmpdir.join("setup.cfg").write(dedent("""
+            [devpi:upload]
+            formats=bdist_wheel,sdist.zip"""))
+        hub = devpi("upload", "--wheel", "--no-isolation")
+        url = hub.current.get_index_url().url + 'pkg/1.0/'
+        out = out_devpi("getjson", url)
+        data = json.loads(out.stdout.str())
+        vv = ViewLinkStore(url, data["result"])
+        assert len(vv.get_links()) == 1
+        assert vv.get_links()[0].basename in (
+            'pkg-1.0-py2-none-any.whl',
+            'pkg-1.0-py3-none-any.whl')
 
 
 def test_getpkginfo(datadir):

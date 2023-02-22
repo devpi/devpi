@@ -405,10 +405,12 @@ class Exported:
 
     def setup_build(self, default_formats=None):
         deprecated_formats = []
+        sdist = self.args.sdist
+        wheel = self.args.wheel
         formats = self.args.formats
         if formats is None:
             formats = default_formats
-        if formats:
+        if formats and not sdist and not wheel:
             sdist = None
             wheel = None
             for format in formats.split(","):
@@ -447,9 +449,6 @@ class Exported:
                     "The --formats option is deprecated, "
                     "you can remove it to get the default sdist and wheel "
                     "releases you get with your currently specified formats.")
-        else:
-            sdist = self.args.sdist
-            wheel = self.args.wheel
 
         cmds = []
         if sdist is not None or wheel is not None:
