@@ -559,6 +559,7 @@ def read_setupcfg(hub, path):
     setup_cfg = path.join("setup.cfg")
     if setup_cfg.exists():
         cfg = iniconfig.IniConfig(setup_cfg)
-        hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)
-        return cfg.sections.get("devpi:upload", {})
+        if 'devpi:upload' in cfg.sections:
+            hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)
+            return cfg.sections["devpi:upload"]
     return {}
