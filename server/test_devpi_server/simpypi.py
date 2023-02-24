@@ -116,6 +116,9 @@ class SimPyPI:
         self.simpleurl = "%s/simple" % self.baseurl
         self.projects = {}
         self.files = {}
+        self.clear()
+
+    def clear(self):
         self.clear_log()
         self.clear_requests()
 

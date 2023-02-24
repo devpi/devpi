@@ -24,6 +24,20 @@ from .readonly import get_mutable_deepcopy
 notset = object()
 
 
+class _Unknown(type):
+    __slots__ = ()
+
+    def __bool__(self):
+        return False
+
+    def __repr__(self):
+        return "<Unknown>"
+
+
+class Unknown(metaclass=_Unknown):
+    pass
+
+
 def join_links_data(links, requires_python, yanked):
     # build list of (key, href, require_python, yanked) tuples
     result = []
@@ -941,9 +955,13 @@ class BaseStage(object):
                 if private_hit and not whitelisted:
                     # don't check the mirror for private packages
                     return dict(
-                        has_mirror_base=False,
+                        has_mirror_base=Unknown,
                         blocked_by_mirror_whitelist=stage.name)
                 in_index = stage.has_project_perstage(project)
+                if in_index is Unknown:
+                    return dict(
+                        has_mirror_base=Unknown,
+                        blocked_by_mirror_whitelist=None)
                 has_mirror_base = in_index and (not private_hit or whitelisted)
                 blocked_by_mirror_whitelist = in_index and private_hit and not whitelisted
                 return dict(
@@ -984,6 +1002,8 @@ class BaseStage(object):
         if not self.filter_projects([project]):
             return False
         for stage, res in self.op_sro("has_project_perstage", project=project):
+            if res is Unknown:
+                return res
             if res:
                 return True
         return False
@@ -1076,7 +1096,11 @@ class BaseStage(object):
                     private_hit = True
 
             try:
-                if not stage.has_project_perstage(project):
+                exists = stage.has_project_perstage(project)
+                if not private_hit and exists is Unknown and stage.no_project_list:
+                    # direct fetching is allowed
+                    pass
+                elif not exists:
                     continue
                 res = getattr(stage, opname)(**kw)
                 yield stage, res

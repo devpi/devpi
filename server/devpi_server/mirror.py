@@ -21,6 +21,7 @@ from .exceptions import lazy_format_exception
 from .filestore import key_from_link
 from .model import BaseStageCustomizer
 from .model import BaseStage
+from .model import Unknown
 from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
@@ -236,15 +237,23 @@ class MirrorStage(BaseStage):
         return dict(username=url.username, password=url.password)
 
     @property
+    def no_project_list(self):
+        return self.ixconfig.get('mirror_no_project_list', False)
+
+    @property
     def use_external_url(self):
         return self.ixconfig.get('mirror_use_external_urls', False)
 
     def get_possible_indexconfig_keys(self):
         return tuple(dict(self.get_default_config_items())) + (
-            "custom_data", "description",
-            "mirror_url", "mirror_cache_expiry",
+            "custom_data",
+            "description",
+            "mirror_cache_expiry",
+            "mirror_no_project_list",
+            "mirror_url",
             "mirror_use_external_urls",
-            "mirror_web_url_fmt", "title")
+            "mirror_web_url_fmt",
+            "title")
 
     def get_default_config_items(self):
         return [("volatile", True)]
@@ -264,6 +273,8 @@ class MirrorStage(BaseStage):
                 raise self.InvalidIndexconfig([
                     "'mirror_cache_expiry' option must be an integer"])
             return value
+        if key == "mirror_no_project_list":
+            return ensure_boolean(value)
         if key == "mirror_use_external_urls":
             return ensure_boolean(value)
         if key in ("custom_data", "description", "mirror_web_url_fmt", "title"):
@@ -426,6 +437,10 @@ class MirrorStage(BaseStage):
         """
         if self.offline:
             threadlog.warn("offline mode: using stale projects list")
+            return self._stale_list_projects_perstage()
+        if self.no_project_list:
+            # upstream of mirror configured as not having a project list
+            # return only locally known projects
             return self._stale_list_projects_perstage()
         # try without lock first
         if not self.cache_projectnames.is_expired(self.cache_expiry):
@@ -692,11 +707,15 @@ class MirrorStage(BaseStage):
             if not is_retrieval_expired:
                 raise self.UpstreamNotFoundError(
                     "cached not found for project %s" % project)
-            elif not self.has_project_perstage(project):
-                # immediately cache the not found with no ETag
-                self.cache_retrieve_times.refresh(project, None)
-                raise self.UpstreamNotFoundError(
-                    "project %s not found" % project)
+            else:
+                exists = self.has_project_perstage(project)
+                if exists is Unknown and self.no_project_list:
+                    pass
+                elif not exists:
+                    # immediately cache the not found with no ETag
+                    self.cache_retrieve_times.refresh(project, None)
+                    raise self.UpstreamNotFoundError(
+                        "project %s not found" % project)
 
         newlinks_future = self.xom.create_future()
         # we need to set this up here, as these access the database and
@@ -760,6 +779,10 @@ class MirrorStage(BaseStage):
         project = normalize_name(project)
         if self.is_project_cached(project):
             return True
+        if self.no_project_list:
+            if project in self._stale_list_projects_perstage():
+                return True
+            return Unknown
         # use the internal method to avoid a copy
         return project in self._list_projects_perstage()
 
