@@ -29,13 +29,17 @@ def test_docs_raw_view(keep_docs_packed, mapp, testapp):
     r = testapp.xget(200, r.location)
     assert r.cache_control.no_cache is None
     r = testapp.xget(302, api.index + "/pkg1/latest/+doc/")
-    r = testapp.xget(200, r.location)
+    url = r.location
+    r = testapp.xget(200, url)
     assert r.etag == etag
     assert r.cache_control.max_age == 60
+    r = testapp.xget(304, url, headers={"If-None-Match": r.etag})
     r = testapp.xget(302, api.index + "/pkg1/stable/+doc/")
-    r = testapp.xget(200, r.location)
+    url = r.location
+    r = testapp.xget(200, url)
     assert r.etag == etag
     assert r.cache_control.max_age == 60
+    r = testapp.xget(304, url, headers={"If-None-Match": r.etag})
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+doc/index.html")
     content, = r.html.select('#content')
     assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)

@@ -173,12 +173,12 @@ def _guess_type(path):
 @view_config(route_name="docroot", request_method="GET")
 def doc_serve(context, request):
     """ Serves the raw documentation files. """
+    context = ContextWrapper(context)
     if_none_match = request.if_none_match
     if if_none_match:
         doc_info = get_doc_info(context, request, check_content=False)
         if doc_info['etag'] in if_none_match.etags:
             return HTTPNotModified()
-    context = ContextWrapper(context)
     doc_info = get_doc_info(context, request)
     if doc_info['doc_path'] is None:
         relpath = request.matchdict['relpath']
