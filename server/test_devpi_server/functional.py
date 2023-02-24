@@ -13,6 +13,12 @@ class API:
     def __init__(self, d):
         self.__dict__ = d
 
+    def __repr__(self):
+        cls = self.__class__
+        name = "%s.%s" % (cls.__module__, cls.__name__)
+        return "<%s %r>" % (
+            name, self.__dict__.get('stagename', 'uninitialized'))
+
 
 class MappMixin:
     _usercount = 0
