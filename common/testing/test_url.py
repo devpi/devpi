@@ -304,7 +304,7 @@ class TestURL:
         base = URL('https://pypi.org')
         url = URL('https://pypi.org/simple/foo').replace(path='')
         assert base == url
-        assert not (base != url)
+        assert not (base != url)  # noqa: SIM202 - we want to check __ne__
 
     def test_username(self):
         assert URL('http://example.com').username is None

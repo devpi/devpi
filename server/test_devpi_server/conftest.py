@@ -210,7 +210,7 @@ def storage(storage_info):
 
 @pytest.fixture
 def makexom(request, gentmp, httpget, monkeypatch, storage_info):
-    def makexom(opts=(), httpget=httpget, plugins=()):
+    def makexom(opts=(), httpget=httpget, plugins=()):  # noqa: PLR0912
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
         from devpi_server import model

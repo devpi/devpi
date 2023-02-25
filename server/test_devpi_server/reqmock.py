@@ -55,7 +55,7 @@ class mocked_request:
                         if fnmatch.fnmatch(request.url, name):
                             break
                 else:
-                    raise Exception("not mocked call to %s" % url)
+                    raise Exception("not mocked call to %s" % url)  # noqa: TRY002
         response.add_request(request)
         r = HTTPAdapter().build_response(request, response)
         return r

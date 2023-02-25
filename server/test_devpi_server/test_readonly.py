@@ -43,7 +43,7 @@ class TestDictReadonlyView:
             r[2]
         assert len(r) == 1
         assert r == d
-        assert not (r != d)
+        assert not (r != d)  # noqa: SIM202 - we want to check __ne__
 
     def test_recursive(self) -> None:
         d: dict = {1: []}
