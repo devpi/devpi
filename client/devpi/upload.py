@@ -139,7 +139,7 @@ class Uploader:
         dic = meta.copy()
         pypi_action = action
         dic[":action"] = pypi_action
-        dic["protocol_version"] = "1",
+        dic["protocol_version"] = "1"
         headers = {}
         auth = hub.current.get_auth()
         if auth:
