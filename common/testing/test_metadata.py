@@ -4,7 +4,6 @@ from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_latest_version
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.metadata import parse_requirement
-from devpi_common.metadata import sorted_sameproject_links
 from devpi_common.metadata import splitbasename
 from devpi_common.metadata import splitext_archive
 import pytest
@@ -175,11 +174,6 @@ class TestBasenameMeta:
         meta3 = BasenameMeta("zbc-1.0.zip")
         assert meta1 > meta2
         assert meta1 < meta3
-
-    def test_sort_sameproject_links(self):
-        links = ["master", "py-1.0.zip", "trunk.zip", "py-1.1.tgz"]
-        newlinks = sorted_sameproject_links(links)
-        assert newlinks == ["py-1.1.tgz", "py-1.0.zip", "trunk.zip", "master"]
 
 
 def test_parse_requirement():

@@ -164,13 +164,6 @@ def zip_dict(contentdict):
     return f.getvalue()
 
 
-# BBB for Python 2.7
-try:
-    unicode
-except NameError:
-    unicode = str
-
-
 def _writezip_fromdict(zip, contentdict, prefixes=()):
     for name, val in contentdict.items():
         if isinstance(val, dict):
@@ -183,6 +176,6 @@ def _writezip_fromdict(zip, contentdict, prefixes=()):
                 _writezip_fromdict(zip, val, newprefixes)
         else:
             path = os.sep.join(prefixes + (name,))
-            if isinstance(val, unicode):
+            if isinstance(val, str):
                 val = val.encode("ascii")
             zip.writestr(path, val)

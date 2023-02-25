@@ -42,10 +42,7 @@ def validate_metadata(data):
     if not data.get('version', ''):
         raise ValueError('Missing required field "version"')
     if 'metadata_version' in data:
-        #metadata_version = data['metadata_version']
         del data['metadata_version']
-    #else:
-    #    metadata_version = '1.0'  # default
 
     # Ensure that package names follow a restricted set of characters.
     # These characters are:
@@ -82,35 +79,3 @@ def validate_metadata(data):
     # mentioned in documentation; ensure name and version are valid for URLs
     if re.search('[<>%#"]', data['name'] + data['version']):
         raise ValueError('Invalid package name or version (URL safety)')
-
-    # disabled some checks
-#    # check requires and obsoletes
-#    def validate_version_predicates(col, sequence):
-#        try:
-#            map(versionpredicate.VersionPredicate, sequence)
-#        except ValueError, message:
-#            raise ValueError, 'Bad "%s" syntax: %s'%(col, message)
-#    for col in ('requires', 'obsoletes'):
-#        if data.has_key(col) and data[col]:
-#            validate_version_predicates(col, data[col])
-#
-#    # check provides
-#    if data.has_key('provides') and data['provides']:
-#        try:
-#            map(versionpredicate.check_provision, data['provides'])
-#        except ValueError, message:
-#            raise ValueError, 'Bad "provides" syntax: %s'%message
-#
-#    # check PEP 345 fields
-#    if metadata_version == '1.2':
-#        self._validate_metadata_1_2(data)
-#
-#    # check classifiers
-#    if data.has_key('classifiers'):
-#        d = {}
-#        for entry in self.store.get_classifiers():
-#            d[entry['classifier']] = 1
-#        for entry in data['classifiers']:
-#            if d.has_key(entry):
-#                continue
-#            raise ValueError, 'Invalid classifier "%s"'%entry
