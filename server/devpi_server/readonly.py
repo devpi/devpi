@@ -293,7 +293,7 @@ def _(val: tuple) -> tuple:
 def is_deeply_readonly(val: Any) -> bool:
     """ Return True if the value is either immutable or a readonly proxy
     (which ensures only reading of data is possible). """
-    return isinstance(val, ReadonlyView) or isinstance(val, _immutable)
+    return isinstance(val, (ReadonlyView, _immutable))
 
 
 def is_sequence(val: Any) -> bool:
