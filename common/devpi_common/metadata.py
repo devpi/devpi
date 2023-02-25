@@ -221,20 +221,13 @@ class Version(CompareMixin):
         return False
 
 
-# BBB for Python 2.7
-try:
-    basestring
-except NameError:
-    basestring = str
-
-
 class BasenameMeta(CompareMixin):
     def __init__(self, obj, sameproject=False):
         self.obj = obj
         # none of the below should be done lazily, as devpi_server.mirror
         # essentially uses this to validate parsed links
         basename = getattr(obj, "basename", obj)
-        if not isinstance(basename, basestring):
+        if not isinstance(basename, str):
             raise ValueError("need object with basename attribute")
         assert "/" not in basename, (obj, basename)
         name, version, ext = splitbasename(basename, checkarch=False)
@@ -248,13 +241,6 @@ class BasenameMeta(CompareMixin):
 
     def __repr__(self):
         return "<BasenameMeta name=%r version=%r>" %(self.name, self.version)
-
-
-def sorted_sameproject_links(links):
-    # XXX does not seem to be used anywhere
-    s = sorted((BasenameMeta(link, sameproject=True)
-                     for link in links), reverse=True)
-    return [x.obj for x in s]
 
 
 def get_latest_version(seq, stable=False):

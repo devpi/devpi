@@ -1,15 +1,10 @@
-import sys
+
 import posixpath
 from devpi_common.types import cached_property, ensure_unicode, parse_hash_spec
 from requests.models import parse_url
 
-if sys.version_info >= (3, 0):
-    from urllib.parse import parse_qs, parse_qsl
-    from urllib.parse import urlencode, urlparse, urlunsplit, urljoin, unquote
-else:
-    from urlparse import parse_qs, parse_qsl
-    from urlparse import urlparse, urlunsplit, urljoin
-    from urllib import urlencode, unquote
+from urllib.parse import parse_qs, parse_qsl
+from urllib.parse import urlencode, urlparse, urlunsplit, urljoin, unquote
 
 
 def _joinpath(url, args, asdir=False):
@@ -48,8 +43,7 @@ class URL:
         if self.password:
             cloaked = self.replace(password="****")
         cloaked = repr(cloaked.url.encode("utf8"))
-        if sys.version_info >= (3,0):
-            cloaked = cloaked.lstrip("b")
+        cloaked = cloaked.lstrip("b")
         return "%s(%s)" % (self.__class__.__name__, cloaked)
 
     def __eq__(self, other):
