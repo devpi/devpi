@@ -13,7 +13,9 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def fetch(url, headers={}):
+def fetch(url, headers=None):
+    if headers is None:
+        headers = {}
     opener = build_opener(NoRedirect)
     req = Request(url, headers=headers)
     try:
