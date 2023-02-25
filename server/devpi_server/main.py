@@ -220,6 +220,7 @@ class XOM:
         self.config = config
         self.thread_pool = mythread.ThreadPool()
         self.async_thread = AsyncioLoopThread(self)
+        self.async_tasks = set()
         self.thread_pool.register(self.async_thread)
         if httpget is not None:
             self.httpget = httpget
@@ -265,7 +266,11 @@ class XOM:
         return future.result()
 
     def create_task(self, coroutine):
-        asyncio.ensure_future(coroutine, loop=self.async_thread.loop)
+        task = asyncio.ensure_future(coroutine, loop=self.async_thread.loop)
+        # keep a strong reference
+        self.async_tasks.add(task)
+        # automatically remove the reference when done
+        task.add_done_callback(self.async_tasks.discard)
 
     def get_singleton(self, indexpath, key):
         """ return a per-xom singleton for the given indexpath and key
