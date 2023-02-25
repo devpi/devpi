@@ -198,7 +198,7 @@ class AsyncioLoopThread(object):
                 threadlog.exception("Exception in asyncio event loop")
             finally:
                 threadlog.info("The asyncio event loop stopped")
-                return
+            return
 
     def thread_shutdown(self):
         loop = self.loop
