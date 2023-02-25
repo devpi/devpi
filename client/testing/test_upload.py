@@ -278,6 +278,60 @@ def test_post_includes_auth_info(initproj, uploadhub):
     assert "X-Devpi-Auth" in upload2[1]["headers"]
 
 
+@pytest.mark.skipif("sys.version_info < (3,)")
+@pytest.mark.skipif("config.option.fast")
+def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
+    import email
+
+    class args:
+        dryrun = None
+        sdist = False
+        wheel = False
+        formats = None
+        index = None
+        no_isolation = True
+        novcs = None
+        only_latest = None
+        onlydocs = None
+        path = None
+        python = None
+        setupdironly = None
+        verbose = 0
+        withdocs = None
+
+    class Response:
+        status_code = 200
+
+    sent = []
+
+    def send(req, **kw):
+        sent.append((req, kw))
+        return Response()
+
+    initproj("pkg-1.0")
+    tmpdir = py.path.local()
+    uploadhub.cwd = tmpdir
+    uploadhub.current.reconfigure(dict(
+        index="http://devpi/foo/bar",
+        login="http://devpi/+login",
+        pypisubmit="http://devpi/foo/bar"))
+    monkeypatch.setattr(uploadhub.http, "send", send)
+    main(uploadhub, args)
+    # convert POST data to Message
+    msg = email.message_from_bytes(
+        b"MIME-Version: 1.0\nContent-Type: %s\n\n%s" % (
+            sent[0][0].headers['Content-Type'].encode('ascii'),
+            sent[0][0].body))
+    # get the data
+    data = {
+        x.get_param("name", header="Content-Disposition"): x.get_payload()
+        for x in msg.get_payload()}
+    assert data[":action"] == "file_upload"
+    assert data["name"] == "pkg"
+    assert data["protocol_version"] == "1"
+    assert data["version"] == "1.0"
+
+
 @pytest.mark.skipif("sys.version_info < (3, 7)")
 @pytest.mark.skipif("config.option.fast")
 def test_post_derived_devpi_token(initproj, uploadhub):

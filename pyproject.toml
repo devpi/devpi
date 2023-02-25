@@ -10,7 +10,6 @@ ignore = [
     "B026", # devpi-common 4.x
     "B904", # maybe cleanup later
     "COM812", # cleanup later
-    "COM818", # ****** investigate soon ******
     "COM819", # cleanup later
     "DTZ001", # cleanup soon
     "DTZ005", # cleanup soon
