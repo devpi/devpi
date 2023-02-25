@@ -1,0 +1,1 @@
+Keep a reference to async tasks to avoid their removal mid execution.
