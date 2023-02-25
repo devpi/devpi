@@ -318,7 +318,7 @@ class KeyFS(object):
 
     @property
     def tx(self):
-        return getattr(self._threadlocal, "tx")
+        return self._threadlocal.tx
 
     def add_key(self, name, path, type):
         assert isinstance(path, str)
