@@ -84,7 +84,7 @@ def test_pkgresources_version_matches_init():
     try:
         import importlib.metadata as importlib_metadata
     except ImportError:
-        import importlib_metadata as importlib_metadata
+        import importlib_metadata
     ver = devpi.__version__
     assert importlib_metadata.version("devpi-client") == ver
 
