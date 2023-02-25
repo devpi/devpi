@@ -96,7 +96,7 @@ class TestCheckout:
             runproc("git commit -m message")
         return repo
 
-    def test_vcs_export(self, uploadhub, repo, setupdir, tmpdir, monkeypatch):
+    def test_vcs_export(self, uploadhub, repo, setupdir, tmpdir):
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == repo
         newrepo = tmpdir.mkdir("newrepo")
@@ -145,8 +145,7 @@ class TestCheckout:
         exported = checkout.export(tmpdir)
         assert exported.rootpath == checkout.setupdir
 
-    def test_vcs_export_verify_setup(self, uploadhub, setupdir,
-                                          tmpdir, monkeypatch):
+    def test_vcs_export_verify_setup(self, uploadhub, setupdir, tmpdir):
         subdir = setupdir.mkdir("subdir")
         subdir.ensure("setup.py")
         checkout = Checkout(uploadhub, uploadhub.args, subdir)
@@ -154,7 +153,7 @@ class TestCheckout:
         exported = checkout.export(wc)
         assert not exported.rootpath.join("setup.py").check()
 
-    def test_export_attributes(self, uploadhub, setupdir, tmpdir, monkeypatch):
+    def test_export_attributes(self, uploadhub, setupdir, tmpdir):
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
@@ -167,7 +166,7 @@ class TestCheckout:
         assert name == "xyz"
         assert version == "1.2.3"
 
-    def test_setup_build_docs(self, uploadhub, setupdir, tmpdir, monkeypatch):
+    def test_setup_build_docs(self, uploadhub, setupdir, tmpdir):
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         setupdir.join("setup.py").write(dedent("""
             from setuptools import setup
@@ -229,7 +228,7 @@ def test_parent_subpath(tmpdir):
 
 
 @pytest.mark.skipif("config.option.fast")
-def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
+def test_post_includes_auth_info(initproj, uploadhub):
     class Session:
         posts = []
 
@@ -281,7 +280,7 @@ def test_post_includes_auth_info(initproj, monkeypatch, uploadhub):
 
 @pytest.mark.skipif("sys.version_info < (3, 7)")
 @pytest.mark.skipif("config.option.fast")
-def test_post_derived_devpi_token(initproj, monkeypatch, uploadhub):
+def test_post_derived_devpi_token(initproj, uploadhub):
     from base64 import b64decode
     import pypitoken
 
@@ -603,7 +602,7 @@ class TestUploadFunctional:
         assert isinstance(res.sysex, SystemExit)
         assert res.sysex.args == (1,)
 
-    def test_fromdir(self, initproj, devpi, out_devpi, runproc, monkeypatch):
+    def test_fromdir(self, initproj, devpi, out_devpi, runproc):
         initproj("hello-1.1", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
