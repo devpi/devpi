@@ -138,7 +138,7 @@ def auto_transact(request):
         return
     keyfs = request.getfixturevalue("keyfs")
 
-    write = True if request.node.get_closest_marker("writetransaction") else False
+    write = bool(request.node.get_closest_marker("writetransaction"))
     keyfs.begin_transaction_in_thread(write=write)
     yield
     try:
