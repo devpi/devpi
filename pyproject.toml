@@ -8,6 +8,7 @@ ignore = [
     "B007", # maybe cleanup later
     "B008", # cleanup later
     "B026", # devpi-common 4.x
+    "B028", # maybe cleanup later
     "B904", # maybe cleanup later
     "COM812", # cleanup later
     "COM819", # cleanup later
@@ -23,11 +24,14 @@ ignore = [
     "PIE790", # cleanup soon
     "PIE804", # cleanup later
     "PIE810", # cleanup soon
+    "PLC1901", # maybe cleanup later
     "PLR0911", # cleanup later
     "PLR0912", # cleanup later
     "PLR0913",
     "PLR0915", # maybe cleanup later
+    "PLR1711", # cleanup soon
     "PLR2004",
+    "PLR5501", # cleanup soon
     "PLW0120", # cleanup soon
     "PLW2901", # maybe cleanup later
     "RUF004", # devpi-common 4.x
