@@ -644,6 +644,11 @@ class SimpleLinks:
     def sort(self, *args, **kw):
         self._links.sort(*args, **kw)
 
+    def __repr__(self):
+        clsname = f"{self.__class__.__module__}.{self.__class__.__name__}"
+        content = ', '.join(repr(x) for x in self._links)
+        return f"<{clsname} stale={self.stale!r} [{content}]>"
+
 
 class BaseStage(object):
     InvalidIndex = InvalidIndex
@@ -1802,6 +1807,15 @@ class SimplelinkMeta:
                 normalize_name(self.name),
                 self.ext)
         return self.__cmpval
+
+    def __repr__(self):
+        clsname = f"{self.__class__.__module__}.{self.__class__.__name__}"
+        return (
+            f"<{clsname} "
+            f"key={self.key!r} "
+            f"href={self.href!r} "
+            f"require_python={self.require_python!r} "
+            f"yanked={self.yanked!r}>")
 
 
 def make_key_and_href(entry):
