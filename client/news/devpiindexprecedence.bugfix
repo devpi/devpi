@@ -1,0 +1,1 @@
+Fix precedence of URL from command line over DEVPI_INDEX environment variable for ``devpi use``.

@@ -112,3 +112,88 @@ def test_version_server(loghub, url_of_liveserver):
     names = [x.strip().split()[0] for x in lines]
     assert 'devpi-client' in names
     assert 'devpi-server' in names
+
+
+@pytest.mark.parametrize("devpi_index", ["user/dev", "/user/dev"])
+def test_index_option_with_environment_relative_root_current(
+        capfd, cmd_devpi, devpi_index, initproj,
+        mock_http_api, monkeypatch, reqmock):
+    mock_http_api.set(
+        "http://devpi/+api", 200, result=dict(
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    cmd_devpi("use", "http://devpi")
+    monkeypatch.setenv("DEVPI_INDEX", "foo/bar")
+    initproj("hello1.1")
+    mock_http_api.set(
+        "http://devpi/user/dev/+api", 200, result=dict(
+            pypisubmit="http://devpi/user/dev/",
+            simpleindex="http://devpi/user/dev/+simple/",
+            index="http://devpi/user/dev",
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    (out, err) = capfd.readouterr()
+    reqmock.mockresponse("http://devpi/user/dev/", 200)
+    cmd_devpi("upload", "--no-isolation", "--index", devpi_index)
+    (out, err) = capfd.readouterr()
+    assert "DEVPI_INDEX" not in out
+    assert "foo/bar" not in out
+    assert "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+
+
+@pytest.mark.parametrize("devpi_index", ["user/dev", "/user/dev"])
+def test_index_option_with_environment_relative_user_current(
+        capfd, cmd_devpi, devpi_index, initproj,
+        mock_http_api, monkeypatch, reqmock):
+    mock_http_api.set(
+        "http://devpi/user/+api", 200, result=dict(
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    cmd_devpi("use", "http://devpi/user")
+    monkeypatch.setenv("DEVPI_INDEX", "foo/bar")
+    initproj("hello1.1")
+    mock_http_api.set(
+        "http://devpi/user/dev/+api", 200, result=dict(
+            pypisubmit="http://devpi/user/dev/",
+            simpleindex="http://devpi/user/dev/+simple/",
+            index="http://devpi/user/dev",
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    (out, err) = capfd.readouterr()
+    reqmock.mockresponse("http://devpi/user/dev/", 200)
+    cmd_devpi("upload", "--no-isolation", "--index", devpi_index)
+    (out, err) = capfd.readouterr()
+    assert "DEVPI_INDEX" not in out
+    assert "foo/bar" not in out
+    assert "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+
+
+@pytest.mark.parametrize("devpi_index", ["user/dev", "/user/dev"])
+def test_index_option_with_environment_relative(
+        capfd, cmd_devpi, devpi_index, initproj,
+        mock_http_api, monkeypatch, reqmock):
+    mock_http_api.set(
+        "http://devpi/user/foo/+api", 200, result=dict(
+            pypisubmit="http://devpi/user/foo/",
+            simpleindex="http://devpi/user/foo/+simple/",
+            index="http://devpi/user/foo",
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    mock_http_api.set("http://devpi/user/foo?no_projects=", 200, result=dict())
+    cmd_devpi("use", "http://devpi/user/foo")
+    monkeypatch.setenv("DEVPI_INDEX", "foo/bar")
+    initproj("hello1.1")
+    mock_http_api.set(
+        "http://devpi/user/dev/+api", 200, result=dict(
+            pypisubmit="http://devpi/user/dev/",
+            simpleindex="http://devpi/user/dev/+simple/",
+            index="http://devpi/user/dev",
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    (out, err) = capfd.readouterr()
+    reqmock.mockresponse("http://devpi/user/dev/", 200)
+    cmd_devpi("upload", "--no-isolation", "--index", devpi_index)
+    (out, err) = capfd.readouterr()
+    assert "DEVPI_INDEX" not in out
+    assert "foo/bar" not in out
+    assert "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()

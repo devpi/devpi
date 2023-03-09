@@ -742,12 +742,10 @@ def makehub(tmpdir_factory):
 
 
 @pytest.fixture
-def mock_http_api(monkeypatch):
+def mock_http_api(monkeypatch, reqmock):  # noqa
     """ mock out all Hub.http_api calls and return an object
     offering 'set' and 'add' to fake replies. """
     from devpi import main
-    from requests.sessions import Session
-    monkeypatch.setattr(Session, "request", None)
 
     class MockHTTPAPI:
         def __init__(self):

@@ -90,6 +90,31 @@ def test_push_devpi_index_option(loghub, monkeypatch, mock_http_api):
     assert len(mock_http_api.called) == 1
 
 
+def test_push_devpi_index_option_with_environment(loghub, monkeypatch, mock_http_api):
+    loghub.args.target = "user/name"
+    loghub.args.index = "src/dev"
+    monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
+    mock_http_api.set(
+        "http://devpi/user/dev/+api", 200, result=dict(
+            pypisubmit="http://devpi/user/dev/",
+            simpleindex="http://devpi/user/dev/+simple/",
+            index="http://devpi/user/dev",
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    mock_http_api.set(
+        "http://devpi/src/dev/+api", 200, result=dict(
+            pypisubmit="http://devpi/src/dev/",
+            simpleindex="http://devpi/src/dev/+simple/",
+            index="http://devpi/src/dev",
+            login="http://devpi/+login",
+            authstatus=["noauth", "", []]))
+    pusher = parse_target(loghub, loghub.args)
+    mock_http_api.set("http://devpi/src/dev", 200, result={})
+    pusher.execute(loghub, "pytest", "2.3.5")
+    dict(name="pytest", version="2.3.5", targetindex="user/name")
+    assert len(mock_http_api.called) == 3
+
+
 @pytest.mark.parametrize("spec", ("pkg==1.0", "pkg-1.0"))
 def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
     from devpi.push import main
