@@ -24,7 +24,7 @@ from .readonly import get_mutable_deepcopy
 notset = object()
 
 
-class _Unknown(type):
+class _Unknown:
     __slots__ = ()
 
     def __bool__(self):
@@ -34,8 +34,7 @@ class _Unknown(type):
         return "<Unknown>"
 
 
-class Unknown(metaclass=_Unknown):
-    pass
+Unknown = _Unknown()
 
 
 def join_links_data(links, requires_python, yanked):
