@@ -258,29 +258,64 @@ class Hub:
         finally:
             rmtree(workdir.strpath, onerror=remove_readonly)
 
-    @cached_property
-    def current(self):
+    def get_current(self, args_url=None):
         self.clientdir.ensure(dir=1)
         current = PersistentCurrent(self.auth_path, self.current_path)
-        url = getattr(self.args, "index", None)
+        index_url = getattr(self.args, "index", None)
         if "DEVPI_INDEX" in os.environ:
-            if url is None:
-                if current.index is None:
+            devpi_index = os.environ["DEVPI_INDEX"]
+            self.debug("Got DEVPI_INDEX from environment: %s", devpi_index)
+            if args_url is not None:
+                self.info(
+                    "Using index URL from command line instead of "
+                    "DEVPI_INDEX (%s) from environment." % devpi_index)
+                # cache in case get_current was called directly
+                self.__dict__['current'] = current
+                return current
+            if URL(devpi_index).is_valid_http_url():
+                # switch to full DEVPI_INDEX URL, so possible relative
+                # --index switches work
+                current.persist_index = False
+                current.configure_fromurl(self, devpi_index)
+            if index_url is None:
+                if current.index is None or '/' in devpi_index:
                     url = current.root_url
                 else:
                     url = current.index_url
+                url = url.joinpath(devpi_index)
+                if not current.root_url.is_valid_http_url() and not url.is_valid_http_url():
+                    self.fatal(
+                        "No server set and DEVPI_INDEX from environment is not a "
+                        "full valid URL: %s" % devpi_index)
+                self.info("Using DEVPI_INDEX from environment: %s" % devpi_index)
             else:
-                url = URL(url)
-            devpi_index = os.environ["DEVPI_INDEX"]
-            url = url.joinpath(devpi_index)
-            if not current.root_url.is_valid_http_url() and not url.is_valid_http_url():
-                self.fatal(
-                    "No server set and DEVPI_INDEX from environment is not a "
-                    "full valid URL: %s" % devpi_index)
-            self.info("Using DEVPI_INDEX from environment: %s" % devpi_index)
+                url = URL(index_url)
+                if not url.is_valid_http_url():
+                    if not current.root_url.is_valid_http_url():
+                        if not URL(devpi_index).is_valid_http_url():
+                            self.fatal(
+                                "No server set and neither the --index URL (%s) "
+                                "nor the DEVPI_INDEX from environment (%s) is a "
+                                "full valid URL." % (index_url, devpi_index))
+                        url = URL(devpi_index)
+                        self.info("Using DEVPI_INDEX from environment: %s" % devpi_index)
+                    elif current.index is None or '/' in index_url:
+                        url = current.root_url
+                    else:
+                        url = current.index_url
+                    url = url.joinpath(index_url)
+        else:
+            url = index_url
         if url is not None:
-            current = current.switch_to_local(self, URL(url).url, None)
+            current.persist_index = False
+            current.configure_fromurl(self, URL(url).url)
+        # cache in case get_current was called directly
+        self.__dict__['current'] = current
         return current
+
+    @cached_property
+    def current(self):
+        return self.get_current()
 
     def get_existing_file(self, arg):
         p = py.path.local(arg, expanduser=True)

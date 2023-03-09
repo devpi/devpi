@@ -87,3 +87,45 @@ def test_login_plugin(args, hub, login, mock_http_api):
     out = hub._out.getvalue()
     assert "logged in 'user'" in out
     assert "credentials valid for 10.00 hours" in out
+
+
+@pytest.mark.skipif("config.option.fast")
+def test_login_with_index_environment(capfd, devpi, devpi_username, monkeypatch, tmpdir, url_of_liveserver):
+    # remove persisted client for fresh start
+    clientdir = tmpdir.join("client")
+    clientdir.remove()
+    monkeypatch.setenv("DEVPI_INDEX", url_of_liveserver.url)
+    devpi("use")
+    (out, err) = capfd.readouterr()
+    assert "using server: %s/ (not logged in)" % url_of_liveserver.url in out
+    devpi("login", devpi_username, "--password", "123")
+    (out, err) = capfd.readouterr()
+    assert 'credentials valid for' in out
+    devpi("use")
+    (out, err) = capfd.readouterr()
+    msg = "using server: %s/ (logged in as %s)" % (
+        url_of_liveserver.url,
+        devpi_username)
+    assert msg in out
+
+
+@pytest.mark.skipif("config.option.fast")
+def test_login_with_relative_index_environment(capfd, devpi, devpi_username, monkeypatch, tmpdir, url_of_liveserver):
+    # remove persisted client for fresh start
+    clientdir = tmpdir.join("client")
+    clientdir.remove()
+    devpi_index = "%s/dev" % devpi_username
+    monkeypatch.setenv("DEVPI_INDEX", devpi_index)
+    devpi("use", url_of_liveserver.url)
+    (out, err) = capfd.readouterr()
+    assert "using server: %s/ (not logged in)" % url_of_liveserver.url in out
+    devpi("login", devpi_username, "--password", "123")
+    (out, err) = capfd.readouterr()
+    assert 'credentials valid for' in out
+    devpi("use")
+    (out, err) = capfd.readouterr()
+    url = url_of_liveserver.joinpath(devpi_index).url
+    msg = "current devpi index: %s (logged in as %s)" % (
+        url,
+        devpi_username)
+    assert msg in out

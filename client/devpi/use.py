@@ -19,31 +19,36 @@ devpi_endpoints = "index simpleindex pypisubmit login".split()
 devpi_data_keys = ["features"]
 
 
-def currentproperty(name):
-    def propget(self):
-        return self._currentdict.get(name, None)
+class baseproperty(object):
+    def __init__(self, name):
+        self.name = name
 
-    def propset(self, val):
-        self._currentdict[name] = val
+    def __get__(self, inst, owner=None):
+        if inst is None:
+            return self
+        return getattr(inst, self.dict_name).get(self.name)
 
-    return property(propget, propset)
+    def __set__(self, inst, value):
+        getattr(inst, self.dict_name)[self.name] = value
 
 
-def authproperty(name):
-    def propget(self):
-        return self._authdict.get(name, None)
+class authproperty(baseproperty):
+    dict_name = '_authdict'
 
-    def propset(self, val):
-        self._authdict[name] = val
 
-    return property(propget, propset)
+class currentproperty(baseproperty):
+    dict_name = '_currentdict'
+
+
+class indexproperty(baseproperty):
+    dict_name = '_currentdict'
 
 
 class Current(object):
-    index = currentproperty("index")
-    simpleindex = currentproperty("simpleindex")
-    pypisubmit = currentproperty("pypisubmit")
-    login = currentproperty("login")
+    index = indexproperty("index")
+    simpleindex = indexproperty("simpleindex")
+    pypisubmit = indexproperty("pypisubmit")
+    login = indexproperty("login")
     username = currentproperty("username")
     venvdir = currentproperty("venvdir")
     _auth = authproperty("auth")
@@ -381,19 +386,29 @@ class Current(object):
             indexname=indexname).addpath(name, asdir=1)
 
 
+def _load_json(path, dest):
+    if path is None:
+        return
+    if not path.check():
+        return
+    raw = path.read().strip()
+    if not raw:
+        return
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        return
+    dest.update(data)
+
+
 class PersistentCurrent(Current):
+    persist_index = True
+
     def __init__(self, auth_path, current_path):
         Current.__init__(self)
         self.auth_path = auth_path
         self.current_path = current_path
-        if self.auth_path.check():
-            auth_data = self.auth_path.read().strip()
-            if auth_data:
-                self._authdict.update(json.loads(auth_data))
-        if self.current_path and self.current_path.check():
-            current_data = self.current_path.read().strip()
-            if current_data:
-                self._currentdict.update(json.loads(current_data))
+        _load_json(self.auth_path, self._authdict)
+        _load_json(self.current_path, self._currentdict)
 
     def exists(self):
         return self.current_path and self.current_path.check()
@@ -416,9 +431,16 @@ class PersistentCurrent(Current):
     def reconfigure(self, data, force_write=False):
         Current.reconfigure(self, data)
         self._persist(self._authdict, self.auth_path, force_write=force_write)
+        currentdict = {}
+        _load_json(self.current_path, currentdict)
+        for key, value in self._currentdict.items():
+            prop = getattr(self.__class__, key)
+            if isinstance(prop, indexproperty) and not self.persist_index:
+                continue
+            currentdict[key] = value
         # we make sure to remove legacy auth data
-        self._currentdict.pop("auth", None)
-        self._persist(self._currentdict, self.current_path, force_write=force_write)
+        currentdict.pop("auth", None)
+        self._persist(currentdict, self.current_path, force_write=force_write)
 
 
 def out_index_list(hub, data):
@@ -445,7 +467,7 @@ def main(hub, args=None):
                 hub, current.index, hub.local_current_path)
             # now store existing data in new location
             current.reconfigure({}, force_write=True)
-    current = hub.current
+    current = hub.get_current(args.url)
 
     if args.delete:
         if not hub.current.exists():

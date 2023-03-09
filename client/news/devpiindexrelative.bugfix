@@ -1,0 +1,1 @@
+Fix relative DEVPI_INDEX environment variable with user and index causing an invalid URL in some cases.
