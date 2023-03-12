@@ -32,7 +32,7 @@ def Archive(path_or_file):
     try:
         try:
             return ZipArchive(f)
-        except zipfile.BadZipfile:
+        except zipfile.BadZipFile:
             f.seek(0)
             try:
                 return TarArchive(f)
