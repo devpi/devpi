@@ -7,6 +7,7 @@ select = [
 ignore = [
     "B007", # maybe cleanup later
     "B008", # cleanup later
+    "B018", # cleanup later
     "B026", # devpi-common 4.x
     "B028", # maybe cleanup later
     "B904", # maybe cleanup later
