@@ -4,7 +4,7 @@
 -e web
 PdbEditorSupport
 Sphinx
-beautifulsoup4
+beautifulsoup4 != 4.12.1
 certauth
 execnet
 flake8<5
