@@ -1,1 +1,0 @@
-Fix persistence of username when DEVPI_INDEX environment variable is used with ``devpi login``.

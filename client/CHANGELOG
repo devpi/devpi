@@ -2,6 +2,21 @@
 
 .. towncrier release notes start
 
+6.0.4 (2023-04-13)
+==================
+
+Bug Fixes
+---------
+
+- Fix precedence of URL from command line over DEVPI_INDEX environment variable for ``devpi use``.
+
+- Fix relative DEVPI_INDEX environment variable with user and index causing an invalid URL in some cases.
+
+- Fix persistence of username when DEVPI_INDEX environment variable is used with ``devpi login``.
+
+- Fix precedence of ``--sdist`` and ``--wheel`` over ``formats`` setting from setup.cfg ``[devpi:upload]`` section.
+
+
 6.0.3 (2023-02-20)
 ==================
 
