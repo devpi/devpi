@@ -5,7 +5,7 @@ import pytest
 
 
 def getlinks(text):
-    return BeautifulSoup(text, "html.parser").findAll("a")
+    return BeautifulSoup(text, "html.parser").find_all("a")
 
 
 def register_and_store(stage, basename, content=b"123", name=None):

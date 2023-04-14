@@ -817,7 +817,7 @@ class Mapp(MappMixin):
         r = self.get_simple(project)
         pkg_url = URL(r.request.url)
         paths = [pkg_url.joinpath(link["href"]).path
-                 for link in BeautifulSoup(r.body, "html.parser").findAll("a")]
+                 for link in BeautifulSoup(r.body, "html.parser").find_all("a")]
         return paths
 
     def upload_doc(self, basename, content, name, version, indexname=None,
