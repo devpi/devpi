@@ -115,7 +115,7 @@ def test_search_deleted_version(mapp, testapp):
     r = testapp.xget(200, '/+search?query=bar%20OR%20foo')
     search_results = r.html.select('.searchresults > dl')
     assert len(search_results) == 1
-    links = search_results[0].findAll('a')
+    links = search_results[0].find_all('a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6"),
         ("Summary", "http://localhost/user1/dev/pkg1/2.6#summary")]
@@ -174,7 +174,7 @@ def test_indexing_doc_with_missing_title(mapp, testapp):
     r = testapp.xget(200, '/+search?query=Foo')
     search_results = r.html.select('.searchresults > dl > dt')
     assert len(search_results) == 1
-    links = search_results[0].findAll('a')
+    links = search_results[0].find_all('a')
     assert sorted((compareable_text(l.text), l.attrs['href']) for l in links) == [
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6")]
 

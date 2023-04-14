@@ -60,7 +60,7 @@ def test_docs_view(mapp, testapp):
                     waithooks=True)
     r = testapp.xget(302, api.index + "/pkg1/2.6/+d/")
     r = testapp.xget(200, r.location)
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/2.6/+doc/index.html"
     r = testapp.xget(404, "/blubber/blubb/pkg1/2.6/+d/index.html")
     content, = r.html.select('#content')
@@ -93,13 +93,13 @@ def test_docs_raw_projectname(mapp, testapp):
     # the regular name should work
     location = '%s/pkg_hello/1.0/+doc/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
-    html = r.html.renderContents().strip().decode('utf-8')
-    assert '<html><body>foo</body></html>' == html
+    html = r.html.decode_contents()
+    assert '<html><body>foo</body></html>' == html.strip()
     # as well as the normalized name
     location = '%s/pkg-hello/1.0/+doc/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
-    html = r.html.renderContents().strip().decode('utf-8')
-    assert '<html><body>foo</body></html>' == html
+    html = r.html.decode_contents()
+    assert '<html><body>foo</body></html>' == html.strip()
 
 
 @pytest.mark.with_notifier
@@ -112,7 +112,7 @@ def test_docs_show_projectname(mapp, testapp):
         "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
     location = '%s/pkg-hello/1.0/+d/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg-hello/1.0/+doc/index.html"
 
 
@@ -124,7 +124,7 @@ def test_docs_latest(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
     # navigation shows latest registered version
     navigation_links = r.html.select("#navigation a")
@@ -137,7 +137,7 @@ def test_docs_latest(mapp, testapp):
     # now we register a newer version, but docs should still be 2.6
     mapp.set_versiondata({"name": "pkg1", "version": "2.7"}, waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
     # navigation shows latest registered version
     navigation_links = r.html.select("#navigation a")
@@ -153,7 +153,7 @@ def test_docs_latest(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.7", code=200,
                     waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/latest/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/latest/+doc/index.html"
     # navigation shows latest registered version
     navigation_links = r.html.select("#navigation a")
@@ -173,7 +173,7 @@ def test_docs_stable(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/stable/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows stable registered version
     navigation_links = r.html.select("#navigation a")
@@ -186,7 +186,7 @@ def test_docs_stable(mapp, testapp):
     # now we register a newer version, but docs should still be 2.6
     mapp.set_versiondata({"name": "pkg1", "version": "2.7.a1"}, waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/stable/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows stable registered version
     navigation_links = r.html.select("#navigation a")
@@ -201,7 +201,7 @@ def test_docs_stable(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.7.a1", code=200,
                     waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/stable/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows stable registered version
     navigation_links = r.html.select("#navigation a")
@@ -215,7 +215,7 @@ def test_docs_stable(mapp, testapp):
     # now we register a newer stable version, but docs should still be 2.6
     mapp.set_versiondata({"name": "pkg1", "version": "2.7"}, waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/stable/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows latest registered stable version
     navigation_links = r.html.select("#navigation a")
@@ -232,7 +232,7 @@ def test_docs_stable(mapp, testapp):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.7", code=200,
                     waithooks=True)
     r = testapp.xget(200, api.index + "/pkg1/stable/+d/index.html")
-    iframe, = r.html.findAll('iframe')
+    iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg1/stable/+doc/index.html"
     # navigation shows latest registered stable version
     navigation_links = r.html.select("#navigation a")

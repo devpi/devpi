@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.notransaction]
 
 
 def getfirstlink(text):
-    return BeautifulSoup(text, "html.parser").findAll("a")[0]
+    return BeautifulSoup(text, "html.parser").find_all("a")[0]
 
 
 def test_upload_and_push_external(mapp, testapp, reqmock):

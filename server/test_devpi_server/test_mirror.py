@@ -11,7 +11,7 @@ from test_devpi_server.simpypi import getmd5
 
 def getlinks(text):
     from bs4 import BeautifulSoup
-    return BeautifulSoup(text, "html.parser").findAll("a")
+    return BeautifulSoup(text, "html.parser").find_all("a")
 
 
 class TestIndexParsing:

@@ -26,7 +26,7 @@ def test_macro_overwrite(testapp, themedir):
 </metal:head>
     """)
     r = testapp.get('/')
-    styles = [x.attrs.get('href') for x in r.html.findAll('link')]
+    styles = [x.attrs.get('href') for x in r.html.find_all('link')]
     assert 'http://localhost/+static-%s/style.css' % __version__ in styles
     assert 'http://localhost/+theme-static-%s/style.css' % __version__ in styles
 

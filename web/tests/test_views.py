@@ -367,18 +367,18 @@ def test_version_view(mapp, testapp, monkeypatch):
     r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
     assert r.status_code == 200
     assert r.html.find('title').text == "user1/dev/: pkg1-2.6 metadata and description"
-    info = dict((compareable_text(t.text) for t in x.findAll('td')) for x in r.html.select('.projectinfos tr'))
+    info = dict((compareable_text(t.text) for t in x.find_all('td')) for x in r.html.select('.projectinfos tr'))
     assert sorted(info.keys()) == ['author', 'classifiers']
     assert info['author'] == 'Foo Bear'
     assert info['classifiers'] == 'Intended Audience :: Developers License :: OSI Approved :: MIT License'
     description = r.html.select('#description')
     assert len(description) == 1
     description = description[0]
-    assert description.renderContents().strip().decode('utf-8') == u'<p>föö</p>'
+    assert description.decode_contents().strip() == '<p>föö</p>'
     filesinfo = [
         tuple(
             compareable_text(t.text).split()
-            for t in x.findAll('td'))
+            for t in x.find_all('td'))
         for x in r.html.select('.files tbody tr')]
 
     assert [x[:2] for x in filesinfo] == [
@@ -415,7 +415,7 @@ def test_markdown_description_without_content_type(mapp, testapp, monkeypatch):
 
     description = r.html.select('#description')
     assert len(description) == 1
-    assert '#' in description[0].renderContents().strip().decode('utf-8')
+    assert '#' in description[0].decode_contents()
 
 
 @pytest.mark.with_notifier
@@ -435,7 +435,7 @@ def test_markdown_description_with_content_type(mapp, testapp, monkeypatch):
 
     description = r.html.select('#description')
     assert len(description) == 1
-    assert description[0].renderContents().strip().decode('utf-8') == u'<h1>Description</h1>'
+    assert description[0].decode_contents().strip() == '<h1>Description</h1>'
 
 
 @pytest.mark.with_notifier
@@ -457,12 +457,12 @@ def test_description_updated(mapp, testapp):
         "name": "pkg-hello", "version": "1.0", "description": "foo"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>foo</p>' == description.renderContents().strip().decode('utf-8')
+    assert '<p>foo</p>' == description.decode_contents().strip()
     mapp.set_versiondata({
         "name": "pkg-hello", "version": "1.0", "description": "bar"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>bar</p>' == description.renderContents().strip().decode('utf-8')
+    assert '<p>bar</p>' == description.decode_contents().strip()
 
 
 @pytest.mark.with_notifier
@@ -472,7 +472,7 @@ def test_description_empty(mapp, testapp):
         "name": "pkg-hello", "version": "1.0"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>No description in metadata</p>' == description.renderContents().strip().decode('utf-8')
+    assert '<p>No description in metadata</p>' == description.decode_contents().strip()
 
 
 def test_version_not_found(mapp, testapp):
@@ -508,7 +508,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
         ''', pypiserial=10)
     r = testapp.xget(200, '/root/pypi/pkg1/2.6',
                      headers=dict(accept="text/html"))
-    filesinfo = [tuple(compareable_text(t.text) for t in x.findAll('td')[:3]) for x in r.html.select('.files tbody tr')]
+    filesinfo = [tuple(compareable_text(t.text) for t in x.find_all('td')[:3]) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.6.zip Type Source', '')]
     links = {l.text: l.attrs['href'] for l in r.html.select('#content a')}
     assert links["Simple index"] == "http://localhost/root/pypi/+simple/pkg1"
@@ -521,7 +521,7 @@ def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
     r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
     assert r.status_code == 200
-    filesinfo = [tuple(compareable_text(t.text) for t in x.findAll('td')[:3])
+    filesinfo = [tuple(compareable_text(t.text) for t in x.find_all('td')[:3])
                  for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.7.zip Type Source', '')]
     silink, pypi_link, link1, link2 = list(r.html.select("#content a"))
