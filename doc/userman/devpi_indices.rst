@@ -439,6 +439,10 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=*
      mirror_whitelist_inheritance=intersection
+     
+If you've modifyied the mirror whitelist to add a package you might need to run 
+`devpi refresh mypkg` to make the package versions from pypi visible. Multiple 
+packages can be added by comma separating them. 
 
 .. _index_description:
 
