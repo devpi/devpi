@@ -5,8 +5,8 @@ import py
 import re
 import zipfile
 
+import build.util
 import check_manifest
-import pep517.meta
 
 from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.metadata import splitext_archive
@@ -391,9 +391,11 @@ class Exported:
         return "<Exported %s>" % self.rootpath
 
     def setup_name_and_version(self):
-        result = pep517.meta.load(self.rootpath.strpath)
-        name = result.metadata["name"]
-        version = result.metadata["version"]
+        metadata = build.util.project_wheel_metadata(
+            self.rootpath.strpath, False
+        )
+        name = metadata["name"]
+        version = metadata["version"]
         self.hub.debug("name, version = %s, %s" % (name, version))
         return name, version
 
