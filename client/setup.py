@@ -31,7 +31,6 @@ if __name__ == "__main__":
         "check-manifest>=0.28",
         "devpi_common<5,>=4dev",
         "iniconfig",
-        "pep517",
         "pkginfo>=1.4.2",
         "platformdirs",
         "pluggy>=0.6.0,<2.0",

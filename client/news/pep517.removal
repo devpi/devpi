@@ -1,0 +1,1 @@
+Use ``build`` instead of deprecated ``pep517`` package.
