@@ -711,12 +711,8 @@ class TestUploadFunctional:
             "index.html": "<html/>"}})
         tmpdir = py.path.local()
         runproc(tmpdir, "python setup.py sdist --format=zip".split())
-        bpath = tmpdir.join('build')
-        out = runproc(
-            tmpdir,
-            "python setup.py build_sphinx -E --build-dir".split() + [bpath.strpath])
         dist = tmpdir.join("dist")
-        zip_dir(bpath.join('html'), dist.join("%s.doc.zip" % name_version_str))
+        zip_dir(tmpdir.join('doc'), dist.join("%s.doc.zip" % name_version_str))
         assert len(dist.listdir()) == 2
         (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
         hub = devpi("upload", "--no-isolation", p, dp)
