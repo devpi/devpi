@@ -29,6 +29,7 @@ from pyramid.traversal import DefaultRootFactory
 from pyramid.view import exception_view_config
 from pyramid.view import view_config
 from urllib.parse import urlparse
+from urllib3.exceptions import IncompleteRead
 import itertools
 import json
 from devpi_common.request import new_requests_session
@@ -1599,7 +1600,10 @@ def iter_cache_remote_file(xom, entry, url):
             yield _headers_from_response(r)
 
             while 1:
-                data = r.raw.read(10240)
+                try:
+                    data = r.raw.read(10240)
+                except IncompleteRead as e:
+                    raise BadGateway(str(e)) from e
                 if not data:
                     break
                 filesize += len(data)
@@ -1712,7 +1716,10 @@ def iter_remote_file_replica(xom, entry, url):
             yield _headers_from_response(r)
 
             while 1:
-                data = r.raw.read(10240)
+                try:
+                    data = r.raw.read(10240)
+                except IncompleteRead as e:
+                    raise BadGateway(str(e)) from e
                 if not data:
                     break
                 running_hash.update(data)

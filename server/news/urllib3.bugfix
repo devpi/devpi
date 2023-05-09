@@ -1,0 +1,1 @@
+Support changed default of ``enforce_content_length`` in urllib3 >= 2.
