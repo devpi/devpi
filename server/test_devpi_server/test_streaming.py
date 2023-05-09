@@ -96,6 +96,7 @@ class TestStreaming(object):
     @pytest.mark.parametrize("size_factor,pkg_version,pkg_name", [
         (2, '1.2', 'pkg3'), (0.5, '1.3', 'pkg4')])
     def test_streaming_differing_content_size(self, content_digest, files_directory, pkg_version, pkg_name, server_url_session, simpypi, size_factor, storage_info):
+        from requests.exceptions import ChunkedEncodingError
         if "storage_with_filesystem" not in storage_info.get('_test_markers', []):
             pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
         (content, digest) = content_digest
@@ -118,8 +119,11 @@ class TestStreaming(object):
             assert part == b'sandwich' * 128
             data = data + part
             assert r.headers['content-length'] == str(length)
-            for part in stream:
-                data = data + part
+            try:
+                for part in stream:
+                    data = data + part
+            except ChunkedEncodingError:
+                pass
             assert data == content[:length]
         pkg_file = files_directory.join(
             'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
