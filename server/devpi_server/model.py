@@ -975,15 +975,14 @@ class BaseStage(object):
                 stage.ixconfig.get("mirror_whitelist", set()))
             if whitelist is None:
                 whitelist = stage_whitelist
+            elif whitelist_inheritance == "union":
+                whitelist = whitelist.union(stage_whitelist)
+            elif whitelist_inheritance == "intersection":
+                whitelist = whitelist.intersection(stage_whitelist)
             else:
-                if whitelist_inheritance == "union":
-                    whitelist = whitelist.union(stage_whitelist)
-                elif whitelist_inheritance == "intersection":
-                    whitelist = whitelist.intersection(stage_whitelist)
-                else:
-                    raise RuntimeError(
-                        "Unknown whitelist_inheritance setting '%s'"
-                        % whitelist_inheritance)
+                raise RuntimeError(
+                    "Unknown whitelist_inheritance setting '%s'"
+                    % whitelist_inheritance)
             if whitelisted or whitelist.intersection(('*', project)):
                 whitelisted = True
         return dict(
@@ -1082,15 +1081,14 @@ class BaseStage(object):
                     stage.ixconfig.get("mirror_whitelist", set()))
                 if whitelist is None:
                     whitelist = stage_whitelist
+                elif whitelist_inheritance == "union":
+                    whitelist = whitelist.union(stage_whitelist)
+                elif whitelist_inheritance == "intersection":
+                    whitelist = whitelist.intersection(stage_whitelist)
                 else:
-                    if whitelist_inheritance == "union":
-                        whitelist = whitelist.union(stage_whitelist)
-                    elif whitelist_inheritance == "intersection":
-                        whitelist = whitelist.intersection(stage_whitelist)
-                    else:
-                        raise RuntimeError(
-                            "Unknown whitelist_inheritance setting '%s'"
-                            % whitelist_inheritance)
+                    raise RuntimeError(
+                        "Unknown whitelist_inheritance setting '%s'"
+                        % whitelist_inheritance)
                 if whitelist.intersection(('*', project)):
                     whitelisted = stage
                 elif stage.has_project_perstage(project):

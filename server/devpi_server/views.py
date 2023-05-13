@@ -340,9 +340,8 @@ def devpiweb_get_status_info(request):
                 msgs.append(dict(status="fatal", msg="Replica is behind master for more than 5 minutes"))
             elif (now - status["replica-in-sync-at"]) > 60:
                 msgs.append(dict(status="warn", msg="Replica is behind master for more than 1 minute"))
-        else:
-            if len(status["replication-errors"]):
-                msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
+        elif len(status["replication-errors"]):
+            msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
         if status["replica-started-at"] is not None:
             last_update = status["update-from-master-at"]
             if last_update is None:
@@ -732,11 +731,10 @@ class PyPIView:
         content_type = _select_simple_content_type(self.request)
         if content_type == SIMPLE_API_V1_JSON:
             app_iter = self._simple_list_all_json_v1(stage, stage_results)
+        elif is_requested_by_installer(self.request):
+            app_iter = self._simple_list_all_installer(stage, stage_results)
         else:
-            if is_requested_by_installer(self.request):
-                app_iter = self._simple_list_all_installer(stage, stage_results)
-            else:
-                app_iter = self._simple_list_all(stage, stage_results)
+            app_iter = self._simple_list_all(stage, stage_results)
         return Response(
             app_iter=buffered_iterator(app_iter),
             content_type=content_type,
@@ -1660,7 +1658,7 @@ def iter_cache_remote_file(xom, entry, url):
             # the file was downloaded before but locally removed, so put
             # it back in place without creating a new serial
             # we need a direct write connection to use the io_file_* methods
-            if tx is not None:
+            if tx is not None:  # noqa: PLR5501
                 if not tx.write:
                     xom.keyfs.restart_as_write_transaction()
                 tx.conn.io_file_set(entry._storepath, f)
