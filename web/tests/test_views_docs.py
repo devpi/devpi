@@ -94,12 +94,12 @@ def test_docs_raw_projectname(mapp, testapp):
     location = '%s/pkg_hello/1.0/+doc/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
     html = r.html.decode_contents()
-    assert '<html><body>foo</body></html>' == html.strip()
+    assert html.strip() == '<html><body>foo</body></html>'
     # as well as the normalized name
     location = '%s/pkg-hello/1.0/+doc/index.html' % api.index
     r = testapp.xget(200, location, headers=dict(accept="text/html"))
     html = r.html.decode_contents()
-    assert '<html><body>foo</body></html>' == html.strip()
+    assert html.strip() == '<html><body>foo</body></html>'
 
 
 @pytest.mark.with_notifier
