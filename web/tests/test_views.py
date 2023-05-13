@@ -346,9 +346,9 @@ def test_version_view(mapp, testapp, monkeypatch):
     monkeypatch.setattr(devpi_server.model, 'gmtime', gmtime)
     api = mapp.create_and_use()
     mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"contentveryold", "pkg1", "2.6").file_url
+        "pkg1-2.6.tar.gz", b"contentveryold", "pkg1", "2.6")
     mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"contentold", "pkg1", "2.6").file_url
+        "pkg1-2.6.tar.gz", b"contentold", "pkg1", "2.6")
     tar3 = mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6").file_url
     zip = mapp.upload_file_pypi(
@@ -404,7 +404,7 @@ def test_version_view(mapp, testapp, monkeypatch):
 def test_markdown_description_without_content_type(mapp, testapp, monkeypatch):
     api = mapp.create_and_use()
     mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6").file_url
+        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
@@ -423,7 +423,7 @@ def test_markdown_description_without_content_type(mapp, testapp, monkeypatch):
 def test_markdown_description_with_content_type(mapp, testapp, monkeypatch):
     api = mapp.create_and_use()
     mapp.upload_file_pypi(
-        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6").file_url
+        "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.6",
