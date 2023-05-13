@@ -87,11 +87,12 @@ def export(pluginmanager=None, argv=None):
             fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
         xom = xom_from_config(config)
         do_export(config.args.directory, xom)
-        return 0
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" % e.args[0], red=True)
         return 1
+    else:
+        return 0
 
 
 def do_import(path, xom):
@@ -151,11 +152,12 @@ def import_(pluginmanager=None, argv=None):
             xom.thread_pool.start_one(xom.keyfs.notifier)
         init_default_indexes(xom)
         do_import(config.args.directory, xom)
-        return 0
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" % e.args[0], red=True)
         return 1
+    else:
+        return 0
 
 
 class Exporter:

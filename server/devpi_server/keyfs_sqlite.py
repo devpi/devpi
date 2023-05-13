@@ -379,7 +379,6 @@ class BaseStorage(object):
             conn = self._get_sqlconn_uri_kw(uri)
             # remember for next time
             self._get_sqlconn = self._get_sqlconn_uri_kw
-            return conn
         except TypeError as e:
             if e.args and 'uri' in e.args[0] and 'keyword argument' in e.args[0]:
                 threadlog.warn(
@@ -396,12 +395,13 @@ class BaseStorage(object):
             threadlog.warn(
                 "The installed version of sqlite3 doesn't support the uri "
                 "keyword for 'sqlite3.connect'.")
+        else:
+            return conn
         try:
             # sqlite3 might be compiled with default URI support
             conn = self._get_sqlconn_uri(uri)
             # remember for next time
             self._get_sqlconn = self._get_sqlconn_uri
-            return conn
         except sqlite3.OperationalError as e:
             # log the error and switch to using the path
             threadlog.warn("%s" % e)
@@ -412,6 +412,8 @@ class BaseStorage(object):
             conn = self._get_sqlconn_path(uri)
             # remember for next time
             self._get_sqlconn = self._get_sqlconn_path
+            return conn
+        else:
             return conn
 
     def get_connection(self, closing=True, write=False, timeout=30):

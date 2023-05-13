@@ -260,9 +260,10 @@ def dumplen(obj, maxlen=None):
 
     try:
         _dump(write, obj)
-        return count
     except _SizeError:
         return None
+    else:
+        return count
 
 
 def dumps(obj):

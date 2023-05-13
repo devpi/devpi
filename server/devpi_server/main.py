@@ -435,7 +435,6 @@ class XOM:
                 allow_redirects=allow_redirects,
                 headers=headers,
                 timeout=timeout or self.config.args.request_timeout)
-            return resp
         except OSError as e:
             location = get_caller_location()
             threadlog.warn(
@@ -454,6 +453,8 @@ class XOM:
                 "HTTPError during httpget of %s at %s: %s",
                 url, location, lazy_format_exception_only(e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
+        else:
+            return resp
 
     def view_deriver(self, view, info):
         if self.is_replica():
