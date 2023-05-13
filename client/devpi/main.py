@@ -32,11 +32,6 @@ devpi-server managed index.  For more information see http://doc.devpi.net
 
 hookimpl = HookimplMarker("devpiclient")
 
-try:
-    PermissionError
-except NameError:
-    PermissionError = OSError
-
 
 def main(argv=None):
     if argv is None:
@@ -70,13 +65,6 @@ notset = object()
 
 
 class Hub:
-    class Popen(subprocess.Popen):
-        STDOUT = subprocess.STDOUT
-        PIPE = subprocess.PIPE
-        def __init__(self, cmds, *args, **kwargs):
-            cmds = [str(x) for x in cmds]
-            subprocess.Popen.__init__(self, cmds, *args, **kwargs)
-
     def __init__(self, args, file=None, pm=None):
         self._tw = py.io.TerminalWriter(file=file)
         self.args = args
@@ -486,10 +474,6 @@ class Hub:
         title = {
             'devpi': 'Devpi',
             'pypi': 'PyPI'}[password.split('-', 1)[0]]
-        if sys.version_info[:2] < (3, 7):
-            # Python below 3.7 not supported by pypitoken
-            # so don't bother checking or mentioning it
-            return password
         try:
             import pypitoken
         except ImportError:
@@ -677,7 +661,7 @@ def parse_args(argv, pm):
     try_argcomplete(parser)
     try:
         args = parser.parse_args(argv[1:])
-        if sys.version_info >= (3,) and args.version:
+        if args.version:
             with closing(Hub(args)) as hub:
                 print_version(hub)
             parser.exit()
@@ -736,13 +720,9 @@ def add_subparsers(parser, pm):
 
 def getbaseparser(prog):
     parser = MyArgumentParser(prog=prog, description=main_description)
-    if sys.version_info < (3,):
-        # workaround old argparse which doesn't support optional sub commands
-        parser.add_argument("--version", action="version",
-            version="devpi-client %s" % client_version)
-    else:
-        parser.add_argument("--version", action="store_true",
-            help="show program's version number and exit")
+    parser.add_argument(
+        "--version", action="store_true",
+        help="show program's version number and exit")
     add_generic_options(parser, defaults=True)
     return parser
 

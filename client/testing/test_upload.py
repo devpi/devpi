@@ -71,8 +71,7 @@ class TestCheckout:
         # need to test the vcs-exporting code much since we started
         # relying on the external check-manifest project to do things.
         unicode_fn = b"something-\342\200\223.txt"
-        if sys.version_info >= (3,0):
-            unicode_fn = str(unicode_fn, "utf8")
+        unicode_fn = str(unicode_fn, "utf8")
         setupdir.ensure(unicode_fn)
         if request.param == "hg":
             if not py.path.local.sysfind("hg"):
@@ -278,7 +277,6 @@ def test_post_includes_auth_info(initproj, uploadhub):
     assert "X-Devpi-Auth" in upload2[1]["headers"]
 
 
-@pytest.mark.skipif("sys.version_info < (3,)")
 @pytest.mark.skipif("config.option.fast")
 def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
     import email
@@ -332,7 +330,6 @@ def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
     assert data["version"] == "1.0"
 
 
-@pytest.mark.skipif("sys.version_info < (3, 7)")
 @pytest.mark.skipif("config.option.fast")
 def test_post_derived_devpi_token(initproj, uploadhub):
     from base64 import b64decode
@@ -573,7 +570,6 @@ class TestUploadFunctional:
             file_upload of pkg-1.0-*.whl*
             """)
 
-    @pytest.mark.skipif("sys.version_info < (3,)")
     def test_wheel_pyproject_toml(self, devpi, initproj, out_devpi):
         initproj("pkg-1.0", kind="pyproject.toml")
         out = out_devpi("upload", "--wheel", code=[200])
