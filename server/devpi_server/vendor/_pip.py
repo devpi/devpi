@@ -52,7 +52,7 @@ class HTMLPage(object):
                 self.anchors = []
 
             def handle_starttag(self, tag, attrs):
-                if not tag == 'a':
+                if tag != 'a':
                     return
 
                 for key, value in attrs:
