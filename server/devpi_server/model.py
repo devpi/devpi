@@ -552,13 +552,11 @@ class BaseStageCustomizer(object):
             Will only be called for custom options, not for existing options
             of a private index.
             """
-        pass
 
     def validate_config(self, oldconfig, newconfig):
         """ Validates the index config.
 
             Can raise InvalidIndexconfig."""
-        pass
 
     def on_modified(self, request, oldconfig):
         """ Called after index was created or modified via a request.
@@ -569,7 +567,6 @@ class BaseStageCustomizer(object):
             of raising HTTPException responses.
 
             Other exceptions will be handled."""
-        pass
 
     def get_projects_filter_iter(self, projects):
         """ Called when a list of projects is returned.
