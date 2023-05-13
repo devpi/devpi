@@ -151,7 +151,7 @@ class UnpackedPackage:
         basename = link.basename
         if basename.endswith(".whl"):
             rootdir = rootdir.join(basename)
-        elif basename.endswith(".tar.gz") or basename.endswith(".tgz"):
+        elif basename.endswith((".tar.gz", ".tgz")):
             rootdir = rootdir.join("targz")
         elif basename.endswith(".zip"):
             rootdir = rootdir.join("zip")

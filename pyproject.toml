@@ -17,7 +17,6 @@ ignore = [
     "ERA001", # cleanup soon
     "PIE804", # cleanup later
     "PIE808", # maybe cleanup later
-    "PIE810", # cleanup soon
     "PLC1901", # maybe cleanup later
     "PLR0911", # cleanup later
     "PLR0912", # cleanup later
