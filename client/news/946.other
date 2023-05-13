@@ -1,0 +1,1 @@
+Fix #946: output ``name==version`` instead of ``name-version`` for ``devpi list -v``.
