@@ -46,7 +46,6 @@ ignore = [
     "TRY200", # cleanup later
     "TRY300", # cleanup soon
     "TRY301", # maybe cleanup later
-    "TRY400", # maybe cleanup later
 ]
 exclude = [
     "doc/",

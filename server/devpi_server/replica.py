@@ -434,7 +434,7 @@ class ReplicaThread:
                 timeout=self.REPLICA_REQUEST_TIMEOUT)
         except Exception as e:
             msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
-            log.error("error fetching %s: %s", url, msg)
+            log.error("error fetching %s: %s", url, msg)  # noqa: TRY400
             return False
 
         with contextlib.closing(r):
@@ -475,7 +475,7 @@ class ReplicaThread:
                 remote_serial = int(r.headers["X-DEVPI-SERIAL"])
             except Exception as e:
                 msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
-                log.error("error fetching %s: %s", url, msg)
+                log.error("error fetching %s: %s", url, msg)  # noqa: TRY400
                 return False
 
             if r.status_code == 200:

@@ -508,7 +508,7 @@ def parseoptions(pluginmanager, argv, parser=None):
     try:
         config_options = load_config_file(config_file)
     except InvalidConfigError as e:
-        log.error("Error in config file '%s':\n  %s" % (
+        log.error("Error in config file '%s':\n  %s" % (  # noqa: TRY400
             config_file, e))
         sys.exit(4)
     defaultget = partial(
