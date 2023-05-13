@@ -467,7 +467,6 @@ def out_index_list(hub, data):
             hub.info("%-15s bases=%-15s volatile=%s" %(ixname,
                      ",".join(ixconfig.get("bases", [])),
                      ixconfig["volatile"]))
-    return
 
 
 def main(hub, args=None):
