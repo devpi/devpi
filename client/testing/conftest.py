@@ -455,11 +455,11 @@ class Gen:
                             **getplatforminfo())
         out = StringIO()
         for i in range(passed):
-            out.write(". test_pass.py::test_pass%s\n" %i)
+            out.write(". test_pass.py::test_pass%s\n" % i)
         for i in range(failed):
-            out.write("F test_fail.py::test_fail%s\n longrepr%s\n" %(i,i))
+            out.write("F test_fail.py::test_fail%s\n longrepr%s\n" % (i, i))
         for i in range(skipped):
-            out.write("s test_skip.py::test_skip%s\n skiprepr%s\n" %(i,i))
+            out.write("s test_skip.py::test_skip%s\n skiprepr%s\n" % (i, i))
         out.seek(0)
         res.parse_resultfile(out)
         res.version = version
@@ -509,8 +509,8 @@ def pytest_runtest_makereport(item, call):
 def ext_devpi(request, tmpdir, devpi):
     def doit(*args, **kwargs):
         tmpdir.chdir()
-        result = runprocess(tmpdir,
-            ["devpi", "--clientdir", devpi.clientdir] + list(args))
+        result = runprocess(
+            tmpdir, ["devpi", "--clientdir", devpi.clientdir, *args])
         ret = kwargs.get("ret", 0)
         if ret != result.ret:
             pytest.fail("expected %s, got %s returnvalue\n%s" % (
@@ -535,7 +535,7 @@ def out_devpi(devpi):
             finally:
                 out, err = cap.reset()
                 del cap
-        except:
+        except BaseException:
             print(out)
             print(err)
             raise
@@ -603,8 +603,8 @@ def runprocess(tmpdir, cmdargs):
     with codecs.open(str(p1), "w", encoding="utf8") as f1:
         now = time.time()
         popen = subprocess.Popen(
-                    cmdargs, stdout=f1, stderr=subprocess.STDOUT,
-                    close_fds=(sys.platform != "win32"))
+            cmdargs, stdout=f1, stderr=subprocess.STDOUT,
+            close_fds=(sys.platform != "win32"))
         ret = popen.wait()
     with codecs.open(str(p1), "r", encoding="utf8") as f1:
         outerr = f1.read().splitlines()

@@ -22,7 +22,8 @@ def main(hub, args):
 
     current = hub.require_valid_current_with_index()
     if not args.index and not current.pypisubmit:
-        hub.fatal("The current index %s does not support upload."
+        hub.fatal(
+            "The current index %s does not support upload."
             "\nMost likely, it is a mirror." % current.index)
 
     if args.path:
@@ -354,8 +355,8 @@ class Checkout:
             destrepo = newrepo.join(self.hasvcs)
             self.rootpath.join(self.hasvcs).copy(destrepo, mode=True)
             self.hub.info("copied repo", srcrepo, "to", destrepo)
-        self.hub.debug("%s-exported project to %s -> new CWD" %(
-                      self.hasvcs, newrepo))
+        self.hub.debug(
+            "%s-exported project to %s -> new CWD" % (self.hasvcs, newrepo))
         setupdir_newrepo = newrepo.join(self.setupdir.relto(self.rootpath))
         return Exported(self.hub, self.args, setupdir_newrepo, self.setupdir)
 

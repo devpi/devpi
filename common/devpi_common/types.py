@@ -33,14 +33,19 @@ class CompareMixin(object):
 
     def __lt__(self, other):
         return self._cmp(other, operator.lt)
+
     def __le__(self, other):
         return self._cmp(other, operator.le)
+
     def __eq__(self, other):
         return self._cmp(other, operator.eq)
+
     def __ne__(self, other):
         return self._cmp(other, operator.ne)
+
     def __ge__(self, other):
         return self._cmp(other, operator.ge)
+
     def __gt__(self, other):
         return self._cmp(other, operator.gt)
 

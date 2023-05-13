@@ -37,9 +37,10 @@ def runproc(cmd):
 @pytest.fixture
 def uploadhub(request, tmpdir):
     from devpi.main import initmain
-    hub, method = initmain(["devpitest",
-                           "--clientdir", tmpdir.join("client").strpath,
-                           "upload"])
+    hub, method = initmain([
+        "devpitest",
+        "--clientdir", tmpdir.join("client").strpath,
+        "upload"])
     return hub
 
 
@@ -120,8 +121,7 @@ class TestCheckout:
         assert readonly.check() is False
         assert uploadbase.check() is False
 
-    def test_vcs_export_setupdironly(self, uploadhub, setupdir,
-                                          tmpdir, monkeypatch):
+    def test_vcs_export_setupdironly(self, uploadhub, setupdir, tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "setupdironly", True)
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == setupdir
@@ -136,8 +136,7 @@ class TestCheckout:
             assert result.rootpath.join("link").readlink() == '..'
         assert result.rootpath == newrepo.join(setupdir.basename)
 
-    def test_vcs_export_disabled(self, uploadhub, setupdir,
-                                      tmpdir, monkeypatch):
+    def test_vcs_export_disabled(self, uploadhub, setupdir, tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert not checkout.hasvcs

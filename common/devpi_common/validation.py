@@ -24,7 +24,7 @@ def safe_version(version):
     Spaces become dots, and all other non-alphanumeric characters become
     dashes, with runs of multiple dashes condensed to a single dash.
     """
-    version = version.replace(' ','.')
+    version = version.replace(' ', '.')
     return safe_name_rex.sub('-', version)
 
 

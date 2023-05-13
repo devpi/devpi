@@ -14,8 +14,8 @@ def test_simple_install_venv_workflow(create_and_upload,
     assert "example" in out and "1.2.3" in out
 
 
-def test_simple_install_activated_venv_workflow(create_and_upload,
-                                      create_venv, out_devpi, monkeypatch):
+def test_simple_install_activated_venv_workflow(
+        create_and_upload, create_venv, out_devpi, monkeypatch):
     create_and_upload("example-1.2.3")
     venvdir = create_venv()
     monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
@@ -80,9 +80,8 @@ def test_simple_install_venv_workflow_index_option(
     assert "example" in out and "1.2.3" in out
 
 
-def test_requirement_install_venv_workflow_index_option(create_and_upload,
-                                                   create_venv,
-                                                   devpi, out_devpi):
+def test_requirement_install_venv_workflow_index_option(
+        create_and_upload, create_venv, devpi, out_devpi):
     create_and_upload("example-1.2.3")
     venvdir = create_venv()
 

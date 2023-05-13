@@ -95,7 +95,7 @@ _releasefile_suffix_rx = re.compile(
 
 # see also PEP425 for supported "python tags"
 _pyversion_type_rex = re.compile(
-        r"(py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
+    r"(py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
 _ext2type = dict(exe="bdist_wininst", egg="bdist_egg", msi="bdist_msi",
                  whl="bdist_wheel")
 
@@ -240,7 +240,7 @@ class BasenameMeta(CompareMixin):
             self.cmpval = (normalize_name(name), parse_version(version), ext)
 
     def __repr__(self):
-        return "<BasenameMeta name=%r version=%r>" %(self.name, self.version)
+        return "<BasenameMeta name=%r version=%r>" % (self.name, self.version)
 
 
 def get_latest_version(seq, stable=False):
