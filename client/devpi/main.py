@@ -227,13 +227,14 @@ class Hub:
             while count:
                 try:
                     func(path)
-                    return
                 except PermissionError:
                     count = count - 1
                     if count == 0:
                         raise
                     # wait a moment for other processes to finish
                     time.sleep(1)
+                else:
+                    return
 
         workdir = py.path.local(
             mkdtemp(prefix=prefix))
@@ -668,12 +669,13 @@ def parse_args(argv, pm):
         if args.command is None:
             raise parser.ArgumentError(
                 "the following arguments are required: command")
-        return args
     except parser.ArgumentError as e:
         if not argv[1:]:
             return parser.parse_args(["-h"])
         parser.print_usage()
         parser.exit(2, "%s: error: %s\n" % (parser.prog, e.args[0]))
+    else:
+        return args
 
 
 def parse_docstring(txt):
