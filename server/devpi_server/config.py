@@ -882,12 +882,11 @@ class Config(object):
 
     @cached_property
     def secretfile(self):
-        import warnings
         if not self.args.secretfile:
             secretfile = self.serverdir.join('.secret')
             if not secretfile.check(file=True):
                 return None
-            warnings.warn(
+            log.warn(
                 "Using deprecated existing secret file at '%s', use "
                 "--secretfile to explicitly provide the location." % secretfile)
             return secretfile
