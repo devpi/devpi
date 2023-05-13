@@ -185,7 +185,7 @@ def tween_request_logging(handler, registry):
         log = thread_push_log(tag)
         try:
             request.log = log
-            log.info("%s %s" % (request.method, request.path,))
+            log.info("%s %s" % (request.method, request.path))
             now = time()
             response = handler(request)
             duration = time() - now

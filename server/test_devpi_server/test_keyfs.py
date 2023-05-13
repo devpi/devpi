@@ -16,7 +16,7 @@ def keyfs(gentmp, pool, storage):
     yield keyfs
 
 
-@pytest.fixture(params=["direct", "a/b/c", ])
+@pytest.fixture(params=["direct", "a/b/c"])
 def key(request):
     return request.param
 

@@ -488,7 +488,7 @@ def add_pypistage_mocks(monkeypatch, httpget):
     def mock_extfile(self, path, content, **kw):
         headers = {"content-length": len(content),
                    "content-type": mimetypes.guess_type(path),
-                   "last-modified": "today",}
+                   "last-modified": "today"}
         url = URL(self.mirror_url).joinpath(path)
         return self.xom.httpget.mockresponse(
             url.url, content=content, headers=headers, **kw)
