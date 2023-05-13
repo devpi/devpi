@@ -1170,7 +1170,8 @@ class BaseStage(object):
                     warnings.warn(
                         "The 'get_principals_for_pypi_submit' method is deprecated, "
                         "you should use 'get_principals_for_upload'. "
-                        "If you want to support older devpi-server versions, add an alias.")
+                        "If you want to support older devpi-server versions, add an alias.",
+                        stacklevel=1)
             if not callable(method):
                 raise AttributeError(
                     "The attribute %s with value %r of %r is not callable." % (
@@ -1494,7 +1495,8 @@ class PrivateStage(BaseStage):
         warnings.warn(
             "The get_last_change_serial method is deprecated, "
             "use get_last_change_serial_perstage instead",
-            DeprecationWarning)
+            DeprecationWarning,
+            stacklevel=2)
         return self.get_last_change_serial_perstage(at_serial=at_serial)
 
 
@@ -1741,7 +1743,8 @@ class SimplelinkMeta:
         warnings.warn(
             "Item access for SimplelinkMeta is deprecated, "
             "use attributes instead.",
-            DeprecationWarning)
+            DeprecationWarning,
+            stacklevel=2)
         if index == 0:
             return self.key
         elif index == 1:
