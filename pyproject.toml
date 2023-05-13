@@ -23,7 +23,6 @@ ignore = [
     "PLR0915", # maybe cleanup later
     "PLR1711", # cleanup soon
     "PLR2004",
-    "PLR5501", # cleanup soon
     "PLW2901", # maybe cleanup later
     "RUF005", # cleanup later
     "RUF012", # cleanup later

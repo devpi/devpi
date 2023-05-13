@@ -1666,11 +1666,11 @@ def iter_cache_remote_file(xom, entry, url):
                     # on Windows we need to close the file
                     # before the transaction closes
                     f.close()
-        else:
+        else:  # noqa: PLR5501
             # the file was downloaded before but locally removed, so put
             # it back in place without creating a new serial
             # we need a direct write connection to use the io_file_* methods
-            if tx is not None:  # noqa: PLR5501
+            if tx is not None:
                 if not tx.write:
                     xom.keyfs.restart_as_write_transaction()
                 tx.conn.io_file_set(entry._storepath, f)
