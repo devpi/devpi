@@ -6,24 +6,10 @@ import tarfile
 import time
 
 from .functional import TestIndexThings  # noqa: F401
+from .functional import TestIndexPushThings  # noqa: F401
 from .functional import TestProjectThings  # noqa: F401
 from .functional import TestUserThings  # noqa: F401
-try:
-    from .functional import TestMirrorIndexThings  # noqa: F401
-except ImportError:
-    # when testing with older devpi-server
-    class TestMirrorIndexThings:
-        def test_mirror_things(self):
-            pytest.skip(
-                "Couldn't import TestMirrorIndexThings from devpi server tests.")
-try:
-    from .functional import TestIndexPushThings  # noqa: F401
-except ImportError:
-    # when testing with older devpi-server
-    class TestIndexPushThings:
-        def test_mirror_things(self):
-            pytest.skip(
-                "Couldn't import TestIndexPushThings from devpi server tests.")
+from .functional import TestMirrorIndexThings  # noqa: F401
 from .functional import MappMixin
 
 

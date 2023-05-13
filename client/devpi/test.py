@@ -43,7 +43,6 @@ class DevIndex:
             md5.update(content)
             digest = md5.hexdigest()
             assert digest == link.md5, (digest, link.md5)
-            #self.hub.info("verified md5 ok", link.md5)
         basename = URL(url).basename
 
         path_archive = self.dir_download.join(basename)

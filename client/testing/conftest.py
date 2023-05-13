@@ -1,7 +1,6 @@
 from __future__ import print_function
 from contextlib import closing
 from devpi_common.metadata import parse_version
-from io import BytesIO
 from io import StringIO
 import codecs
 import os
@@ -20,13 +19,6 @@ from devpi_common.url import URL
 import subprocess
 
 
-# BBB for Python 2.7
-try:
-    basestring
-except NameError:
-    basestring = str
-
-
 def pytest_addoption(parser):
     parser.addoption(
         "--devpi-server-requirements",
@@ -41,46 +33,6 @@ def pytest_addoption(parser):
 def print_info(*args, **kwargs):
     kwargs.setdefault("file", sys.stderr)
     return print(*args, **kwargs)
-
-
-class PopenFactory:
-    def __init__(self, addfinalizer):
-        self.addfinalizer = addfinalizer
-
-    def __call__(self, args, pipe=False, **kwargs):
-        args = [str(x) for x in args]
-        if pipe:
-            print("$ %s [piped]" %(" ".join(args),))
-            popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        else:
-            showkwargs = " ".join(["%s=%s"] % (x,y) for x,y in kwargs.items())
-            print("$ %s %s" %(" ".join(args), showkwargs))
-            popen = subprocess.Popen(args, **kwargs)
-
-        def fin():
-            try:
-                popen.kill()
-                popen.wait()
-            except OSError:
-                print("could not kill %s" % popen.pid)
-
-        self.addfinalizer(fin)
-        return popen
-
-
-@pytest.fixture(scope="session")
-def Popen_session(request):
-    return PopenFactory(request.addfinalizer)
-
-
-@pytest.fixture(scope="module")
-def Popen_module(request):
-    return PopenFactory(request.addfinalizer)
-
-
-@pytest.fixture(scope="function")
-def Popen(request):
-    return PopenFactory(request.addfinalizer)
 
 
 @pytest.fixture(scope="session")
@@ -343,7 +295,7 @@ def create_files(base, filedefs):
     for key, value in filedefs.items():
         if isinstance(value, dict):
             create_files(base.ensure(key, dir=1), value)
-        elif isinstance(value, basestring):
+        elif isinstance(value, str):
             s = textwrap.dedent(value)
             base.join(key).write(s)
 
@@ -379,7 +331,7 @@ def initproj(tmpdir):
             filedefs = {}
         if not src_root:
             src_root = "."
-        if isinstance(nameversion, basestring):
+        if isinstance(nameversion, str):
             parts = nameversion.split(str("-"))
             if len(parts) == 1:
                 parts.append("0.1")
@@ -457,7 +409,7 @@ def initproj(tmpdir):
 
 
 @pytest.fixture
-def create_and_upload(request, devpi, initproj, Popen):
+def create_and_upload(request, devpi, initproj):
     def upload(name, filedefs=None, opts=()):
         initproj(name, filedefs)
         devpi("upload", "--no-isolation", *opts)
@@ -709,11 +661,7 @@ def loghub(tmpdir):
         verbose = False
         settrusted = False
 
-    # BBB for Python 2.7
-    if sys.version_info < (3,):
-        out = BytesIO()
-    else:
-        out = StringIO()
+    out = StringIO()
     hub = Hub(args, file=out)
 
     def _getmatcher():
