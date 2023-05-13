@@ -120,8 +120,7 @@ def get_venv_script(venv_path, script_names):
             script = venv_path.join(bindir, script_name)
             if script.exists():
                 return str(script)
-    else:
-        raise RuntimeError("Can't find %s in %s." % (script_names, venv_path))
+    raise RuntimeError("Can't find %s in %s." % (script_names, venv_path))
 
 
 @pytest.fixture(scope="session")
