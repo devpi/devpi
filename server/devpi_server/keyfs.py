@@ -461,7 +461,6 @@ def iter_serial_and_value_backwards(conn, relpath, last_serial):
 
     # we could not find any change below at_serial which means
     # the key didn't exist at that point in time
-    return
 
 
 def iter_relpaths_at(self, typedkeys, at_serial):
