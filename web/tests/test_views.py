@@ -457,12 +457,12 @@ def test_description_updated(mapp, testapp):
         "name": "pkg-hello", "version": "1.0", "description": "foo"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>foo</p>' == description.decode_contents().strip()
+    assert description.decode_contents().strip() == '<p>foo</p>'
     mapp.set_versiondata({
         "name": "pkg-hello", "version": "1.0", "description": "bar"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>bar</p>' == description.decode_contents().strip()
+    assert description.decode_contents().strip() == '<p>bar</p>'
 
 
 @pytest.mark.with_notifier
@@ -472,7 +472,7 @@ def test_description_empty(mapp, testapp):
         "name": "pkg-hello", "version": "1.0"})
     r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
     description, = r.html.select('#description')
-    assert '<p>No description in metadata</p>' == description.decode_contents().strip()
+    assert description.decode_contents().strip() == '<p>No description in metadata</p>'
 
 
 def test_version_not_found(mapp, testapp):
