@@ -16,8 +16,7 @@ class TestValidateMetadata:
     def test_valid_names(self, name):
         validate_metadata(data=dict(name=name, version="1.0"))
 
-    @names("hello_", "hello-", "-hello", "_hello1", "hel%lo",
-           "hello#", "hello<",)
+    @names("hello_", "hello-", "-hello", "_hello1", "hel%lo", "hello#", "hello<")
     def test_invalid(self, name):
         with pytest.raises(ValueError):
             validate_metadata(data=dict(name=name, version="1.0"))
