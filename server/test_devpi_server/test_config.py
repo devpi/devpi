@@ -89,8 +89,6 @@ class TestConfig:
         assert len(recs) == 1
 
     def test_bbb_default_secretfile_location(self, caplog, recwarn, tmpdir):
-        import warnings
-        warnings.simplefilter("always")
         # setup secret file in old default location
         configdir = tmpdir.ensure_dir('config')
         configdir.chmod(0o700)
@@ -106,8 +104,8 @@ class TestConfig:
         assert config.basesecret == secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 0
-        (warning,) = [x for x in recwarn if not isinstance(x, ResourceWarning)]
-        assert 'deprecated existing secret' in warning.message.args[0]
+        recs = caplog.getrecords(".*deprecated existing secret.*")
+        assert len(recs) == 1
 
     def test_secret_complexity(self, tmpdir):
         # create a secret file with too short secret
