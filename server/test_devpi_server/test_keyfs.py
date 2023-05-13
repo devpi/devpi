@@ -798,7 +798,7 @@ class TestSubscriber:
                 pass
 
         # check wait_tx_serial() call from the thread returned True
-        assert queue.get() == True
+        assert queue.get() is True
 
     def test_wait_tx_async_timeout(self, keyfs):
         wait_serial = keyfs.get_next_serial()

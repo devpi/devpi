@@ -1314,7 +1314,7 @@ class Gen:
 
     def pypi_package_link(self, pkgname, md5=True):
         link = "https://pypi.org/package/some/%s" % pkgname
-        if md5 == True:
+        if md5 is True:
             self._md5.update(link.encode("utf8"))  # basically random
             link += "#md5=%s" % self._md5.hexdigest()
         elif md5:
