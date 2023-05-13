@@ -6,22 +6,27 @@ devpi use "${DEVPI_INDEXNAME}"
 devpi push --index root/pypi devpi-server==5.2.0 "${DEVPI_INDEXNAME}"
 devpi push --index root/pypi devpi-server==6.8.0 "${DEVPI_INDEXNAME}"
 pushd common
-yes | towncrier || true
+towncrier build --yes
+head -n 50 CHANGELOG
 devpi upload --no-isolation
 popd
 pushd server
-yes | towncrier || true
+towncrier build --yes
+head -n 50 CHANGELOG
 devpi upload --no-isolation
 popd
 pushd web
-yes | towncrier || true
+towncrier build --yes
+head -n 50 CHANGELOG
 devpi upload --no-isolation
 popd
 pushd client
-yes | towncrier || true
+towncrier build --yes
+head -n 50 CHANGELOG
 devpi upload --no-isolation
 popd
 pushd postgresql
-yes | towncrier || true
+towncrier build --yes
+head -n 50 CHANGELOG
 devpi upload --no-isolation
 popd
