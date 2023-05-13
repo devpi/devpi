@@ -307,8 +307,7 @@ def devpiserver_cmdline_run(xom):
     docs_path = xom.config.args.documentation_path
     if docs_path is not None and not os.path.isabs(docs_path):
         fatal("The path for unzipped documentation must be absolute.")
-    # allow devpi-server to run
-    return None
+    # return None to allow devpi-server to run
 
 
 def delete_project(stage, name):

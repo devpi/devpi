@@ -46,7 +46,6 @@ def devpiserver_cmdline_run(xom):
             signal.signal(signal.SIGUSR1, show_stacks)
         else:
             fatal(f"Couldn't install USR1 signal handler, because another one is already active: {current_handler}")
-    return None
 
 
 @hookimpl

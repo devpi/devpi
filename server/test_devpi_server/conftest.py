@@ -164,7 +164,6 @@ def _speed_up_sqlite(cls):
         conn = old(self)
         with self.get_connection() as conn:
             conn._sqlconn.execute("PRAGMA synchronous=OFF")
-        return
 
     cls.ensure_tables_exist = make_unsynchronous
     return old
