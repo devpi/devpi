@@ -1745,7 +1745,7 @@ class SimplelinkMeta:
             "use attributes instead.",
             DeprecationWarning,
             stacklevel=2)
-        if index == 0:
+        if index == 0:  # noqa: SIM116
             return self.key
         elif index == 1:
             return self.href
