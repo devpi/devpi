@@ -254,7 +254,7 @@ class MasterChangelogRequest:
             [REPLICA_CONTENT_TYPE, "application/octet-stream"])
         preferres_streaming = (
             (REPLICA_CONTENT_TYPE, 1.0) in acceptable
-            and not ("application/octet-stream", 1.0) in acceptable)
+            and ("application/octet-stream", 1.0) not in acceptable)
         if preferres_streaming:
             # a replica which accepts streams has a lower priority for
             # "application/octet-stream" as the old default "Accept: */*"
