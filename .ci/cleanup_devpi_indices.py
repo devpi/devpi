@@ -49,11 +49,12 @@ def run():
                     file=sys.stderr)
             else:
                 all_dates = all_dates.union(dates)
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
         if all_dates:
-            date = datetime.datetime(*max(all_dates))
+            date = datetime.datetime(*max(all_dates), tzinfo=datetime.timezone.utc)
         else:
-            date = datetime.datetime.now()
-        if (datetime.datetime.now() - date) > datetime.timedelta(days=MAXDAYS):
+            date = now
+        if (now - date) > datetime.timedelta(days=MAXDAYS):
             assert username and indexname
             url = baseurl + username + "/" + indexname
             subprocess.check_call(["devpi", "index", "-y", "--delete", url])
