@@ -42,7 +42,6 @@ ignore = [
     "SIM110", # cleanup soon
     "SIM114", # maybe cleanup later
     "SIM115", # cleanup soon
-    "SIM116", # cleanup soon
     "SIM117", # cleanup later
     "SIM201", # cleanup soon
     "SIM300", # cleanup soon
