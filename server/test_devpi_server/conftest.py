@@ -11,6 +11,7 @@ import requests
 import socket
 import sys
 import time
+from .functional import MappMixin
 from .reqmock import reqmock, patch_reqsessionmock  # noqa
 from bs4 import BeautifulSoup
 from contextlib import closing
@@ -24,6 +25,8 @@ from io import BytesIO
 from pyramid.authentication import b64encode
 from pyramid.httpexceptions import status_map
 from queue import Queue as BaseQueue
+from webtest import TestApp as TApp
+from webtest import TestResponse
 import hashlib
 
 
@@ -509,9 +512,6 @@ def mapp(makemapp, testapp):
     return makemapp(testapp)
 
 
-from .functional import MappMixin
-
-
 class Mapp(MappMixin):
     def __init__(self, testapp):
         self.testapp = testapp
@@ -845,10 +845,6 @@ class Mapp(MappMixin):
                              expect_errors=True)
         assert r.status_code == code
         return r
-
-
-from webtest import TestApp as TApp
-from webtest import TestResponse
 
 
 @pytest.fixture
