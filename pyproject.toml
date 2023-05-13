@@ -36,7 +36,6 @@ ignore = [
     "TRY003",
     "TRY004", # maybe cleanup later
     "TRY200", # cleanup later
-    "TRY300", # cleanup soon
     "TRY301", # maybe cleanup later
 ]
 exclude = [
