@@ -1,3 +1,76 @@
+[build-system]
+requires = ["setuptools", "setuptools_changelog_shortener", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+dynamic = ["version", "readme"]
+name = "devpi-client"
+description = "devpi upload/install/... workflow commands for Python developers"
+dependencies = [
+    "build",
+    "check-manifest>=0.28",
+    "devpi_common<5,>=4dev",
+    "iniconfig",
+    "pkginfo>=1.4.2",
+    "platformdirs",
+    "pluggy>=0.6.0,<2.0",
+    "py>=1.4.31",
+]
+requires-python = ">=3.7"
+maintainers = [
+    {name = "Florian Schulze", email = "mail@pyfidelity.com"}
+]
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+
+[project.scripts]
+devpi = "devpi.main:main"
+
+
+[project.entry-points.devpi_client]
+devpi-client-login = "devpi.login"
+devpi-client-subcommands = "devpi.main"
+
+
+[project.urls]
+"Bug Tracker" = "https://github.com/devpi/devpi/issues"
+"Changelog" = "https://github.com/devpi/devpi/blob/main/client/CHANGELOG"
+"Documentation" = "https://doc.devpi.net"
+"Homepage" = "https://devpi.net"
+"Source Code" = "https://github.com/devpi/devpi"
+
+
+[tool.setuptools]
+packages = ['devpi']
+
+
+[tool.setuptools.dynamic]
+version = {attr = "devpi.__version__"}
+readme = {file = ["README.rst", "CHANGELOG.short.rst"]}
+
+
+[tool.setuptools_changelog_shortener]
+read_from = "CHANGELOG"
+write_to = "CHANGELOG.short.rst"
+count = 5
+delimiter = "^==+"
+title = "=========\nChangelog\n========="
+
+
 [tool.towncrier]
 package = "devpi"
 filename = "CHANGELOG"
