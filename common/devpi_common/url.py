@@ -102,9 +102,8 @@ class URL:
                 if not kwargs["hostname"]:
                     raise ValueError("Can't use empty 'hostname'.")
                 netloc += kwargs["hostname"]
-            else:
-                if self.hostname:
-                    netloc += self.hostname
+            elif self.hostname:
+                netloc += self.hostname
             if "port" in kwargs:
                 if kwargs["port"]:
                     netloc += ":%s" % kwargs["port"]
