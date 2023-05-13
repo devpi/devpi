@@ -266,8 +266,10 @@ class Current(object):
         try:
             # if the server is on http and not localhost, pip will show verbose warning
             # every time you use devpi. set-trusted instead and inform user now just the once
-            if hub.args.settrusted == 'auto' and url.scheme == 'http' and \
-                            url.hostname not in ('localhost', '127.0.0.0'):
+            if (
+                    hub.args.settrusted == 'auto'
+                    and url.scheme == 'http'
+                    and url.hostname not in ('localhost', '127.0.0.0')):
                 hub.line("Warning: insecure http host, trusted-host will be set for pip")
                 hub.args.settrusted = 'yes'
         except AttributeError:
@@ -568,8 +570,8 @@ def main(hub, args=None):
     settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
-        current.reconfigure(dict(always_setcfg=always_setcfg,
-                                     settrusted=settrusted))
+        current.reconfigure(dict(
+            always_setcfg=always_setcfg, settrusted=settrusted))
     pipcfg = PipCfg(venv=venvdir)
     if pipcfg.legacy_location == pipcfg.default_location:
         hub.warn(
@@ -664,11 +666,9 @@ class BaseCfg(object):
                     if m:
                         line = "%s = %s\n" % (m.group(1), indexserver)
                         found = True
-                else:
-                    if section in line.lower():
-                        line = line + "%s = %s\n" %(
-                                                self.config_name, indexserver)
-                        found = True
+                elif section in line.lower():
+                    line = line + "%s = %s\n" % (self.config_name, indexserver)
+                    found = True
                 newlines.append(line)
             if not found:
                 newlines.append(self.section_name + "\n")

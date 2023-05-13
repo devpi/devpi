@@ -91,8 +91,7 @@ class TarArchive(BaseArchive):
         for member in members:
             target = to_path.join(member.name, abs=True)
             if not target.relto(to_path):
-                raise ValueError("archive name %r out of bound"
-                                 %(member.name,))
+                raise ValueError("archive name %r out of bound" % (member.name,))
         self._archive.extractall(str(to_path))
 
 

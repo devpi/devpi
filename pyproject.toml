@@ -13,7 +13,6 @@ ignore = [
     "COM819", # cleanup later
     "DTZ001", # cleanup soon
     "E501",
-    "E712", # cleanup soon
     "E741",
     "ERA001", # cleanup soon
     "PIE804", # cleanup later

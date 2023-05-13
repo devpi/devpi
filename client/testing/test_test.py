@@ -374,7 +374,7 @@ class TestFunctional:
 
     def test_main_example(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
-           "tox.ini": """
+            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"
             """,
@@ -419,13 +419,13 @@ class TestFunctional:
 
     def test_specific_version(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
-           "tox.ini": """
+            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"
             """,
         })
         create_and_upload("exa-1.1", filedefs={
-           "tox.ini": """
+            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"
             """,
@@ -442,7 +442,7 @@ class TestFunctional:
 
     def test_pkgname_with_dashes(self, out_devpi, create_and_upload):
         create_and_upload(("my-pkg-123", "1.0"), filedefs={
-           "tox.ini": """
+            "tox.ini": """
               [testenv]
               commands = python -c "print('ok')"
             """,

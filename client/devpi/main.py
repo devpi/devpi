@@ -185,8 +185,8 @@ class Hub:
             # don't show any extra info on success code
             if type is not None:
                 if reply.type != type:
-                    self.fatal("%s: got result type %r, expected %r" %(
-                                url, reply.type, type))
+                    self.fatal("%s: got result type %r, expected %r" % (
+                        url, reply.type, type))
             return reply
         # feedback reply info to user, possibly bailing out
         if r.status_code >= 400:

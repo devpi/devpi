@@ -12,7 +12,7 @@ class ViewLinkStore:
         for linkdict in self.versiondata.get("+links", []):
             viewlink = ViewLink(self.url, linkdict)
             if (not rel or viewlink.rel == rel) and \
-               (not for_href or viewlink.for_href==for_href) and \
+               (not for_href or viewlink.for_href == for_href) and \
                (not basename or viewlink.basename == basename):
                 l.append(viewlink)
         return l

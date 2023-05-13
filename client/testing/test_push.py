@@ -126,7 +126,8 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         class r:
             status_code = 201
             reason = "created"
-            content = json.dumps(dict(type="actionlog", status=201,
+            content = json.dumps(dict(
+                type="actionlog", status=201,
                 result=[("200", "register", "pkg", "1.0"),
                         ("200", "upload", "pkg-1.3.tar.gz")]
             ))
@@ -194,7 +195,8 @@ def test_fail_push(monkeypatch, tmpdir):
         class r:
             status_code = 500
             reason = "Internal Server Error"
-            content = json.dumps(dict(type="actionlog", status=201,
+            content = json.dumps(dict(
+                type="actionlog", status=201,
                 result=[("500", "Internal Server Error", "Internal Server Error")]
             ))
             headers = {"content-type": "application/json"}

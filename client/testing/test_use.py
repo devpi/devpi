@@ -31,9 +31,9 @@ class TestUnit:
         current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
         current.reconfigure(dict(
-                pypisubmit="/post",
-                simpleindex="/index",
-                login="/login",
+            pypisubmit="/post",
+            simpleindex="/index",
+            login="/login",
         ))
         assert current.simpleindex
         newcurrent = PersistentCurrent(auth_path, current_path)
@@ -55,14 +55,14 @@ class TestUnit:
         current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
         current.reconfigure(dict(
-                pypisubmit="/post",
-                simpleindex="/index",
-                login="/login",
+            pypisubmit="/post",
+            simpleindex="/index",
+            login="/login",
         ))
         assert current.simpleindex
         current.reconfigure(dict(always_setcfg=True))
         newcurrent = PersistentCurrent(auth_path, current_path)
-        assert newcurrent.always_setcfg == True
+        assert newcurrent.always_setcfg is True
         newcurrent.reconfigure(data=dict(simpleindex="/index2"))
         current = PersistentCurrent(auth_path, current_path)
         assert current.always_setcfg
@@ -429,20 +429,18 @@ class TestUnit:
         assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
 
     def test_change_index(self, cmd_devpi, mock_http_api):
-        mock_http_api.set("http://world.com/+api", 200,
-                    result=dict(
-                        index="/index",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+        mock_http_api.set("http://world.com/+api", 200, result=dict(
+            index="/index",
+            login="/+login",
+            authstatus=["noauth", ""],
+        ))
         mock_http_api.set(
             "http://world.com/index?no_projects=", 200,
             result=dict())
-        mock_http_api.set("http://world2.com/+api", 200,
-                    result=dict(
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+        mock_http_api.set("http://world2.com/+api", 200, result=dict(
+            login="/+login",
+            authstatus=["noauth", ""],
+        ))
 
         hub = cmd_devpi("use", "http://world.com")
         assert hub.current.index == "http://world.com/index"
@@ -480,15 +478,14 @@ class TestUnit:
         assert temp._authdict is not current._authdict
 
     def test_main(self, cmd_devpi, mock_http_api):
-        mock_http_api.set("http://world/this/+api", 200,
-                    result=dict(
-                        pypisubmit="/post",
-                        simpleindex="/index/",
-                        index="root/some",
-                        bases="root/dev",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+        mock_http_api.set("http://world/this/+api", 200, result=dict(
+            pypisubmit="/post",
+            simpleindex="/index/",
+            index="root/some",
+            bases="root/dev",
+            login="/+login",
+            authstatus=["noauth", ""],
+        ))
         mock_http_api.set(
             "http://world/root/some?no_projects=", 200,
             result=dict())
@@ -503,22 +500,20 @@ class TestUnit:
         current = hub.current
         assert current.get_index_url(slash=False) == "http://world/root/some"
         assert current.get_index_url() == "http://world/root/some/"
-        assert current.get_project_url("pytest") == \
-                                    "http://world/root/some/pytest/"
+        assert current.get_project_url("pytest") == "http://world/root/some/pytest/"
 
         #hub = cmd_devpi("use", "--delete")
         #assert not hub.current.exists()
 
     def test_main_list(self, out_devpi, cmd_devpi, mock_http_api):
-        mock_http_api.set("http://world/+api", 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="",
-                        index="",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+        mock_http_api.set("http://world/+api", 200, result=dict(
+            pypisubmit="",
+            simpleindex="",
+            index="",
+            bases="",
+            login="/+login",
+            authstatus=["noauth", ""],
+        ))
         mock_http_api.set(
             "http://world/?no_projects=", 200,
             result=dict())
@@ -590,15 +585,14 @@ class TestUnit:
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
-        mock_http_api.set("http://world/simple/+api", 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="/simple",
-                        index="/",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+        mock_http_api.set("http://world/simple/+api", 200, result=dict(
+            pypisubmit="",
+            simpleindex="/simple",
+            index="/",
+            bases="",
+            login="/+login",
+            authstatus=["noauth", ""],
+        ))
         mock_http_api.set(
             "http://world/?no_projects=", 200,
             result=dict())
@@ -630,15 +624,14 @@ class TestUnit:
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
-        mock_http_api.set("http://world/simple/+api", 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="/simple",
-                        index="/",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+        mock_http_api.set("http://world/simple/+api", 200, result=dict(
+            pypisubmit="",
+            simpleindex="/simple",
+            index="/",
+            bases="",
+            login="/+login",
+            authstatus=["noauth", ""],
+        ))
         mock_http_api.set(
             "http://world/?no_projects=", 200,
             result=dict())
@@ -668,15 +661,14 @@ class TestUnit:
                             tmpdir.join("dist.cfg"))
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
-        mock_http_api.set("%s://world/+api" % scheme, 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="/simple",
-                        index="/",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+        mock_http_api.set("%s://world/+api" % scheme, 200, result=dict(
+            pypisubmit="",
+            simpleindex="/simple",
+            index="/",
+            bases="",
+            login="/+login",
+            authstatus=["noauth", ""],
+        ))
         mock_http_api.set(
             "%s://world/?no_projects=" % scheme, 200,
             result=dict())

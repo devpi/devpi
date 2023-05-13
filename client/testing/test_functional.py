@@ -403,11 +403,11 @@ class TestUserManagement:
         """ Verify that password change is effective"""
         mapp.logoff()
         mapp.login(user=existing_user_id, password="1234")
-        mapp.modify_user(user = existing_user_id, password = id(self))
+        mapp.modify_user(user=existing_user_id, password=id(self))
         # Verify that the password was indeed changed.
         mapp.logoff()
         mapp.login(user=existing_user_id,
-                   password="1234", code = 401)
+                   password="1234", code=401)
         mapp.login(user=existing_user_id, password=id(self))
 
     def test_mod_email(self, mapp, existing_user_id, url_of_liveserver):
