@@ -213,7 +213,7 @@ class TestStage:
     def test_indexconfig_set_throws_on_unknown_base_index(self, stage, user):
         with pytest.raises(InvalidIndexconfig) as excinfo:
             user.create_stage(index="something",
-                              bases=("root/notexists", "root/notexists2"),)
+                              bases=("root/notexists", "root/notexists2"))
         messages = excinfo.value.messages
         assert len(messages) == 2
         assert "root/notexists" in messages[0]
@@ -221,7 +221,7 @@ class TestStage:
 
     def test_indexconfig_set_throws_on_invalid_base_index(self, stage, user):
         with pytest.raises(InvalidIndexconfig) as excinfo:
-            user.create_stage(index="world3", bases=("root/dev/123",),)
+            user.create_stage(index="world3", bases=("root/dev/123",))
         messages = excinfo.value.messages
         assert len(messages) == 1
         assert "root/dev/123" in messages[0]
