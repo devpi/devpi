@@ -45,8 +45,9 @@ def init(pluginmanager=None, argv=None):
             set_state_version(config, DATABASE_VERSION)
         xom = xom_from_config(config, init=True)
         init_default_indexes(xom)
-        return 0
     except Fatal as e:
         tw = py.io.TerminalWriter(sys.stderr)
         tw.line("fatal: %s" % e.args[0], red=True)
         return 1
+    else:
+        return 0
