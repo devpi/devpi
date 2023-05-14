@@ -104,7 +104,6 @@ class TestLoggerConfiguration:
         level = logging.getLogger("requests.packages.urllib3").getEffectiveLevel()
         assert level == logging.ERROR
 
-    @pytest.mark.skipif("sys.version_info < (2,7)")
     def test_logger_cfg_json(self, tmpdir):
         logger_cfg = tmpdir.join("logging.json")
         logger_cfg.write(textwrap.dedent("""
@@ -123,7 +122,6 @@ class TestLoggerConfiguration:
         assert logging.getLogger().getEffectiveLevel() == logging.WARNING
         assert not logging.getLogger().handlers
 
-    @pytest.mark.skipif("sys.version_info < (2,7)")
     def test_logger_cfg_yaml(self, tmpdir):
         logger_cfg = tmpdir.join("logging.yml")
         logger_cfg.write(textwrap.dedent("""
