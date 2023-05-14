@@ -486,6 +486,29 @@ class TestUseExistingFiles:
         replica_xom.replica_thread.wait()
         assert len(caplog.getrecords('checking existing file')) == 1
 
+    def test_use_existing_files_export_layout(self, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+        # this will be the folder to find existing files in the replica
+        existing_base = tmpdir.join('existing').ensure_dir()
+        # prepare data on master
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        # get the path of the release in export layout
+        existing_path = existing_base.join(
+            mapp.api.stagename, "hello", "1.0", "hello-1.0.zip")
+        # create the file
+        existing_path.dirpath().ensure_dir()
+        existing_path.write_binary(content1)
+        # create the replica with the path to existing files
+        replica_xom = make_replica_xom(options=[
+            '--replica-file-search-path', existing_base.strpath])
+        # now sync the replica, if the file is not found there will be an error
+        # because httpget is mocked
+        caplog.clear()
+        replay(xom, replica_xom, events=False)
+        replica_xom.replica_thread.wait()
+        assert len(caplog.getrecords('checking existing file')) == 1
+
     @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
                         reason="OS doesn't support hard links")

@@ -1,0 +1,1 @@
+Support export directory layout for ``--replica-file-search-path`` option.

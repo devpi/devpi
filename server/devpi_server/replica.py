@@ -854,6 +854,13 @@ class FileReplicationThread:
             return
         path = os.path.join(self.file_search_path, entry.relpath)
         if not os.path.exists(path):
+            # look for file in export layout
+            path = os.path.join(
+                self.file_search_path,
+                entry.user, entry.index,
+                entry.project, entry.version,
+                entry.basename)
+        if not os.path.exists(path):
             threadlog.debug("path for existing file not found: %s", path)
             return
         threadlog.debug("checking existing file: %s", path)
