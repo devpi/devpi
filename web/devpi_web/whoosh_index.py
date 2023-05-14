@@ -35,12 +35,6 @@ hookimpl = HookimplMarker("devpiweb")
 devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
-try:
-    xrange
-except NameError:
-    xrange = range
-
-
 class ProjectNameTokenizer(Tokenizer):
     def __init__(self):
         self.expression = rcompile(r'(\W|_)')
@@ -160,15 +154,15 @@ class NgramFilter(Filter):
 
             if t.mode == "query":
                 size = min(self.max, len(t.text))
-                for start in xrange(0, len_text - size + 1):
+                for start in range(0, len_text - size + 1):
                     t.text = text[start:start + size]
                     if chars:
                         t.startchar = startchar + start
                         t.endchar = startchar + start + size
                     yield t
             else:
-                for start in xrange(0, len_text - self.min + 1):
-                    for size in xrange(self.min, self.max + 1):
+                for start in range(0, len_text - self.min + 1):
+                    for size in range(self.min, self.max + 1):
                         end = start + size
                         if end > len_text:
                             continue

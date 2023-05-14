@@ -1205,7 +1205,6 @@ class TestSubmitValidation:
 
 def test_submit_authorization(mapp, testapp):
     from base64 import b64encode
-    import sys
     api = mapp.create_and_use()
     testapp.auth = None
     data = {':action': 'submit', "name": "Pkg1", "version": "1.0"}
@@ -1214,8 +1213,7 @@ def test_submit_authorization(mapp, testapp):
     assert 'WWW-Authenticate' in r.headers
     basic_auth = '%s:%s' % (api.user, api.password)
     basic_auth = b"Basic " + b64encode(basic_auth.encode("ascii"))
-    if sys.version_info[0] >= 3:
-        basic_auth = basic_auth.decode("ascii")
+    basic_auth = basic_auth.decode("ascii")
     headers = {'Authorization': basic_auth}
     r = testapp.post(api.index + '/', data, headers=headers)
     assert r.status_code == 200
