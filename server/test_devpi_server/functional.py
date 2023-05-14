@@ -1,5 +1,4 @@
 # this file is shared via symlink with devpi-client,
-# so for the time being it must continue to work with Python 2
 from devpi_common.metadata import parse_version
 import pytest
 

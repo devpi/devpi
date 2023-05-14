@@ -73,16 +73,9 @@ class mocked_request:
     mock = mockresponse
 
 
-# BBB for Python 2.7
-try:
-    unicode
-except NameError:
-    unicode = str
-
-
 class ReqReply(HTTPResponse):
     def __init__(self, code, data, headers, on_request, reason=None):
-        if isinstance(data, unicode):
+        if isinstance(data, str):
             data = data.encode("utf-8")
         super(ReqReply, self).__init__(body=BytesIO(data),
                                        status=code,
