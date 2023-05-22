@@ -1379,6 +1379,7 @@ class TestLinkStore:
         assert link.entrypath.endswith("proj1-1.0.zip")
 
     def test_toxresult_create_remove(self, linkstore):
+        import hashlib
         linkstore.create_linked_entry(
             rel="releasefile", basename="proj1-1.0.zip",
             content_or_file=b'123')
@@ -1388,11 +1389,15 @@ class TestLinkStore:
         (link1, link2) = linkstore.get_links(rel="releasefile")
         assert link1.entrypath.endswith("proj1-1.0.zip")
 
-        linkstore.new_reflink(rel="toxresult", content_or_file=b'123', for_entrypath=link1)
-        linkstore.new_reflink(rel="toxresult", content_or_file=b'456', for_entrypath=link2)
+        tox_content1 = b'tox123'
+        linkstore.new_reflink(rel="toxresult", content_or_file=tox_content1, for_entrypath=link1)
+        tox_content2 = b'tox456'
+        linkstore.new_reflink(rel="toxresult", content_or_file=tox_content2, for_entrypath=link2)
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link1)
+        assert rlink.hash_value == hashlib.sha256(tox_content1).hexdigest()
         assert rlink.for_entrypath == link1.entrypath
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link2)
+        assert rlink.hash_value == hashlib.sha256(tox_content2).hexdigest()
         assert rlink.for_entrypath == link2.entrypath
 
         link1_entry = link1.entry  # queried below

@@ -9,6 +9,7 @@ from devpi_server.importexport import do_export, do_import
 from devpi_server.main import Fatal
 from devpi_common.archive import Archive, zip_dict
 from devpi_common.metadata import Version
+from devpi_common.types import parse_hash_spec
 from devpi_common.url import URL
 from io import BytesIO
 import importlib.resources
@@ -548,13 +549,19 @@ class TestImportExport:
             assert userconfig['indexes'] == {}
 
     def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
+        import hashlib
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         content = b'content'
         mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         path, = mapp1.get_release_paths("hello")
         path = path.strip("/")
-        mapp1.upload_toxresult("/%s" % path, json.dumps(tox_result_data))
+        toxresult_dump = json.dumps(tox_result_data)
+        toxresult_hash = hashlib.sha256(toxresult_dump.encode("utf-8")).hexdigest()
+        r = mapp1.upload_toxresult("/%s" % path, toxresult_dump)
+        toxresult_link = mapp1.getjson(f'/{r.json["result"]}')["result"]
+        (hash_type, hash_value) = parse_hash_spec(toxresult_link["hash_spec"])
+        assert hash_value == toxresult_hash
         impexp.export()
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.transaction(write=False):
@@ -574,6 +581,7 @@ class TestImportExport:
             linkstore = stage.get_linkstore_perstage(
                 link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
+            assert tox_link.hash_value == toxresult_hash
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
             assert history_log[0]['what'] == 'upload'

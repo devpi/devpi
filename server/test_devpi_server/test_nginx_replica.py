@@ -1,3 +1,4 @@
+from .functional import TestProjectThings as BaseTestProjectThings
 from .functional import TestUserThings as BaseTestUserThings
 from .functional import TestIndexThings as BaseTestIndexThings
 from .functional import TestIndexPushThings as BaseTestIndexPushThings
@@ -15,6 +16,11 @@ def mapp(makemapp, nginx_host_port, secretfile):
         yield app
     finally:
         app.xom.thread_pool.shutdown()
+
+
+@pytest.mark.skipif("not config.option.slow")
+class TestProjectThings(BaseTestProjectThings):
+    pass
 
 
 @pytest.mark.skipif("not config.option.slow")
