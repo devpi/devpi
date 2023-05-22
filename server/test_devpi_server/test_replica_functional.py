@@ -1,3 +1,4 @@
+from .functional import TestProjectThings as BaseTestProjectThings
 from .functional import TestUserThings as BaseTestUserThings
 from .functional import TestIndexThings as BaseTestIndexThings
 from .functional import TestIndexPushThings as BaseTestIndexPushThings
@@ -20,6 +21,11 @@ def replica_mapp(makemapp, master_host_port, secretfile):
 def mapp(replica_mapp):
     replica_mapp.xom.thread_pool.start_one(replica_mapp.xom.replica_thread)
     return replica_mapp
+
+
+@pytest.mark.skipif("not config.option.slow")
+class TestProjectThings(BaseTestProjectThings):
+    pass
 
 
 @pytest.mark.skipif("not config.option.slow")

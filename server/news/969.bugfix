@@ -1,0 +1,1 @@
+Fix wrong hash metadata introduced in 6.5.0 for toxresults which prevents replication. The metadata can be fixed by an export/import cycle.

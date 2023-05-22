@@ -5,9 +5,11 @@ import requests
 import tarfile
 import time
 
-from .functional import TestUserThings, TestIndexThings # noqa
+from .functional import TestIndexThings  # noqa: F401
+from .functional import TestProjectThings  # noqa: F401
+from .functional import TestUserThings  # noqa: F401
 try:
-    from .functional import TestMirrorIndexThings  # noqa
+    from .functional import TestMirrorIndexThings  # noqa: F401
 except ImportError:
     # when testing with older devpi-server
     class TestMirrorIndexThings:
@@ -15,7 +17,7 @@ except ImportError:
             pytest.skip(
                 "Couldn't import TestMirrorIndexThings from devpi server tests.")
 try:
-    from .functional import TestIndexPushThings  # noqa
+    from .functional import TestIndexPushThings  # noqa: F401
 except ImportError:
     # when testing with older devpi-server
     class TestIndexPushThings:
@@ -233,6 +235,11 @@ class Mapp(MappMixin):
         pkg = self.tmpdir.join(basename)
         pkg.write_binary(content)
         self.devpi('upload', pkg.strpath)
+
+    def upload_toxresult(self, url, content, code=200):
+        r = requests.post(url, content)
+        assert r.status_code == code
+        return r.json()
 
     def push(self, name, version, index, indexname=None, code=200):
         self.devpi('push', '%s==%s' % (name, version), index, code=code)

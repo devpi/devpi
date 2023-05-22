@@ -15,8 +15,11 @@ from devpi_server.config import hookimpl
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from devpi_server.mirror import parse_index
 from io import BytesIO
-from .functional import TestUserThings, TestIndexThings, TestIndexPushThings  # noqa
-from .functional import TestMirrorIndexThings  # noqa
+from .functional import TestIndexThings  # noqa: F401
+from .functional import TestIndexPushThings  # noqa: F401
+from .functional import TestProjectThings  # noqa: F401
+from .functional import TestUserThings  # noqa: F401
+from .functional import TestMirrorIndexThings  # noqa: F401
 
 import devpi_server.filestore
 from devpi_server.filestore import get_default_hash_spec, make_splitdir

@@ -348,6 +348,27 @@ class TestIndexPushThings:
 
 
 @pytest.mark.nomocking
+class TestProjectThings:
+    def test_toxresult(self, mapp):
+        import json
+        mapp.create_and_use('pruser1/dev')
+        content = mapp.makepkg("hello-1.0.tar.gz", b"content", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        (pkg_url,) = mapp.getreleaseslist("hello")
+        tox_result_data = dict(foo="bar")
+        mapp.upload_toxresult(pkg_url, json.dumps(tox_result_data))
+        info = mapp.getjson("/%s/hello" % mapp.api.stagename)
+        (toxresult_url,) = [
+            x["href"]
+            for x in info["result"]["1.0"]["+links"]
+            if "for_href" in x]
+        r = mapp.downloadrelease(200, pkg_url)
+        assert r == content
+        r = mapp.downloadrelease(200, toxresult_url)
+        assert json.loads(r.decode('utf-8')) == tox_result_data
+
+
+@pytest.mark.nomocking
 class TestMirrorIndexThings:
     def test_create_and_delete_mirror_index(self, mapp, simpypi):
         mapp.create_and_login_user('mirror1')

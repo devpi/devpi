@@ -139,15 +139,12 @@ class FileStore:
         # dir_hash_spec is set for toxresult files
         if dir_hash_spec is None:
             dir_hash_spec = get_default_hash_spec(content_or_file)
-        # prevent hashing twice
-        hash_spec = dir_hash_spec
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
         key = self.keyfs.STAGEFILE(
             user=user, index=index,
             hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
         entry = FileEntry(key, readonly=False)
-        entry.file_set_content(
-            content_or_file, hash_spec=hash_spec)
+        entry.file_set_content(content_or_file)
         return entry
 
 
