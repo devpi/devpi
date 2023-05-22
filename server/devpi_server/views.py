@@ -592,7 +592,8 @@ class PyPIView:
             abort(request, 502, e.msg)
 
         if not result:
-            self.request.context.verified_project  # access will trigger 404 if not found
+            # access of verified_project will trigger 404 if not found
+            self.request.context.verified_project  # noqa: B018
 
         if requested_by_installer:
             # we don't need the extra stuff on the simple page for pip

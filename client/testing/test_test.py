@@ -406,7 +406,7 @@ class TestFunctional:
 
     def test_no_post(self, out_devpi, create_and_upload, monkeypatch):
         def post(*args, **kwargs):
-            0 / 0
+            0 / 0  # noqa: B018
 
         create_and_upload("exa-1.0", filedefs={
             "tox.ini": """

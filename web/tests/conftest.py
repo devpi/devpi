@@ -1,20 +1,20 @@
-from test_devpi_server.conftest import gentmp, httpget, makemapp  # noqa
-from test_devpi_server.conftest import maketestapp, makexom, mapp  # noqa
-from test_devpi_server.conftest import pypiurls, testapp, pypistage  # noqa
-from test_devpi_server.conftest import dummyrequest, pypiurls, testapp  # noqa
-from test_devpi_server.conftest import simpypi, simpypiserver  # noqa
-from test_devpi_server.conftest import storage_info  # noqa
-from test_devpi_server.conftest import mock, pyramidconfig  # noqa
-from test_devpi_server.conftest import speed_up_sqlite  # noqa
-from test_devpi_server.conftest import speed_up_sqlite_fs  # noqa
+from test_devpi_server.conftest import gentmp, httpget, makemapp  # noqa: F401
+from test_devpi_server.conftest import maketestapp, makexom, mapp  # noqa: F401
+from test_devpi_server.conftest import pypiurls, testapp, pypistage  # noqa: F401
+from test_devpi_server.conftest import dummyrequest  # noqa: F401
+from test_devpi_server.conftest import simpypi, simpypiserver  # noqa: F401
+from test_devpi_server.conftest import storage_info  # noqa: F401
+from test_devpi_server.conftest import mock, pyramidconfig  # noqa: F401
+from test_devpi_server.conftest import speed_up_sqlite  # noqa: F401
+from test_devpi_server.conftest import speed_up_sqlite_fs  # noqa: F401
 try:
-    from test_devpi_server.conftest import lower_argon2_parameters  # noqa
+    from test_devpi_server.conftest import lower_argon2_parameters  # noqa: F401
 except ImportError:
     pass
 import pytest
 
 
-(makexom,)  # shut up pyflakes
+(makexom,)  # noqa: B018 shut up pyflakes
 
 
 def pytest_addoption(parser):

@@ -100,7 +100,7 @@ def test_clear_index_cmd(monkeypatch, tmpdir):
 
         def create_app(self):
             # if the webserver is started, we fail
-            0 / 0
+            0 / 0  # noqa: B018
 
     calls = []
 

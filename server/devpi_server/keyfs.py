@@ -539,7 +539,7 @@ class Transaction(object):
         self.write = write
         if self.write:
             # open connection immediately
-            self.conn
+            self.conn  # noqa: B018
         if at_serial is None:
             at_serial = self.conn.last_changelog_serial
         self.at_serial = at_serial

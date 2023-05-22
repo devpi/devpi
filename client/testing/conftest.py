@@ -12,7 +12,7 @@ import sys
 import json
 import time
 
-from .reqmock import reqmock  # noqa
+from .reqmock import reqmock  # noqa: F401 (definition of reqmock fixture)
 from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 
@@ -689,7 +689,7 @@ def makehub(tmpdir_factory):
 
 
 @pytest.fixture
-def mock_http_api(monkeypatch, reqmock):  # noqa
+def mock_http_api(monkeypatch, reqmock):  # noqa: F811 (reqmock)
     """ mock out all Hub.http_api calls and return an object
     offering 'set' and 'add' to fake replies. """
     from devpi import main
