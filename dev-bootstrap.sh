@@ -7,4 +7,4 @@ if test "$VIRTUAL_ENV" == ""; then
 fi
 
 pip uninstall -y devpi-{common,client,server,web}
-pip install -U --upgrade-strategy eager --no-use-pep517 -r dev-requirements.txt
+pip install -U --upgrade-strategy eager -r dev-requirements.txt
