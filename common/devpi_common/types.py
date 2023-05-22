@@ -1,5 +1,5 @@
 from __future__ import absolute_import, unicode_literals
-from lazy import lazy as cached_property  # noqa
+from lazy import lazy as cached_property  # noqa: F401 must be importable
 from types import FunctionType
 import hashlib
 import operator

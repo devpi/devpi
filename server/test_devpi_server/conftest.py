@@ -13,7 +13,7 @@ import socket
 import sys
 import time
 from .functional import MappMixin
-from .reqmock import reqmock, patch_reqsessionmock  # noqa
+from .reqmock import reqmock, patch_reqsessionmock  # noqa: F401 (definition of fixtures)
 from bs4 import BeautifulSoup
 from contextlib import closing
 from devpi_server import mirror

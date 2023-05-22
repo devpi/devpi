@@ -1,19 +1,19 @@
 [tool.ruff]
 select = [
     "B", "COM", "DTZ", "E", "ERA", "EXE", "F",
-    "ICN", "ISC", "PIE", "PLC", "PLE", "PLR", "PLW",
+    "ICN", "ISC", "PGH", "PIE", "PLC", "PLE", "PLR", "PLW",
     "RUF", "SIM", "T10", "TID", "TRY", "W", "YTT",
 ]
 ignore = [
     "B007", # maybe cleanup later
     "B008", # cleanup later
-    "B018", # cleanup later
     "B904", # maybe cleanup later
     "COM812", # cleanup later
     "DTZ001", # cleanup soon
     "E501",
     "E741",
     "ERA001", # cleanup soon
+    "PGH003", # cleanup later
     "PIE804", # cleanup later
     "PIE808", # maybe cleanup later
     "PLC1901", # maybe cleanup later

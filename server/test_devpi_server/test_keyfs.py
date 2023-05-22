@@ -691,7 +691,7 @@ class TestSubscriber:
 
         def failing(event):
             queue.put("willfail")
-            0/0
+            0/0  # noqa: B018
 
         keyfs.notifier.on_key_change(key1, failing)
         keyfs.notifier.on_key_change(key1, queue.put)

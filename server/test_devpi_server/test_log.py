@@ -40,7 +40,7 @@ def test_taglogger_prefix(caplog):
 
 def test_taglogger_exception(taglogger, caplog):
     try:
-        0/0
+        0 / 0  # noqa: B018
     except Exception:
         taglogger.exception("this")
     assert caplog.getrecords()[0].exc_info

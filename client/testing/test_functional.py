@@ -336,9 +336,9 @@ def new_user_id(gen, mapp):
     """
     user_id = "tmp_%s_%s" % (gen.user(), str(time.time()))
     yield user_id
-    try:
+    try:  # noqa: SIM105
         mapp.delete_user(user=user_id, code=201)
-    except:  # noqa
+    except:  # noqa: E722
         # We need a bare except here, because there are exceptions from
         # pytest and other places which don't derive from Exception and
         # listing them all would be long and not future proof
