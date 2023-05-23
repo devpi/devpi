@@ -1,1 +1,0 @@
-Fix #945: Adapt FatalError to be usable as an async HTTP response when updating a project on a mirror.

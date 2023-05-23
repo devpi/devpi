@@ -1,1 +1,0 @@
-Fix #931: Add ``mirror_no_project_list`` setting for mirror indexes that have no full project list like google cloud artifacts or if you want to prevent downloading the full list for huge indexes like PyPI.
