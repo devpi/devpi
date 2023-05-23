@@ -2,6 +2,31 @@
 
 .. towncrier release notes start
 
+6.9.0 (2023-05-23)
+==================
+
+Features
+--------
+
+- Support export directory layout for ``--replica-file-search-path`` option.
+
+- Fix #931: Add ``mirror_no_project_list`` setting for mirror indexes that have no full project list like google cloud artifacts or if you want to prevent downloading the full list for huge indexes like PyPI.
+
+
+Bug Fixes
+---------
+
+- Keep a reference to async tasks to avoid their removal mid execution.
+
+- Support changed default of ``enforce_content_length`` in urllib3 >= 2.
+
+- Fix #934: Properly set PATH_INFO when outside URL is used with sub-path.
+
+- Fix #945: Adapt FatalError to be usable as an async HTTP response when updating a project on a mirror.
+
+- Fix wrong hash metadata introduced in 6.5.0 for toxresults which prevents replication. The metadata can be fixed by an export/import cycle.
+
+
 6.8.0 (2022-12-05)
 ==================
 
