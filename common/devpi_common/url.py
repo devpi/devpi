@@ -194,12 +194,6 @@ class URL:
         return self._parsed.fragment
 
     @cached_property
-    def eggfragment(self):
-        frag = self.fragment
-        if frag.startswith("egg="):
-            return frag[4:]
-
-    @cached_property
     def md5(self):
         val = self.fragment
         if val.startswith("md5="):
