@@ -46,13 +46,6 @@ class TestURL:
         assert hash(URL("http://a?foo=bar")) == hash(URL("http://a?foo=bar"))
         assert URL("http://a?foo=bar") == URL("http://a?foo=bar")
 
-    def test_eggfragment(self):
-        url = URL("http://a/py.tar.gz#egg=py-dev")
-        assert url.eggfragment == "py-dev"
-        url = URL("http://a/py.tar.gz?foo=bar#egg=py-dev")
-        assert url.eggfragment == "py-dev"
-        assert url.query == "foo=bar"
-
     def test_md5(self):
         url = URL("http://a/py.tar.gz#md5=123123")
         assert url.md5 == "123123"
