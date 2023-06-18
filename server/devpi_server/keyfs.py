@@ -765,7 +765,11 @@ class Transaction(object):
             "restarting %s transaction afresh as %s transaction",
             "write" if self.write else "read",
             "write" if write else "read")
-        newtx = self.__class__(self.keyfs, write=write)
+        try:
+            newtx = self.__class__(self.keyfs, write=write)
+        except BaseException:
+            self.doomed = True
+            raise
         self.__dict__ = newtx.__dict__
 
     def doom(self):
