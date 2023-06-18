@@ -28,6 +28,10 @@ from devpi_common.types import cached_property
 absent = object()
 
 
+class KeyfsTimeoutError(TimeoutError):
+    pass
+
+
 class MissingFileException(Exception):
     def __init__(self, relpath, serial):
         msg = "missing file '%s' at serial %s" % (relpath, serial)
