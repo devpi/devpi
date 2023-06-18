@@ -116,7 +116,11 @@ class BaseConnection:
         self._sqlconn.commit()
 
     def rollback(self):
-        self._sqlconn.rollback()
+        try:
+            self._sqlconn.rollback()
+        except sqlite3.ProgrammingError as e:
+            if not e.args or 'closed database' not in e.args[0]:
+                raise
 
     @cached_property
     def last_changelog_serial(self):
