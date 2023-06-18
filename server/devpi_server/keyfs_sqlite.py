@@ -2,6 +2,7 @@ from devpi_common.types import cached_property
 from .config import hookimpl
 from .fileutil import dumps, loads
 from .interfaces import IStorageConnection2
+from .keyfs import KeyfsTimeoutError
 from .keyfs import RelpathInfo
 from .keyfs import get_relpath_at
 from .log import threadlog, thread_push_log, thread_pop_log
@@ -441,7 +442,8 @@ class BaseStorage(object):
                     elapsed = time.monotonic() - start_time
                     if elapsed > timeout:
                         # if it takes this long, something is wrong
-                        raise TimeoutError(f"Timeout after {elapsed} seconds.") from e
+                        raise KeyfsTimeoutError(
+                            f"Timeout after {int(elapsed)} seconds.") from e
         conn = self.Connection(sqlconn, self.basedir, self)
         if closing:
             return contextlib.closing(conn)

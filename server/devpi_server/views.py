@@ -16,6 +16,7 @@ from pyramid.interfaces import IRootFactory
 from pyramid.interfaces import IRoutesMapper
 from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
 from pyramid.httpexceptions import HTTPForbidden
+from pyramid.httpexceptions import HTTPInternalServerError
 from pyramid.httpexceptions import HTTPOk
 from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.httpexceptions import exception_response
@@ -36,9 +37,11 @@ from devpi_common.request import new_requests_session
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
 from .config import hookimpl
+from .exceptions import lazy_format_exception_only
 from .filestore import BadGateway
 from .filestore import get_checksum_error
 from .fileutil import buffered_iterator
+from .keyfs import KeyfsTimeoutError
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
 from .model import ReadonlyIndex
 from .model import RemoveValue
@@ -223,7 +226,13 @@ def tween_keyfs_transaction(handler, registry):
         write = is_mutating_http_method(request.method) and not is_replica
         with keyfs.transaction(write=write) as tx:
             threadlog.debug("in-transaction %s", tx.at_serial)
-            response = handler(request)
+            try:
+                response = handler(request)
+            except KeyfsTimeoutError as e:
+                msg = lazy_format_exception_only(e)
+                threadlog.error(
+                    "Keyfs timeout: %s", msg)
+                return HTTPInternalServerError(msg)
         set_header_devpi_serial(response, tx)
         return response
     return request_tx_handler
