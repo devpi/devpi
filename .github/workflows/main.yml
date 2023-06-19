@@ -43,10 +43,6 @@ jobs:
       matrix:
         include:
           - project: "common"
-            python-version: "2.7"
-            os: "ubuntu-20.04"
-            tox-envs: "py27"
-          - project: "common"
             python-version: "pypy-2.7"
             os: "ubuntu-latest"
             tox-envs: "pypy"
@@ -95,9 +91,9 @@ jobs:
       matrix:
         include:
           - project: "client"
-            python-version: "2.7"
-            os: "ubuntu-20.04"
-            tox-envs: "py27-server520"
+            python-version: "3.7"
+            os: "ubuntu-latest"
+            tox-envs: "py37-server520"
           - project: "web"
             python-version: "3.5"
             os: "ubuntu-20.04"
@@ -135,10 +131,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - project: "client"
-            python-version: "2.7"
-            os: "ubuntu-20.04"
-            tox-envs: "py27,py27-version"
           - project: "client"
             python-version: "3.5"
             os: "ubuntu-20.04"
