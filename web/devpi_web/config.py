@@ -8,8 +8,6 @@ def get_pluginmanager(config, load_entry_points=True):
     if pm is not None:
         return pm
     pm = PluginManager("devpiweb")
-    # support old plugins, but emit deprecation warnings
-    pm._implprefix = "devpiweb_"
     pm.add_hookspecs(hookspecs)
     if load_entry_points:
         pm.load_setuptools_entrypoints("devpi_web")
