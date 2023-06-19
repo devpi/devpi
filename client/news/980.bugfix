@@ -1,0 +1,1 @@
+Fix #980: Remove long deprecated backward compatibility for old pluggy versions to fix error with pluggy 1.1.0.

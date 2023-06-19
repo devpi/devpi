@@ -45,8 +45,6 @@ def strtobool(val):
 
 def get_pluginmanager(load_entrypoints=True):
     pm = PluginManager("devpiserver")
-    # support old plugins, but emit deprecation warnings
-    pm._implprefix = "devpiserver_"
     pm.add_hookspecs(hookspecs)
     # XXX load internal plugins here
     if load_entrypoints:
