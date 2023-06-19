@@ -1,5 +1,9 @@
 from copy import deepcopy
 from operator import attrgetter
+try:
+    from urllib.parse import quote as url_quote
+except ImportError:
+    from urllib import quote as url_quote  # noqa: F401
 import itertools
 import os
 import sys
@@ -67,8 +71,9 @@ class Current(object):
         indexserver = URL(self.simpleindex)
         basic_auth = self.get_basic_auth(indexserver)
         if basic_auth:
-            indexserver = indexserver.replace(netloc="%s@%s" % (
-                ':'.join(basic_auth), indexserver.netloc))
+            (username, password) = basic_auth
+            indexserver = indexserver.replace(
+                username=url_quote(username), password=url_quote(password))
         return indexserver.url
 
     @property
@@ -76,8 +81,9 @@ class Current(object):
         indexserver = self.get_index_url()
         basic_auth = self.get_basic_auth(indexserver)
         if basic_auth:
-            indexserver = indexserver.replace(netloc="%s@%s" % (
-                ':'.join(basic_auth), indexserver.netloc))
+            (username, password) = basic_auth
+            indexserver = indexserver.replace(
+                username=url_quote(username), password=url_quote(password))
         return indexserver.url
 
     @property
@@ -157,7 +163,7 @@ class Current(object):
         auth = self.get_auth()
         if auth is not None:
             url = url.replace(
-                username=auth[0], password=auth[1])
+                username=url_quote(auth[0]), password=url_quote(auth[1]))
         return url
 
     def _get_basic_auth_dict(self):
