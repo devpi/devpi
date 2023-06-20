@@ -1,0 +1,1 @@
+Added stripped down TerminalWriter from ``py`` library which only supports coloring.
