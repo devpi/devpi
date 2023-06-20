@@ -1,4 +1,5 @@
 from __future__ import print_function
+from _pytest import capture
 from contextlib import closing
 from devpi_common.metadata import parse_version
 from io import StringIO
@@ -522,8 +523,11 @@ def ext_devpi(request, tmpdir, devpi):
 def out_devpi(devpi):
     def out_devpi_func(*args, **kwargs):
         from _pytest.pytester import RunResult
-        cap = py.io.StdCaptureFD()
-        cap.startall()
+        cap = capture.MultiCapture(
+            in_=capture.FDCapture(0),
+            out=capture.FDCapture(1),
+            err=capture.FDCapture(2))
+        cap.start_capturing()
         now = time.time()
         ret = 0
         try:
@@ -532,7 +536,8 @@ def out_devpi(devpi):
                 if getattr(hub, "sysex", None):
                     ret = hub.sysex.args[0]
             finally:
-                out, err = cap.reset()
+                (out, err) = cap.readouterr()
+                cap.stop_capturing()
                 del cap
         except BaseException:
             print(out)
