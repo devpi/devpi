@@ -48,10 +48,7 @@ def devpipostgresql_postgresql(request):
     tmpdir = py.path.local(
         tempfile.mkdtemp(prefix='test-', suffix='-devpi-postgresql'))
     try:
-        cap = py.io.StdCaptureFD()
-        cap.startall()
         subprocess.check_call(['initdb', tmpdir.strpath])
-        cap.reset()
 
         postgresql_conf_lines = [
             "fsync = off",
@@ -90,18 +87,12 @@ def devpipostgresql_postgresql(request):
             f.write("\n".join(postgresql_conf_lines))
 
         port = get_open_port(host)
-        cap = py.io.StdCaptureFD()
-        cap.startall()
         p = subprocess.Popen([
             'postgres', '-D', tmpdir.strpath, '-h', host, '-p', str(port)])
         wait_for_port(host, port)
-        cap.reset()
         try:
-            cap = py.io.StdCaptureFD()
-            cap.startall()
             subprocess.check_call([
                 'createdb', '-h', host, '-p', str(port), 'devpi'])
-            cap.reset()
             user = getpass.getuser()
 
             settings = dict(host=host, port=port, user=user)
