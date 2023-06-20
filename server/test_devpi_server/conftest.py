@@ -1,3 +1,4 @@
+from _pytest import capture
 import re
 from webtest.forms import Upload
 import json
@@ -1040,8 +1041,11 @@ def call_devpi_in_dir():
         from _pytest.pytester import RunResult
         m = MonkeyPatch()
         m.setenv("DEVPISERVER_SERVERDIR", getattr(server_dir, 'strpath', server_dir))
-        cap = py.io.StdCaptureFD()
-        cap.startall()
+        cap = capture.MultiCapture(
+            in_=capture.FDCapture(0),
+            out=capture.FDCapture(1),
+            err=capture.FDCapture(2))
+        cap.start_capturing()
         now = time.time()
         if args[0] == 'devpi-gen-config':
             m.setattr("sys.argv", [devpigenconfig])
@@ -1059,7 +1063,8 @@ def call_devpi_in_dir():
             entry_point(argv=args)
         finally:
             m.undo()
-            out, err = cap.reset()
+            (out, err) = cap.readouterr()
+            cap.stop_capturing()
             del cap
         return RunResult(
             0, out.split("\n"), err.split("\n"), time.time() - now)
