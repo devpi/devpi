@@ -11,6 +11,7 @@ import textwrap
 from base64 import b64encode
 from contextlib import closing, contextmanager
 from devpi import hookspecs
+from devpi_common.terminal import TerminalWriter
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi.use import PersistentCurrent
@@ -66,7 +67,7 @@ notset = object()
 
 class Hub:
     def __init__(self, args, file=None, pm=None):
-        self._tw = py.io.TerminalWriter(file=file)
+        self._tw = TerminalWriter(file)
         self.args = args
         self.cwd = py.path.local()
         self.quiet = False
