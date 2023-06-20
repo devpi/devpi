@@ -10,6 +10,7 @@ description = "devpi upload/install/... workflow commands for Python developers"
 dependencies = [
     "build",
     "check-manifest>=0.28",
+    "colorama;platform_system=='Windows'",
     "devpi_common<5,>=4dev",
     "iniconfig",
     "pkginfo>=1.4.2",
