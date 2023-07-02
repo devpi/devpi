@@ -293,12 +293,20 @@ class Current(object):
             hub.info("Using existing client cert for '%s'." % url.url)
 
         def call_http_api(verify):
-            return hub.http_api(
+            r = hub.http_api(
                 "get", url.addpath("+api"), quiet=True,
                 auth=self.get_auth(url=url),
+                fatal=False,
                 basic_auth=basic_auth or self.get_basic_auth(url=url),
                 cert=client_cert or self.get_client_cert(url=url),
                 verify=verify)
+            if r.status_code == 403:
+                r = hub.http_api(
+                    "get", url.addpath("+api"), quiet=True,
+                    basic_auth=basic_auth or self.get_basic_auth(url=url),
+                    cert=client_cert or self.get_client_cert(url=url),
+                    verify=verify)
+            return r
         try:
             # Try calling http_api with ssl verification active
             r = call_http_api(verify=True)
