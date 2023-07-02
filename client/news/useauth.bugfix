@@ -1,1 +1,0 @@
-Remember URL when ``devpi use`` causes a 403, so one can use ``devpi login`` afterwards.

@@ -1,1 +1,0 @@
-Prevent error in find_pre_existing_file in case of incomplete metadata.

@@ -2,6 +2,19 @@
 
 .. towncrier release notes start
 
+6.0.5 (2023-07-02)
+==================
+
+Bug Fixes
+---------
+
+- Remember URL when ``devpi use`` causes a 403, so one can use ``devpi login`` afterwards.
+
+- Fix #978: Quote username and password when adding to URL.
+
+- Fix #980: Remove long deprecated backward compatibility for old pluggy versions to fix error with pluggy 1.1.0.
+
+
 6.0.4 (2023-04-13)
 ==================
 
