@@ -29,8 +29,8 @@ ignore = [
     "PLR5501", # cleanup soon
     "PLW0120", # cleanup soon
     "PLW2901", # maybe cleanup later
-    "RUF004", # devpi-common 4.x
     "RUF005", # cleanup later
+    "RUF012", # cleanup later
     "RUF100", # after soon to cleanup
     "SIM102", # maybe cleanup later
     "SIM105", # cleanup soon
