@@ -1,1 +1,0 @@
-Fix #953: Exception when browsers send ETag for documentation pages.

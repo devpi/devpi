@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+4.2.1 (2023-07-02)
+==================
+
+Bug Fixes
+---------
+
+- Fix #953: Exception when browsers send ETag for documentation pages.
+
+- Fix #980: Remove long deprecated backward compatibility for old pluggy versions to fix error with pluggy 1.1.0.
+
+
 4.2.0 (2022-12-05)
 ==================
 
