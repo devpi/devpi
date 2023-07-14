@@ -16,7 +16,7 @@ from devpi_common.metadata import parse_version
 from devpi_common.validation import normalize_name
 from functools import partial
 from html.parser import HTMLParser
-from .config import hookimpl
+from .config import hookimpl, get_pluginmanager
 from .exceptions import lazy_format_exception
 from .filestore import key_from_link
 from .model import BaseStageCustomizer
@@ -208,14 +208,16 @@ class MirrorStage(BaseStage):
 
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         extra_headers = self._get_extra_headers(extra_headers)
+        url = URL(url).replace(**self.mirror_url_auth)
         return await self.xom.async_httpget(
-            url=URL(url).url, allow_redirects=allow_redirects, timeout=timeout,
+            url=url.url, allow_redirects=allow_redirects, timeout=timeout,
             extra_headers=extra_headers)
 
     def httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
         extra_headers = self._get_extra_headers(extra_headers)
+        url = URL(url).replace(**self.mirror_url_auth)
         return self.xom.httpget(
-            url=URL(url).url, allow_redirects=allow_redirects, timeout=timeout,
+            url=url.url, allow_redirects=allow_redirects, timeout=timeout,
             extra_headers=extra_headers)
 
     @property
@@ -234,6 +236,10 @@ class MirrorStage(BaseStage):
     @property
     def mirror_url_auth(self):
         url = self.mirror_url
+        pm = get_pluginmanager()
+        auth = pm.hook.devpiserver_get_mirror_auth(mirror_url=url)
+        if auth:
+            return auth[0]
         return dict(username=url.username, password=url.password)
 
     @property

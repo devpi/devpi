@@ -201,6 +201,17 @@ def devpiserver_auth_denials(request, acl, user, stage):
 
 
 @hookspec
+def devpiserver_get_mirror_auth(mirror_url):
+    """Provide basic auth username and password to access a mirror.
+
+    Return a dict with "username" and "password" entries which will be
+    injected into the mirror_url.
+
+    Return None if no credentials can be determined for the supplied url.
+    """
+
+
+@hookspec
 def devpiserver_get_stage_customizer_classes():
     """EXPERIMENTAL!
 
