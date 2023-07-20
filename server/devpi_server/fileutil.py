@@ -101,10 +101,8 @@ def load(fp, _from_bytes=int.from_bytes, _unpack=unpack):
         elif opcode == b'T':  # complex
             stack_append(complex(_unpack("!d", read(8))[0], _unpack("!d", read(8))[0]))
         else:
-            # the typo is also in execnet and we compare execnet output directly
-            # in tests, so it needs to be here
             raise LoadError(
-                "unkown opcode %r - wire protocol corruption?" % opcode)
+                "unknown opcode %r - wire protocol corruption?" % opcode)
     if not stopped:
         raise LoadError("didn't get STOP")
     if len(stack) != 1:

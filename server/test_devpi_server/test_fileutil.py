@@ -24,9 +24,9 @@ def _dumps(obj):
 
 def test_execnet_opcodes():
     # we need to make sure execnet doesn't change
-    assert list(Unserializer.num2func.keys()) == [
+    assert set(Unserializer.num2func.keys()) == {
         b'@', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'J', b'K',
-        b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T']
+        b'L', b'M', b'N', b'O', b'P', b'Q', b'R', b'S', b'T'}
 
 
 @pytest.mark.parametrize('data, expected', [
@@ -108,7 +108,8 @@ def test_dumps_bad_type():
 def test_loads_bad_data():
     with pytest.raises(_LoadError) as e:
         _loads(b'foo')
-    msg = str(e.value)
+    # fix typo from execnet < 2.x
+    msg = str(e.value).replace('unkown opcode', 'unknown opcode')
     with pytest.raises(LoadError) as e:
         loads(b'foo')
     assert msg == str(e.value)
