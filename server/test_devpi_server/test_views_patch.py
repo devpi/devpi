@@ -29,6 +29,10 @@ def test_index_patch(testapp):
     testapp.patch_json("/foo/dev", ["acl_upload+=bar"])
     r = testapp.get("/foo/dev")
     assert r.json['result']['acl_upload'] == ['foo', 'bar']
+    # add again to acl_upload with error
+    r = testapp.patch_json("/foo/dev?error_on_noop", ["acl_upload+=bar"], expect_errors=True)
+    assert r.status_code == 400
+    assert r.json['message'] == "The requested modifications resulted in no changes"
     # remove from acl_upload
     testapp.patch_json("/foo/dev", ["acl_upload-=bar"])
     r = testapp.get("/foo/dev")
