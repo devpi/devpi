@@ -25,6 +25,10 @@ def test_index_patch(testapp):
     testapp.patch_json("/foo/dev", ["acl_upload+=bar"])
     r = testapp.get("/foo/dev")
     assert r.json['result']['acl_upload'] == ['foo', 'bar']
+    # add again to acl_upload
+    testapp.patch_json("/foo/dev", ["acl_upload+=bar"])
+    r = testapp.get("/foo/dev")
+    assert r.json['result']['acl_upload'] == ['foo', 'bar']
     # remove from acl_upload
     testapp.patch_json("/foo/dev", ["acl_upload-=bar"])
     r = testapp.get("/foo/dev")
