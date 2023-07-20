@@ -416,7 +416,7 @@ def version_in_filename(version, filename):
     if version in filename:
         return True
     # PEP 427 escaped wheels
-    if re.sub(r"[^\w\d.]+", "_", version, re.UNICODE) in filename:
+    if re.sub(r"[^\w\d.]+", "_", version, flags=re.UNICODE) in filename:
         return True
     return False
 
