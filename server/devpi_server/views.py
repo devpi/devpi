@@ -879,10 +879,11 @@ class PyPIView:
                     else:
                         ixconfig[key].remove(value)
                 elif op == 'add':
-                    if isinstance(ixconfig[key], tuple):
-                        ixconfig[key] += (value,)
-                    else:
-                        ixconfig[key].append(value)
+                    if value not in ixconfig[key]:
+                        if isinstance(ixconfig[key], tuple):
+                            ixconfig[key] += (value,)
+                        else:
+                            ixconfig[key].append(value)
                 elif op == 'set':
                     ixconfig[key] = value
                 elif op == 'drop':
