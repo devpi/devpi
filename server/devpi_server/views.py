@@ -894,6 +894,8 @@ class PyPIView:
         if json.get('type') == 'indexconfig' and 'result' in json:
             json = json['result']
         oldconfig = dict(stage.ixconfig)
+        if 'error_on_noop' in self.request.params and oldconfig == json:
+            apireturn(400, message="The requested modifications resulted in no changes")
         try:
             ixconfig = stage.modify(**json)
         except InvalidIndexconfig as e:
