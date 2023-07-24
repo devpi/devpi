@@ -215,7 +215,7 @@ def doc_show(context, request):
                 project=name, version='latest', relpath="index.html")))
     try:
         stable_doc_info = get_doc_info(context, request, version='stable', check_content=False)
-        if stable_doc_info['doc_version'] != doc_info['doc_version'] and stable_doc_info['doc_version'] != latest_doc_info['doc_version']:
+        if stable_doc_info['doc_version'] not in (doc_info['doc_version'], latest_doc_info['doc_version']):
             version_links.append(dict(
                 title="Stable documentation",
                 url=request.route_url(

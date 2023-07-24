@@ -70,7 +70,7 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
                 start_response(200, headers)
                 self.wfile.write(b'\n'.join(releases))
                 return
-        elif p == ['', 'simple', ''] or p == ['', 'simple']:
+        elif p in (['', 'simple', ''], ['', 'simple']):
             # root listing
             projects = [
                 '<a href="/simple/%s/">%s</a>' % (k, v['title'])
