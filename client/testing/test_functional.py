@@ -127,7 +127,7 @@ class Mapp(MappMixin):
 
     def change_password(self, user, password):
         auth = getattr(self, "auth", None)
-        if auth is None or auth[0] != user and auth[0] != "root":
+        if auth is None or auth[0] not in (user, "root"):
             raise ValueError("need to be logged as %r or root" % user)
         self.devpi("user", "-m", user, "password=%s" % password)
         if user == "root" and password != "":
