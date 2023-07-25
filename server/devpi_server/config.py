@@ -56,6 +56,24 @@ def get_pluginmanager(load_entrypoints=True):
     return pm
 
 
+def traced_pluggy_call(hook, **caller_kwargs):
+    firstresult = hook.spec.opts.get("firstresult", False) if hook.spec else False
+    results = []
+    plugin_names = []
+    hookimpls = hook._hookimpls if hasattr(hook, '_hookimpls') else hook.get_hookimpls()
+    for hook_impl in reversed(hookimpls):
+        args = [caller_kwargs[argname] for argname in hook_impl.argnames]
+        res = hook_impl.function(*args)
+        if res is not None:
+            results.append(res)
+            plugin_names.append(hook_impl.plugin_name)
+            if firstresult:
+                break
+    if firstresult:
+        results = results[0] if results else None
+    return (results, plugin_names)
+
+
 def add_help_option(parser, pluginmanager):
     parser.addoption(
         "-h", "--help",

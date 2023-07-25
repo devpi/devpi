@@ -4,6 +4,7 @@ from devpi_common.types import ensure_unicode
 from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
 from devpi_server.config import hookimpl
+from devpi_server.config import traced_pluggy_call
 from devpi_server.views import abort
 from devpi_server.model import BaseStage
 from devpi_server.model import UpstreamError
@@ -218,12 +219,23 @@ class DevpiSecurityPolicy:
         return [('WWW-Authenticate', 'Basic realm="%s"' % self.realm)]
 
     def _get_credentials(self, request):
-        return self.hook.devpiserver_get_credentials(request=request)
+        return traced_pluggy_call(
+            self.hook.devpiserver_get_credentials,
+            request=request)
 
     def load_identity(self, request):
-        credentials = self._get_credentials(request)
-        return self.hook.devpiserver_get_identity(
+        (credentials, plugin_names) = self._get_credentials(request)
+        credential_plugin_name = plugin_names[0] if plugin_names else None
+        (result, plugin_names) = traced_pluggy_call(
+            self.hook.devpiserver_get_identity,
             request=request, credentials=credentials)
+        identity_plugin_name = plugin_names[0] if plugin_names else None
+        self.hook.devpiserver_identity_loaded(
+            request=request,
+            credential_plugin_name=credential_plugin_name,
+            identity_plugin_name=identity_plugin_name,
+            identity=result)
+        return result
 
     def identity(self, request):
         return self.identity_cache.get_or_create(request)

@@ -12,6 +12,8 @@ class TestCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            __name__ = 'TestCredentialPlugin'
+
             @hookimpl
             def devpiserver_get_credentials(self, request):  # noqa: ARG002
                 return self.results.pop()
@@ -25,18 +27,20 @@ class TestCredentialPlugin:
     def test_credential_plugin_no_credentials(self, blank_request, dsp, plugin):
         plugin.results = [None]
         request = blank_request()
-        assert dsp._get_credentials(request) is None
+        assert dsp._get_credentials(request) == (None, [])
 
     def test_credential_plugin_got_credentials(self, blank_request, dsp, plugin):
         plugin.results = [('foo', 'bar')]
         request = blank_request()
-        assert dsp._get_credentials(request) == ('foo', 'bar')
+        assert dsp._get_credentials(request) == (('foo', 'bar'), ['TestCredentialPlugin'])
 
 
 class TestCredentialPlugins:
     @pytest.fixture
     def plugin1(self):
         class Plugin:
+            __name__ = 'TestCredentialPlugin1'
+
             @hookimpl
             def devpiserver_get_credentials(self, request):  # noqa: ARG002
                 return self.results.pop()
@@ -45,6 +49,8 @@ class TestCredentialPlugins:
     @pytest.fixture
     def plugin2(self):
         class Plugin:
+            __name__ = 'TestCredentialPlugin2'
+
             @hookimpl
             def devpiserver_get_credentials(self, request):  # noqa: ARG002
                 return self.results.pop()
@@ -62,32 +68,36 @@ class TestCredentialPlugins:
         plugin1.results = [None]
         plugin2.results = [None]
         request = blank_request()
-        assert dsp._get_credentials(request) is None
+        assert dsp._get_credentials(request) == (None, [])
 
     def test_credential_plugins_got_one_credential(self, blank_request, dsp, plugin1, plugin2):
         plugin1.results = [('foo', 'bar')]
         plugin2.results = [None]
         request = blank_request()
-        assert dsp._get_credentials(request) == ('foo', 'bar')
+        assert dsp._get_credentials(request) == (('foo', 'bar'), ['TestCredentialPlugin1'])
 
     def test_credential_plugins_got_another_credential(self, blank_request, dsp, plugin1, plugin2):
         plugin1.results = [None]
         plugin2.results = [('foo', 'bar')]
         request = blank_request()
-        assert dsp._get_credentials(request) == ('foo', 'bar')
+        assert dsp._get_credentials(request) == (('foo', 'bar'), ['TestCredentialPlugin2'])
 
     def test_credential_plugins_got_two_credential(self, blank_request, dsp, plugin1, plugin2):
         plugin1.results = [('ham', 'egg')]
         plugin2.results = [('foo', 'bar')]
         request = blank_request()
         # one of them wins, depends on entry point order and is undefined
-        assert dsp._get_credentials(request) in [('ham', 'egg'), ('foo', 'bar')]
+        assert dsp._get_credentials(request) in [
+            (('ham', 'egg'), ['TestCredentialPlugin1']),
+            (('foo', 'bar'), ['TestCredentialPlugin2'])]
 
 
 class TestHeaderCredentialPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            __name__ = 'TestHeaderCredentialPlugin'
+
             @hookimpl
             def devpiserver_get_credentials(self, request):
                 if 'X-Devpi-User' in request.headers:
@@ -101,13 +111,13 @@ class TestHeaderCredentialPlugin:
     @pytest.mark.usefixtures("plugin")
     def test_credential_plugin_no_credentials(self, blank_request, dsp):
         request = blank_request()
-        assert dsp._get_credentials(request) is None
+        assert dsp._get_credentials(request) == (None, [])
 
     @pytest.mark.usefixtures("plugin")
     def test_credential_plugin_got_credentials(self, blank_request, dsp):
         request = blank_request()
         request.headers['X-Devpi-User'] = 'foo'
-        assert dsp._get_credentials(request) == ('foo', '')
+        assert dsp._get_credentials(request) == (('foo', ''), ['TestHeaderCredentialPlugin'])
 
 
 class TestDevpiSecurityPolicy:
