@@ -1,1 +1,0 @@
-Prevent duplicates when adding values to lists in index configuration with ``+=`` operator.

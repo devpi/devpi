@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+6.9.2 (2023-08-06)
+==================
+
+Bug Fixes
+---------
+
+- Prevent duplicates when adding values to lists in index configuration with ``+=`` operator.
+
+
 6.9.1 (2023-07-02)
 ==================
 
