@@ -71,6 +71,16 @@ class BaseConnection:
         for row in rows:
             print(row)  # noqa: T201
 
+    def execute(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
+        r = c.execute(query, *args)
+        result = r.fetchall()
+        c.close()
+        return result
+
     def executemany(self, query, *args):
         c = self._sqlconn.cursor()
         # print(query)
@@ -109,6 +119,16 @@ class BaseConnection:
         yield from c.execute(query, *args)
         c.close()
 
+    def lastrowid(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
+        c.execute(query, *args)
+        result = c.lastrowid
+        c.close()
+        return result
+
     def close(self):
         self._sqlconn.close()
 
@@ -145,7 +165,7 @@ class BaseConnection:
     def write_changelog_entry(self, serial, entry):
         threadlog.debug("writing changelog for serial %s", serial)
         data = dumps(entry)
-        self.fetchone(
+        self.execute(
             "INSERT INTO changelog (serial, data) VALUES (?, ?)",
             (serial, sqlite3.Binary(data)))
 
