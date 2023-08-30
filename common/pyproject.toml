@@ -10,7 +10,6 @@ description = "Utilities jointly used by devpi-server, devpi-client and others."
 dependencies = [
     "lazy",
     "packaging>=22",
-    "py>=1.4.20",
     "requests>=2.3.0",
 ]
 requires-python = ">=3.7"
