@@ -4,6 +4,7 @@ import stat
 import py
 import pytest
 import re
+import shutil
 import sys
 import tarfile
 from devpi.upload import Checkout
@@ -28,7 +29,7 @@ def runproc(cmd):
     args = cmd.split()
     path0 = args[0]
     if not os.path.isabs(path0):
-        path0 = py.path.local.sysfind(path0)
+        path0 = shutil.which(path0)
         if not path0:
             pytest.skip("%r not found" % args[0])
     return check_output([str(path0)] + args[1:])
@@ -75,7 +76,7 @@ class TestCheckout:
         unicode_fn = str(unicode_fn, "utf8")
         setupdir.ensure(unicode_fn)
         if request.param == "hg":
-            if not py.path.local.sysfind("hg"):
+            if not shutil.which("hg"):
                 pytest.skip("'hg' command not found")
             with repo.as_cwd():
                 runproc("hg init")
@@ -84,7 +85,7 @@ class TestCheckout:
                                                          unicode_fn))
                 runproc("hg commit --config ui.username=whatever -m message")
             return repo
-        if not py.path.local.sysfind("git"):
+        if not shutil.which("git"):
             pytest.skip("'git' command not found")
         with repo.as_cwd():
             runproc("git init")

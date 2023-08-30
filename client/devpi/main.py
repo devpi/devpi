@@ -6,6 +6,7 @@ import traceback
 import py
 import argparse
 import shlex
+import shutil
 import subprocess
 import textwrap
 from base64 import b64encode
@@ -391,10 +392,10 @@ class Hub:
         args = [str(x) for x in args]
         if cwd is None:
             cwd = self.cwd
-        cmd = py.path.local.sysfind(args[0])
-        if not cmd:
+        cmd = shutil.which(args[0])
+        if cmd is None:
             self.fatal("command not found: %s" % args[0])
-        args[0] = str(cmd)
+        args[0] = cmd
         if report:
             self.report_popen(args, cwd)
         encoding = sys.getdefaultencoding()

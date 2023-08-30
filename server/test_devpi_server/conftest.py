@@ -9,6 +9,7 @@ import subprocess
 import pytest
 import py
 import requests
+import shutil
 import socket
 import sys
 import time
@@ -1027,10 +1028,10 @@ def server_directory():
 @pytest.fixture(scope="module")
 def call_devpi_in_dir():
     # let xproc find the correct executable instead of py.test
-    devpigenconfig = str(py.path.local.sysfind("devpi-gen-config"))
-    devpiimport = str(py.path.local.sysfind("devpi-import"))
-    devpiinit = str(py.path.local.sysfind("devpi-init"))
-    devpiserver = str(py.path.local.sysfind("devpi-server"))
+    devpigenconfig = shutil.which("devpi-gen-config")
+    devpiimport = shutil.which("devpi-import")
+    devpiinit = shutil.which("devpi-init")
+    devpiserver = shutil.which("devpi-server")
 
     def devpi(server_dir, args):
         from devpi_server.genconfig import genconfig
@@ -1194,7 +1195,7 @@ def adjust_nginx_conf_content():
 
 def _nginx_host_port(host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
     # let xproc find the correct executable instead of py.test
-    nginx = py.path.local.sysfind("nginx")
+    nginx = shutil.which("nginx")
     if nginx is None:
         pytest.skip("No nginx executable found.")
     nginx = str(nginx)

@@ -3,7 +3,7 @@ from __future__ import with_statement
 import re
 import shlex
 import hashlib
-import py
+import shutil
 from devpi_common.archive import Archive
 from devpi_common.metadata import parse_requirement
 import json
@@ -72,8 +72,8 @@ class DevIndex:
             "tox", venvdir=self.hub.venv, glob=True)
         if not tox_path:
             # try outside of venv
-            tox_path = py.path.local.sysfind("tox")
-        if not tox_path:
+            tox_path = shutil.which("tox")
+        if tox_path is None:
             self.hub.fatal("no tox binary found")
         toxcmd = [
             str(tox_path),

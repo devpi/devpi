@@ -3,6 +3,7 @@ import os
 import sys
 import py
 import re
+import shutil
 import zipfile
 
 import build.util
@@ -386,7 +387,7 @@ class Exported:
 
     def _virtualenv_python(self):
         if 'VIRTUAL_ENV' in os.environ:
-            return py.path.local.sysfind("python")
+            return shutil.which("python")
 
     def __str__(self):
         return "<Exported %s>" % self.rootpath

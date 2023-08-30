@@ -6,6 +6,7 @@ from io import BytesIO
 from subprocess import Popen, PIPE
 import py
 import pytest
+import shutil
 import sys
 
 
@@ -30,7 +31,7 @@ def _writedir(tmpdir, contentdict, prefixes=()):
 
 
 def create_tarfile_fromdict(tmpdir, contentdict):
-    tar = py.path.local.sysfind("tar")
+    tar = shutil.which("tar")
     if not tar:
         pytest.skip("tar command not found")
     if sys.platform.startswith('win'):
