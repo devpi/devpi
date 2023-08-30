@@ -10,6 +10,7 @@ import sys
 import py
 import re
 import json
+import shutil
 
 from devpi_common.types import cached_property
 from devpi_common.url import URL
@@ -360,9 +361,9 @@ class Current(object):
             venvdir = self.venvdir
         if venvdir:
             bindir = py.path.local(venvdir).join(vbin)
-            return py.path.local.sysfind(name, paths=[bindir])
+            return shutil.which(name, path=str(bindir))
         if glob:
-            return py.path.local.sysfind(name)
+            return shutil.which(name)
 
     @property
     def root_url(self):

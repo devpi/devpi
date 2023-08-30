@@ -9,6 +9,7 @@ import pytest
 import socket
 import textwrap
 import py
+import shutil
 import sys
 import json
 import time
@@ -101,10 +102,9 @@ def find_python3():
         'python3.9',
         'python3']
     for name in names:
-        path = py.path.local.sysfind(name)
-        if not path:
+        path = shutil.which(name)
+        if path is None:
             continue
-        path = str(path)
         try:
             print("Checking %s at %s" % (name, path))
             output = subprocess.check_output([path, '--version'])
@@ -132,10 +132,10 @@ def server_executable(request, tmpdir_factory):
     if not requirements:
         requirements = ['devpi-server>=6dev']
         # first try installed devpi-server for quick runs during development
-        path = py.path.local.sysfind("devpi-server")
-        if path:
+        path = shutil.which("devpi-server")
+        if path is not None:
             print("server_executable: Using existing devpi-server at %s" % path)
-            return str(path)
+            return path
     # there is no devpi-server installed
     python3 = find_python3()
     # prepare environment for subprocess call
