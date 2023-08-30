@@ -1,13 +1,14 @@
 from _pytest import capture
 from contextlib import closing
+from devpi_common.contextlib import chdir
 from devpi_common.metadata import parse_version
 from io import StringIO
+from pathlib import Path
 import codecs
 import os
 import pytest
 import socket
 import textwrap
-import py
 import shutil
 import sys
 import json
@@ -246,7 +247,6 @@ def devpi(cmd_devpi, devpi_username, url_of_liveserver):
 
 
 def _path_parts(path):
-    path = path and str(path)  # py.path.local support
     parts = []
     while path:
         folder, name = os.path.split(path)
@@ -257,13 +257,6 @@ def _path_parts(path):
         path = folder
     parts.reverse()
     return parts
-
-
-def _path_join(base, *args):
-    # workaround for a py.path.local bug on Windows (`path.join('/x', abs=1)`
-    # should be py.path.local('X:\\x') where `X` is the current drive, when in
-    # fact it comes out as py.path.local('\\x'))
-    return py.path.local(base.join(*args, abs=1))
 
 
 def _filedefs_contains(base, filedefs, path):
@@ -277,10 +270,10 @@ def _filedefs_contains(base, filedefs, path):
 
     """
     unknown = object()
-    base = py.path.local(base)
-    path = _path_join(base, path)
+    base = Path(base)
+    path = base / path
 
-    path_rel_parts = _path_parts(path.relto(base))
+    path_rel_parts = _path_parts(path.relative_to(base))
     for part in path_rel_parts:
         if not isinstance(filedefs, dict):
             return False
@@ -338,7 +331,7 @@ def initproj(tmpdir):
         else:
             name, version = nameversion
         base = tmpdir.join(name)
-        src_root_path = _path_join(base, src_root)
+        src_root_path = base / src_root
         assert base == src_root_path or src_root_path.relto(
             base
         ), "`src_root` must be the constructed project folder or its direct or indirect subfolder"
@@ -601,8 +594,8 @@ def runproc():
 def runprocess(tmpdir, cmdargs):
     from _pytest.pytester import RunResult
     cmdargs = [str(x) for x in cmdargs]
-    p1 = tmpdir.join("stdout")
-    print_info("running", cmdargs, "curdir=", py.path.local())
+    p1 = Path(tmpdir) / "stdout"
+    print_info("running", cmdargs, "curdir=", Path())
     with codecs.open(str(p1), "w", encoding="utf8") as f1:
         now = time.time()
         popen = subprocess.Popen(
@@ -639,9 +632,9 @@ def create_venv(request, tmpdir_factory, monkeypatch):
         # we need to change directory, otherwise the path will become
         # too long on windows
         venvinstalldir.ensure_dir()
-        os.chdir(venvinstalldir.strpath)
+        os.chdir(venvinstalldir)
         subprocess.check_call([
-            "virtualenv", "--never-download", venvdir.strpath])
+            "virtualenv", "--never-download", str(venvdir)])
         # activate
         if sys.platform == "win32":
             bindir = "Scripts"
@@ -687,7 +680,7 @@ def makehub(tmpdir_factory):
             arglist.append("--clientdir=%s" % tmp)
         pm = get_pluginmanager()
         args = parse_args(["devpi_"] + arglist, pm)
-        with tmp.as_cwd():
+        with chdir(tmp):
             return Hub(args)
     return mkhub
 

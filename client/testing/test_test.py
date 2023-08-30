@@ -1,6 +1,5 @@
 import os
 import subprocess
-import py
 import pytest
 import sys
 from devpi_common.viewhelp import ViewLinkStore
@@ -8,6 +7,7 @@ from devpi.test import DevIndex
 from devpi.test import find_sdist_and_wheels
 from devpi.test import prepare_toxrun_args
 from devpi.test import post_tox_json_report
+from pathlib import Path
 
 
 def test_post_tox_json_report(loghub, mock_http_api):
@@ -49,7 +49,7 @@ def test_passthrough_args_toxargs(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "--tox-args", "-- -x", "somepkg"])
     index = DevIndex(hub, tmpdir, pseudo_current)
     tmpdir.ensure("tox.ini")
-    args = index.get_tox_args(unpack_path=tmpdir)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
     assert args[-2:] == ["--", "-x"]
 
 
@@ -147,7 +147,7 @@ def test_toxini(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "-c", toxini, "somepkg"])
     index = DevIndex(hub, tmpdir, pseudo_current)
     tmpdir.ensure("tox.ini")
-    args = index.get_tox_args(unpack_path=tmpdir)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
     assert contains_sublist(args, ["-c", str(toxini)])
 
 
@@ -155,7 +155,7 @@ def test_passthrough_args_env(makehub, tmpdir, pseudo_current):
     hub = makehub(["test", "-epy27", "somepkg"])
     index = DevIndex(hub, tmpdir, pseudo_current)
     tmpdir.ensure("tox.ini")
-    args = index.get_tox_args(unpack_path=tmpdir)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
     assert contains_sublist(args, ["-epy27"])
 
 
@@ -163,10 +163,10 @@ def test_fallback_ini(makehub, tmpdir, pseudo_current):
     p = tmpdir.ensure("mytox.ini")
     hub = makehub(["test", "--fallback-ini", str(p), "somepkg"])
     index = DevIndex(hub, tmpdir, pseudo_current)
-    args = index.get_tox_args(unpack_path=tmpdir)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
     assert contains_sublist(args, ["-c", str(p)])
     p2 = tmpdir.ensure("tox.ini")
-    args = index.get_tox_args(unpack_path=tmpdir)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
     assert contains_sublist(args, ["-c", str(p2)])
 
 
@@ -243,16 +243,17 @@ class TestWheel:
         initproj("prep1-1.0", filedefs={})
         subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
         subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
-        for p in py.path.local("dist").listdir():
-            reqmock.mockresponse("http://b/" + p.basename, code=200, method="GET",
-                                 data=p.read("rb"))
+        for p in Path("dist").iterdir():
+            reqmock.mockresponse(
+                f"http://b/{p.name}",
+                code=200, data=p.read_bytes(), method="GET")
         toxrunargs = prepare_toxrun_args(dev_index, vl, sdist_links, wheel_links)
         assert len(toxrunargs) == 3
         sdist1, sdist2, wheel1 = toxrunargs
         assert sdist1[0].basename == "prep1-1.0.tar.gz"
-        assert sdist1[1].path_unpacked.strpath.endswith("targz" + os.sep + "prep1-1.0")
+        assert str(sdist1[1].path_unpacked).endswith("targz" + os.sep + "prep1-1.0")
         assert sdist2[0].basename == "prep1-1.0.zip"
-        assert sdist2[1].path_unpacked.strpath.endswith("zip" + os.sep + "prep1-1.0")
+        assert str(sdist2[1].path_unpacked).endswith("zip" + os.sep + "prep1-1.0")
         assert wheel1[0].basename == "prep1-1.0-py2.py3-none-any.whl"
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
@@ -273,16 +274,17 @@ class TestWheel:
         initproj("prep_under-1.0", filedefs={})
         subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
         subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
-        for p in py.path.local("dist").listdir():
-            reqmock.mockresponse("http://b/" + p.basename, code=200, method="GET",
-                                 data=p.read("rb"))
+        for p in Path("dist").iterdir():
+            reqmock.mockresponse(
+                f"http://b/{p.name}",
+                code=200, data=p.read_bytes(), method="GET")
         toxrunargs = prepare_toxrun_args(dev_index, vl, sdist_links, wheel_links)
         assert len(toxrunargs) == 3
         sdist1, sdist2, wheel1 = toxrunargs
         assert sdist1[0].basename == "prep_under-1.0.tar.gz"
-        assert sdist1[1].path_unpacked.strpath.endswith("targz" + os.sep + "prep_under-1.0")
+        assert str(sdist1[1].path_unpacked).endswith("targz" + os.sep + "prep_under-1.0")
         assert sdist2[0].basename == "prep_under-1.0.zip"
-        assert sdist2[1].path_unpacked.strpath.endswith("zip" + os.sep + "prep_under-1.0")
+        assert str(sdist2[1].path_unpacked).endswith("zip" + os.sep + "prep_under-1.0")
         assert wheel1[0].basename == "prep_under-1.0-py2.py3-none-any.whl"
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
@@ -302,9 +304,10 @@ class TestWheel:
         initproj("prep_under-1.0", filedefs={})
         subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar"])
         subprocess.check_call(["python", "setup.py", "bdist_wheel"])
-        for p in py.path.local("dist").listdir():
-            reqmock.mockresponse("http://b/" + p.basename, code=200, method="GET",
-                                 data=p.read("rb"))
+        for p in Path("dist").iterdir():
+            reqmock.mockresponse(
+                f"http://b/{p.name}",
+                code=200, data=p.read_bytes(), method="GET")
         toxrunargs = prepare_toxrun_args(
             dev_index, vl, sdist_links, wheel_links, select=pyver)
         assert len(toxrunargs) == 1
@@ -339,8 +342,8 @@ class TestWheel:
             select="(?:.*39)(?:.*linux)(?:.*whl)")
         ((wheel_link, wheel, wheel_sdist),) = toxrunargs
         assert wheel_link.basename == "prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-        assert wheel.path_archive.basename == "prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-        assert wheel_sdist.path_archive.basename == "prep_under-1.0.tar.gz"
+        assert wheel.path_archive.name == "prep_under-1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        assert wheel_sdist.path_archive.name == "prep_under-1.0.tar.gz"
 
     def test_wheels_and_sdist(self, out_devpi, create_and_upload):
         create_and_upload("exa-1.0", filedefs={
