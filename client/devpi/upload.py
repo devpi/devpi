@@ -1,7 +1,6 @@
 import iniconfig
 import os
 import sys
-import py
 import re
 import shutil
 import zipfile
@@ -13,8 +12,11 @@ from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.metadata import splitext_archive
 from devpi_common.archive import Archive
 from devpi_common.archive import zip_dir
+from devpi_common.contextlib import chdir
 from devpi_common.types import CompareMixin
 from .main import HTTPReply, set_devpi_auth_header
+from pathlib import Path
+from shutil import rmtree
 
 
 def main(hub, args):
@@ -71,10 +73,10 @@ def filter_latest(path_pkginfo):
 def main_fromfiles(hub, args):
     paths = []
     for p in args.path:
-        p = py.path.local(os.path.expanduser(p))
-        if not p.check():
+        p = Path(p).expanduser()
+        if not p.exists():
             hub.fatal("path does not exist: %s" % p)
-        if p.isdir() and not args.fromdir:
+        if p.is_dir() and not args.fromdir:
             hub.fatal("%s: is a directory but --from-dir not specified" % p)
         paths.append(p)
 
@@ -102,7 +104,7 @@ class Uploader:
                 pkginfo = get_pkginfo(archivepath)
                 if pkginfo is None or pkginfo.name is None:
                     hub.error("%s: does not contain PKGINFO, skipping" %
-                              archivepath.basename)
+                              archivepath.name)
                     continue
                 if isinstance(pkginfo, DocZipMeta):
                     doczip2pkginfo[archivepath] = pkginfo
@@ -122,15 +124,15 @@ class Uploader:
         with self.hub.workdir() as tmp:
             if pkginfo.needs_repackage:
                 if version is None:
-                    fn = tmp.join('%s.doc.zip' % name)
+                    fn = tmp / f'{name}.doc.zip'
                 else:
-                    fn = tmp.join('%s-%s.doc.zip' % (name, version))
-                with zipfile.ZipFile(fn.strpath, "w") as z:
+                    fn = tmp / f'{name}-{version}.doc.zip'
+                with zipfile.ZipFile(str(fn), "w") as z:
                     with Archive(path) as archive:
                         for aname in archive.namelist():
                             z.writestr(aname, archive.read(aname))
                 self.hub.info(
-                    "repackaged %s to %s" % (path.basename, fn.basename))
+                    "repackaged %s to %s" % (path.name, fn.name))
                 path = fn
             self.post(
                 "doc_upload", path,
@@ -149,11 +151,11 @@ class Uploader:
             auth = (auth[0], hub.derive_token(auth[1], meta['name']))
             set_devpi_auth_header(headers, auth)
         if path:
-            files = {"content": (path.basename, path.open("rb"))}
+            files = {"content": (path.name, path.open("rb"))}
         else:
             files = None
         if path:
-            msg = "%s of %s to %s" %(action, path.basename, self.pypisubmit)
+            msg = f"{action} of {path.name} to {self.pypisubmit}"
         else:
             msg = "%s %s-%s to %s" %(action, meta["name"], meta["version"],
                                      self.pypisubmit)
@@ -187,7 +189,7 @@ class Uploader:
         meta = {}
         for attr in pkginfo:
             meta[attr] = getattr(pkginfo, attr)
-        pyver = get_pyversion_filetype(path.basename)
+        pyver = get_pyversion_filetype(path.name)
         meta["pyversion"], meta["filetype"] = pyver
         self.post("file_upload", path, meta=meta)
 
@@ -196,14 +198,14 @@ ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
 
 
 def get_archive_files(path):
-    if path.isfile():
+    if path.is_file():
         yield path
         return
-    for x in path.visit():
-        if not x.check(file=1):
+    for x in path.rglob("*"):
+        if not x.is_file():
             continue
         for name in ALLOWED_ARCHIVE_EXTS:
-            if x.basename.endswith(name):
+            if x.name.endswith(name):
                 yield x
 
 
@@ -269,7 +271,7 @@ class DocZipMeta(CompareMixin):
 
 
 def get_pkginfo(archivepath):
-    info = get_name_version_doczip(archivepath.basename)
+    info = get_name_version_doczip(archivepath.name)
     if info is not None:
         return DocZipMeta(*info)
 
@@ -296,6 +298,7 @@ def find_parent_subpath(startpath, relpath, raising=True):
 
 class Checkout:
     def __init__(self, hub, args, setupdir, hasvcs=None, setupdir_only=None):
+        setupdir = Path(setupdir)
         self.hub = hub
         self.args = args
         self.cm_ui = None
@@ -304,7 +307,7 @@ class Checkout:
         hasvcs = not hasvcs and not args.novcs
         setupdir_only = bool(setupdir_only or args.setupdironly)
         if hasvcs:
-            with setupdir.as_cwd():
+            with chdir(setupdir):
                 try:
                     if self.cm_ui:
                         hasvcs = check_manifest.detect_vcs(self.cm_ui).metadata_name
@@ -315,10 +318,10 @@ class Checkout:
                 else:
                     if hasvcs not in (".hg", ".git") or setupdir_only:
                         # XXX for e.g. svn we don't do copying
-                        self.rootpath = setupdir
+                        self.rootpath = Path(setupdir)
                     else:
-                        for p in setupdir.parts(reverse=True):
-                            if p.join(hasvcs).exists():
+                        for p in (setupdir, *setupdir.parents):
+                            if p.joinpath(hasvcs).exists():
                                 self.rootpath = p
                                 break
                         else:
@@ -328,37 +331,34 @@ class Checkout:
         self.setupdir_only = setupdir_only
 
     def export(self, basetemp):
+        assert isinstance(basetemp, Path)
         if not self.hasvcs:
             return Exported(self.hub, self.args, self.setupdir, self.setupdir)
-        with self.rootpath.as_cwd():
+        with chdir(self.rootpath):
             if self.cm_ui:
                 files = check_manifest.get_vcs_files(self.cm_ui)
             else:
                 files = check_manifest.get_vcs_files()
-        newrepo = basetemp.join(self.rootpath.basename)
+        newrepo = basetemp / self.rootpath.name
         for fn in files:
-            source = self.rootpath.join(fn)
-            if source.islink():
-                dest = newrepo.join(fn)
-                dest.dirpath().ensure(dir=1)
-                dest.mksymlinkto(source.readlink(), absolute=True)
-            elif source.isfile():
-                dest = newrepo.join(fn)
-                dest.dirpath().ensure(dir=1)
-                source.copy(dest, mode=True)
+            source = self.rootpath / fn
+            dest = newrepo / fn
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, dest, follow_symlinks=False)
         self.hub.debug("copied", len(files), "files to", newrepo)
 
         if self.hasvcs not in (".git", ".hg") or self.setupdir_only:
             self.hub.warn("not copying vcs repository metadata for", self.hasvcs)
         else:
-            srcrepo = self.rootpath.join(self.hasvcs)
+            srcrepo = self.rootpath / self.hasvcs
             assert srcrepo.exists(), srcrepo
-            destrepo = newrepo.join(self.hasvcs)
-            self.rootpath.join(self.hasvcs).copy(destrepo, mode=True)
+            destrepo = newrepo / self.hasvcs
+            source = self.rootpath / self.hasvcs
+            shutil.copytree(srcrepo, destrepo)
             self.hub.info("copied repo", srcrepo, "to", destrepo)
         self.hub.debug(
             "%s-exported project to %s -> new CWD" % (self.hasvcs, newrepo))
-        setupdir_newrepo = newrepo.join(self.setupdir.relto(self.rootpath))
+        setupdir_newrepo = newrepo / self.setupdir.relative_to(self.rootpath)
         return Exported(self.hub, self.args, setupdir_newrepo, self.setupdir)
 
 
@@ -368,7 +368,7 @@ class Exported:
         self.args = args
         self.rootpath = rootpath
         self.origrepo = origrepo
-        self.target_distdir = origrepo.join("dist")
+        self.target_distdir = origrepo / "dist"
 
     @property
     def python(self):
@@ -394,7 +394,7 @@ class Exported:
 
     def setup_name_and_version(self):
         metadata = build.util.project_wheel_metadata(
-            self.rootpath.strpath, False
+            str(self.rootpath), False
         )
         name = metadata["name"]
         version = metadata["version"]
@@ -402,9 +402,9 @@ class Exported:
         return name, version
 
     def prepare(self):
-        if self.target_distdir.check():
+        if self.target_distdir.is_dir():
             self.hub.line("pre-build: cleaning %s" % self.target_distdir)
-            self.target_distdir.remove()
+            rmtree(self.target_distdir)
         self.target_distdir.mkdir()
 
     @staticmethod
@@ -498,10 +498,10 @@ class Exported:
 
         archives = []
         for cmd in cmds:
-            distdir = self.rootpath.join("dist")
+            distdir = self.rootpath / "dist"
             if self.rootpath != self.origrepo:
                 if distdir.exists():
-                    distdir.remove()
+                    rmtree(distdir)
 
             if self.args.verbose:
                 ret = self.hub.popen_check(cmd, cwd=self.rootpath)
@@ -511,9 +511,9 @@ class Exported:
             if ret is None:  # dryrun
                 continue
 
-            for x in distdir.listdir():  # usually just one
-                target = self.target_distdir.join(x.basename)
-                x.move(target)
+            for x in distdir.iterdir():  # usually just one
+                target = self.target_distdir / x.name
+                x.rename(target)
                 archives.append(target)
                 self.log_build(target)
 
@@ -521,19 +521,19 @@ class Exported:
 
     def setup_build_docs(self):
         name, version = self.setup_name_and_version()
-        build = self.rootpath.join("build")
+        build = self.rootpath / "build"
         if build.exists():
-            build.remove()
+            rmtree(build)
         for guess in ("doc", "docs", "source"):
-            docs = self.rootpath.join(guess)
-            if docs.isdir():
-                if docs.join("conf.py").exists():
+            docs = self.rootpath / guess
+            if docs.is_dir():
+                if docs.joinpath("conf.py").is_file():
                     break
-                else:
-                    source = docs.join("source")
-                    if source.isdir() and source.join("conf.py").exists():
-                        build, docs = docs.join("build"), source
-                        break
+                source = docs / "source"
+                if source.is_dir() and source.joinpath("conf.py").is_file():
+                    build = docs / "build"
+                    docs = source
+                    break
         cmd = ["sphinx-build", "-E", docs, build]
         if self.args.verbose:
             ret = self.hub.popen_check(cmd, cwd=self.rootpath)
@@ -541,13 +541,13 @@ class Exported:
             ret = self.hub.popen_output(cmd, cwd=self.rootpath)
         if ret is None:
             return
-        p = self.target_distdir.join("%s-%s.doc.zip" %(name, version))
+        p = self.target_distdir / f"{name}-{version}.doc.zip"
         zip_dir(build, p)
         self.log_build(p, "[sphinx docs]")
         return p
 
     def log_build(self, path, suffix=None):
-        kb = path.size() / 1000
+        kb = path.stat().st_size // 1000
         if suffix:
             self.hub.line("built: %s %s %skb" % (path, suffix, kb))
         else:
@@ -590,8 +590,8 @@ class SetupCFG:
 
 
 def read_setupcfg(hub, path):
-    setup_cfg = path.join("setup.cfg")
-    if setup_cfg.exists():
+    setup_cfg = Path(path) / "setup.cfg"
+    if setup_cfg.is_file():
         cfg = iniconfig.IniConfig(setup_cfg)
         if 'devpi:upload' in cfg.sections:
             hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)

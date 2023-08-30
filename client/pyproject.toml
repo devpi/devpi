@@ -16,7 +16,6 @@ dependencies = [
     "pkginfo>=1.4.2",
     "platformdirs",
     "pluggy>=0.6.0,<2.0",
-    "py>=1.4.31",
 ]
 requires-python = ">=3.7"
 maintainers = [

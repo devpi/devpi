@@ -6,7 +6,7 @@ from devpi.list_remove import confirm_delete
 from devpi.list_remove import out_index
 from devpi.list_remove import out_project
 from devpi.list_remove import show_commands
-import py
+from pathlib import Path
 import pytest
 
 
@@ -108,7 +108,7 @@ class TestListRemove:
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         devpi("upload", "--no-isolation", "--formats", "sdist.zip,bdist_dumb")
         initproj("hello-1.1", {"doc": {
@@ -142,7 +142,7 @@ class TestListRemove:
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         devpi("upload", "--no-isolation", "--formats", "sdist.zip,bdist_dumb")
         initproj("hello-1.1", {"doc": {
@@ -168,7 +168,7 @@ class TestListRemove:
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         devpi("upload", "--no-isolation", "--formats", "sdist.zip,bdist_dumb")
         initproj("hello-1.1", {"doc": {
@@ -211,7 +211,7 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
         out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
@@ -226,7 +226,7 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         # remember username
         out = out_devpi("use")
@@ -237,13 +237,13 @@ class TestListRemove:
         initproj("dddttt-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         # upload 2.0 to dev2 index
         initproj("dddttt-2.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
 
         out = out_devpi("list", "dddttt", "--all")
@@ -267,7 +267,7 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
         out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
@@ -285,7 +285,7 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
         out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
@@ -305,7 +305,7 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
         out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")

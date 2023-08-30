@@ -83,15 +83,16 @@ class TestUnit:
         hub = cmd_devpi("use", "http://devpi/foo/bar")
         (out, err) = capfd.readouterr()
         current_path = hub.current_path
-        assert current_path.strpath.endswith('client/current.json')
+        assert current_path.name == 'current.json'
+        assert current_path.parent.name == 'client'
         local_current_path = hub.local_current_path
-        assert venvdir.strpath in local_current_path.strpath
-        assert local_current_path.strpath.endswith('devpi.json')
+        assert venvdir.strpath in str(local_current_path)
+        assert local_current_path.name == 'devpi.json'
         assert not local_current_path.exists()
         assert venvdir.strpath in out
         hub = cmd_devpi("use", "--local")
         (out, err) = capfd.readouterr()
-        assert hub.current_path.strpath == local_current_path.strpath
+        assert str(hub.current_path) == str(local_current_path)
         assert local_current_path.exists()
         mock_http_api.set(
             "http://devpi/foo/ham/+api", 200, result=dict(
@@ -111,7 +112,7 @@ class TestUnit:
         hub = cmd_devpi("use")
         (out, err) = capfd.readouterr()
         assert 'current devpi index: http://devpi/foo/ham' in out
-        local_current_path.remove()
+        local_current_path.unlink()
         hub = cmd_devpi("use")
         (out, err) = capfd.readouterr()
         assert 'current devpi index: http://devpi/foo/bar' in out
@@ -123,7 +124,8 @@ class TestUnit:
         monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
         hub = cmd_devpi("use")
         current_path = hub.current_path
-        assert current_path.strpath.endswith('client/current.json')
+        assert current_path.name == 'current.json'
+        assert current_path.parent.name == 'client'
         local_current_path = hub.local_current_path
         assert not local_current_path.exists()
         with current_path.open("w") as f:
@@ -681,7 +683,7 @@ class TestUnit:
             assert basic_auth not in out
             assert ':****@' in out
         assert PipCfg().default_location.exists()
-        content = PipCfg().default_location.read()
+        content = PipCfg().default_location.read_text()
         assert len(
             re.findall(r"index_url\s*=\s*%s://%sworld/simple" % (
                 scheme, basic_auth), content)) == 1
@@ -709,7 +711,7 @@ class TestUnit:
         cmd_devpi(
             "use", "--set-cfg", "--pip-set-trusted=yes", "%s://%sworld" % (
                 scheme, basic_auth))
-        content = PipCfg().default_location.read()
+        content = PipCfg().default_location.read_text()
         assert len(
             re.findall(r"trusted-host\s*=\s*world", content)) == 1
         hub = cmd_devpi("use", "--always-set-cfg=yes", "--pip-set-trusted=yes")

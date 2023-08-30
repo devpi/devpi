@@ -1,14 +1,14 @@
 """
 helpers for authenticating against info from .pypirc files.
 """
+from pathlib import Path
 import iniconfig
-import py
 
 
 class Auth:
     def __init__(self, path=None):
         if path is None:
-            path = py.path.local._gethomedir().join(".pypirc")
+            path = Path().home() / ".pypirc"
         self.ini = iniconfig.IniConfig(path)
 
     def get_url_auth(self, secname):
