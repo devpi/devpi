@@ -354,18 +354,17 @@ class TestWheel:
             "setup.cfg": """
                 [bdist_wheel]
                 universal = True
-            """
-        }, opts=["--format=sdist.zip,bdist_wheel"])
+            """})
         result = out_devpi("test", "-epy", "--debug", "exa==1.0")
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*exa-1.0.*""")
         result = out_devpi("list", "-f", "exa")
         assert result.ret == 0
-        result.stdout.fnmatch_lines_random("""
-            *exa-1.0*whl*
-            *tests*passed*
-            *exa-1.0*zip*
-            *tests*passed*
+        result.stdout.re_match_lines_random(r"""
+            .*exa-1\.0-.+\.whl
+            .*tests.*passed
+            .*exa-1\.0\.(tar\.gz|zip)
+            .*tests.*passed
         """)
 
 
