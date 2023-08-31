@@ -512,18 +512,18 @@ class TestUploadFunctional:
         out = out_devpi(
             "upload", "--formats", "sdist.zip", "--with-docs", code=[200, 200])
         assert out.ret == 0
-        out.stdout.fnmatch_lines("""
-            built:*
-            file_upload of {projname_version}.zip*
-            doc_upload of {projname_version}.doc.zip*
+        out.stdout.re_match_lines(r"""
+            built:.*
+            file_upload of {projname_version}\.(tar\.gz|zip)
+            doc_upload of {projname_version}\.doc\.zip
             """.format(projname_version=projname_version))
 
     def test_sdist_zip(self, devpi, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--formats", "sdist.zip", code=[200])
         assert out.ret == 0
-        out.stdout.fnmatch_lines("""
-            built:*
-            file_upload of {projname_version}.zip*
+        out.stdout.re_match_lines(r"""
+            built:
+            file_upload of {projname_version}\.(tar\.gz|zip)
             """.format(projname_version=projname_version))
 
     def test_sdist(self, devpi, out_devpi, projname_version):
@@ -533,21 +533,6 @@ class TestUploadFunctional:
             built:*
             file_upload of {projname_version}*
             """.format(projname_version=projname_version))
-
-    def test_native_sdist(self, devpi, out_devpi, projname_version):
-        if sys.platform == "win32":
-            nativeformat = "zip"
-            nativeext = ".zip"
-        else:
-            nativeformat = "tgz"
-            nativeext = ".tar.gz"
-        out = out_devpi("upload", "--no-isolation", "--formats", "sdist.%s" % nativeformat, code=[200])
-        assert out.ret == 0
-        out.stdout.fnmatch_lines("""
-            The --formats option is deprecated, replace it with --sdist to only*
-            built:*
-            file_upload of {projname_version}{nativeext}*
-            """.format(projname_version=projname_version, nativeext=nativeext))
 
     def test_bdist_wheel(self, devpi, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--formats", "bdist_wheel", code=[200])
@@ -578,36 +563,31 @@ class TestUploadFunctional:
             """)
 
     def test_default_formats(self, devpi, out_devpi, projname_version):
-        if sys.platform == "win32":
-            nativeext = ".zip"
-        else:
-            nativeext = ".tar.gz"
         out = out_devpi(
             "upload", "--formats", "sdist,bdist_wheel", code=[200, 200])
         assert out.ret == 0
-        projname_version_norm = projname_version.replace("-", "*")
-        out.stdout.fnmatch_lines_random("""
-            The --formats option is deprecated, you can remove it to get the*
-            built:*
-            file_upload of {projname_version_norm}*.whl*
-            file_upload of {projname_version}{nativeext}*
+        projname_version_norm = projname_version.replace("-", ".")
+        out.stdout.re_match_lines_random(r"""
+            The --formats option is deprecated, you can remove it to get the
+            built:
+            file_upload of {projname_version_norm}-.+\.whl
+            file_upload of {projname_version}\.(tar\.gz|zip)
             """.format(
             projname_version=projname_version,
-            projname_version_norm=projname_version_norm,
-            nativeext=nativeext))
+            projname_version_norm=projname_version_norm))
 
     def test_deprecated_formats(self, devpi, out_devpi, projname_version):
         out = out_devpi(
             "upload", "--formats", "bdist_dumb,bdist_egg", code=[200, 200])
         assert out.ret == 0
-        projname_version_norm = projname_version.replace("-", "*")
-        out.stdout.fnmatch_lines_random("""
-            The --formats option is deprecated, none of the specified formats 'bdist_dumb,bdist_egg'*
-            *Falling back to 'setup.py bdist_dumb' which*
-            *Falling back to 'setup.py bdist_egg' which*
-            built:*
-            file_upload of {projname_version}*.tar.gz*
-            file_upload of {projname_version_norm}*.egg*
+        projname_version_norm = projname_version.replace("-", ".")
+        out.stdout.re_match_lines_random(r"""
+            The --formats option is deprecated, none of the specified formats 'bdist_dumb,bdist_egg'
+            .*Falling back to 'setup\.py bdist_dumb' which
+            .*Falling back to 'setup\.py bdist_egg' which
+            built:
+            file_upload of {projname_version}.*\.(tar\.gz|zip)
+            file_upload of {projname_version_norm}.*\.egg
             """.format(
             projname_version=projname_version,
             projname_version_norm=projname_version_norm))

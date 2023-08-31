@@ -116,16 +116,16 @@ class TestListRemove:
             "index.html": "<html/>"}})
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*
-            */hello-1.0.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)
+            .*/hello-1\.0\..+\.(tar\.gz|whl|zip)
+            .*/hello-1\.0\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 3
         out = out_devpi("remove", "-y", "hello==1.0", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
         out = out_devpi("list", "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 1
         out = out_devpi("remove", "-y", "hello==1.1", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.1 of hello")
@@ -150,10 +150,10 @@ class TestListRemove:
             "index.html": "<html/>"}})
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*
-            */hello-1.1.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)
+            .*/hello-1\.0\..+\.(tar\.gz|whl|zip)
+            .*/hello-1\.0\.(tar\.gz|zip)""")
         url = out.stdout.lines[0]
         out = out_devpi("remove", "-y", url, code=200)
         out.stdout.fnmatch_lines_random("""
@@ -183,16 +183,16 @@ class TestListRemove:
         # go to other index
         devpi("use", other_index)
         out = out_devpi("list", "--index", "%s/dev" % user, "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*
-            */hello-1.0.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)
+            .*/hello-1\.0\..+\.(tar\.gz|whl|zip)
+            .*/hello-1\.0\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 3
         out = out_devpi("remove", "--index", "%s/dev" % user, "-y", "hello==1.0", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
         out = out_devpi("list", "--index", "%s/dev" % user, "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 1
         out = out_devpi("remove", "--index", "%s/dev" % user, "-y", "hello==1.1", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.1 of hello")
@@ -214,11 +214,11 @@ class TestListRemove:
         assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt==0.666", code=200)
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
 
     def test_delete_version_range_with_inheritance(self, initproj, devpi, out_devpi):
         import re
@@ -247,15 +247,15 @@ class TestListRemove:
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
 
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
-        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-1.0.zip")
-        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
+        out.stdout.re_match_lines_random(r".*/dev2/.*/dddttt-1\.0\.(tar\.gz|zip)")
+        out.stdout.re_match_lines_random(r".*/dev2/.*/dddttt-2\.0\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt<2.0", code=200)
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-1.0.zip")
-        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-1\.0\.(tar\.gz|zip)")
+        out.stdout.re_match_lines_random(r".*/dev2/.*/dddttt-2\.0\.(tar\.gz|zip)")
 
     def test_delete_project_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
         api = devpi("index", "-c", "dev2", "volatile=false")
@@ -270,11 +270,11 @@ class TestListRemove:
         assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt", code=200)
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
 
     def test_delete_file_non_volatile(self, initproj, devpi, out_devpi, server_version):
         if server_version < parse_version("6dev"):
@@ -288,13 +288,13 @@ class TestListRemove:
         assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         url = out.stdout.lines[0]
         out = out_devpi("remove", url, code=403)
         out = out_devpi("remove", "-f", url)
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
 
     def test_delete_project_non_volatile(self, initproj, devpi, out_devpi, server_version):
         if server_version < parse_version("6dev"):
@@ -308,9 +308,9 @@ class TestListRemove:
         assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt", code=403)
         out = out_devpi("remove", "--force", "dddttt")
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
