@@ -1,4 +1,3 @@
-from __future__ import print_function
 from _pytest import capture
 from contextlib import closing
 from devpi_common.metadata import parse_version

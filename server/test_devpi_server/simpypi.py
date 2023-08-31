@@ -1,15 +1,8 @@
 # this file is shared via symlink with devpi-client,
-# so for the time being it must continue to work with Python 2
-from __future__ import print_function
-try:
-    from html import escape
-except ImportError:
-    from cgi import escape  # type: ignore
+# so it must continue to work with the lowest supported Python 3.x version
+from html import escape
 import hashlib
-try:
-    import http.server as httpserver
-except ImportError:
-    import BaseHTTPServer as httpserver  # type: ignore
+import http.server as httpserver
 import sys
 
 
