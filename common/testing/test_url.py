@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import hashlib
 import posixpath
 import pytest

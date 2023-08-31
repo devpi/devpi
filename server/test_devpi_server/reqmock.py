@@ -1,8 +1,8 @@
 # this file is shared via symlink with devpi-client,
-# so for the time being it must continue to work with Python 2
+# so it must continue to work with the lowest supported Python 3.x version
 from io import BytesIO
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.response import HTTPResponse  # type: ignore
+from requests.packages.urllib3.response import HTTPResponse
 import fnmatch
 import pytest
 

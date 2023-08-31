@@ -1,11 +1,8 @@
 # this file is shared via symlink with devpi-client,
+# so it must continue to work with the lowest supported Python 3.x version
 from devpi_common.metadata import parse_version
+from urllib.parse import quote as url_quote
 import pytest
-
-try:
-    from urllib.parse import quote as url_quote
-except ImportError:
-    from urllib import quote as url_quote  # type: ignore
 
 
 class API:

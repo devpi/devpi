@@ -1,9 +1,6 @@
 from copy import deepcopy
 from operator import attrgetter
-try:
-    from urllib.parse import quote as url_quote
-except ImportError:
-    from urllib import quote as url_quote  # noqa: F401
+from urllib.parse import quote as url_quote
 import itertools
 import os
 import sys
