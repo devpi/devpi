@@ -514,7 +514,11 @@ class Index(object):
 
     def ix(self, name):
         schema = getattr(self, '%s_schema' % name)
-        if not exists_in(self.index_path, indexname=name):
+        try:
+            exists = exists_in(self.index_path, indexname=name)
+        except FileNotFoundError:
+            exists = False
+        if not exists:
             return create_in(self.index_path, schema, indexname=name)
         ix = open_dir(self.index_path, indexname=name)
         update_schema(ix, schema)
