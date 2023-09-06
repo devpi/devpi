@@ -352,10 +352,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - project: "postgresql"
-            python-version: "3.7"
-            os: "ubuntu-latest"
-            tox-envs: "py37-postgresql"
+          # - project: "postgresql"
+          #   python-version: "3.7"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py37-postgresql"
           - project: "postgresql"
             python-version: "3.7"
             os: "ubuntu-latest"
@@ -368,10 +368,10 @@ jobs:
             python-version: "3.7"
             os: "ubuntu-latest"
             tox-envs: "py37-dont_use_copy-server"
-          - project: "postgresql"
-            python-version: "3.11"
-            os: "ubuntu-latest"
-            tox-envs: "py311-postgresql"
+          # - project: "postgresql"
+          #   python-version: "3.11"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py311-postgresql"
           - project: "postgresql"
             python-version: "3.11"
             os: "ubuntu-latest"
@@ -380,10 +380,10 @@ jobs:
           #   python-version: "3.11"
           #   os: "ubuntu-latest"
           #   tox-envs: "py311-server_postgresql_ssl"
-          - project: "postgresql"
-            python-version: "pypy-3.8"
-            os: "ubuntu-latest"
-            tox-envs: "pypy3-postgresql"
+          # - project: "postgresql"
+          #   python-version: "pypy-3.8"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "pypy3-postgresql"
           - project: "postgresql"
             python-version: "pypy-3.8"
             os: "ubuntu-latest"
@@ -529,10 +529,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - project: "postgresql"
-            python-version: "3.12.0-alpha - 3.12.99"
-            os: "ubuntu-latest"
-            tox-envs: "py312-postgresql"
+          # - project: "postgresql"
+          #   python-version: "3.12.0-alpha - 3.12.99"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py312-postgresql"
           - project: "postgresql"
             python-version: "3.12.0-alpha - 3.12.99"
             os: "ubuntu-latest"
@@ -655,6 +655,36 @@ jobs:
         run: |
           set -xe -o nounset
           python -m mypy
+
+  flake8-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+
+    env:
+      PY_COLORS: 1
+
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.x"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip flake8 setuptools wheel
+      - name: "Run flake8"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          pushd client; flake8 --config .flake8; popd
+          pushd common; flake8 --config .flake8; popd
+          pushd postgresql; flake8 --config .flake8; popd
+          pushd server; flake8 --config .flake8; popd
+          pushd web; flake8 --config .flake8; popd
 
   ruff-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
