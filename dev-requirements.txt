@@ -8,7 +8,6 @@ Sphinx
 beautifulsoup4 != 4.12.1
 certauth
 execnet
-flake8<5
 mock
 mypy[python2]==0.971
 mypy-zope
@@ -16,7 +15,6 @@ pypitoken
 pytest
 pytest-asyncio
 pytest-cov
-pytest-flake8
 pytest-icdiff
 pytest-instafail
 pytest-pdb
