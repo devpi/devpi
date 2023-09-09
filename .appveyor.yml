@@ -19,7 +19,8 @@ install:
   - ps: (New-Object Net.WebClient).DownloadFile('https://downloads.python.org/pypy/pypy3.10-v7.3.12-win64.zip', "$env:appveyor_build_folder\pypy3.10-v7.3.12-win64.zip")
   - ps: 7z x pypy3.10-v7.3.12-win64.zip | Out-Null
   - ps: $env:path = "$env:appveyor_build_folder\pypy3.10-v7.3.12-win64;$env:path"
-  - pypy --version ; pypy3 --version
+  - pypy --version
+  - pypy3 --version
 
   - echo Installed Pythons
   - py --list
