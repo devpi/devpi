@@ -1,3 +1,6 @@
+[tool.setuptools]
+packages = ["server"]
+
 [tool.ruff]
 select = [
     "B", "COM", "DTZ", "E", "ERA", "EXE", "F",

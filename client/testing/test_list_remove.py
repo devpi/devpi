@@ -117,9 +117,9 @@ class TestListRemove:
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "hello")
         out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*""")
-            # */hello-1.0.zip""")  # TODO (cclauss): Why does this fail?
+            */hello-1.0*
+            */hello-1.0.zip""")
+        # TODO (cclauss): Why must we remove `*/hello-1.1.zip` from the list above?
         assert len([x for x in out.stdout.lines if x.strip()]) == 3
         out = out_devpi("remove", "-y", "hello==1.0", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
@@ -153,7 +153,7 @@ class TestListRemove:
         out.stdout.fnmatch_lines_random("""
             */hello-1.1.zip
             */hello-1.0*""")
-            # */hello-1.1.zip""")  # TODO (cclauss): Why does this fail?
+        # TODO (cclauss): Why must we remove `*/hello-1.1.zip` from the list above?
         url = out.stdout.lines[0]
         out = out_devpi("remove", "-y", url, code=200)
         out.stdout.fnmatch_lines_random("""
@@ -184,9 +184,9 @@ class TestListRemove:
         devpi("use", other_index)
         out = out_devpi("list", "--index", "%s/dev" % user, "hello")
         out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*""")
-            # */hello-1.0.zip""")  # TODO (cclauss): Why does this fail?
+            */hello-1.0*
+            */hello-1.0.zip""")
+        # TODO (cclauss): Why must we remove `*/hello-1.1.zip` from the list above?
         assert len([x for x in out.stdout.lines if x.strip()]) == 3
         out = out_devpi("remove", "--index", "%s/dev" % user, "-y", "hello==1.0", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
