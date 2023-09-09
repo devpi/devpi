@@ -14,18 +14,17 @@ environment:
 install:
   - git config core.symlinks true
   - git reset --hard
-#  - choco install python.pypy > pypy-inst.log 2>&1 || (type pypy-inst.log & exit /b 1)
-#  - set PATH=C:\tools\pypy\pypy;%PATH% # so tox can find pypy
-#  - echo PyPy installed
-#  - pypy --version
+
+  - echo Install PyPy3.10
+  - ps: (New-Object Net.WebClient).DownloadFile('https://downloads.python.org/pypy/pypy3.10-v7.3.12-win64.zip', "$env:appveyor_build_folder\pypy3.10-v7.3.12-win64.zip")
+  - ps: 7z x pypy3.10-v7.3.12-win64.zip | Out-Null
+  - ps: $env:path = "$env:appveyor_build_folder\pypy3.10-v7.3.12-win64;$env:path"
+  - pypy --version ; pypy3 --version
+
   - echo Installed Pythons
   - py --list
   - py -3.11 -m pip install --upgrade pip
   - py -3.11 -m pip install --upgrade --force-reinstall tox
-  - ps: (New-Object Net.WebClient).DownloadFile('https://downloads.python.org/pypy/pypy3.10-v7.3.12-win64.zip', "$env:appveyor_build_folder\pypy3.10-v7.3.12-win64.zip")
-  - ps: 7z x pypy3.10-v7.3.12-win64.zip | Out-Null
-  - ps: $env:path = "$env:appveyor_build_folder\pypy3.10-v7.3.12-win64;$env:path"
-  - py --list
 
 build: false
 
