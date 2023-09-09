@@ -1,3 +1,9 @@
+# https://www.appveyor.com/docs/lang/python
+# https://www.appveyor.com/docs/windows-images-software/#python
+
+image:
+  - Visual Studio 2022
+
 environment:
   matrix:
     - PROJECT: "common"
@@ -13,11 +19,12 @@ install:
 #  - echo PyPy installed
 #  - pypy --version
   - echo Installed Pythons
-  - dir c:\Python*
-  - C:\Python35\python -m pip install tox -U --force-reinstall
+  - py --list
+  - py -3.11 -m pip install --upgrade pip
+  - py -3.11 -m pip install --upgrade --force-reinstall tox
 
 build: false
 
 test_script:
   - cd "%PROJECT%"
-  - C:\Python35\python -m tox --skip-missing-interpreters
+  - py -3.11 -m tox --skip-missing-interpreters
