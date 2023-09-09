@@ -14,7 +14,7 @@ def compareable_text(text):
 
 
 def test_root_view(testapp):
-    r = testapp.get('/', headers=dict(accept="text/html"))
+    r = testapp.get('/', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
@@ -24,7 +24,7 @@ def test_root_view(testapp):
 
 def test_root_view_with_index(mapp, testapp):
     api = mapp.create_and_use()
-    r = testapp.get('/', headers=dict(accept="text/html"))
+    r = testapp.get('/', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
@@ -35,11 +35,11 @@ def test_root_view_with_index(mapp, testapp):
 
 
 def test_root_view_post(testapp):
-    testapp.post('/', headers=dict(accept="text/html"), code=404)
+    testapp.post('/', headers={'accept': "text/html"}, code=404)
 
 
 def test_user_view_root_pypi(testapp):
-    r = testapp.get('/root', headers=dict(accept="text/html"))
+    r = testapp.get('/root', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
@@ -47,8 +47,8 @@ def test_user_view_root_pypi(testapp):
 
 
 def test_user_view(mapp, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
-    r = testapp.get("/%s" % api.user, headers=dict(accept="text/html"))
+    api = mapp.create_and_use(indexconfig={'bases': ["root/pypi"]})
+    r = testapp.get("/%s" % api.user, headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text.strip(), l.attrs['href']) for l in links] == [
@@ -56,7 +56,7 @@ def test_user_view(mapp, testapp):
 
 
 def test_user_not_found(testapp):
-    r = testapp.get("/blubber", headers=dict(accept="text/html"))
+    r = testapp.get("/blubber", headers={'accept': "text/html"})
     assert r.status_code == 404
     content, = r.html.select('#content')
     assert "no user" in compareable_text(content.text)
@@ -64,7 +64,7 @@ def test_user_not_found(testapp):
 
 
 def test_index_view_root_pypi(testapp):
-    r = testapp.get('/root/pypi', headers=dict(accept="text/html"))
+    r = testapp.get('/root/pypi', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -72,8 +72,8 @@ def test_index_view_root_pypi(testapp):
 
 
 def test_index_view(mapp, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
-    r = testapp.get(api.index, headers=dict(accept="text/html"))
+    api = mapp.create_and_use(indexconfig={'bases': ["root/pypi"]})
+    r = testapp.get(api.index, headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -83,16 +83,16 @@ def test_index_view(mapp, testapp):
 
 
 def test_index_not_found(testapp):
-    r = testapp.get("/blubber/blubb", headers=dict(accept="text/html"))
+    r = testapp.get("/blubber/blubb", headers={'accept': "text/html"})
     assert r.status_code == 404
     content, = r.html.select('#content')
     assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
 
 
 def test_index_view_project_info(mapp, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={'bases': ["root/pypi"]})
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
-    r = testapp.get(api.index, headers=dict(accept="text/html"))
+    r = testapp.get(api.index, headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -104,10 +104,10 @@ def test_index_view_project_info(mapp, testapp):
 
 @pytest.mark.with_notifier
 def test_index_view_project_files(mapp, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={'bases': ["root/pypi"]})
     r = mapp.upload_file_pypi("pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
     tar_url = r.file_url
-    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index, headers={'accept': "text/html"})
     links = r.html.select('#content a')
 
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -118,7 +118,7 @@ def test_index_view_project_files(mapp, testapp):
         ("simple", "http://localhost/root/pypi/+simple/")]
     zip_url = mapp.upload_file_pypi(
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6").file_url
-    r = testapp.get(api.index, headers=dict(accept="text/html"))
+    r = testapp.get(api.index, headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -132,12 +132,12 @@ def test_index_view_project_files(mapp, testapp):
 
 @pytest.mark.with_notifier
 def test_index_view_project_docs(keep_docs_packed, mapp, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={'bases': ["root/pypi"]})
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
-    r = testapp.get(api.index, headers=dict(accept="text/html"))
+    r = testapp.get(api.index, headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -151,7 +151,7 @@ def test_index_view_project_docs(keep_docs_packed, mapp, testapp):
 def test_index_view_permissions(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_acl([api.user, ':developers', ':ANONYMOUS:'])
-    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index, headers={'accept': "text/html"})
     elements = r.html.select('#content dl.permissions > *')
     current_group = None
     grouped = {}
@@ -169,9 +169,9 @@ def test_index_view_permissions(mapp, testapp):
 def test_title_description(mapp, testapp):
     api = mapp.create_and_use()
     mapp.modify_user(api.user, title="usertitle", description="userdescription")
-    mapp.modify_index(api.stagename, indexconfig=dict(
-        title="indextitle", description="indexdescription"))
-    r = testapp.xget(200, '/', headers=dict(accept="text/html"))
+    mapp.modify_index(api.stagename, indexconfig={
+        'title': "indextitle", 'description': "indexdescription"})
+    r = testapp.xget(200, '/', headers={'accept': "text/html"})
     (content,) = r.html.select('#content')
     users = content.select('.user_index_list dt')
     assert [compareable_text(x.text) for x in users] == [
@@ -180,7 +180,7 @@ def test_title_description(mapp, testapp):
     assert compareable_text(userdescription.text) == "userdescription"
     links = content.select('a')
     assert [x.attrs.get('title') for x in links] == [None, None, None, 'indexdescription']
-    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index, headers={'accept': "text/html"})
     (content,) = r.html.select('#content')
     (indextitle,) = content.select('.index_title')
     assert compareable_text(indextitle.text) == "user1/dev indextitle index"
@@ -196,7 +196,7 @@ def test_project_view(mapp, testapp):
         "pkg_name-2.6.zip", b"contentzip", "pkg_name", "2.6")
     mapp.upload_file_pypi(
         "pkg_name-2.7.tar.gz", b"content", "pkg_name", "2.7")
-    r = testapp.get(api.index + '/pkg_name', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg_name', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -214,7 +214,7 @@ def test_project_projectname_redirect(mapp, testapp):
         "name": "pkg_hello", "version": "1.0"})
     mapp.upload_file_pypi(
         "pkg-hello-1.0.zip", b"123", "pkg-hello", "1.0")
-    r = testapp.xget(200, api.index + '/pkg_hello', headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + '/pkg_hello', headers={'accept': "text/html"})
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Simple index", "http://localhost/%s/+simple/pkg-hello" % api.stagename),
@@ -225,11 +225,11 @@ def test_project_projectname_redirect(mapp, testapp):
 
 def test_project_not_found(mapp, testapp):
     api = mapp.create_and_use()
-    r = testapp.get("/blubber/blubb/pkg1", headers=dict(accept="text/html"))
+    r = testapp.get("/blubber/blubb/pkg1", headers={'accept': "text/html"})
     assert r.status_code == 404
     content, = r.html.select('#content')
     assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
-    r = testapp.get(api.index + "/pkg1", headers=dict(accept="text/html"))
+    r = testapp.get(api.index + "/pkg1", headers={'accept': "text/html"})
     assert r.status_code == 404
     content, = r.html.select('#content')
     assert 'The project pkg1 does not exist.' in compareable_text(content.text)
@@ -242,7 +242,7 @@ def test_project_view_docs_only(keep_docs_packed, mapp, testapp):
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc(
         "pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=True)
-    r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + '/pkg1', headers={'accept': "text/html"})
     (content,) = r.html.select('#content')
     assert [x.text for x in content.select('tr td')] == [
         "user1/dev", "2.6", "pkg1-2.6"]
@@ -253,7 +253,7 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
             <a href="../../pkg/pkg1-2.7.zip" />
             <a href="../../pkg/pkg1-2.6.zip" />
         ''', pypiserial=10)
-    r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
+    r = testapp.get('/root/pypi/pkg1', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -268,7 +268,7 @@ def test_project_view_root_pypi(mapp, testapp, pypistage):
 
 def test_project_view_root_pypi_no_releases(mapp, testapp, pypistage):
     pypistage.mock_simple("pkg1", text='', pypiserial=10)
-    r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
+    r = testapp.get('/root/pypi/pkg1', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -284,7 +284,7 @@ def test_project_view_root_pypi_external_link_bad_name(mapp, testapp, pypistage)
             <a rel="internal" href="../../pkg/pkg1-2.6.zip" />
             <a href="https://github.com/pypa/pip/tarball/develop#egg=pkg1-dev" />
         ''', pypiserial=10)
-    r = testapp.get('/root/pypi/pkg1', headers=dict(accept="text/html"))
+    r = testapp.get('/root/pypi/pkg1', headers={'accept': "text/html"})
     assert r.status_code == 200
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -303,14 +303,14 @@ def test_project_view_root_and_docs(keep_docs_packed, mapp, testapp, pypistage):
             <a href="../../pkg/pkg1-2.7.zip" />
             <a href="../../pkg/pkg1-2.6.zip" />
         ''', pypiserial=10)
-    api = mapp.create_and_use(indexconfig=dict(
-        bases=["root/pypi"],
-        mirror_whitelist=["*"]))
+    api = mapp.create_and_use(indexconfig={
+        'bases': ["root/pypi"],
+        'mirror_whitelist': ["*"]})
     content = zip_dict({"index.html": "<html/>"})
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc(
         "pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=True)
-    r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + '/pkg1', headers={'accept': "text/html"})
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
         ("Simple index", "http://localhost/%s/+simple/pkg1" % api.stagename),
@@ -328,7 +328,7 @@ def test_project_view_inherited_no_versions_on_stage(mapp, testapp):
     mapp.create_index("prod")
     mapp.use("root/prod")
     mapp.upload_file_pypi("pkg5-1.0.tgz", b"123", "pkg5", "1.0")
-    mapp.create_index("dev", indexconfig=dict(bases="root/prod"))
+    mapp.create_index("dev", indexconfig={'bases': "root/prod"})
     mapp.use("root/dev")
     pkg_url = mapp.api.index + '/pkg5'
     testapp.xget(200, pkg_url)
@@ -364,7 +364,7 @@ def test_version_view(mapp, testapp, monkeypatch):
         "classifiers": classifiers,
         "description": u"föö".encode('utf-8')},
         waithooks=True)
-    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/2.6', headers={'accept': "text/html"})
     assert r.status_code == 200
     assert r.html.find('title').text == "user1/dev/: pkg1-2.6 metadata and description"
     info = dict((compareable_text(t.text) for t in x.find_all('td')) for x in r.html.select('.projectinfos tr'))
@@ -411,7 +411,7 @@ def test_markdown_description_without_content_type(mapp, testapp, monkeypatch):
         "author": "Foo Bear",
         "description": u'# Description'.encode('utf-8')},
         waithooks=True)
-    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/2.6', headers={'accept': "text/html"})
 
     description = r.html.select('#description')
     assert len(description) == 1
@@ -431,7 +431,7 @@ def test_markdown_description_with_content_type(mapp, testapp, monkeypatch):
         "description": u'# Description'.encode('utf-8'),
         "description_content_type": 'text/markdown'},
         waithooks=True)
-    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/2.6', headers={'accept': "text/html"})
 
     description = r.html.select('#description')
     assert len(description) == 1
@@ -446,7 +446,7 @@ def test_version_projectname(mapp, testapp):
     mapp.upload_file_pypi(
         "pkg-hello-1.0.whl", b"123", "pkg-hello", "1.0",
         register=False, waithooks=True)
-    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers={'accept': "text/html"})
     assert 'pkg-hello-1.0 metadata and description' in r.text
 
 
@@ -455,12 +455,12 @@ def test_description_updated(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata({
         "name": "pkg-hello", "version": "1.0", "description": "foo"})
-    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers={'accept': "text/html"})
     description, = r.html.select('#description')
     assert description.decode_contents().strip() == '<p>foo</p>'
     mapp.set_versiondata({
         "name": "pkg-hello", "version": "1.0", "description": "bar"})
-    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers={'accept': "text/html"})
     description, = r.html.select('#description')
     assert description.decode_contents().strip() == '<p>bar</p>'
 
@@ -470,7 +470,7 @@ def test_description_empty(mapp, testapp):
     api = mapp.create_and_use()
     mapp.set_versiondata({
         "name": "pkg-hello", "version": "1.0"})
-    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + "/pkg-hello/1.0", headers={'accept': "text/html"})
     description, = r.html.select('#description')
     assert description.decode_contents().strip() == '<p>No description in metadata</p>'
 
@@ -479,24 +479,24 @@ def test_version_not_found(mapp, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi(
         "pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
-    r = testapp.get("/blubber/blubb/pkg1/2.6", headers=dict(accept="text/html"))
+    r = testapp.get("/blubber/blubb/pkg1/2.6", headers={'accept': "text/html"})
     assert r.status_code == 404
     content, = r.html.select('#content')
     assert 'The stage blubber/blubb could not be found.' in compareable_text(content.text)
-    r = testapp.get(api.index + "/pkg2/2.6", headers=dict(accept="text/html"))
+    r = testapp.get(api.index + "/pkg2/2.6", headers={'accept': "text/html"})
     assert r.status_code == 404
     content, = r.html.select('#content')
     assert 'The project pkg2 does not exist.' in compareable_text(content.text)
-    r = testapp.get(api.index + "/pkg1/2.7", headers=dict(accept="text/html"))
+    r = testapp.get(api.index + "/pkg1/2.7", headers={'accept': "text/html"})
     assert r.status_code == 404
     content, = r.html.select('#content')
     assert 'The version 2.7 of project pkg1 does not exist on stage' in content.text.strip()
 
 
 def test_version_not_found_but_inherited_has_them(mapp, testapp):
-    api1 = mapp.create_and_use(indexconfig=dict(bases=()))
+    api1 = mapp.create_and_use(indexconfig={'bases': ()})
     mapp.upload_file_pypi("pkg1-2.6.tar.gz", b"content", "pkg1", "2.6")
-    api2 = mapp.create_and_use(indexconfig=dict(bases=(api1.stagename,)))
+    api2 = mapp.create_and_use(indexconfig={'bases': (api1.stagename,)})
     testapp.xget(200, "/%s/pkg1/2.6" % api1.stagename, accept="text/html")
     testapp.xget(404, "/%s/pkg1/2.6" % api2.stagename, accept="text/html")
     testapp.xget(404, "/%s/pkg1/2.5" % api2.stagename, accept="text/html")
@@ -507,7 +507,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
             <a href="../../pkg/pkg1-2.6.zip" />
         ''', pypiserial=10)
     r = testapp.xget(200, '/root/pypi/pkg1/2.6',
-                     headers=dict(accept="text/html"))
+                     headers={'accept': "text/html"})
     filesinfo = [tuple(compareable_text(t.text) for t in x.find_all('td')[:3]) for x in r.html.select('.files tbody tr')]
     assert filesinfo == [('pkg1-2.6.zip Type Source', '')]
     links = {l.text: l.attrs['href'] for l in r.html.select('#content a')}
@@ -519,7 +519,7 @@ def test_version_view_root_pypi(mapp, testapp, pypistage):
 def test_version_view_root_pypi_external_files(mapp, testapp, pypistage):
     pypistage.mock_simple(
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
-    r = testapp.get('/root/pypi/pkg1/2.7', headers=dict(accept="text/html"))
+    r = testapp.get('/root/pypi/pkg1/2.7', headers={'accept': "text/html"})
     assert r.status_code == 200
     filesinfo = [tuple(compareable_text(t.text) for t in x.find_all('td')[:3])
                  for x in r.html.select('.files tbody tr')]
@@ -551,7 +551,7 @@ def test_version_view_description_errors(mapp, testapp):
         "version": "2.6",
         "description": description.encode('utf-8')},
         waithooks=True)
-    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/2.6', headers={'accept': "text/html"})
     (description,) = r.html.select('#description')
     assert "Unexpected section title" in description.text
 
@@ -570,35 +570,35 @@ def test_version_view_latest_stable(mapp, testapp):
     mapp.set_versiondata({
         "name": "pkg1",
         "version": "2.0"})
-    r = testapp.get(api.index + '/pkg1/2.0', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/2.0', headers={'accept': "text/html"})
     links = r.html.select('.projectnavigation a')
     assert 'Stable version available' not in "".join(x.text for x in links)
     link = links[-1]
     assert link.text == 'Newer version available'
     assert link.attrs['href'] == api.index + '/pkg1/stable'
-    r = testapp.get(api.index + '/pkg1/2.1b2', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/2.1b2', headers={'accept': "text/html"})
     links = r.html.select('.projectnavigation a')
     assert 'Newer version available' not in "".join(x.text for x in links)
     link = links[-1]
     assert link.text == 'Stable version available'
     assert link.attrs['href'] == api.index + '/pkg1/stable'
-    r = testapp.get(api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/2.6', headers={'accept': "text/html"})
     links = r.html.select('.projectnavigation a')
     assert 'version available' not in "".join(x.text for x in links)
-    r = testapp.get(api.index + '/pkg1/3.0b1', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/3.0b1', headers={'accept': "text/html"})
     links = r.html.select('.projectnavigation a')
     assert 'Newer version available' not in "".join(x.text for x in links)
     link = links[-1]
     assert link.text == 'Stable version available'
     assert link.attrs['href'] == api.index + '/pkg1/stable'
     # test stable url
-    r = testapp.get(api.index + '/pkg1/stable', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/stable', headers={'accept': "text/html"})
     assert 'pkg1-2.6 metadata and description' in r.text
     links = r.html.select('#navigation a')
     assert links[4].text == '2.6'
     assert links[4].attrs['href'] == api.index + '/pkg1/2.6'
     # test latest url
-    r = testapp.get(api.index + '/pkg1/latest', headers=dict(accept="text/html"))
+    r = testapp.get(api.index + '/pkg1/latest', headers={'accept': "text/html"})
     assert 'pkg1-3.0b1 metadata and description' in r.text
     links = r.html.select('#navigation a')
     assert links[4].text == '3.0b1'
@@ -614,7 +614,7 @@ def test_complex_name(mapp, testapp):
     pkgname = "my-binary-package-name-1-4-3-yip"
     mapp.upload_file_pypi(
         "%s-0.9.tar.gz" % pkgname, b"content", pkgname, "0.9")
-    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index, headers={'accept': "text/html"})
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
         ('simple index', 'http://localhost/user1/dev/+simple/'),
@@ -623,7 +623,7 @@ def test_complex_name(mapp, testapp):
             '%s-0.9.tar.gz' % pkgname,
             'http://localhost/user1/dev/+f/ed7/002b439e9ac84/%s-0.9.tar.gz#sha256=ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73' % pkgname)]
     r = testapp.xget(
-        200, api.index + '/%s' % pkgname, headers=dict(accept="text/html"))
+        200, api.index + '/%s' % pkgname, headers={'accept': "text/html"})
     links = r.html.select('#content a')
     assert [(compareable_text(l.text), l.attrs['href']) for l in links] == [
         ("Simple index", "http://localhost/%s/+simple/%s" % (api.stagename, pkgname)),
@@ -636,7 +636,7 @@ def test_complex_name(mapp, testapp):
 def test_whitelist(mapp, pypistage, testapp):
     pypistage.mock_simple(
         "pkg1", '<a href="http://example.com/releases/pkg1-2.7.zip" /a>)')
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={'bases': ["root/pypi"]})
     mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"},
         set_whitelist=False)

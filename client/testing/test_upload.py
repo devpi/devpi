@@ -259,10 +259,10 @@ def test_post_includes_auth_info(initproj, uploadhub):
     certpath = tmpdir.join("cert.key").strpath
     uploadhub.cwd = tmpdir
     uploadhub.http = Session()
-    uploadhub.current.reconfigure(dict(
-        index="http://devpi/foo/bar",
-        login="http://devpi/+login",
-        pypisubmit="http://devpi/foo/bar"))
+    uploadhub.current.reconfigure({
+        "index": "http://devpi/foo/bar",
+        "login": "http://devpi/+login",
+        "pypisubmit": "http://devpi/foo/bar"})
     uploadhub.current.set_auth("devpi", "password")
     uploadhub.current.set_basic_auth("basic", "auth")
     uploadhub.current.set_client_cert(certpath)
@@ -311,10 +311,10 @@ def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
     initproj("pkg-1.0")
     tmpdir = py.path.local()
     uploadhub.cwd = tmpdir
-    uploadhub.current.reconfigure(dict(
-        index="http://devpi/foo/bar",
-        login="http://devpi/+login",
-        pypisubmit="http://devpi/foo/bar"))
+    uploadhub.current.reconfigure({
+        "index": "http://devpi/foo/bar",
+        "login": "http://devpi/+login",
+        "pypisubmit": "http://devpi/foo/bar"})
     monkeypatch.setattr(uploadhub.http, "send", send)
     main(uploadhub, args)
     # convert POST data to Message
@@ -371,10 +371,10 @@ def test_post_derived_devpi_token(initproj, uploadhub):
     tmpdir = py.path.local()
     uploadhub.cwd = tmpdir
     uploadhub.http = Session()
-    uploadhub.current.reconfigure(dict(
-        index="http://devpi/foo/bar",
-        login="http://devpi/+login",
-        pypisubmit="http://devpi/foo/bar"))
+    uploadhub.current.reconfigure({
+        "index": "http://devpi/foo/bar",
+        "login": "http://devpi/+login",
+        "pypisubmit": "http://devpi/foo/bar"})
     uploadhub.current.set_auth("devpi", passwd)
     main(uploadhub, args)
     ((post_args, post_kwargs),) = Session.posts
@@ -721,7 +721,7 @@ class TestUploadFunctional:
         data = json.loads(out.stdout.str())
         vv = ViewLinkStore(url, data["result"])
         assert len(vv.get_links()) == 2
-        links = dict((x.rel, x.basename.lower()) for x in vv.get_links())
+        links = {x.rel: x.basename.lower() for x in vv.get_links()}
         assert links["releasefile"] == "%s.zip" % name_version_str
         assert links["doczip"] == "%s.doc.zip" % name_version_str
 

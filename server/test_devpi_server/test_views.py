@@ -63,7 +63,7 @@ def hash_spec_matches(hash_spec, content):
     (":foobar", 'fatal'),
     (":foobar:", 'fatal')])
 def test_invalid_name(caplog, testapp, name, status, kind):
-    reqdict = dict(password="123")
+    reqdict = {"password": "123"}
     if kind == "user":
         r = testapp.put_json("/%s" % name, reqdict, expect_errors=True)
     else:
@@ -87,28 +87,28 @@ def test_invalid_name(caplog, testapp, name, status, kind):
 
 def test_user_patch_keeps_missing_keys(testapp):
     # needed for devpi-client < 2.5.0
-    testapp.put_json("/foo", dict(password="123"))
+    testapp.put_json("/foo", {"password": "123"})
     testapp.set_auth('foo', '123')
     r = testapp.get("/foo")
     result = r.json['result']
     result.pop('created', None)
     result.pop('modified', None)
     assert result == {'username': 'foo', 'indexes': {}}
-    testapp.patch_json("/foo", dict(title="foo"))
+    testapp.patch_json("/foo", {"title": "foo"})
     r = testapp.get("/foo")
     result = r.json['result']
     result.pop('created', None)
     result.pop('modified', None)
     assert result == {
         'username': 'foo', 'title': 'foo', 'indexes': {}}
-    testapp.patch_json("/foo", dict(description="bar"))
+    testapp.patch_json("/foo", {"description": "bar"})
     r = testapp.get("/foo")
     result = r.json['result']
     result.pop('created', None)
     result.pop('modified', None)
     assert result == {
         'username': 'foo', 'title': 'foo', 'description': 'bar', 'indexes': {}}
-    testapp.patch_json("/foo", dict(description=""))
+    testapp.patch_json("/foo", {"description": ""})
     r = testapp.get("/foo")
     result = r.json['result']
     result.pop('created', None)
@@ -119,11 +119,11 @@ def test_user_patch_keeps_missing_keys(testapp):
 
 def test_user_patch_trailing_slash(testapp):
     # needed for devpi-client < 2.5.0
-    testapp.put_json("/foo", dict(password="123"))
+    testapp.put_json("/foo", {"password": "123"})
     testapp.set_auth('foo', '123')
     r = testapp.get("/foo")
     assert 'description' not in r.json['result']
-    testapp.patch_json("/foo/", dict(description="bar"))
+    testapp.patch_json("/foo/", {"description": "bar"})
     r = testapp.get("/foo")
     assert r.json['result']['description'] == 'bar'
 
@@ -228,7 +228,7 @@ def test_simple_project_redirect(pypistage, testapp):
 
 
 def test_index_get_json_patch_json_roundtrip(mapp, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={"bases": ["root/pypi"]})
     r = testapp.get(api.index)
     assert r.status_code == 200
     assert r.json['type'] == 'indexconfig'
@@ -241,7 +241,7 @@ def test_index_get_json_patch_json_roundtrip(mapp, testapp):
 
 @pytest.mark.parametrize("outside_url", ['', 'http://localhost/devpi'])
 def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={"bases": ["root/pypi"]})
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
@@ -263,7 +263,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
 
 
 def test_simple_project_absolute_url(mapp, pypistage, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={"bases": ["root/pypi"]})
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
@@ -328,16 +328,16 @@ def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
 @pytest.mark.parametrize("url", [
     "/root/pypi", "/root/pypi/", "/root/pypi/+simple", "/root/pypi/+simple/"])
 def test_projects_pep_691(pypistage, testapp, url):
-    mockkw = dict(
-        code=200,
-        content_type="application/vnd.pypi.simple.v1+json",
-        text="""{
+    mockkw = {
+        "code": 200,
+        "content_type": "application/vnd.pypi.simple.v1+json",
+        "text": """{
             "meta": {"api-version": "1.0"},
             "projects": [
                 {"name": "devpi-server"},
                 {"name": "Django"},
                 {"name": "ploy_ansible"}
-            ]}""")
+            ]}"""}
     pypistage.xom.httpget.mockresponse(pypistage.mirror_url, **mockkw)
     content_types = [
         "application/vnd.pypi.simple.v1+json",
@@ -352,7 +352,7 @@ def test_projects_pep_691(pypistage, testapp, url):
     assert 'User-Agent' in r.headers['Vary']
     assert r.headers['content-type'] == "application/vnd.pypi.simple.v1+json"
     assert r.json['meta']['api-version'] == '1.0'
-    assert set([x['name'] for x in r.json['projects']]) == {
+    assert {x['name'] for x in r.json['projects']} == {
         "devpi-server", "django", "ploy-ansible"}
 
 
@@ -376,7 +376,7 @@ def test_project_pep_691(mapp, testapp):
     (item,) = r.json['files']
     assert item['filename'] == 'pkg1-2.6.tgz'
     assert item['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
-    assert item['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
+    assert item['hashes'] == {"sha256": 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'}
     assert item['requires-python'] == ''
     assert 'yanked' not in item
 
@@ -403,12 +403,12 @@ def test_project_pep_691_multiple(mapp, testapp):
     (item1, item2) = sorted(r.json['files'], key=itemgetter("filename"))
     assert item1['filename'] == 'pkg1-2.6.tgz'
     assert item1['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
-    assert item1['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
+    assert item1['hashes'] == {"sha256": 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'}
     assert item1['requires-python'] == ''
     assert 'yanked' not in item1
     assert item2['filename'] == 'pkg1-2.7.tgz'
     assert item2['url'] == '../+f/b3a/8e0e1f9ab1bfe/pkg1-2.7.tgz'
-    assert item2['hashes'] == dict(sha256='b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0eee8ebb4a5d0')
+    assert item2['hashes'] == {"sha256": 'b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0eee8ebb4a5d0'}
     assert item2['requires-python'] == ''
     assert 'yanked' not in item2
 
@@ -556,9 +556,9 @@ def test_simple_list(pypistage, testapp):
 def test_correct_resolution_order(pypistage, mapp, testapp):
     pypistage.mock_simple("hello", pkgver="hello-1.0.tar.gz")
     index1 = mapp.create_and_use()
-    index2 = mapp.create_and_use(indexconfig=dict(bases=[index1.stagename]))
+    index2 = mapp.create_and_use(indexconfig={"bases": [index1.stagename]})
     index3 = mapp.create_and_use(
-        indexconfig=dict(bases=[index2.stagename, 'root/pypi']))
+        indexconfig={"bases": [index2.stagename, 'root/pypi']})
     mapp.use(index1.stagename)
     mapp.login(index1.user, index1.password)
     mapp.upload_file_pypi("hello-1.0.tar.gz", b'123', "hello", "1.0",
@@ -635,7 +635,7 @@ def test_simple_refresh_inherited(mapp, xom, pypistage, testapp, project,
     pypistage.mock_simple(project, '<a href="/%s-1.0.zip" />' % project,
                           serial=100)
     if stagename is None:
-        api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+        api = mapp.create_and_use(indexconfig={"bases": ["root/pypi"]})
     else:
         api = mapp.use(stagename)
     stagename = api.stagename
@@ -660,19 +660,19 @@ def test_simple_refresh_inherited(mapp, xom, pypistage, testapp, project,
 
 def test_simple_refresh_inherited_not_whitelisted(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    mapp.set_versiondata({"name": "pkg", "version": "1.0"}, set_whitelist=False)
     r = testapp.xget(200, "/%s/+simple/pkg" % api.stagename)
     assert len(r.html.select('form')) == 0
 
 
 def test_simple_blocked_warning(mapp, pypistage, testapp):
     pypistage.mock_simple('pkg', '<a href="/pkg-1.0.zip" />', serial=100)
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
-    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    api = mapp.create_and_use(indexconfig={"bases": ["root/pypi"]})
+    mapp.set_versiondata({"name": "pkg", "version": "1.0"}, set_whitelist=False)
     r = testapp.xget(200, "/%s/+simple/pkg/" % api.stagename)
     (paragraph,) = r.html.select('p')
     assert paragraph.text == "INFO: Because this project isn't in the mirror_whitelist, no releases from root/pypi are included."
-    mapp.set_versiondata(dict(name="pkg", version="1.1"), set_whitelist=True)
+    mapp.set_versiondata({"name": "pkg", "version": "1.1"}, set_whitelist=True)
     r = testapp.xget(200, "/%s/+simple/pkg/" % api.stagename)
     assert r.html.select('p') == []
 
@@ -680,9 +680,9 @@ def test_simple_blocked_warning(mapp, pypistage, testapp):
 def test_simple_with_removed_base(caplog, mapp, testapp):
     mapp.create_and_login_user("user1", "1")
     mapp.create_index("prod")
-    mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
+    mapp.create_index("dev", indexconfig={"bases": ["user1/prod"]})
     mapp.delete_index("prod")
-    mapp.set_versiondata(dict(name="pkg", version="1.0"), set_whitelist=False)
+    mapp.set_versiondata({"name": "pkg", "version": "1.0"}, set_whitelist=False)
     testapp.xget(200, "/user1/dev/+simple/")
     assert len(caplog.getrecords('refers to non-existing')) == 1
     testapp.xget(200, "/user1/dev/+simple/pkg/")
@@ -736,7 +736,7 @@ def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testap
     index_name = 'user/name'
     name = 'pkg1'
     version = '1.0'
-    mapp.create_and_use(index_name, indexconfig=dict(bases=["root/pypi"]))
+    mapp.create_and_use(index_name, indexconfig={"bases": ["root/pypi"]})
     mapp.upload_file_pypi(
         '{name}-{version}.tgz'.format(name=name, version=version),
         b'123',
@@ -748,17 +748,17 @@ def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testap
     pypistage.mock_simple(name, '', status_code=502)
     r = testapp.get_json(f'/{index_name}/{name}')
     assert r.status_code == 200
-    assert set(r.json['result']) == set(['1.0'])
+    assert set(r.json['result']) == {'1.0'}
     # then we simulate that the mirror is available to fill the cache
     pypistage.mock_simple(name, '<a href="/%s-1.1.zip" />' % name)
     r = testapp.get_json(f'/{index_name}/{name}')
     assert r.status_code == 200
-    assert set(r.json['result']) == set(['1.0', '1.1'])
+    assert set(r.json['result']) == {'1.0', '1.1'}
     # and check once more with the filled cache
     pypistage.mock_simple(name, '', status_code=502)
     r = testapp.get_json(f'/{index_name}/{name}')
     assert r.status_code == 200
-    assert set(r.json['result']) == set(['1.0', '1.1'])
+    assert set(r.json['result']) == {'1.0', '1.1'}
 
 
 def test_pkgserv(httpget, pypistage, testapp):
@@ -816,7 +816,7 @@ def test_apiconfig_features_plugin(maketestapp, makexom):
     class Plugin:
         @hookimpl
         def devpiserver_get_features(self):
-            return set(['bar'])
+            return {'bar'}
     xom = makexom(plugins=[Plugin()])
     testapp = maketestapp(xom)
     r = testapp.get_json("/+api")
@@ -872,7 +872,7 @@ class TestSubmitValidation:
                 self.stagename = stagename
                 self.username = stagename.split("/")[0]
                 self.api = mapp.create_and_use(
-                    stagename, indexconfig=dict(bases=["root/pypi"]))
+                    stagename, indexconfig={"bases": ["root/pypi"]})
 
             def metadata(self, metadata, code):
                 return testapp.post(self.api.pypisubmit, metadata, code=code)
@@ -956,7 +956,7 @@ class TestSubmitValidation:
     def test_upload_with_removed_base(self, mapp, testapp):
         mapp.create_and_login_user("user1", "1")
         mapp.create_index("prod")
-        mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
+        mapp.create_index("dev", indexconfig={"bases": ["user1/prod"]})
         mapp.delete_index("prod")
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         testapp.post("/user1/dev/", metadata, code=200)
@@ -1060,7 +1060,7 @@ class TestSubmitValidation:
         mapp.get_simple("pkg5", code=404)
 
     def test_upload_twice_to_nonvolatile(self, submit, testapp, mapp):
-        mapp.modify_index(submit.stagename, indexconfig=dict(volatile=False))
+        mapp.modify_index(submit.stagename, indexconfig={"volatile": False})
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "Pkg5"}, code=200)
@@ -1139,7 +1139,7 @@ class TestSubmitValidation:
         mapp.create_index('prod')
         new_stage = mapp.api.stagename
         mapp.use(old_stage)
-        req = dict(name="Pkg5", version="2.6", targetindex=new_stage)
+        req = {"name": "Pkg5", "version": "2.6", "targetindex": new_stage}
         r = testapp.push("/%s" % old_stage, json.dumps(req))
         r = testapp.get_json("/%s/Pkg5/2.6" % new_stage)
         link, = r.json['result']['+links']
@@ -1165,7 +1165,7 @@ class TestSubmitValidation:
         mapp.create_index('prod')
         new_stagename = mapp.api.stagename
         mapp.use(old_stagename)
-        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        req = {"name": "Pkg5", "version": "2.6", "targetindex": new_stagename}
         time.sleep(1.5)  # needed to test last_modified below
         testapp.push("/%s" % old_stagename, json.dumps(req))
         with mapp.xom.keyfs.transaction(write=False):
@@ -1183,7 +1183,7 @@ class TestSubmitValidation:
         mapp.create_index('prod')
         new_stagename = mapp.api.stagename
         mapp.use(old_stagename)
-        req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
+        req = {"name": "Pkg5", "version": "2.6", "targetindex": new_stagename}
         testapp.push("/%s" % old_stagename, json.dumps(req))
         with mapp.xom.keyfs.transaction(write=False):
             new_stage = mapp.xom.model.getstage(new_stagename)
@@ -1235,7 +1235,7 @@ def test_submit_without_trailing_slash(mapp, testapp):
     basename = "%s-%s.tar.gz" % (name, version)
     content = b"a"
     mapp.set_versiondata(
-        dict(name=name, version=version))
+        {"name": name, "version": version})
     assert mapp.get_release_paths('pkg') == []
     r = testapp.post(url,
         {":action": "file_upload", "name": name, "version": version,
@@ -1246,7 +1246,7 @@ def test_submit_without_trailing_slash(mapp, testapp):
 
 
 def test_push_non_existent(mapp, testapp, monkeypatch):
-    req = dict(name="pkg5", version="2.6", targetindex="user2/dev")
+    req = {"name": "pkg5", "version": "2.6", "targetindex": "user2/dev"}
     # check redirection/404 (depending on if devpi-web is installed,
     # status_code is different)
     r = testapp.push("/user2/dev/", json.dumps(req), expect_errors=True)
@@ -1263,7 +1263,7 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
     assert r.status_code == 400
 
     mapp.create_and_login_user("user2")
-    mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
+    mapp.create_index("dev", indexconfig={"acl_upload": ["user2"]})
     mapp.login("user1", "1")
     # check push of non-existent release results in error
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
@@ -1279,9 +1279,9 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
 def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     mapp.create_and_login_user("user1", "1")
-    mapp.create_index("prod", indexconfig=dict(bases=["root/pypi"]))
-    mapp.create_index("dev", indexconfig=dict(bases=["user1/prod"]))
-    req = dict(name="hello", version="1.0", targetindex="user1/prod")
+    mapp.create_index("prod", indexconfig={"bases": ["root/pypi"]})
+    mapp.create_index("dev", indexconfig={"bases": ["user1/prod"]})
+    req = {"name": "hello", "version": "1.0", "targetindex": "user1/prod"}
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 400
     assert "no files for" in r.json["message"]
@@ -1291,9 +1291,9 @@ def test_push_from_pypi(httpget, mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123")
     mapp.create_and_login_user("foo")
-    mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
+    mapp.create_index("newindex1", indexconfig={"bases": ["root/pypi"]})
     mapp.use("root/pypi")
-    req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
+    req = {"name": "hello", "version": "1.0", "targetindex": "foo/newindex1"}
     r = testapp.push("/root/pypi", json.dumps(req))
     assert r.status_code == 200
     assert r.json == {
@@ -1308,9 +1308,9 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123", status_code=502)
     mapp.create_and_login_user("foo")
-    mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
+    mapp.create_index("newindex1", indexconfig={"bases": ["root/pypi"]})
     mapp.use("root/pypi")
-    req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
+    req = {"name": "hello", "version": "1.0", "targetindex": "foo/newindex1"}
     r = testapp.push("/root/pypi", json.dumps(req))
     assert r.status_code == 502
     assert "error 502 getting" in r.json["message"]
@@ -1321,7 +1321,7 @@ def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypist
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123")
     mapp.create_and_login_user("foo")
-    mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
+    mapp.create_index("newindex1", indexconfig={"bases": ["root/pypi"]})
     api = mapp.use("root/pypi")
     assert not pypistage.use_external_url
     # download the file to the mirror index
@@ -1340,7 +1340,7 @@ def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypist
     # we should now get a redirect when trying to get the file
     r = testapp.xget(302, URL(pkg_url).joinpath(tag['href']).url)
     # now we try to push the release to the new index
-    req = dict(name="hello", version="1.0", targetindex="foo/newindex1")
+    req = {"name": "hello", "version": "1.0", "targetindex": "foo/newindex1"}
     r = testapp.push("/root/pypi", json.dumps(req))
     assert r.status_code == 200
     assert r.json == {
@@ -1361,8 +1361,8 @@ def test_upload_docs_for_version_without_release(mapp, testapp, monkeypatch):
 def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     mapp.create_user("user1", "1")
     mapp.create_and_login_user("user2")
-    mapp.create_index("prod", indexconfig=dict(acl_upload=["user1", "user2"]))
-    mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
+    mapp.create_index("prod", indexconfig={"acl_upload": ["user1", "user2"]})
+    mapp.create_index("dev", indexconfig={"acl_upload": ["user2"]})
 
     mapp.login("user1", "1")
     mapp.create_index("dev")
@@ -1372,7 +1372,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     mapp.upload_doc("pkg1.zip", content, "pkg1", "")
 
     # check that push is authorized and executed towards user2/prod index
-    req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
+    req = {"name": "pkg1", "version": "2.6", "targetindex": "user2/prod"}
     r = testapp.push("/user1/dev", json.dumps(req))
     assert r.status_code == 200
     vv = get_view_version_links(testapp, "/user2/prod", "pkg1", "2.6",
@@ -1406,7 +1406,7 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     assert 'index.html' in archive.namelist()
 
     # reconfigure inheritance and see if get shadowing information
-    mapp.modify_index("user1/dev", indexconfig=dict(bases=("/user2/prod",)))
+    mapp.modify_index("user1/dev", indexconfig={"bases": ("/user2/prod",)})
     vv = get_view_version_links(testapp, "/user1/dev", "pkg1", "2.6", proj=proj)
     link = vv.get_link(rel="releasefile")
     assert link.href.endswith("/pkg1-2.6.tgz")
@@ -1456,7 +1456,7 @@ def test_upload_and_push_with_toxresults(mapp, testapp, outside_url, tox_result_
     r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
     assert r.status_code == 200
     testapp.xget(200, path, headers=headers)
-    req = dict(name="pkg1", version="2.6", targetindex="user1/prod")
+    req = {"name": "pkg1", "version": "2.6", "targetindex": "user1/prod"}
     r = testapp.push("/user1/dev", json.dumps(req), headers=headers)
     for actionlog in r.json["result"]:
         assert "user1/dev" not in actionlog[-1]
@@ -1524,7 +1524,7 @@ def test_upload_with_acl(mapp):
 def test_upload_anonymously(mapp):
     mapp.login("root")
     mapp.create_and_use()  # new context and login
-    mapp.set_versiondata(dict(name="pkg1", version="1.0"))
+    mapp.set_versiondata({"name": "pkg1", "version": "1.0"})
     mapp.logout()
     # anonymous cannot write to index now
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=401)
@@ -1547,7 +1547,7 @@ class TestPluginPermissions:
             @hookimpl
             def devpiserver_auth_request(self, request, userdict, username, password):
                 if username == 'pluginuser' and password == 'pluginpassword':
-                    return dict(status="ok", groups=self.groups)
+                    return {"status": "ok", "groups": self.groups}
                 return None
 
         return Plugin()
@@ -1560,7 +1560,7 @@ class TestPluginPermissions:
     def test_plugin_upload_group(self, mapp, plugin):
         mapp.login("root")
         mapp.create_and_use()  # new context and login
-        mapp.set_versiondata(dict(name="pkg1", version="1.0"))
+        mapp.set_versiondata({"name": "pkg1", "version": "1.0"})
         mapp.login("pluginuser", "pluginpassword")
         # pluginuser cannot write to index now
         mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=403)
@@ -1645,13 +1645,13 @@ def test_upload_and_delete_project_version(mapp):
 
 
 def test_delete_version_fails_on_non_volatile(mapp):
-    mapp.create_and_use(indexconfig=dict(volatile=False))
+    mapp.create_and_use(indexconfig={"volatile": False})
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     mapp.delete_project("pkg1/2.6", code=403)
 
 
 def test_delete_version_on_non_volatile_force(mapp):
-    mapp.create_and_use(indexconfig=dict(volatile=False))
+    mapp.create_and_use(indexconfig={"volatile": False})
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
     mapp.delete_project("pkg1/2.6", code=403)
     mapp.delete_project("pkg1/2.6?force")
@@ -1659,11 +1659,11 @@ def test_delete_version_on_non_volatile_force(mapp):
 
 @pytest.mark.nomocking
 def test_upload_to_mirror_fails(mapp, simpypi):
-    indexconfig = dict(
-        type="mirror",
-        mirror_url=simpypi.simpleurl,
-        mirror_cache_expiry=0,
-        volatile=True)
+    indexconfig = {
+        "type": "mirror",
+        "mirror_url": simpypi.simpleurl,
+        "mirror_cache_expiry": 0,
+        "volatile": True}
     api = mapp.create_and_use(indexconfig=indexconfig)
     name = "pkg1"
     version = "2.6"
@@ -1677,11 +1677,11 @@ def test_upload_to_mirror_fails(mapp, simpypi):
 
 @pytest.mark.nomocking
 def test_delete_mirror(mapp, simpypi, testapp, xom):
-    indexconfig = dict(
-        type="mirror",
-        mirror_url=simpypi.simpleurl,
-        mirror_cache_expiry=0,
-        volatile=True)
+    indexconfig = {
+        "type": "mirror",
+        "mirror_url": simpypi.simpleurl,
+        "mirror_cache_expiry": 0,
+        "volatile": True}
     api = mapp.create_and_use(indexconfig=indexconfig)
     name = "pytest"
     pkgver = "%s-2.6.zip" % name
@@ -1696,7 +1696,7 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     r = testapp.xget(200, link)
     with testapp.xom.keyfs.transaction():
         stage = testapp.xom.model.getstage(api.stagename)
-        assert stage.key_projects.get() == set([name])
+        assert stage.key_projects.get() == {name}
         assert getentry(testapp, path).file_exists()
     # remove
     mapp.delete_index(api.stagename)
@@ -1750,7 +1750,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     assert '2.5' in other_path
     assert '2.6' in path
     with testapp.xom.keyfs.transaction():
-        assert get_pypi_project_names(testapp) == set([name])
+        assert get_pypi_project_names(testapp) == {name}
         assert not getentry(testapp, path).file_exists()
     assert '/+e/' in link
     mapp.delete_project("pytest", code=403)
@@ -1760,7 +1760,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     mapp.delete_project("pytest", code=200)
     r = testapp.get(link)
     with testapp.xom.keyfs.transaction():
-        assert get_pypi_project_names(testapp) == set([name])
+        assert get_pypi_project_names(testapp) == {name}
         assert getentry(testapp, path).file_exists()
         assert not getentry(testapp, other_path).file_exists()
     r = testapp.get('/root/pypi/+simple/%s' % name)
@@ -1845,7 +1845,7 @@ def test_delete_version_from_mirror(mapp, pypistage, testapp):
 
 def test_delete_volatile_fails(mapp):
     mapp.login_root()
-    mapp.create_index("test", indexconfig=dict(volatile=False))
+    mapp.create_index("test", indexconfig={"volatile": False})
     mapp.use("root/test")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     mapp.delete_project("pkg5", code=403)
@@ -1854,7 +1854,7 @@ def test_delete_volatile_fails(mapp):
 
 def test_delete_volatile_force(mapp, testapp):
     mapp.login_root()
-    mapp.create_index("test", indexconfig=dict(volatile=False))
+    mapp.create_index("test", indexconfig={"volatile": False})
     api = mapp.use("root/test")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     assert mapp.getpkglist() == ["pkg5"]
@@ -1864,12 +1864,12 @@ def test_delete_volatile_force(mapp, testapp):
 
 @pytest.mark.nomocking
 def test_mirror_use_external_urls(mapp, simpypi, testapp, xom):
-    indexconfig = dict(
-        type="mirror",
-        mirror_url=simpypi.simpleurl,
-        mirror_cache_expiry=0,
-        mirror_use_external_urls=True,
-        volatile=True)
+    indexconfig = {
+        "type": "mirror",
+        "mirror_url": simpypi.simpleurl,
+        "mirror_cache_expiry": 0,
+        "mirror_use_external_urls": True,
+        "volatile": True}
     api = mapp.create_and_use(indexconfig=indexconfig)
     name = "pytest"
     pkgver = "%s-2.6.zip" % name
@@ -1910,9 +1910,9 @@ def test_delete_with_acl_upload(mapp, restrict_modify, volatile, xom):
     xom.config.args.restrict_modify = restrict_modify
     mapp.login_root()
     mapp.create_user("user1", "1")
-    mapp.create_index("user1/dev", indexconfig=dict(
-        acl_upload=["user2"],
-        volatile=volatile))
+    mapp.create_index("user1/dev", indexconfig={
+        "acl_upload": ["user2"],
+        "volatile": volatile})
     mapp.create_and_login_user("user2")
     mapp.use("user1/dev")
     mapp.upload_file_pypi(
@@ -2079,7 +2079,7 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     path1 = link1[1:]
     path2 = link2[1:]
     with testapp.xom.keyfs.transaction():
-        assert get_pypi_project_names(testapp) == set([name, other_name])
+        assert get_pypi_project_names(testapp) == {name, other_name}
         assert not getentry(testapp, path1).file_exists()
         assert not getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
@@ -2092,7 +2092,7 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     testapp.get(link1)
     testapp.get(link2)
     with testapp.xom.keyfs.transaction():
-        assert get_pypi_project_names(testapp) == set([name, other_name])
+        assert get_pypi_project_names(testapp) == {name, other_name}
         assert getentry(testapp, path1).file_exists()
         assert getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
@@ -2104,13 +2104,13 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     path2 = link2[1:]
     testapp.xdel(200, link1)
     with testapp.xom.keyfs.transaction():
-        assert get_pypi_project_names(testapp) == set([name, other_name])
+        assert get_pypi_project_names(testapp) == {name, other_name}
         assert not getentry(testapp, path1).file_exists()
         assert getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
     testapp.xdel(200, link2)
     with testapp.xom.keyfs.transaction():
-        assert get_pypi_project_names(testapp) == set([other_name])
+        assert get_pypi_project_names(testapp) == {other_name}
         assert not getentry(testapp, path1).file_exists()
         assert not getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
@@ -2118,7 +2118,7 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
 
 def test_delete_package_volatile_fails(mapp, testapp):
     mapp.login_root()
-    mapp.create_index("test", indexconfig=dict(volatile=False))
+    mapp.create_index("test", indexconfig={"volatile": False})
     mapp.use("root/test")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
@@ -2128,7 +2128,7 @@ def test_delete_package_volatile_fails(mapp, testapp):
 
 def test_delete_package_volatile_force(mapp, testapp):
     mapp.login_root()
-    mapp.create_index("test", indexconfig=dict(volatile=False))
+    mapp.create_index("test", indexconfig={"volatile": False})
     mapp.use("root/test")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
@@ -2187,7 +2187,7 @@ def test_delete_removed_toxresult(mapp, testapp, tox_result_data):
 def test_upload_docs_no_version(mapp, testapp, proj):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    mapp.set_versiondata(dict(name="Pkg1", version="1.0"))
+    mapp.set_versiondata({"name": "Pkg1", "version": "1.0"})
     mapp.upload_doc("pkg1.zip", content, "Pkg1", "")
     vv = get_view_version_links(testapp, api.index, "Pkg1", "1.0", proj=proj)
     link = vv.get_link("doczip")
@@ -2224,9 +2224,9 @@ def test_upload_docs(mapp, testapp, proj):
 @proj
 def test_upload_docs_metadata(mapp, testapp, proj):
     api = mapp.create_and_use()
-    mapp.set_versiondata(dict(
-        name="Pkg1", version="2.6",
-        description="Foo Pkg1"))
+    mapp.set_versiondata({
+        "name": "Pkg1", "version": "2.6",
+        "description": "Foo Pkg1"})
     result = mapp.getjson("%s/pkg1/2.6" % api.index)
     assert result["result"]["description"] == "Foo Pkg1"
     content = zip_dict({"index.html": "<html/>"})
@@ -2291,8 +2291,8 @@ def test_wrong_login_format(testapp, mapp):
         {"Host": "outside3.com"}, {'wsgi.url_scheme': 'https'}, "",
         "http://out.com", "http://out.com")])
 def test_outside_url_middleware(headers, environ, path, outsideurl, expected, testapp):
-    headers = dict((str(k), str(v)) for k, v in headers.items())
-    environ = dict((str(k), str(v)) for k, v in environ.items())
+    headers = {str(k): str(v) for k, v in headers.items()}
+    environ = {str(k): str(v) for k, v in environ.items()}
     testapp.xom.config.args.outside_url = outsideurl
     r = testapp.get(f'{path}/+api', headers=headers, extra_environ=environ)
     assert r.json['result']['login'] == "%s/+login" % expected
@@ -2317,7 +2317,7 @@ class TestOfflineMode:
         pypistage.mock_simple_projects(["package", "other-package"])
         # either create a stage with root/pypi as base, or return root/pypi directly
         if request.param is None:
-            api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+            api = mapp.create_and_use(indexconfig={"bases": ["root/pypi"]})
         else:
             api = mapp.use(request.param)
         # fetch package to update caches
@@ -2435,9 +2435,9 @@ class TestRestrictModify:
             @hookimpl
             def devpiserver_auth_request(self, request, userdict, username, password):
                 if username == "regular" and password == "regular":
-                    return dict(status="ok", groups=["regulars"])
+                    return {"status": "ok", "groups": ["regulars"]}
                 if username == "admin" and password == "admin":
-                    return dict(status="ok", groups=["admins"])
+                    return {"status": "ok", "groups": ["admins"]}
                 return None
         return Plugin()
 

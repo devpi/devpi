@@ -28,10 +28,10 @@ def server_url_session(host_port, simpypi):
     s.headers['X-Devpi-Auth'] = base64.b64encode(auth.encode('utf-8'))
     existing = s.get(url).json()['result']
     if 'mirror' not in existing['root']['indexes']:
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         r = s.put(url + 'root/mirror', json.dumps(indexconfig)).json()
         assert r['type'] == 'indexconfig'
         assert r['result']['mirror_url'] == simpypi.simpleurl

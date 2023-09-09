@@ -26,7 +26,7 @@ def preprocess_project(project):
     user = ensure_unicode(user)
     index = ensure_unicode(index)
     if not is_project_cached(stage, name):
-        result = dict(name=project.name, user=user, index=index)
+        result = {'name': project.name, 'user': user, 'index': index}
         pm.hook.devpiweb_modify_preprocess_project_result(
             project=project, result=result)
         return result
@@ -36,7 +36,7 @@ def preprocess_project(project):
         return
     setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
-    result = dict(name=project.name)
+    result = {'name': project.name}
     for i, version in enumerate(versions):
         if i == 0:
             verdata = stage.get_versiondata_perstage(project.name, version)

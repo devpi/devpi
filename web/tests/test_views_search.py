@@ -232,9 +232,9 @@ def test_indexing_doc_with_unicode(mapp, testapp):
 def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
     from devpi_web.views import SearchView
     view = SearchView(dummyrequest)
-    items = [dict()]
-    view.__dict__['search_result'] = dict(items=items, info=dict(
-        pagecount=pagecount, pagenum=pagenum))
+    items = [{}]
+    view.__dict__['search_result'] = {"items": items, "info": {
+        "pagecount": pagecount, "pagenum": pagenum}}
     dummyrequest.params['page'] = str(pagenum)
     dummyrequest.route_url = lambda r, **kw: "search?%s" % "&".join(
         "%s=%s" % x for x in sorted(kw['_query'].items()))
@@ -254,9 +254,9 @@ def test_search_batch_links(dummyrequest, pagecount, pagenum, expected):
 def test_search_batch_links_page_too_big(dummyrequest, pagecount, pagenum, expected):
     from devpi_web.views import SearchView
     view = SearchView(dummyrequest)
-    items = [dict()]
-    view.__dict__['search_result'] = dict(items=items, info=dict(
-        pagecount=pagecount, pagenum=pagenum))
+    items = [{}]
+    view.__dict__['search_result'] = {"items": items, "info": {
+        "pagecount": pagecount, "pagenum": pagenum}}
     dummyrequest.params['page'] = str(132)
     dummyrequest.route_url = lambda r, **kw: "search?%s" % "&".join(
         "%s=%s" % x for x in sorted(kw['_query'].items()))
@@ -276,7 +276,7 @@ def get_xmlrpc_data(body):
 @pytest.mark.with_notifier
 def test_pip_search(mapp, pypistage, testapp):
     from operator import itemgetter
-    api = mapp.create_and_use(indexconfig=dict(bases=[pypistage.name]))
+    api = mapp.create_and_use(indexconfig={"bases": [pypistage.name]})
     pypistage.mock_simple("pkg1", '<a href="/pkg1-2.6.zip" /a>')
     pypistage.mock_simple("pkg2", '')
     # we need to set dummy data, so we can use waithooks
@@ -335,7 +335,7 @@ def test_pip_search(mapp, pypistage, testapp):
     assert items[1]['summary'] == '[user1/dev] foo'
     assert items[1]['version'] == '2.7'
     # without root/pypi, we only get data from the private index
-    r = mapp.modify_index(api.stagename, indexconfig=dict(bases=()))
+    r = mapp.modify_index(api.stagename, indexconfig={"bases": ()})
     r = testapp.post('/%s/' % api.stagename, body, headers=headers)
     assert r.status_code == 200
     (data, method) = get_xmlrpc_data(r.body)

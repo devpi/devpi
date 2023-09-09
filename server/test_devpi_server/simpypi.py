@@ -137,10 +137,10 @@ class SimPyPI:
         if title is None:
             title = name
         self.projects.setdefault(
-            name, dict(
-                title=title,
-                releases=set(),
-                pypiserial=None))
+            name, {
+                "title": title,
+                "releases": set(),
+                "pypiserial": None})
         return self.projects[name]
 
     def remove_project(self, name):
@@ -160,11 +160,11 @@ class SimPyPI:
                  length=None, callback=None):
         if length is None:
             length = len(content)
-        info = dict(
-            content=content,
-            stream=stream,
-            chunksize=chunksize,
-            callback=callback)
+        info = {
+            "content": content,
+            "stream": stream,
+            "chunksize": chunksize,
+            "callback": callback}
         if length is not False:
             info['length'] = length
         self.files[relpath] = info

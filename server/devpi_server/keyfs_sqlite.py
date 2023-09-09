@@ -465,11 +465,11 @@ class BaseStorage(object):
 
     def ensure_tables_exist(self):
         schema = self._reflect_schema()
-        missing = dict()
+        missing = {}
         for kind, objs in self.expected_schema.items():
             for name, q in objs.items():
                 if name not in schema.get(kind, set()):
-                    missing.setdefault(kind, dict())[name] = q
+                    missing.setdefault(kind, {})[name] = q
         if not missing:
             return
         with self.get_connection(write=True) as conn:
@@ -492,32 +492,32 @@ class BaseStorage(object):
 class Storage(BaseStorage):
     Connection = Connection
     db_filename = ".sqlite_db"
-    expected_schema = dict(
-        index=dict(
-            kv_serial_idx="""
+    expected_schema = {
+        "index": {
+            "kv_serial_idx": """
                 CREATE INDEX kv_serial_idx ON kv (serial);
-            """),
-        table=dict(
-            changelog="""
+            """},
+        "table": {
+            "changelog": """
                 CREATE TABLE changelog (
                     serial INTEGER PRIMARY KEY,
                     data BLOB NOT NULL
                 )
             """,
-            kv="""
+            "kv": """
                 CREATE TABLE kv (
                     key TEXT NOT NULL PRIMARY KEY,
                     keyname TEXT,
                     serial INTEGER
                 )
             """,
-            files="""
+            "files": """
                 CREATE TABLE files (
                     path TEXT PRIMARY KEY,
                     size INTEGER NOT NULL,
                     data BLOB NOT NULL
                 )
-            """))
+            """}}
 
     def perform_crash_recovery(self):
         pass
@@ -525,11 +525,11 @@ class Storage(BaseStorage):
 
 @hookimpl
 def devpiserver_storage_backend(settings):
-    return dict(
-        storage=Storage,
-        name="sqlite_db_files",
-        description="SQLite backend with files in DB for testing only",
-        hidden=True)
+    return {
+        "storage": Storage,
+        "name": "sqlite_db_files",
+        "description": "SQLite backend with files in DB for testing only",
+        "hidden": True}
 
 
 @hookimpl

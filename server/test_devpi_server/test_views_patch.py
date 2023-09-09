@@ -6,10 +6,10 @@ pytestmark = [pytest.mark.notransaction]
 
 def test_index_patch(testapp):
     # add and login user
-    testapp.put_json("/foo", dict(password="123"))
+    testapp.put_json("/foo", {"password": "123"})
     testapp.set_auth('foo', '123')
     # add index
-    testapp.put_json("/foo/dev", dict())
+    testapp.put_json("/foo/dev", {})
     r = testapp.get("/foo/dev")
     # check defaults
     assert r.json['result'] == {
@@ -61,10 +61,10 @@ def test_index_patch(testapp):
 
 def test_index_patch_trailing_slash(testapp):
     # add and login user
-    testapp.put_json("/foo", dict(password="123"))
+    testapp.put_json("/foo", {"password": "123"})
     testapp.set_auth('foo', '123')
     # add index
-    testapp.put_json("/foo/dev/", dict())
+    testapp.put_json("/foo/dev/", {})
     # remove unknown from mirror_whitelist
     r = testapp.patch_json("/foo/dev/", ["mirror_whitelist-=foo"], expect_errors=True)
     assert r.status_code == 400
@@ -73,12 +73,12 @@ def test_index_patch_trailing_slash(testapp):
 
 def test_mirror_index_patch(testapp):
     # add and login user
-    testapp.put_json("/foo", dict(password="123"))
+    testapp.put_json("/foo", {"password": "123"})
     testapp.set_auth('foo', '123')
     # add mirror index
-    testapp.put_json("/foo/dev", dict(
-        type='mirror',
-        mirror_url='https://pypi.org/simple/'))
+    testapp.put_json("/foo/dev", {
+        "type": 'mirror',
+        "mirror_url": 'https://pypi.org/simple/'})
     r = testapp.get("/foo/dev")
     # check defaults
     assert r.json['result'] == {

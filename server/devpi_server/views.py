@@ -108,8 +108,8 @@ def abort_submit(request, code, msg, level="error"):
     # we construct our own type because we need to set the title
     # so that setup.py upload/register use it to explain the failure
     error = type(
-        str('HTTPError'), (HTTPException,), dict(
-            code=code, title=msg))
+        str('HTTPError'), (HTTPException,), {
+            "code": code, "title": msg})
     if level == "info":
         threadlog.info("while handling %s:\n%s" % (request.url, msg))
     elif level == "warn":
@@ -121,8 +121,8 @@ def abort_submit(request, code, msg, level="error"):
 
 def abort_authenticate(request, msg="authentication required"):
     err = type(
-        str('HTTPError'), (HTTPException,), dict(
-            code=401, title=msg))
+        str('HTTPError'), (HTTPException,), {
+            "code": 401, "title": msg})
     err = err()
     err.headers.add(str('WWW-Authenticate'), str('Basic realm="pypi"'))
     err.headers.add(str('location'), str(request.route_url("/+login")))
@@ -140,7 +140,7 @@ class HTTPResponse(HTTPSuccessful):
 
 
 def apireturn(code, message=None, result=None, type=None):
-    d = dict()
+    d = {}
     if result is not None:
         assert type is not None
         d["result"] = result
@@ -346,22 +346,22 @@ def devpiweb_get_status_info(request):
         master_serial = status["master-serial"]
         if master_serial is not None and master_serial > status["serial"]:
             if status["replica-in-sync-at"] is None or (now - status["replica-in-sync-at"]) > 300:
-                msgs.append(dict(status="fatal", msg="Replica is behind master for more than 5 minutes"))
+                msgs.append({"status": "fatal", "msg": "Replica is behind master for more than 5 minutes"})
             elif (now - status["replica-in-sync-at"]) > 60:
-                msgs.append(dict(status="warn", msg="Replica is behind master for more than 1 minute"))
+                msgs.append({"status": "warn", "msg": "Replica is behind master for more than 1 minute"})
         elif len(status["replication-errors"]):
-            msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
+            msgs.append({"status": "fatal", "msg": "Unhandled replication errors"})
         if status["replica-started-at"] is not None:
             last_update = status["update-from-master-at"]
             if last_update is None:
                 if (now - status["replica-started-at"]) > 300:
-                    msgs.append(dict(status="fatal", msg="No contact to master for more than 5 minutes"))
+                    msgs.append({"status": "fatal", "msg": "No contact to master for more than 5 minutes"})
                 elif (now - status["replica-started-at"]) > 60:
-                    msgs.append(dict(status="warn", msg="No contact to master for more than 1 minute"))
+                    msgs.append({"status": "warn", "msg": "No contact to master for more than 1 minute"})
             elif (now - last_update) > 300:
-                msgs.append(dict(status="fatal", msg="No update from master for more than 5 minutes"))
+                msgs.append({"status": "fatal", "msg": "No update from master for more than 5 minutes"})
             elif (now - last_update) > 60:
-                msgs.append(dict(status="warn", msg="No update from master for more than 1 minute"))
+                msgs.append({"status": "warn", "msg": "No update from master for more than 1 minute"})
     if status["serial"] > status["event-serial"]:
         if status["event-serial-in-sync-at"] is None:
             sync_at = None
@@ -374,15 +374,15 @@ def devpiweb_get_status_info(request):
         if sync_at is None and last_processed is None and (now - status["last-commit-timestamp"]) <= 300:
             pass
         elif sync_at is None and last_processed is None and (now - status["last-commit-timestamp"]) > 300:
-            msgs.append(dict(status="fatal", msg="The event processing doesn't seem to start"))
+            msgs.append({"status": "fatal", "msg": "The event processing doesn't seem to start"})
         elif (sync_at is None and last_processed is None) or (sync_at is not None and sync_at > 21600):
-            msgs.append(dict(status="fatal", msg="The event processing hasn't been in sync for more than 6 hours"))
+            msgs.append({"status": "fatal", "msg": "The event processing hasn't been in sync for more than 6 hours"})
         elif sync_at is not None and sync_at > 3600:
-            msgs.append(dict(status="warn", msg="The event processing hasn't been in sync for more than 1 hour"))
+            msgs.append({"status": "warn", "msg": "The event processing hasn't been in sync for more than 1 hour"})
         if sync_at is not None and (last_processed is None or (last_processed > 1800)):
-            msgs.append(dict(status="fatal", msg="No changes processed by plugins for more than 30 minutes"))
+            msgs.append({"status": "fatal", "msg": "No changes processed by plugins for more than 30 minutes"})
         elif sync_at is not None and (last_processed > 300):
-            msgs.append(dict(status="warn", msg="No changes processed by plugins for more than 5 minutes"))
+            msgs.append({"status": "warn", "msg": "No changes processed by plugins for more than 5 minutes"})
     return msgs
 
 
@@ -572,7 +572,7 @@ class PyPIView:
             user=self.context.username,
             index=self.context.index,
             project=self.context.project))
-        response.vary = set(["Accept", "User-Agent"])
+        response.vary = {"Accept", "User-Agent"}
         return response
 
     @view_config(route_name="/{user}/{index}/+simple/{project}/")
@@ -613,7 +613,7 @@ class PyPIView:
         response = Response(
             app_iter=buffered_iterator(app_iter),
             content_type=content_type,
-            vary=set(["Accept", "User-Agent"]))
+            vary={"Accept", "User-Agent"})
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial is not None and serial > 0:
@@ -665,7 +665,7 @@ class PyPIView:
             if link.yanked is not None and link.yanked is not False:
                 yanked = "" if link.yanked is True else link.yanked
                 attribs += ' data-yanked="%s"' % escape(yanked)
-            data = dict(stage=stage, attribs=attribs, key=link.key)
+            data = {"stage": stage, "attribs": attribs, "key": link.key}
             yield '{stage} <a {attribs}>{key}</a><br/>\n'.format(
                 **data).encode('utf-8')
 
@@ -721,7 +721,7 @@ class PyPIView:
             "/{user}/{index}/+simple/",
             user=self.context.username,
             index=self.context.index))
-        response.vary = set(["User-Agent"])
+        response.vary = {"User-Agent"}
         return response
 
     @view_config(route_name="/{user}/{index}/+simple/")
@@ -747,7 +747,7 @@ class PyPIView:
         return Response(
             app_iter=buffered_iterator(app_iter),
             content_type=content_type,
-            vary=set(["Accept", "User-Agent"]))
+            vary={"Accept", "User-Agent"})
 
     def _simple_list_all(self, stage, stage_results):
         title = "%s: simple list (including inherited indices)" % (stage.name)
@@ -950,9 +950,8 @@ class PyPIView:
         except stage.MissesRegistration:
             apireturn(400, "there are no files for %s-%s on stage %s" % (
                 name, version, stage.name))
-        links = dict([
-            (rel, linkstore.get_links(rel=rel))
-            for rel in ('releasefile', 'doczip', 'toxresult')])
+        links = {rel: linkstore.get_links(rel=rel)
+            for rel in ('releasefile', 'doczip', 'toxresult')}
         if not links["releasefile"]:
             self.log.info("%s: no release files for version %s-%s" %
                           (stage.name, name, version))

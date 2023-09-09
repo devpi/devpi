@@ -1,7 +1,7 @@
 [tool.ruff]
 select = [
-    "B", "COM", "DTZ", "E", "ERA", "EXE", "F",
-    "ICN", "ISC", "PIE", "PLC", "PLE", "PLR", "PLW",
+    "B", "C4", "C90", "COM", "DTZ", "E", "ERA",
+    "EXE", "F", "ICN", "ISC", "PERF", "PIE", "PL",
     "RUF", "SIM", "T10", "TID", "TRY", "W", "YTT",
 ]
 ignore = [
@@ -13,20 +13,13 @@ ignore = [
     "COM812", # cleanup later
     "COM819", # cleanup later
     "DTZ001", # cleanup soon
-    "E501",
-    "E712", # cleanup soon
-    "E741",
+    "E741", # cleanup soon
     "ERA001", # cleanup soon
+    "PERF203", # cleanup later
+    "PERF401", # cleanup soon
     "PIE804", # cleanup later
     "PIE808", # maybe cleanup later
     "PIE810", # cleanup soon
-    "PLC1901", # maybe cleanup later
-    "PLR0911", # cleanup later
-    "PLR0912", # cleanup later
-    "PLR0913",
-    "PLR0915", # maybe cleanup later
-    "PLR1711", # cleanup soon
-    "PLR2004",
     "PLR5501", # cleanup soon
     "PLW0120", # cleanup soon
     "PLW2901", # maybe cleanup later
@@ -50,4 +43,15 @@ ignore = [
 exclude = [
     "doc/",
 ]
+line-length = 250  # Default is 88
 target-version = "py37"
+
+[tool.ruff.mccabe]
+max-complexity = 37  # Default is 10
+
+[tool.ruff.pylint]
+allow-magic-value-types = ["bytes", "float", "int", "str"]
+max-args = 13  # Default is 5
+max-branches = 43  # Default is 12
+max-returns = 8  # Default is 6
+max-statements = 106  # Default is 50

@@ -35,9 +35,9 @@ def plugin():
         @hookimpl
         def devpiserver_auth_request(self, request, userdict, username, password):
             if username == 'external':
-                return dict(
-                    status='ok',
-                    groups=['developer'])
+                return {
+                    "status": 'ok',
+                    "groups": ['developer']}
             return None
     return Plugin()
 
@@ -222,7 +222,7 @@ class TestAuthDenialPlugin:
         api2 = mapp.create_index('dev2')
         plugin.allowed = frozenset(('pkg_read', 'toxresult_upload'))
         plugin.called = 0
-        req = dict(name="hello", version="1.0", targetindex=api2.stagename)
+        req = {"name": "hello", "version": "1.0", "targetindex": api2.stagename}
         r = testapp.push(api1.index, json.dumps(req))
         assert plugin.called
         assert r.status_code == 401
@@ -230,7 +230,7 @@ class TestAuthDenialPlugin:
             'hello', indexname=api2.stagename, code=404) is None
         plugin.allowed = frozenset(('pkg_read', 'toxresult_upload', 'upload'))
         plugin.called = 0
-        req = dict(name="hello", version="1.0", targetindex=api2.stagename)
+        req = {"name": "hello", "version": "1.0", "targetindex": api2.stagename}
         r = testapp.push(api1.index, json.dumps(req))
         assert plugin.called
         assert r.status_code == 200

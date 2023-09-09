@@ -30,11 +30,11 @@ class TestUnit:
         current_path = tmpdir.join("current")
         current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
-        current.reconfigure(dict(
-                pypisubmit="/post",
-                simpleindex="/index",
-                login="/login",
-        ))
+        current.reconfigure({
+                "pypisubmit": "/post",
+                "simpleindex": "/index",
+                "login": "/login",
+        })
         assert current.simpleindex
         newcurrent = PersistentCurrent(auth_path, current_path)
         assert newcurrent.pypisubmit == current.pypisubmit
@@ -54,16 +54,16 @@ class TestUnit:
         current_path = tmpdir.join("current")
         current = PersistentCurrent(auth_path, current_path)
         assert not current.simpleindex
-        current.reconfigure(dict(
-                pypisubmit="/post",
-                simpleindex="/index",
-                login="/login",
-        ))
+        current.reconfigure({
+                "pypisubmit": "/post",
+                "simpleindex": "/index",
+                "login": "/login",
+        })
         assert current.simpleindex
-        current.reconfigure(dict(always_setcfg=True))
+        current.reconfigure({"always_setcfg": True})
         newcurrent = PersistentCurrent(auth_path, current_path)
-        assert newcurrent.always_setcfg == True
-        newcurrent.reconfigure(data=dict(simpleindex="/index2"))
+        assert newcurrent.always_setcfg is True
+        newcurrent.reconfigure(data={"simpleindex": "/index2"})
         current = PersistentCurrent(auth_path, current_path)
         assert current.always_setcfg
         assert current.simpleindex == "/index2"
@@ -74,12 +74,12 @@ class TestUnit:
         (out, err) = capfd.readouterr()
         monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                index="/foo/bar",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "index": "/foo/bar",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
-            "http://devpi/foo/bar?no_projects=", 200, result=dict())
+            "http://devpi/foo/bar?no_projects=", 200, result={})
         hub = cmd_devpi("use", "http://devpi/foo/bar")
         (out, err) = capfd.readouterr()
         current_path = hub.current_path
@@ -94,12 +94,12 @@ class TestUnit:
         assert hub.current_path.strpath == local_current_path.strpath
         assert local_current_path.exists()
         mock_http_api.set(
-            "http://devpi/foo/ham/+api", 200, result=dict(
-                index="/foo/ham",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/ham/+api", 200, result={
+                "index": "/foo/ham",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
-            "http://devpi/foo/ham?no_projects=", 200, result=dict())
+            "http://devpi/foo/ham?no_projects=", 200, result={})
         hub = cmd_devpi("use", "http://devpi/foo/ham")
         (out, err) = capfd.readouterr()
         with current_path.open("r") as f:
@@ -127,7 +127,7 @@ class TestUnit:
         local_current_path = hub.local_current_path
         assert not local_current_path.exists()
         with current_path.open("w") as f:
-            json.dump(dict(auth=[]), f)
+            json.dump({"auth": []}, f)
         hub = cmd_devpi("use", "--local")
         assert local_current_path.exists()
         with local_current_path.open("r") as f:
@@ -137,12 +137,12 @@ class TestUnit:
     def test_rewritten_url_scheme(self, capfd, cmd_devpi, mock_http_api):
         from devpi_common.url import URL
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                index="https://devpi/foo/bar",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "index": "https://devpi/foo/bar",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
-            "https://devpi/foo/bar?no_projects=", 200, result=dict())
+            "https://devpi/foo/bar?no_projects=", 200, result={})
         hub = cmd_devpi("use", "http://devpi/foo/bar")
         (out, err) = capfd.readouterr()
         assert 'The server has rewritten the url to: https://devpi/foo/bar\n' in out
@@ -151,12 +151,12 @@ class TestUnit:
     def test_rewritten_url_host(self, capfd, cmd_devpi, mock_http_api):
         from devpi_common.url import URL
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                index="http://127.0.0.1/foo/bar",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "index": "http://127.0.0.1/foo/bar",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
-            "http://127.0.0.1/foo/bar?no_projects=", 200, result=dict())
+            "http://127.0.0.1/foo/bar?no_projects=", 200, result={})
         hub = cmd_devpi("use", "http://devpi/foo/bar")
         (out, err) = capfd.readouterr()
         assert 'The server has rewritten the url to: http://127.0.0.1/foo/bar\n' in out
@@ -165,12 +165,12 @@ class TestUnit:
     def test_rewritten_url_port(self, capfd, cmd_devpi, mock_http_api):
         from devpi_common.url import URL
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                index="http://devpi:3141/foo/bar",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "index": "http://devpi:3141/foo/bar",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
-            "http://devpi:3141/foo/bar?no_projects=", 200, result=dict())
+            "http://devpi:3141/foo/bar?no_projects=", 200, result={})
         hub = cmd_devpi("use", "http://devpi/foo/bar")
         (out, err) = capfd.readouterr()
         assert 'The server has rewritten the url to: http://devpi:3141/foo/bar\n' in out
@@ -179,12 +179,12 @@ class TestUnit:
     def test_rewritten_url_path(self, capfd, cmd_devpi, mock_http_api):
         from devpi_common.url import URL
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                index="http://devpi/foo/bar/",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "index": "http://devpi/foo/bar/",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
-            "http://devpi/foo/bar/?no_projects=", 200, result=dict())
+            "http://devpi/foo/bar/?no_projects=", 200, result={})
         hub = cmd_devpi("use", "http://devpi/foo/bar")
         (out, err) = capfd.readouterr()
         assert 'The server has rewritten the url to:' not in out
@@ -193,9 +193,9 @@ class TestUnit:
     def test_rewritten_url_root(self, capfd, cmd_devpi, mock_http_api):
         from devpi_common.url import URL
         mock_http_api.set(
-            "http://devpi/+api", 200, result=dict(
-                login="https://devpi/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/+api", 200, result={
+                "login": "https://devpi/+login",
+                "authstatus": ["noauth", ""]})
         hub = cmd_devpi("use", "http://devpi/")
         (out, err) = capfd.readouterr()
         assert 'The server has rewritten the url to: https://devpi/\n' in out
@@ -206,20 +206,20 @@ class TestUnit:
     def test_use_list_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
         import time
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                pypisubmit="/post",
-                simpleindex="/index/",
-                index="foo/bar",
-                bases="root/pypi",
-                login="/+login",
-                authstatus=["noauth", "", []]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "pypisubmit": "/post",
+                "simpleindex": "/index/",
+                "index": "foo/bar",
+                "bases": "root/pypi",
+                "login": "/+login",
+                "authstatus": ["noauth", "", []]})
         mock_http_api.set(
             "http://devpi/foo/bar?no_projects=", 200,
-            result=dict())
+            result={})
         mock_http_api.set(
-            "http://devpi/", 200, result=dict(
-                foo=dict(username="foo", indexes=dict(
-                    bar=dict(bases=("root/pypi",), volatile=False)))))
+            "http://devpi/", 200, result={
+                "foo": {"username": "foo", "indexes": {
+                    "bar": {"bases": ("root/pypi",), "volatile": False}}}})
         cmd_devpi("use", "http://devpi/foo/bar")
         path = tmpdir.join("client", "current.json")
         mtime = path.mtime()
@@ -229,24 +229,24 @@ class TestUnit:
 
     def test_use_list_with_url_doesnt_write(self, tmpdir, cmd_devpi, mock_http_api):
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                pypisubmit="/post",
-                simpleindex="/index/",
-                index="foo/bar",
-                bases="root/pypi",
-                login="/+login",
-                authstatus=["noauth", "", []]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "pypisubmit": "/post",
+                "simpleindex": "/index/",
+                "index": "foo/bar",
+                "bases": "root/pypi",
+                "login": "/+login",
+                "authstatus": ["noauth", "", []]})
         mock_http_api.set(
-            "http://devpi/", 200, result=dict(
-                foo=dict(username="foo", indexes=dict(
-                    bar=dict(bases=("root/pypi",), volatile=False)))))
+            "http://devpi/", 200, result={
+                "foo": {"username": "foo", "indexes": {
+                    "bar": {"bases": ("root/pypi",), "volatile": False}}}})
         path = tmpdir.join("client", "current.json")
         cmd_devpi("use", "-l", "http://devpi/foo/bar")
         assert not path.exists()
 
     def test_normalize_url(self):
         current = Current()
-        current.reconfigure(dict(simpleindex="http://my.serv/index1"))
+        current.reconfigure({"simpleindex": "http://my.serv/index1"})
         url = current._normalize_url("index2")
         assert url == "http://my.serv/index2"
 
@@ -328,32 +328,32 @@ class TestUnit:
 
     def test_use_with_basic_auth(self, cmd_devpi, mock_http_api):
         mock_http_api.set(
-            "http://devpi/foo/bar/+api", 200, result=dict(
-                pypisubmit="/post",
-                simpleindex="/index/",
-                index="foo/bar",
-                bases="root/pypi",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/bar/+api", 200, result={
+                "pypisubmit": "/post",
+                "simpleindex": "/index/",
+                "index": "foo/bar",
+                "bases": "root/pypi",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
             "http://devpi/foo/bar?no_projects=", 200,
-            result=dict())
+            result={})
         mock_http_api.set(
-            "http://devpi/foo/ham/+api", 200, result=dict(
-                pypisubmit="/post",
-                simpleindex="/index/",
-                index="foo/ham",
-                bases="root/pypi",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://devpi/foo/ham/+api", 200, result={
+                "pypisubmit": "/post",
+                "simpleindex": "/index/",
+                "index": "foo/ham",
+                "bases": "root/pypi",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
             "http://devpi/foo/ham?no_projects=", 200,
-            result=dict())
+            result={})
         mock_http_api.set(
-            "http://devpi/", 200, result=dict(
-                foo=dict(username="foo", indexes=dict(
-                    bar=dict(bases=("root/pypi",), volatile=False),
-                    ham=dict(bases=("root/pypi",), volatile=False)))))
+            "http://devpi/", 200, result={
+                "foo": {"username": "foo", "indexes": {
+                    "bar": {"bases": ("root/pypi",), "volatile": False},
+                    "ham": {"bases": ("root/pypi",), "volatile": False}}}})
         # use with basic authentication
         hub = cmd_devpi("use", "http://user:password@devpi/foo/bar")
         # should work with and without explicit port if it's the default port
@@ -398,16 +398,16 @@ class TestUnit:
 
     def test_use_with_basic_auth_https(self, cmd_devpi, mock_http_api):
         mock_http_api.set(
-            "https://devpi/foo/bar/+api", 200, result=dict(
-                pypisubmit="/post",
-                simpleindex="/index/",
-                index="foo/bar",
-                bases="root/pypi",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "https://devpi/foo/bar/+api", 200, result={
+                "pypisubmit": "/post",
+                "simpleindex": "/index/",
+                "index": "foo/bar",
+                "bases": "root/pypi",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         mock_http_api.set(
             "https://devpi/foo/bar?no_projects=", 200,
-            result=dict())
+            result={})
         # use with basic authentication
         hub = cmd_devpi("use", "https://user:password@devpi/foo/bar")
         # should work with and without explicit port if it's the default port
@@ -430,19 +430,19 @@ class TestUnit:
 
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", 200,
-                    result=dict(
-                        index="/index",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+                    result={
+                        "index": "/index",
+                        "login": "/+login",
+                        "authstatus": ["noauth", ""],
+                   })
         mock_http_api.set(
             "http://world.com/index?no_projects=", 200,
-            result=dict())
+            result={})
         mock_http_api.set("http://world2.com/+api", 200,
-                    result=dict(
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+                    result={
+                        "login": "/+login",
+                        "authstatus": ["noauth", ""],
+                   })
 
         hub = cmd_devpi("use", "http://world.com")
         assert hub.current.index == "http://world.com/index"
@@ -455,13 +455,13 @@ class TestUnit:
     def test_switch_to_temporary(self, makehub, mock_http_api):
         hub = makehub(['use'])
         mock_http_api.set(
-            "http://foo/+api", 200, result=dict(
-                pypisubmit="/post",
-                simpleindex="/index/",
-                index="root/some",
-                bases="root/dev",
-                login="/+login",
-                authstatus=["noauth", ""]))
+            "http://foo/+api", 200, result={
+                "pypisubmit": "/post",
+                "simpleindex": "/index/",
+                "index": "root/some",
+                "bases": "root/dev",
+                "login": "/+login",
+                "authstatus": ["noauth", ""]})
         current = Current()
         d = {
             "index": "http://l/some/index",
@@ -481,17 +481,17 @@ class TestUnit:
 
     def test_main(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world/this/+api", 200,
-                    result=dict(
-                        pypisubmit="/post",
-                        simpleindex="/index/",
-                        index="root/some",
-                        bases="root/dev",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+                    result={
+                        "pypisubmit": "/post",
+                        "simpleindex": "/index/",
+                        "index": "root/some",
+                        "bases": "root/dev",
+                        "login": "/+login",
+                        "authstatus": ["noauth", ""],
+                   })
         mock_http_api.set(
             "http://world/root/some?no_projects=", 200,
-            result=dict())
+            result={})
 
         hub = cmd_devpi("use", "--venv", "-", "http://world/this")
         newapi = hub.current
@@ -511,34 +511,34 @@ class TestUnit:
 
     def test_main_list(self, out_devpi, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world/+api", 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="",
-                        index="",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+                    result={
+                        "pypisubmit": "",
+                        "simpleindex": "",
+                        "index": "",
+                        "bases": "",
+                        "login": "/+login",
+                        "authstatus": ["noauth", ""],
+                   })
         mock_http_api.set(
             "http://world/?no_projects=", 200,
-            result=dict())
+            result={})
 
         cmd_devpi("use", "http://world/")
         mock_http_api.set(
-            "http://world/", 200, result=dict(
-                user1=dict(indexes={
-                    "dev": {"bases": ["x"], "volatile": False}}),
-                user2=dict(indexes={
-                    "foo": {"bases": ["x"], "volatile": False}})))
+            "http://world/", 200, result={
+                "user1": {"indexes": {
+                    "dev": {"bases": ["x"], "volatile": False}}},
+                "user2": {"indexes": {
+                    "foo": {"bases": ["x"], "volatile": False}}}})
         out = out_devpi("use", "-l")
         out.stdout.fnmatch_lines("""
             user1/dev*x*False*
             user2/foo*x*False*
         """)
         mock_http_api.set(
-            "http://world/user2", 200, result=dict(
-                indexes={
-                    "foo": {"bases": ["x"], "volatile": False}}))
+            "http://world/user2", 200, result={
+                "indexes": {
+                    "foo": {"bases": ["x"], "volatile": False}}})
         out = out_devpi("use", "-l", "-u", "user2")
         out.stdout.fnmatch_lines("""
             user2/foo*x*False*
@@ -591,17 +591,17 @@ class TestUnit:
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
         mock_http_api.set("http://world/simple/+api", 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="/simple",
-                        index="/",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+                    result={
+                        "pypisubmit": "",
+                        "simpleindex": "/simple",
+                        "index": "/",
+                        "bases": "",
+                        "login": "/+login",
+                        "authstatus": ["noauth", ""],
+                   })
         mock_http_api.set(
             "http://world/?no_projects=", 200,
-            result=dict())
+            result={})
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
@@ -631,17 +631,17 @@ class TestUnit:
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
         mock_http_api.set("http://world/simple/+api", 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="/simple",
-                        index="/",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+                    result={
+                        "pypisubmit": "",
+                        "simpleindex": "/simple",
+                        "index": "/",
+                        "bases": "",
+                        "login": "/+login",
+                        "authstatus": ["noauth", ""],
+                   })
         mock_http_api.set(
             "http://world/?no_projects=", 200,
-            result=dict())
+            result={})
         venvdir = tmpdir
         venvdir.ensure(vbin, dir=1)
         monkeypatch.chdir(tmpdir)
@@ -669,17 +669,17 @@ class TestUnit:
         monkeypatch.setattr(BuildoutCfg, "default_location",
                             tmpdir.join("buildout.cfg"))
         mock_http_api.set("%s://world/+api" % scheme, 200,
-                    result=dict(
-                        pypisubmit="",
-                        simpleindex="/simple",
-                        index="/",
-                        bases="",
-                        login="/+login",
-                        authstatus=["noauth", ""],
-                   ))
+                    result={
+                        "pypisubmit": "",
+                        "simpleindex": "/simple",
+                        "index": "/",
+                        "bases": "",
+                        "login": "/+login",
+                        "authstatus": ["noauth", ""],
+                   })
         mock_http_api.set(
             "%s://world/?no_projects=" % scheme, 200,
-            result=dict())
+            result={})
 
         cmd_devpi("use", "--set-cfg", "%s://%sworld" % (scheme, basic_auth))
         # run twice to find any issues where lines are added more than once
@@ -732,13 +732,13 @@ class TestUnit:
         assert "no server:" in out
         monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
         mock_http_api.set(
-            "http://devpi/user/dev/+api", 200, result=dict(
-                pypisubmit="http://devpi/user/dev/",
-                simpleindex="http://devpi/user/dev/+simple/",
-                index="http://devpi/user/dev",
-                login="http://devpi/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+            "http://devpi/user/dev/+api", 200, result={
+                "pypisubmit": "http://devpi/user/dev/",
+                "simpleindex": "http://devpi/user/dev/+simple/",
+                "index": "http://devpi/user/dev",
+                "login": "http://devpi/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "Using DEVPI_INDEX from environment: http://devpi/user/dev\n" in out
@@ -756,26 +756,26 @@ class TestUnit:
         assert "no server:" in out
         monkeypatch.setenv("DEVPI_INDEX", devpi_index)
         mock_http_api.set(
-            "http://devpi/user/dev/+api", 200, result=dict(
-                pypisubmit="http://devpi/user/dev/",
-                simpleindex="http://devpi/user/dev/+simple/",
-                index="http://devpi/user/dev",
-                login="http://devpi/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+            "http://devpi/user/dev/+api", 200, result={
+                "pypisubmit": "http://devpi/user/dev/",
+                "simpleindex": "http://devpi/user/dev/+simple/",
+                "index": "http://devpi/user/dev",
+                "login": "http://devpi/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "No server set and DEVPI_INDEX from environment is not a full valid URL: %s\n" % devpi_index in out
 
     def test_environment_with_current(self, capfd, cmd_devpi, mock_http_api, monkeypatch):
         mock_http_api.set(
-            "http://world/user/dev/+api", 200, result=dict(
-                pypisubmit="http://world/user/dev/",
-                simpleindex="http://world/user/dev/+simple/",
-                index="http://world/user/dev",
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://world/user/dev?no_projects=", 200, result=dict())
+            "http://world/user/dev/+api", 200, result={
+                "pypisubmit": "http://world/user/dev/",
+                "simpleindex": "http://world/user/dev/+simple/",
+                "index": "http://world/user/dev",
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://world/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "http://world/user/dev")
         (out, err) = capfd.readouterr()
         cmd_devpi("use", "--urls")
@@ -786,13 +786,13 @@ class TestUnit:
         assert "login: http://world/+login" in out
         monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
         mock_http_api.set(
-            "http://devpi/user/dev/+api", 200, result=dict(
-                pypisubmit="http://devpi/user/dev/",
-                simpleindex="http://devpi/user/dev/+simple/",
-                index="http://devpi/user/dev",
-                login="http://devpi/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+            "http://devpi/user/dev/+api", 200, result={
+                "pypisubmit": "http://devpi/user/dev/",
+                "simpleindex": "http://devpi/user/dev/+simple/",
+                "index": "http://devpi/user/dev",
+                "login": "http://devpi/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "Using DEVPI_INDEX from environment: http://devpi/user/dev\n" in out
@@ -805,13 +805,13 @@ class TestUnit:
     def test_environment_relative_with_current(
             self, capfd, cmd_devpi, devpi_index, mock_http_api, monkeypatch):
         mock_http_api.set(
-            "http://world/user/dev/+api", 200, result=dict(
-                pypisubmit="http://world/user/dev/",
-                simpleindex="http://world/user/dev/+simple/",
-                index="http://world/user/dev",
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://world/user/dev?no_projects=", 200, result=dict())
+            "http://world/user/dev/+api", 200, result={
+                "pypisubmit": "http://world/user/dev/",
+                "simpleindex": "http://world/user/dev/+simple/",
+                "index": "http://world/user/dev",
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://world/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "http://world/user/dev")
         (out, err) = capfd.readouterr()
         cmd_devpi("use", "--urls")
@@ -822,13 +822,13 @@ class TestUnit:
         assert "login: http://world/+login" in out
         monkeypatch.setenv("DEVPI_INDEX", devpi_index)
         mock_http_api.set(
-            "http://world/user/dev/+api", 200, result=dict(
-                pypisubmit="http://world/user/dev/",
-                simpleindex="http://world/user/dev/+simple/",
-                index="http://world/user/dev",
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://world/user/dev?no_projects=", 200, result=dict())
+            "http://world/user/dev/+api", 200, result={
+                "pypisubmit": "http://world/user/dev/",
+                "simpleindex": "http://world/user/dev/+simple/",
+                "index": "http://world/user/dev",
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://world/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "Using DEVPI_INDEX from environment: %s\n" % devpi_index in out
@@ -839,9 +839,9 @@ class TestUnit:
 
     def test_environment_with_root_current(self, capfd, cmd_devpi, mock_http_api, monkeypatch):
         mock_http_api.set(
-            "http://world/+api", 200, result=dict(
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
+            "http://world/+api", 200, result={
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
         cmd_devpi("use", "http://world/")
         (out, err) = capfd.readouterr()
         cmd_devpi("use", "--urls")
@@ -850,13 +850,13 @@ class TestUnit:
         assert "no current index" in out
         monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
         mock_http_api.set(
-            "http://devpi/user/dev/+api", 200, result=dict(
-                pypisubmit="http://devpi/user/dev/",
-                simpleindex="http://devpi/user/dev/+simple/",
-                index="http://devpi/user/dev",
-                login="http://devpi/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+            "http://devpi/user/dev/+api", 200, result={
+                "pypisubmit": "http://devpi/user/dev/",
+                "simpleindex": "http://devpi/user/dev/+simple/",
+                "index": "http://devpi/user/dev",
+                "login": "http://devpi/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "Using DEVPI_INDEX from environment: http://devpi/user/dev\n" in out
@@ -869,9 +869,9 @@ class TestUnit:
     def test_environment_relative_with_root_current(
             self, capfd, cmd_devpi, devpi_index, mock_http_api, monkeypatch):
         mock_http_api.set(
-            "http://world/+api", 200, result=dict(
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
+            "http://world/+api", 200, result={
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
         cmd_devpi("use", "http://world/")
         (out, err) = capfd.readouterr()
         cmd_devpi("use", "--urls")
@@ -880,13 +880,13 @@ class TestUnit:
         assert "no current index" in out
         monkeypatch.setenv("DEVPI_INDEX", devpi_index)
         mock_http_api.set(
-            "http://world/user/dev/+api", 200, result=dict(
-                pypisubmit="http://world/user/dev/",
-                simpleindex="http://world/user/dev/+simple/",
-                index="http://world/user/dev",
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://world/user/dev?no_projects=", 200, result=dict())
+            "http://world/user/dev/+api", 200, result={
+                "pypisubmit": "http://world/user/dev/",
+                "simpleindex": "http://world/user/dev/+simple/",
+                "index": "http://world/user/dev",
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://world/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "Using DEVPI_INDEX from environment: %s\n" % devpi_index in out
@@ -899,24 +899,24 @@ class TestUnit:
             self, capfd, cmd_devpi, mock_http_api, monkeypatch):
         monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
         mock_http_api.set(
-            "http://world/user/foo/+api", 200, result=dict(
-                pypisubmit="http://world/user/foo/",
-                simpleindex="http://world/user/foo/+simple/",
-                index="http://world/user/foo",
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://world/user/foo?no_projects=", 200, result=dict())
+            "http://world/user/foo/+api", 200, result={
+                "pypisubmit": "http://world/user/foo/",
+                "simpleindex": "http://world/user/foo/+simple/",
+                "index": "http://world/user/foo",
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://world/user/foo?no_projects=", 200, result={})
         cmd_devpi("use", "http://world/user/foo")
         (out, err) = capfd.readouterr()
         assert "Using index URL from command line" in out
         mock_http_api.set(
-            "http://devpi/user/dev/+api", 200, result=dict(
-                pypisubmit="http://devpi/user/dev/",
-                simpleindex="http://devpi/user/dev/+simple/",
-                index="http://devpi/user/dev",
-                login="http://devpi/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result=dict())
+            "http://devpi/user/dev/+api", 200, result={
+                "pypisubmit": "http://devpi/user/dev/",
+                "simpleindex": "http://devpi/user/dev/+simple/",
+                "index": "http://devpi/user/dev",
+                "login": "http://devpi/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://devpi/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "Using DEVPI_INDEX from environment: http://devpi/user/dev\n" in out
@@ -937,24 +937,24 @@ class TestUnit:
             self, capfd, cmd_devpi, devpi_index, mock_http_api, monkeypatch):
         monkeypatch.setenv("DEVPI_INDEX", devpi_index)
         mock_http_api.set(
-            "http://world/user/foo/+api", 200, result=dict(
-                pypisubmit="http://world/user/foo/",
-                simpleindex="http://world/user/foo/+simple/",
-                index="http://world/user/foo",
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://world/user/foo?no_projects=", 200, result=dict())
+            "http://world/user/foo/+api", 200, result={
+                "pypisubmit": "http://world/user/foo/",
+                "simpleindex": "http://world/user/foo/+simple/",
+                "index": "http://world/user/foo",
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://world/user/foo?no_projects=", 200, result={})
         cmd_devpi("use", "http://world/user/foo")
         (out, err) = capfd.readouterr()
         assert "Using index URL from command line" in out
         mock_http_api.set(
-            "http://world/user/dev/+api", 200, result=dict(
-                pypisubmit="http://world/user/dev/",
-                simpleindex="http://world/user/dev/+simple/",
-                index="http://world/user/dev",
-                login="http://world/+login",
-                authstatus=["noauth", "", []]))
-        mock_http_api.set("http://world/user/dev?no_projects=", 200, result=dict())
+            "http://world/user/dev/+api", 200, result={
+                "pypisubmit": "http://world/user/dev/",
+                "simpleindex": "http://world/user/dev/+simple/",
+                "index": "http://world/user/dev",
+                "login": "http://world/+login",
+                "authstatus": ["noauth", "", []]})
+        mock_http_api.set("http://world/user/dev?no_projects=", 200, result={})
         cmd_devpi("use", "--urls")
         (out, err) = capfd.readouterr()
         assert "Using DEVPI_INDEX from environment: %s\n" % devpi_index in out
@@ -977,9 +977,9 @@ def test_getparse_keyvalues_invalid():
 
 
 @pytest.mark.parametrize("input expected".split(), [
-    (["hello=123", "world=42"], dict(hello="123", world="42")),
-    (["hello=123=1"], dict(hello="123=1")),
-    (["hello=1", "hello=2"], dict(hello="2")),
+    (["hello=123", "world=42"], {"hello": "123", "world": "42"}),
+    (["hello=123=1"], {"hello": "123=1"}),
+    (["hello=1", "hello=2"], {"hello": "2"}),
     (["hello+=1"], {"hello+": "1"}),
     (["hello-=1"], {"hello-": "1"})])
 def test_getparse_keyvalues_kvdict(input, expected):

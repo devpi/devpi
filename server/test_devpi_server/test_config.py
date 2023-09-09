@@ -25,7 +25,7 @@ class TestParser:
 
     def test_addoption_getdefault(self):
         def getter(name):
-            return dict(hello="world2")[name]
+            return {"hello": "world2"}[name]
         parser = MyArgumentParser()
         opt = parser.addoption("--hello", default="world", type=str, help="x")
         parser.post_process_actions(defaultget=getter)
@@ -281,10 +281,10 @@ class TestConfig:
             def devpiserver_storage_backend(self, settings):
                 from devpi_server import keyfs_sqlite_fs
                 self.settings = settings
-                return dict(
-                    storage=keyfs_sqlite_fs.Storage,
-                    name="foo",
-                    description="Foo backend")
+                return {
+                    "storage": keyfs_sqlite_fs.Storage,
+                    "name": "foo",
+                    "description": "Foo backend"}
         options = ("--storage", "foo:bar=ham")
         config = make_config(("devpi-server",) + options)
         assert config.args.storage == "foo:bar=ham"
@@ -294,16 +294,16 @@ class TestConfig:
 
     @pytest.mark.parametrize('opts, expected', [
         # defaults
-        ((), dict(host='localhost', port=3141)),
+        ((), {"host": 'localhost', "port": 3141}),
         # host/port
-        (('--host', 'foo'), dict(host='foo', port=3141)),
-        (('--port', '1234'), dict(host='localhost', port=1234)),
-        (('--host', 'foo', '--port', '1234'), dict(host='foo', port=1234)),
+        (('--host', 'foo'), {"host": 'foo', "port": 3141}),
+        (('--port', '1234'), {"host": 'localhost', "port": 1234}),
+        (('--host', 'foo', '--port', '1234'), {"host": 'foo', "port": 1234}),
         # listen
-        (('--listen', '*:3141'), dict(listen='*:3141')),
-        (('--listen', '127.0.0.1:3141'), dict(listen='127.0.0.1:3141')),
-        (('--listen', '[::1]:3141'), dict(listen='[::1]:3141')),
-        (('--listen', '127.0.0.1:3141', '--listen', '[::1]:3142'), dict(listen='127.0.0.1:3141 [::1]:3142')),
+        (('--listen', '*:3141'), {"listen": '*:3141'}),
+        (('--listen', '127.0.0.1:3141'), {"listen": '127.0.0.1:3141'}),
+        (('--listen', '[::1]:3141'), {"listen": '[::1]:3141'}),
+        (('--listen', '127.0.0.1:3141', '--listen', '[::1]:3142'), {"listen": '127.0.0.1:3141 [::1]:3142'}),
         (('--host', 'foo', '--listen', '127.0.0.1:3141'), Fatal('You can use either --listen or --host/--port, not both together.')),
         (('--port', '1234', '--listen', '127.0.0.1:3141'), Fatal('You can use either --listen or --host/--port, not both together.')),
         (('--host', 'foo', '--port', '1234', '--listen', '127.0.0.1:3141'), Fatal('You can use either --listen or --host/--port, not both together.')),
@@ -406,10 +406,10 @@ class TestConfigFile:
             def devpiserver_storage_backend(self, settings):
                 from devpi_server import keyfs_sqlite_fs
                 self.settings = settings
-                return dict(
-                    storage=keyfs_sqlite_fs.Storage,
-                    name="foo",
-                    description="Foo backend")
+                return {
+                    "storage": keyfs_sqlite_fs.Storage,
+                    "name": "foo",
+                    "description": "Foo backend"}
         yaml_path = make_yaml_config(textwrap.dedent("""\
             devpi-server:
               storage:

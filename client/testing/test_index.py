@@ -9,10 +9,10 @@ def test_index_show_empty(loghub):
 
 
 def test_index_show_without_login(loghub, mock_http_api):
-    loghub.current.reconfigure(dict(
-        simpleindex="http://devpi/index",
-        index="http://devpi/root/dev/",
-        login="http://devpi/+login"))
+    loghub.current.reconfigure({
+        "simpleindex": "http://devpi/index",
+        "index": "http://devpi/root/dev/",
+        "login": "http://devpi/+login"})
     loghub.args.indexname = "hello/dev"
     loghub.args.keyvalues = []
     loghub.args.create = None
@@ -24,10 +24,10 @@ def test_index_show_without_login(loghub, mock_http_api):
 
 
 def test_index_show_requiring_login(loghub, mock_http_api):
-    loghub.current.reconfigure(dict(
-        simpleindex="http://devpi/index",
-        index="http://devpi/root/dev/",
-        login="http://devpi/+login"))
+    loghub.current.reconfigure({
+        "simpleindex": "http://devpi/index",
+        "index": "http://devpi/root/dev/",
+        "login": "http://devpi/+login"})
     loghub.args.indexname = "hello/dev"
     loghub.args.keyvalues = []
     loghub.args.create = None
@@ -50,10 +50,10 @@ def test_index_list_without_login(loghub):
 
 
 def test_index_list_with_login_and_no_username(loghub, mock_http_api):
-    loghub.current.reconfigure(dict(
-        simpleindex="http://devpi/index",
-        index="http://devpi/root/dev/",
-        login="http://devpi/+login"))
+    loghub.current.reconfigure({
+        "simpleindex": "http://devpi/index",
+        "index": "http://devpi/root/dev/",
+        "login": "http://devpi/+login"})
     loghub.current.set_auth("hello", "pass1")
     loghub.args.indexname = None
     loghub.args.keyvalues = []
@@ -66,10 +66,10 @@ def test_index_list_with_login_and_no_username(loghub, mock_http_api):
 
 
 def test_index_list_with_login_and_username(loghub, mock_http_api):
-    loghub.current.reconfigure(dict(
-        simpleindex="http://devpi/index",
-        index="http://devpi/root/dev/",
-        login="http://devpi/+login"))
+    loghub.current.reconfigure({
+        "simpleindex": "http://devpi/index",
+        "index": "http://devpi/root/dev/",
+        "login": "http://devpi/+login"})
     loghub.current.set_auth("hello", "pass1")
     loghub.args.indexname = "root"
     loghub.args.keyvalues = []
@@ -82,10 +82,10 @@ def test_index_list_with_login_and_username(loghub, mock_http_api):
 
 
 def test_index_list_with_login_and_indexname(loghub, mock_http_api):
-    loghub.current.reconfigure(dict(
-        simpleindex="http://devpi/index",
-        index="http://devpi/root/dev/",
-        login="http://devpi/+login"))
+    loghub.current.reconfigure({
+        "simpleindex": "http://devpi/index",
+        "index": "http://devpi/root/dev/",
+        "login": "http://devpi/+login"})
     loghub.current.set_auth("hello", "pass1")
     loghub.args.indexname = "root/dev"
     loghub.args.keyvalues = []
@@ -96,10 +96,10 @@ def test_index_list_with_login_and_indexname(loghub, mock_http_api):
 
 
 def test_index_create_requires_user(loghub, mock_http_api):
-    loghub.current.reconfigure(dict(
-        simpleindex="http://devpi/index",
-        index="http://devpi/root/dev/",
-        login="http://devpi/+login"))
+    loghub.current.reconfigure({
+        "simpleindex": "http://devpi/index",
+        "index": "http://devpi/root/dev/",
+        "login": "http://devpi/+login"})
     loghub.args.indexname = "hello/dev"
     loghub.args.keyvalues = []
     loghub.args.create = True
@@ -111,10 +111,10 @@ def test_index_create_requires_user(loghub, mock_http_api):
 
 
 def test_automatic_user_creation_on_index_create(loghub, mock_http_api):
-    loghub.current.reconfigure(dict(
-        simpleindex="http://devpi/index",
-        index="http://devpi/root/dev/",
-        login="http://devpi/+login"))
+    loghub.current.reconfigure({
+        "simpleindex": "http://devpi/index",
+        "index": "http://devpi/root/dev/",
+        "login": "http://devpi/+login"})
     loghub.current.set_auth("hello", "pass1")
     loghub.args.indexname = "hello/dev"
     loghub.args.keyvalues = []

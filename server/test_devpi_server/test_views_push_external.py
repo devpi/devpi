@@ -29,8 +29,8 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     r = testapp.xget(200, api.index)
 
     # push OK
-    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+    req = {"name": "pkg1", "version": "2.6", "posturl": "http://whatever.com/",
+               "username": "user", "password": "password"}
     rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
@@ -68,8 +68,8 @@ def test_upload_and_push_external_exception(mapp, testapp, reqmock):
     reqmock.process_request = process_request.__get__(reqmock)
 
     # first test should fail during register
-    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+    req = {"name": "pkg1", "version": "2.6", "posturl": "http://whatever.com/",
+               "username": "user", "password": "password"}
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
@@ -85,8 +85,8 @@ def test_upload_and_push_external_exception(mapp, testapp, reqmock):
         body=BytesIO(b"msg"),
         status=410, preload_content=False,
         reason="Project pre-registration is no longer required or supported, so continue directly to uploading files."))
-    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+    req = {"name": "pkg1", "version": "2.6", "posturl": "http://whatever.com/",
+               "username": "user", "password": "password"}
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
@@ -103,15 +103,15 @@ def test_upload_and_push_external_exception(mapp, testapp, reqmock):
 def test_upload_and_push_external_metadata12(mapp, reqmock, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
-    mapp.set_versiondata(dict(
-        name="pkg1", version="2.6",
-        requires_python=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"))
+    mapp.set_versiondata({
+        "name": "pkg1", "version": "2.6",
+        "requires_python": ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"})
     result = mapp.getjson(api.index + "/pkg1", code=200)
     verdata = result['result']['2.6']
     assert 'requires_python' in verdata
     assert verdata['requires_python'] == ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+    req = {"name": "pkg1", "version": "2.6", "posturl": "http://whatever.com/",
+               "username": "user", "password": "password"}
     rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
@@ -133,15 +133,15 @@ def test_upload_and_push_external_metadata12(mapp, reqmock, testapp):
 def test_upload_and_push_external_metadata21(mapp, reqmock, testapp):
     api = mapp.create_and_use()
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
-    mapp.set_versiondata(dict(
-        name="pkg1", version="2.6",
-        description="foo", description_content_type="text/plain"))
+    mapp.set_versiondata({
+        "name": "pkg1", "version": "2.6",
+        "description": "foo", "description_content_type": "text/plain"})
     result = mapp.getjson(api.index + "/pkg1", code=200)
     verdata = result['result']['2.6']
     assert 'description_content_type' in verdata
     assert verdata['description_content_type'] == "text/plain"
-    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+    req = {"name": "pkg1", "version": "2.6", "posturl": "http://whatever.com/",
+               "username": "user", "password": "password"}
     rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
@@ -199,8 +199,8 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     reqmock.process_request = process_request.__get__(reqmock)
 
     # push OK
-    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+    req = {"name": "pkg1", "version": "2.6", "posturl": "http://whatever.com/",
+               "username": "user", "password": "password"}
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
@@ -227,8 +227,8 @@ def test_upload_and_push_egg(mapp, testapp, reqmock):
     assert "pkg2-1.0-py27.egg" in a.get("href")
 
     # push
-    req = dict(name="pkg2", version="1.0", posturl="http://whatever.com/",
-               username="user", password="password")
+    req = {"name": "pkg2", "version": "1.0", "posturl": "http://whatever.com/",
+               "username": "user", "password": "password"}
     rec = reqmock.mockresponse(url=None, data=b"msg", code=200)
     r = testapp.push(api.index, json.dumps(req))
     assert r.status_code == 200

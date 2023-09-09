@@ -326,7 +326,7 @@ class Hub:
     def validate_index_access(self):
         reply = self.http_api(
             "get",
-            self.current.index_url.replace(query=dict(no_projects="")),
+            self.current.index_url.replace(query={"no_projects": ""}),
             check_version=False,
             fatal=False,
             quiet=True,
@@ -351,7 +351,7 @@ class Hub:
 
         venvname = getattr(self.args, "venv", None)
         if venvname == "-":
-            self.current.reconfigure(dict(venvdir=None))
+            self.current.reconfigure({"venvdir": None})
         else:
             if venvname:
                 venvdir = venvname
@@ -376,7 +376,7 @@ class Hub:
                     self.fatal("No virtualenv found at: %r" % venvdir)
                 if venvname:
                     # only store if coming from args
-                    self.current.reconfigure(dict(venvdir=venvdir))
+                    self.current.reconfigure({"venvdir": venvdir})
 
         return venvdir
 
@@ -657,7 +657,7 @@ def print_version(hub):
         url = hub.current.root_url.addpath('+status').url
         try:
             r = HTTPReply(hub.http.get(
-                url, headers=dict(accept='application/json')))
+                url, headers={"accept": 'application/json'}))
         except hub.http.Errors:
             pass
         else:

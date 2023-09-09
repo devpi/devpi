@@ -85,19 +85,19 @@ def test_docs_raw_projectname(mapp, testapp):
     mapp.upload_doc(
         "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
     location = '%s/pkg_hello/1.0/' % api.index
-    r = testapp.xget(200, location, headers=dict(accept="text/html"))
-    navlinks = dict(
-        (l.text, l.attrs['href'])
-        for l in r.html.select('.projectnavigation a'))
+    r = testapp.xget(200, location, headers={"accept": "text/html"})
+    navlinks = {
+        l.text: l.attrs['href']
+        for l in r.html.select('.projectnavigation a')}
     assert 'Documentation' in navlinks
     # the regular name should work
     location = '%s/pkg_hello/1.0/+doc/index.html' % api.index
-    r = testapp.xget(200, location, headers=dict(accept="text/html"))
+    r = testapp.xget(200, location, headers={"accept": "text/html"})
     html = r.html.decode_contents()
     assert html.strip() == '<html><body>foo</body></html>'
     # as well as the normalized name
     location = '%s/pkg-hello/1.0/+doc/index.html' % api.index
-    r = testapp.xget(200, location, headers=dict(accept="text/html"))
+    r = testapp.xget(200, location, headers={"accept": "text/html"})
     html = r.html.decode_contents()
     assert html.strip() == '<html><body>foo</body></html>'
 
@@ -111,7 +111,7 @@ def test_docs_show_projectname(mapp, testapp):
     mapp.upload_doc(
         "pkg-hello.zip", content, "pkg-hello", "1.0", code=200, waithooks=True)
     location = '%s/pkg-hello/1.0/+d/index.html' % api.index
-    r = testapp.xget(200, location, headers=dict(accept="text/html"))
+    r = testapp.xget(200, location, headers={"accept": "text/html"})
     iframe, = r.html.find_all('iframe')
     assert iframe.attrs['src'] == api.index + "/pkg-hello/1.0/+doc/index.html"
 

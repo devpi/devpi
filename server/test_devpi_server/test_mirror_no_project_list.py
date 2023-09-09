@@ -13,7 +13,7 @@ def register_and_store(stage, basename, content=b"123", name=None):
     n, version = splitbasename(basename)[:2]
     if name is None:
         name = n
-    stage.set_versiondata(dict(name=name, version=version))
+    stage.set_versiondata({"name": name, "version": version})
     res = stage.store_releasefile(name, version, basename, content)
     return res
 
@@ -22,11 +22,11 @@ def register_and_store(stage, basename, content=b"123", name=None):
 def mirrorapi(mapp, simpypi):
     mapp.login("root")
     mapp.modify_index(
-        "root/pypi", indexconfig=dict(
-            type="mirror",
-            mirror_cache_expiry=0,
-            mirror_no_project_list=True,
-            mirror_url=simpypi.simpleurl))
+        "root/pypi", indexconfig={
+            "type": "mirror",
+            "mirror_cache_expiry": 0,
+            "mirror_no_project_list": True,
+            "mirror_url": simpypi.simpleurl})
     return mapp.use("root/pypi")
 
 
@@ -40,11 +40,11 @@ def mirrorstage(model, simpypi):
 
 @pytest.fixture
 def stage(mirrorstage, user):
-    config = dict(
-        index="world",
-        bases=(mirrorstage.name,),
-        type="stage",
-        volatile=True)
+    config = {
+        "index": "world",
+        "bases": (mirrorstage.name,),
+        "type": "stage",
+        "volatile": True}
     return user.create_stage(**config)
 
 
@@ -83,7 +83,7 @@ def test_listing_projects(mapp, mirrorapi, simpypi, testapp):
     assert link.endswith("pkg-1.0.zip")
     # this fetches from upstream
     assert simpypi.log
-    assert set(x[0] for x in simpypi.requests) == {"/simple/pkg/"}
+    assert {x[0] for x in simpypi.requests} == {"/simple/pkg/"}
     # now we see the project listed, but no fetch from upstream when listing
     simpypi.clear()
     data = mapp.getjson(f"/{mirrorapi.stagename}")
@@ -109,7 +109,7 @@ def test_has_project_perstage(mirrorstage, simpypi):
     (link,) = mirrorstage.get_releaselinks_perstage("pkg")
     assert link.basename == "pkg-1.0.zip"
     assert simpypi.log
-    assert set(x[0] for x in simpypi.requests) == {"/simple/pkg/"}
+    assert {x[0] for x in simpypi.requests} == {"/simple/pkg/"}
     simpypi.clear()
     assert mirrorstage.has_project_perstage("pkg") is True
     assert simpypi.log == []
@@ -124,7 +124,7 @@ def test_get_releaselinks_with_upstream(mirrorstage, simpypi, stage):
     (link,) = stage.get_releaselinks("pkg")
     assert link.basename == "pkg-1.0.zip"
     assert simpypi.log
-    assert set(x[0] for x in simpypi.requests) == {"/simple/pkg/"}
+    assert {x[0] for x in simpypi.requests} == {"/simple/pkg/"}
 
 
 @pytest.mark.nomocking
@@ -176,7 +176,7 @@ def test_get_mirror_whitelist_info_with_fetched_upstream(mirrorstage, simpypi, s
     assert link.basename == "pkg-1.0.zip"
     assert stage.has_project("pkg") is True
     assert simpypi.log
-    assert set(x[0] for x in simpypi.requests) == {"/simple/pkg/"}
+    assert {x[0] for x in simpypi.requests} == {"/simple/pkg/"}
     simpypi.clear()
     info = stage.get_mirror_whitelist_info("pkg")
     assert info["has_mirror_base"] is True
@@ -215,7 +215,7 @@ def test_whitelisted_with_unfetched_upstream(mirrorstage, simpypi, stage):
     (link,) = stage.get_releaselinks("pkg")
     assert link.basename == "pkg-1.0.zip"
     assert simpypi.log
-    assert set(x[0] for x in simpypi.requests) == {"/simple/pkg/"}
+    assert {x[0] for x in simpypi.requests} == {"/simple/pkg/"}
 
 
 @pytest.mark.nomocking
@@ -227,7 +227,7 @@ def test_whitelisted_with_fetched_upstream(mirrorstage, simpypi, stage):
     assert link.basename == "pkg-1.0.zip"
     assert stage.has_project("pkg") is True
     assert simpypi.log
-    assert set(x[0] for x in simpypi.requests) == {"/simple/pkg/"}
+    assert {x[0] for x in simpypi.requests} == {"/simple/pkg/"}
     simpypi.clear()
     info = stage.get_mirror_whitelist_info("pkg")
     assert info["has_mirror_base"] is True
@@ -244,4 +244,4 @@ def test_whitelisted_with_fetched_upstream(mirrorstage, simpypi, stage):
     (link,) = stage.get_releaselinks("pkg")
     assert link.basename == "pkg-1.0.zip"
     assert simpypi.log
-    assert set(x[0] for x in simpypi.requests) == {"/simple/pkg/"}
+    assert {x[0] for x in simpypi.requests} == {"/simple/pkg/"}

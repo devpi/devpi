@@ -324,7 +324,7 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         stagename2 = api.user + "/" + "dev6"
-        mapp1.create_index(stagename2, indexconfig=dict(bases=api.stagename))
+        mapp1.create_index(stagename2, indexconfig={"bases": api.stagename})
         impexp.export()
         mapp2 = impexp.new_import()
         assert api.user in mapp2.getuserlist()
@@ -1069,10 +1069,10 @@ class TestImportExport:
 
     def test_mirror_settings_preserved(self, httpget, impexp, pypiurls):
         mapp1 = impexp.mapp1
-        indexconfig = dict(
-            type="mirror",
-            mirror_url="http://localhost:6543/index/",
-            mirror_cache_expiry="600")
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": "http://localhost:6543/index/",
+            "mirror_cache_expiry": "600"}
         api = mapp1.create_and_use(indexconfig=indexconfig)
 
         impexp.export()
@@ -1083,18 +1083,18 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         result = mapp2.getjson(api.index)
         assert result["type"] == "indexconfig"
-        assert result["result"] == dict(
-            type="mirror",
-            volatile=True,
-            mirror_url="http://localhost:6543/index/",
-            mirror_cache_expiry=600,
-            projects=[])
+        assert result["result"] == {
+            "type": "mirror",
+            "volatile": True,
+            "mirror_url": "http://localhost:6543/index/",
+            "mirror_cache_expiry": 600,
+            "projects": []}
 
     def test_no_mirror_releases_touched(self, httpget, impexp, pypiurls):
         mapp1 = impexp.mapp1
-        indexconfig = dict(
-            type="mirror",
-            mirror_url="http://localhost:6543/index/")
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": "http://localhost:6543/index/"}
         api = mapp1.create_and_use(indexconfig=indexconfig)
 
         httpget.mockresponse(
@@ -1114,8 +1114,8 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         result = mapp2.getjson(api.index)
         assert result["type"] == "indexconfig"
-        assert result["result"] == dict(
-            type="mirror",
-            volatile=True,
-            mirror_url="http://localhost:6543/index/",
-            projects=[])
+        assert result["result"] == {
+            "type": "mirror",
+            "volatile": True,
+            "mirror_url": "http://localhost:6543/index/",
+            "projects": []}

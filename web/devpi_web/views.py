@@ -150,11 +150,11 @@ def get_doc_info(context, request, version=None, check_content=True):
             context.stage, name, doc_version, entry, relpath)
         if not relpath_exists:
             raise HTTPNotFound("File %s not found in documentation." % relpath)
-    result = dict(
-        etag=entry.hash_value,
-        relpath=relpath,
-        doc_version=doc_version,
-        version_mismatch=doc_version != navigation_version(context))
+    result = {
+        'etag': entry.hash_value,
+        'relpath': relpath,
+        'doc_version': doc_version,
+        'version_mismatch': doc_version != navigation_version(context)}
     if check_content:
         result['body'] = docs_file_content(
             context.stage, name, doc_version, entry, relpath)
@@ -208,43 +208,43 @@ def doc_show(context, request):
     version_links = []
     latest_doc_info = get_doc_info(context, request, version='latest', check_content=False)
     if latest_doc_info['doc_version'] != doc_info['doc_version']:
-        version_links.append(dict(
-            title="Latest documentation",
-            url=request.route_url(
+        version_links.append({
+            'title': "Latest documentation",
+            'url': request.route_url(
                 "docviewroot", user=stage.user.name, index=stage.index,
-                project=name, version='latest', relpath="index.html")))
+                project=name, version='latest', relpath="index.html")})
     try:
         stable_doc_info = get_doc_info(context, request, version='stable', check_content=False)
         if stable_doc_info['doc_version'] not in (doc_info['doc_version'], latest_doc_info['doc_version']):
-            version_links.append(dict(
-                title="Stable documentation",
-                url=request.route_url(
+            version_links.append({
+                'title': "Stable documentation",
+                'url': request.route_url(
                     "docviewroot", user=stage.user.name, index=stage.index,
-                    project=name, version='stable', relpath="index.html")))
+                    project=name, version='stable', relpath="index.html")})
     except (HTTPFound, HTTPNotFound):
         pass
-    return dict(
-        title="%s-%s Documentation" % (name, version),
-        base_url=request.route_url(
+    return {
+        'title': "%s-%s Documentation" % (name, version),
+        'base_url': request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
             project=name, version=version, relpath=''),
-        baseview_url=request.route_url(
+        'baseview_url': request.route_url(
             "docviewroot", user=stage.user.name, index=stage.index,
             project=name, version=version, relpath=''),
-        url=request.route_url(
+        'url': request.route_url(
             "docroot", user=stage.user.name, index=stage.index,
             project=name, version=version,
             relpath=doc_info['relpath'], _query=request.query_string),
-        version_mismatch=doc_info['version_mismatch'],
-        version_links=version_links,
-        doc_version=doc_info['doc_version'])
+        'version_mismatch': doc_info['version_mismatch'],
+        'version_links': version_links,
+        'doc_version': doc_info['doc_version']}
 
 
 @notfound_view_config(renderer="templates/notfound.pt")
 def notfound(request):
     if request.method not in ('GET', 'HEAD'):
         request.response.status = 404
-        return dict(msg=request.exception)
+        return {'msg': request.exception}
     path = decode_path_info(request.environ['PATH_INFO'] or '/')
     registry = request.registry
     mapper = registry.queryUtility(IRoutesMapper)
@@ -259,17 +259,17 @@ def notfound(request):
                     qs = '?' + qs
                 return HTTPFound(location=request.application_url + nonslashpath + qs)
     request.response.status = 404
-    return dict(msg=request.exception)
+    return {'msg': request.exception}
 
 
 @view_config(context=HTTPError, renderer="templates/error.pt")
 def error_view(request):
     if 'text/html' in request.accept:
         request.response.status = request.exception.status
-        return dict(
-            title=request.exception.title,
-            status=request.exception.status,
-            msg=request.exception)
+        return {
+            'title': request.exception.title,
+            'status': request.exception.status,
+            'msg': request.exception}
     else:
         return default_exceptionresponse_view(request.context, request)
 
@@ -309,10 +309,10 @@ def format_timestamp(ts, unset_value=None):
     return ts
 
 
-_what_map = dict(
-    overwrite="Replaced",
-    push="Pushed",
-    upload="Uploaded")
+_what_map = {
+    'overwrite': "Replaced",
+    'push': "Pushed",
+    'upload': "Uploaded"}
 
 
 def make_history_view_item(request, log_item):
@@ -323,9 +323,9 @@ def make_history_view_item(request, log_item):
         result['when'] = format_timetuple(log_item['when'])
     for key in ('dst', 'src'):
         if key in log_item:
-            result[key] = dict(
-                title=log_item[key],
-                href=request.stage_url(log_item[key]))
+            result[key] = {
+                'title': log_item[key],
+                'href': request.stage_url(log_item[key])}
     if 'count' in log_item:
         result['count'] = log_item['count']
     return result
@@ -355,16 +355,16 @@ def get_files_info(request, linkstore, show_toxresults=False):
         except AttributeError:
             history = []
         last_modified = format_timetuple(parsedate(entry.last_modified))
-        fileinfo = dict(
-            title=link.basename,
-            url=url,
-            basename=link.basename,
-            hash_spec=entry.hash_spec,
-            dist_type=dist_file_types.get(file_type, ''),
-            py_version=py_version,
-            last_modified=last_modified,
-            history=history,
-            size=size)
+        fileinfo = {
+            'title': link.basename,
+            'url': url,
+            'basename': link.basename,
+            'hash_spec': entry.hash_spec,
+            'dist_type': dist_file_types.get(file_type, ''),
+            'py_version': py_version,
+            'last_modified': last_modified,
+            'history': history,
+            'size': size}
         if show_toxresults:
             toxresults = get_toxresults_info(linkstore, link)
             if toxresults:
@@ -392,15 +392,15 @@ def get_toxresults_info(linkstore, for_link, newest=True):
                 status = 'passed'
             elif toxenv.setup['failed'] or toxenv.test['failed']:
                 status = 'failed'
-            info = dict(
-                basename=toxlink.basename,
-                _key="-".join(toxenv.key),
-                host=toxenv.host,
-                platform=toxenv.platform,
-                envname=toxenv.envname,
-                setup=toxenv.setup,
-                test=toxenv.test,
-                status=status)
+            info = {
+                'basename': toxlink.basename,
+                '_key': "-".join(toxenv.key),
+                'host': toxenv.host,
+                'platform': toxenv.platform,
+                'envname': toxenv.envname,
+                'setup': toxenv.setup,
+                'test': toxenv.test,
+                'status': status}
             if toxenv.pyversion:
                 info["pyversion"] = toxenv.pyversion
             result.append(info)
@@ -410,10 +410,10 @@ def get_toxresults_info(linkstore, for_link, newest=True):
 def get_toxresults_state(toxresults):
     if not toxresults:
         return
-    toxstates = set(x['status'] for x in toxresults)
+    toxstates = {x['status'] for x in toxresults}
     if 'failed' in toxstates:
         return 'failed'
-    if toxstates == set(['passed']):
+    if toxstates == {'passed'}:
         return 'passed'
     return 'unknown'
 
@@ -426,11 +426,11 @@ def get_docs_info(request, stage, linkstore):
         return
     name, ver = normalize_name(linkstore.project), linkstore.version
     if docs_exist(stage, name, ver, links[0].entry):
-        return dict(
-            title="%s-%s" % (name, ver),
-            url=request.route_url(
+        return {
+            'title': "%s-%s" % (name, ver),
+            'url': request.route_url(
                 "docviewroot", user=stage.user.name, index=stage.index,
-                project=name, version=ver, relpath="index.html"))
+                project=name, version=ver, relpath="index.html")}
 
 
 def get_user_info(context, request, user):
@@ -439,23 +439,23 @@ def get_user_info(context, request, user):
     for index in sorted(user.get('indexes', [])):
         stagename = "%s/%s" % (username, index)
         stage = context.model.getstage(stagename)
-        indexes.append(dict(
-            _ixconfig=stage.ixconfig,
-            title=stagename,
-            index_name=index,
-            index_title=stage.ixconfig.get('title', None),
-            index_description=stage.ixconfig.get('description', None),
-            url=request.stage_url(stagename)))
-    return dict(
-        _user=user,
-        title=username,
-        user_name=username,
-        user_title=user.get('title', None),
-        user_description=user.get('description', None),
-        user_email=user.get('email', None),
-        user_url=request.route_url(
+        indexes.append({
+            '_ixconfig': stage.ixconfig,
+            'title': stagename,
+            'index_name': index,
+            'index_title': stage.ixconfig.get('title', None),
+            'index_description': stage.ixconfig.get('description', None),
+            'url': request.stage_url(stagename)})
+    return {
+        '_user': user,
+        'title': username,
+        'user_name': username,
+        'user_title': user.get('title', None),
+        'user_description': user.get('description', None),
+        'user_email': user.get('email', None),
+        'user_url': request.route_url(
             "/{user}", user=username),
-        indexes=indexes)
+        'indexes': indexes}
 
 
 @view_config(
@@ -469,9 +469,9 @@ def root(context, request):
     users = []
     for user in rawusers:
         users.append(get_user_info(context, request, user))
-    return dict(
-        _context=context,
-        users=users)
+    return {
+        '_context': context,
+        'users': users}
 
 
 @view_config(
@@ -479,9 +479,9 @@ def root(context, request):
     renderer="templates/user.pt")
 def user_get(context, request):
     user = context.user.get()
-    return dict(
-        _context=context,
-        user=get_user_info(context, request, user))
+    return {
+        '_context': context,
+        'user': get_user_info(context, request, user)}
 
 
 @view_config(
@@ -494,27 +494,27 @@ def index_get(context, request):
     bases = []
     packages = []
     whitelist = []
-    result = dict(
-        _context=context,
-        title="%s index" % stage.name,
-        simple_index_url=request.simpleindex_url(stage),
-        permissions=permissions,
-        bases=bases,
-        packages=packages,
-        whitelist=whitelist,
-        index_name=stage.name,
-        index_title=stage.ixconfig.get('title', None),
-        index_description=stage.ixconfig.get('description', None))
+    result = {
+        '_context': context,
+        'title': "%s index" % stage.name,
+        'simple_index_url': request.simpleindex_url(stage),
+        'permissions': permissions,
+        'bases': bases,
+        'packages': packages,
+        'whitelist': whitelist,
+        'index_name': stage.name,
+        'index_title': stage.ixconfig.get('title', None),
+        'index_description': stage.ixconfig.get('description', None)}
     if stage.ixconfig['type'] == 'mirror':
         return result
 
     if hasattr(stage, "ixconfig"):
         whitelist.extend(sorted(stage.ixconfig.get('mirror_whitelist', [])))
         for base in stage.ixconfig["bases"]:
-            bases.append(dict(
-                title=base,
-                url=request.stage_url(base),
-                simple_url=request.simpleindex_url(base)))
+            bases.append({
+                'title': base,
+                'url': request.stage_url(base),
+                'simple_url': request.simpleindex_url(base)})
         acls = [
             (key[4:], stage.ixconfig[key])
             for key in stage.ixconfig
@@ -526,16 +526,16 @@ def index_get(context, request):
             for principal in principals:
                 if principal.startswith(':'):
                     if principal.endswith(':'):
-                        special.append(dict(title=principal[1:-1]))
+                        special.append({'title': principal[1:-1]})
                     else:
-                        groups.append(dict(title=principal[1:]))
+                        groups.append({'title': principal[1:]})
                 else:
-                    users.append(dict(title=principal))
-            permissions.append(dict(
-                title=permission,
-                groups=groups,
-                special=special,
-                users=users))
+                    users.append({'title': principal})
+            permissions.append({
+                'title': permission,
+                'groups': groups,
+                'special': special,
+                'users': users})
 
     for project in stage.list_projects_perstage():
         version = stage.get_latest_version_perstage(project)
@@ -548,31 +548,31 @@ def index_get(context, request):
             continue
         show_toxresults = (stage.ixconfig['type'] != 'mirror')
         linkstore = stage.get_linkstore_perstage(name, ver)
-        packages.append(dict(
-            info=dict(
-                title="%s-%s" % (name, ver),
-                url=request.route_url(
+        packages.append({
+            'info': {
+                'title': "%s-%s" % (name, ver),
+                'url': request.route_url(
                     "/{user}/{index}/{project}/{version}",
                     user=stage.user.name, index=stage.index,
-                    project=name, version=ver)),
-            make_toxresults_url=functools.partial(
+                    project=name, version=ver)},
+            'make_toxresults_url': functools.partial(
                 request.route_url, "toxresults",
                 user=stage.user.name, index=stage.index,
                 project=name, version=ver),
-            files=get_files_info(request, linkstore, show_toxresults),
-            docs=get_docs_info(request, stage, linkstore),
-            _version_data=verdata))
+            'files': get_files_info(request, linkstore, show_toxresults),
+            'docs': get_docs_info(request, stage, linkstore),
+            '_version_data': verdata})
     packages.sort(key=lambda x: x["info"]["title"])
 
     return result
 
 
 def add_simple_page_navlink(request, context, nav_links):
-    nav_links.append(dict(
-        title="Simple index",
-        url=request.route_url(
+    nav_links.append({
+        'title': "Simple index",
+        'url': request.route_url(
             "/{user}/{index}/+simple/{project}",
-            user=context.username, index=context.index, project=context.project)))
+            user=context.username, index=context.index, project=context.project)})
 
 
 def add_mirror_page_navlink(request, context, whitelist_info, nav_links):
@@ -583,9 +583,9 @@ def add_mirror_page_navlink(request, context, whitelist_info, nav_links):
             mirror_web_url_fmt = base.ixconfig.get("mirror_web_url_fmt")
             if not mirror_web_url_fmt:
                 continue
-            nav_links.append(dict(
-                title="%s page" % base.ixconfig.get("title", "Mirror"),
-                url=mirror_web_url_fmt.format(name=context.verified_project)))
+            nav_links.append({
+                'title': "%s page" % base.ixconfig.get("title", "Mirror"),
+                'url': mirror_web_url_fmt.format(name=context.verified_project)})
 
 
 def _index_refresh_form(request, stage, project):
@@ -629,15 +629,15 @@ def project_get(context, request):
         seen_key = (user, index, name, version)
         if seen_key in seen:
             continue
-        version_info[version] = dict(
-            index_title="%s/%s" % (user, index),
-            index_url=request.stage_url(user, index),
-            title=version,
-            url=request.route_url(
+        version_info[version] = {
+            'index_title': "%s/%s" % (user, index),
+            'index_url': request.stage_url(user, index),
+            'title': version,
+            'url': request.route_url(
                 "/{user}/{index}/{project}/{version}",
                 user=user, index=index, project=name, version=version),
-            docs=None,
-            _release=release)
+            'docs': None,
+            '_release': release}
         seen.add(seen_key)
     user = context.username
     index = context.stage.index
@@ -650,15 +650,15 @@ def project_get(context, request):
         if not docs:
             continue
         if version not in version_info:
-            version_info[version] = dict(
-                index_title=index_title,
-                index_url=index_url,
-                title=version,
-                url=request.route_url(
+            version_info[version] = {
+                'index_title': index_title,
+                'index_url': index_url,
+                'title': version,
+                'url': request.route_url(
                     "/{user}/{index}/{project}/{version}",
                     user=user, index=index, project=name, version=version),
-                docs=docs,
-                _release=None)
+                'docs': docs,
+                '_release': None}
         else:
             version_info[version]['docs'] = docs
     nav_links = []
@@ -669,9 +669,9 @@ def project_get(context, request):
     if hasattr(context.stage, 'get_mirror_whitelist_info'):
         whitelist_info = context.stage.get_mirror_whitelist_info(context.project)
     else:
-        whitelist_info = dict(
-            has_mirror_base=context.stage.has_mirror_base(context.project),
-            blocked_by_mirror_whitelist=None)
+        whitelist_info = {
+            'has_mirror_base': context.stage.has_mirror_base(context.project),
+            'blocked_by_mirror_whitelist': None}
     add_mirror_page_navlink(request, context, whitelist_info, nav_links)
     stage = context.stage
     latest_verdata = {}
@@ -682,18 +682,18 @@ def project_get(context, request):
     refresh_form = None
     if whitelist_info['has_mirror_base']:
         refresh_form = _index_refresh_form(request, stage, name)
-    return dict(
-        _context=context,
-        title="%s/: %s versions" % (context.stage.name, context.project),
-        blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
-        nav_links=nav_links,
-        latest_version=latest_version,
-        latest_url=request.route_url(
+    return {
+        '_context': context,
+        'title': "%s/: %s versions" % (context.stage.name, context.project),
+        'blocked_by_mirror_whitelist': whitelist_info['blocked_by_mirror_whitelist'],
+        'nav_links': nav_links,
+        'latest_version': latest_version,
+        'latest_url': request.route_url(
             "/{user}/{index}/{project}/{version}",
             user=user, index=index, project=name, version='latest'),
-        latest_version_data=latest_verdata,
-        refresh_form=refresh_form,
-        versions=versions)
+        'latest_version_data': latest_verdata,
+        'refresh_form': refresh_form,
+        'versions': versions}
 
 
 @view_config(
@@ -733,20 +733,20 @@ def version_get(context, request):
     home_page = verdata.get("home_page")
     nav_links = []
     if docs:
-        nav_links.append(dict(
-            title="Documentation",
-            url=docs['url']))
+        nav_links.append({
+            'title': "Documentation",
+            'url': docs['url']})
     if home_page:
-        nav_links.append(dict(
-            title="Homepage",
-            url=home_page))
+        nav_links.append({
+            'title': "Homepage",
+            'url': home_page})
     add_simple_page_navlink(request, context, nav_links)
     if hasattr(stage, 'get_mirror_whitelist_info'):
         whitelist_info = stage.get_mirror_whitelist_info(name)
     else:
-        whitelist_info = dict(
-            has_mirror_base=stage.has_mirror_base(name),
-            blocked_by_mirror_whitelist=False)
+        whitelist_info = {
+            'has_mirror_base': stage.has_mirror_base(name),
+            'blocked_by_mirror_whitelist': False}
     add_mirror_page_navlink(request, context, whitelist_info, nav_links)
     cmp_version = Version(version)
     if context._stable_versions:
@@ -756,37 +756,37 @@ def version_get(context, request):
             user=context.username, index=context.index,
             project=context.project, version='stable')
         if cmp_version.is_prerelease():
-            nav_links.append(dict(
-                title="Stable version available",
-                css_class="warning",
-                url=url))
+            nav_links.append({
+                'title': "Stable version available",
+                'css_class': "warning",
+                'url': url})
         elif stable_version != cmp_version:
-            nav_links.append(dict(
-                title="Newer version available",
-                css_class="severe",
-                url=url))
-    return dict(
-        _context=context,
-        title="%s/: %s-%s metadata and description" % (stage.name, name, version),
-        content=get_description(stage, name, version),
-        summary=verdata.get("summary"),
-        resolved_version=version,
-        nav_links=nav_links,
-        infos=infos,
-        metadata_list_fields=frozenset(
+            nav_links.append({
+                'title': "Newer version available",
+                'css_class': "severe",
+                'url': url})
+    return {
+        '_context': context,
+        'title': "%s/: %s-%s metadata and description" % (stage.name, name, version),
+        'content': get_description(stage, name, version),
+        'summary': verdata.get("summary"),
+        'resolved_version': version,
+        'nav_links': nav_links,
+        'infos': infos,
+        'metadata_list_fields': frozenset(
             escape(x)
             for x in getattr(stage, 'metadata_list_fields', ())),
-        files=files,
-        blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
-        show_toxresults=show_toxresults,
-        make_toxresults_url=functools.partial(
+        'files': files,
+        'blocked_by_mirror_whitelist': whitelist_info['blocked_by_mirror_whitelist'],
+        'show_toxresults': show_toxresults,
+        'make_toxresults_url': functools.partial(
             request.route_url, "toxresults",
             user=context.username, index=context.index,
             project=context.project, version=version),
-        make_toxresult_url=functools.partial(
+        'make_toxresult_url': functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.project, version=version))
+            project=context.project, version=version)}
 
 
 @view_config(
@@ -799,15 +799,15 @@ def toxresults(context, request):
     basename = request.matchdict['basename']
     toxresults = get_toxresults_info(
         linkstore, linkstore.get_links(basename=basename)[0], newest=False)
-    return dict(
-        _context=context,
-        title="%s/: %s-%s toxresults" % (
+    return {
+        '_context': context,
+        'title': "%s/: %s-%s toxresults" % (
             context.stage.name, context.project, context.version),
-        toxresults=toxresults,
-        make_toxresult_url=functools.partial(
+        'toxresults': toxresults,
+        'make_toxresult_url': functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.project, version=context.version, basename=basename))
+            project=context.project, version=context.version, basename=basename)}
 
 
 @view_config(
@@ -824,11 +824,11 @@ def toxresult(context, request):
             linkstore,
             linkstore.get_links(basename=basename)[0], newest=False)
         if x['basename'] == toxresult]
-    return dict(
-        _context=context,
-        title="%s/: %s-%s toxresult %s" % (
+    return {
+        '_context': context,
+        'title': "%s/: %s-%s toxresult %s" % (
             context.stage.name, context.project, context.version, toxresult),
-        toxresults=toxresults)
+        'toxresults': toxresults}
 
 
 @view_config(
@@ -842,48 +842,48 @@ def statusview(request):
     for index, error in enumerate(status.get('replication-errors', {}).values()):
         replication_errors.append(error)
         if index >= 10:
-            replication_errors.append(dict(message="More than 10 replication errors."))
+            replication_errors.append({'message': "More than 10 replication errors."})
             break
     _polling_replicas = status.get('polling_replicas', {})
     polling_replicas = []
     for replica_uuid in sorted(_polling_replicas):
         replica = _polling_replicas[replica_uuid]
-        polling_replicas.append(dict(
-            uuid=replica_uuid,
-            remote_ip=replica.get('remote-ip', 'unknown'),
-            outside_url=replica.get('outside-url', 'unknown'),
-            serial=replica.get('serial', 'unknown'),
-            in_request=replica.get('in-request', 'unknown'),
-            last_request=format_timestamp(
-                replica.get('last-request', 'unknown'))))
-    return dict(
-        msgs=request.status_info['msgs'],
-        info=dict(
-            uuid=status.get('uuid', 'unknown'),
-            role=status.get('role', 'unknown'),
-            outside_url=status.get('outside-url', 'unknown'),
-            master_url=status.get('master-url'),
-            master_uuid=status.get('master-uuid'),
-            master_serial=status.get('master-serial'),
-            master_serial_timestamp=format_timestamp(
+        polling_replicas.append({
+            'uuid': replica_uuid,
+            'remote_ip': replica.get('remote-ip', 'unknown'),
+            'outside_url': replica.get('outside-url', 'unknown'),
+            'serial': replica.get('serial', 'unknown'),
+            'in_request': replica.get('in-request', 'unknown'),
+            'last_request': format_timestamp(
+                replica.get('last-request', 'unknown'))})
+    return {
+        'msgs': request.status_info['msgs'],
+        'info': {
+            'uuid': status.get('uuid', 'unknown'),
+            'role': status.get('role', 'unknown'),
+            'outside_url': status.get('outside-url', 'unknown'),
+            'master_url': status.get('master-url'),
+            'master_uuid': status.get('master-uuid'),
+            'master_serial': status.get('master-serial'),
+            'master_serial_timestamp': format_timestamp(
                 status.get('master-serial-timestamp'), unset_value="never"),
-            replica_started_at=format_timestamp(
+            'replica_started_at': format_timestamp(
                 status.get('replica-started-at')),
-            replica_in_sync_at=format_timestamp(
+            'replica_in_sync_at': format_timestamp(
                 status.get('replica-in-sync-at'), unset_value="never"),
-            update_from_master_at=format_timestamp(
+            'update_from_master_at': format_timestamp(
                 status.get('update-from-master-at'), unset_value="never"),
-            serial=status.get('serial', 'unknown'),
-            last_commit_timestamp=format_timestamp(
+            'serial': status.get('serial', 'unknown'),
+            'last_commit_timestamp': format_timestamp(
                 status.get('last-commit-timestamp', 'unknown')),
-            event_serial=status.get('event-serial', 'unknown'),
-            event_serial_timestamp=format_timestamp(
+            'event_serial': status.get('event-serial', 'unknown'),
+            'event_serial_timestamp': format_timestamp(
                 status.get('event-serial-timestamp', 'unknown')),
-            event_serial_in_sync_at=format_timestamp(
+            'event_serial_in_sync_at': format_timestamp(
                 status.get('event-serial-in-sync-at', 'unknown'),
-                unset_value="never")),
-        replication_errors=replication_errors,
-        polling_replicas=polling_replicas)
+                unset_value="never")},
+        'replication_errors': replication_errors,
+        'polling_replicas': polling_replicas}
 
 
 def batch_list(num, current, left=3, right=3):
@@ -946,8 +946,8 @@ class SearchView:
         current = 0
         for index, item in enumerate(batch):
             if item is None:
-                batch_links.append(dict(
-                    title='…'))
+                batch_links.append({
+                    'title': '…'})
             elif item == (self.params['page'] - 1):
                 current = index
                 batch_links.append({
@@ -956,11 +956,11 @@ class SearchView:
             else:
                 new_params = dict(self.params)
                 new_params['page'] = item + 1
-                batch_links.append(dict(
-                    title=item + 1,
-                    url=self.request.route_url(
+                batch_links.append({
+                    'title': item + 1,
+                    'url': self.request.route_url(
                         'search',
-                        _query=new_params)))
+                        _query=new_params)})
         if current < (len(batch_links) - 1):
             next = dict(batch_links[current + 1])
             next['title'] = 'Next'
@@ -1095,18 +1095,18 @@ class SearchView:
         route_name='search',
         renderer='templates/search.pt')
     def __call__(self):
-        return dict(
-            query=self.params['query'],
-            page=self.params['page'],
-            batch_links=self.batch_links,
-            result=self.result)
+        return {
+            'query': self.params['query'],
+            'page': self.params['page'],
+            'batch_links': self.batch_links,
+            'result': self.result}
 
     @view_config(
         route_name='search_help',
         request_method="GET",
         renderer='templates/search_help.pt')
     def search_help(self):
-        return dict()
+        return {}
 
     def query_from_xmlrpc(self, body):
         unmarshaller = Unmarshaller()
@@ -1122,7 +1122,7 @@ class SearchView:
             fields = data
             operator = "and"
         log.debug("xmlrpc_search {0}".format((fields, operator)))
-        return dict(fields=fields, operator=operator)
+        return {'fields': fields, 'operator': operator}
 
     @view_config(
         route_name="/{user}/{index}", request_method="POST",

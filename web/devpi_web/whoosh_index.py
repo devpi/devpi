@@ -117,7 +117,7 @@ class NgramFilter(Filter):
     ["hell", "ello", "ther", "here"]
     """
 
-    __inittypes__ = dict(minsize=int, maxsize=int)
+    __inittypes__ = {"minsize": int, "maxsize": int}
 
     def __init__(self):
         """
@@ -577,7 +577,7 @@ class Index(object):
             ('description', 1.5),
             ('summary', 1.75),
             ('keywords', 1.75))
-        data = dict((u(x), get_mutable_deepcopy(project[x])) for x in main_keys if x in project)
+        data = {u(x): get_mutable_deepcopy(project[x]) for x in main_keys if x in project}
         data['path'] = u"/{user}/{index}/{name}".format(
             user=data['user'], index=data['index'],
             name=normalize_name(data['name']))
@@ -642,7 +642,7 @@ class Index(object):
 
     def _process_results(self, raw, page=1):
         items = []
-        result_info = dict()
+        result_info = {}
         result = {"items": items, "info": result_info}
         found = raw.scored_length()
         result_info['found'] = found
@@ -655,7 +655,7 @@ class Index(object):
             results = raw
         collapsed_counts = defaultdict(int)
         result_info['collapsed_counts'] = collapsed_counts
-        fields = set(x.field() for x in results.q.leaves())
+        fields = {x.field() for x in results.q.leaves()}
         collapse = "path" not in fields
         parents = {}
         text_field = results.searcher.schema['text']
@@ -696,17 +696,17 @@ class Index(object):
 
     @property
     def _query_parser_help(self):
-        field_docs = dict(
-            classifiers="""
+        field_docs = {
+            "classifiers": """
                 The <a href="https://pypi.org/pypi?%3Aaction=list_classifiers" target="_blank">trove classifiers</a> of a package.
                 Use single quotes to specify a classifier, as they contain spaces:
                 <code>classifiers:'Programming Language :: Python :: 3'</code>""",
-            index="The name of the index. This is only the name part, without the user. For example: <code>index:pypi</code>",
-            keywords="The keywords of a package.",
-            name="The package name. For example: <code>name:devpi-client</code>",
-            path="The path of the package in the form '/{user}/{index}/{name}'.  For example: <code>path:/root/pypi/devpi-server</code>",
-            text=None,
-            type="""
+            "index": "The name of the index. This is only the name part, without the user. For example: <code>index:pypi</code>",
+            "keywords": "The keywords of a package.",
+            "name": "The package name. For example: <code>name:devpi-client</code>",
+            "path": "The path of the package in the form '/{user}/{index}/{name}'.  For example: <code>path:/root/pypi/devpi-server</code>",
+            "text": None,
+            "type": """
                 The type of text.
                 One of <code>project</code> for the project name,
                 <code>title</code> for the title of a documentation page,
@@ -716,7 +716,7 @@ class Index(object):
                 <code>description</code>, <code>keywords</code>,
                 <code>summary</code>. For example: <code>type:page</code>
                 """,
-            user="The user name.")
+            "user": "The user name."}
         schema = self.project_schema
         fields = []
         for name in schema.names():
@@ -818,9 +818,9 @@ class Index(object):
                     sub_hits = item.get('sub_hits')
                     if sub_hits:
                         score = sub_hits[0].get('score', False)
-                name2data[name] = dict(
-                    version=data.get('version', ''),
-                    score=score)
+                name2data[name] = {
+                    "version": data.get('version', ''),
+                    "score": score}
         # then gather more info if available and build results
         hits = []
         for name, stage in name2stage.items():
@@ -831,9 +831,9 @@ class Index(object):
                 metadata = stage.get_versiondata(name, version)
                 version = metadata.get('version', version)
                 summary += ' %s' % metadata.get('summary', '')
-            hits.append(dict(
-                name=name, summary=summary,
-                version=version, _pypi_ordering=data['score']))
+            hits.append({
+                "name": name, "summary": summary,
+                "version": version, "_pypi_ordering": data['score']})
         return hits
 
     def _querystring(self, searchinfo):
@@ -883,10 +883,10 @@ class Index(object):
 
 @hookimpl
 def devpiweb_indexer_backend():
-    return dict(
-        indexer=Index,
-        name="whoosh",
-        description="Whoosh indexer backend")
+    return {
+        "indexer": Index,
+        "name": "whoosh",
+        "description": "Whoosh indexer backend"}
 
 
 @devpiserver_hookimpl(optionalhook=True)
@@ -916,12 +916,12 @@ def devpiweb_get_status_info(request):
             elif shared_data.last_processed:
                 last_activity_seconds = (now - shared_data.last_processed)
             if last_activity_seconds > 300:
-                msgs.append(dict(status="fatal", msg="Nothing indexed for more than 5 minutes"))
+                msgs.append({"status": "fatal", "msg": "Nothing indexed for more than 5 minutes"})
             elif last_activity_seconds > 60:
-                msgs.append(dict(status="warn", msg="Nothing indexed for more than 1 minute"))
+                msgs.append({"status": "warn", "msg": "Nothing indexed for more than 1 minute"})
             if qsize > 10:
-                msgs.append(dict(status="warn", msg="%s items in index queue" % qsize))
+                msgs.append({"status": "warn", "msg": "%s items in index queue" % qsize})
         error_qsize = shared_data.error_queue.qsize()
         if error_qsize:
-            msgs.append(dict(status="warn", msg="Errors during indexing"))
+            msgs.append({"status": "warn", "msg": "Errors during indexing"})
     return msgs

@@ -73,7 +73,7 @@ def test_push_devpi(loghub, monkeypatch, mock_http_api):
     pusher = parse_target(loghub, args)
     mock_http_api.set(loghub.current.index, 200, result={})
     pusher.execute(loghub, "pytest", "2.3.5")
-    dict(name="pytest", version="2.3.5", targetindex="user/name")
+    {"name": "pytest", "version": "2.3.5", "targetindex": "user/name"}
     assert len(mock_http_api.called) == 1
     # loghub.http_api.assert_called_once_with(
     #            "push", loghub.current.index, kvdict=req)
@@ -86,7 +86,7 @@ def test_push_devpi_index_option(loghub, monkeypatch, mock_http_api):
     pusher = parse_target(loghub, args)
     mock_http_api.set("src/dev", 200, result={})
     pusher.execute(loghub, "pytest", "2.3.5")
-    dict(name="pytest", version="2.3.5", targetindex="user/name")
+    {"name": "pytest", "version": "2.3.5", "targetindex": "user/name"}
     assert len(mock_http_api.called) == 1
 
 
@@ -95,23 +95,23 @@ def test_push_devpi_index_option_with_environment(loghub, monkeypatch, mock_http
     loghub.args.index = "src/dev"
     monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
     mock_http_api.set(
-        "http://devpi/user/dev/+api", 200, result=dict(
-            pypisubmit="http://devpi/user/dev/",
-            simpleindex="http://devpi/user/dev/+simple/",
-            index="http://devpi/user/dev",
-            login="http://devpi/+login",
-            authstatus=["noauth", "", []]))
+        "http://devpi/user/dev/+api", 200, result={
+            "pypisubmit": "http://devpi/user/dev/",
+            "simpleindex": "http://devpi/user/dev/+simple/",
+            "index": "http://devpi/user/dev",
+            "login": "http://devpi/+login",
+            "authstatus": ["noauth", "", []]})
     mock_http_api.set(
-        "http://devpi/src/dev/+api", 200, result=dict(
-            pypisubmit="http://devpi/src/dev/",
-            simpleindex="http://devpi/src/dev/+simple/",
-            index="http://devpi/src/dev",
-            login="http://devpi/+login",
-            authstatus=["noauth", "", []]))
+        "http://devpi/src/dev/+api", 200, result={
+            "pypisubmit": "http://devpi/src/dev/",
+            "simpleindex": "http://devpi/src/dev/+simple/",
+            "index": "http://devpi/src/dev",
+            "login": "http://devpi/+login",
+            "authstatus": ["noauth", "", []]})
     pusher = parse_target(loghub, loghub.args)
     mock_http_api.set("http://devpi/src/dev", 200, result={})
     pusher.execute(loghub, "pytest", "2.3.5")
-    dict(name="pytest", version="2.3.5", targetindex="user/name")
+    {"name": "pytest", "version": "2.3.5", "targetindex": "user/name"}
     assert len(mock_http_api.called) == 3
 
 
@@ -126,10 +126,10 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         class r:
             status_code = 201
             reason = "created"
-            content = json.dumps(dict(type="actionlog", status=201,
-                result=[("200", "register", "pkg", "1.0"),
+            content = json.dumps({"type": "actionlog", "status": 201,
+                "result": [("200", "register", "pkg", "1.0"),
                         ("200", "upload", "pkg-1.3.tar.gz")]
-            ))
+            })
             headers = {"content-type": "application/json"}
             _json = json.loads(content)
         r.url = url
@@ -141,7 +141,7 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         index = None
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
-    hub.current.reconfigure(dict(index="/some/index"))
+    hub.current.reconfigure({"index": "/some/index"})
     p = tmpdir.join("pypirc")
     p.write(textwrap.dedent("""
         [distutils]
@@ -194,9 +194,9 @@ def test_fail_push(monkeypatch, tmpdir):
         class r:
             status_code = 500
             reason = "Internal Server Error"
-            content = json.dumps(dict(type="actionlog", status=201,
-                result=[("500", "Internal Server Error", "Internal Server Error")]
-            ))
+            content = json.dumps({"type": "actionlog", "status": 201,
+                "result": [("500", "Internal Server Error", "Internal Server Error")]
+            })
             headers = {"content-type": "application/json"}
             _json = json.loads(content)
 
@@ -214,7 +214,7 @@ def test_fail_push(monkeypatch, tmpdir):
         index = None
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
-    hub.current.reconfigure(dict(index="/some/index"))
+    hub.current.reconfigure({"index": "/some/index"})
     p = tmpdir.join("pypirc")
     p.write(textwrap.dedent("""
         [distutils]

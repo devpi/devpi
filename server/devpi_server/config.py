@@ -596,9 +596,9 @@ class Config(object):
         port = self.args.port
         default_host_port = (host == 'localhost') and (port == 3141)
         addresses = []
-        kwargs = dict(
-            threads=self.args.threads,
-            max_request_body_size=self.args.max_request_body_size)
+        kwargs = {
+            "threads": self.args.threads,
+            "max_request_body_size": self.args.max_request_body_size}
         unix_socket = self.args.unix_socket
         if unix_socket is not None:
             kwargs['unix_socket'] = unix_socket
@@ -629,7 +629,7 @@ class Config(object):
             kwargs["trusted_proxy_count"] = self.args.trusted_proxy_count
         if self.args.trusted_proxy_headers is not None:
             kwargs["trusted_proxy_headers"] = self.args.trusted_proxy_headers
-        return dict(kwargs=kwargs, addresses=addresses)
+        return {"kwargs": kwargs, "addresses": addresses}
 
     @cached_property
     def serverdir(self):
@@ -868,9 +868,9 @@ class Config(object):
                     key, value = item.split('=', 1)
                     settings[key] = value
         storage_info = self._storage_info_from_name(name, settings)
-        self.storage_info = dict(
-            name=storage_info['name'],
-            settings=settings)
+        self.storage_info = {
+            "name": storage_info['name'],
+            "settings": settings}
 
     def sqlite_file_needed_but_missing(self):
         return (

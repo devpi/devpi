@@ -120,7 +120,7 @@ class Current(object):
         auth[rooturl] = list(itertools.chain(
             [(user, password)], sorted(auth_users.items())))
         self.username = user
-        self.reconfigure(data=dict(_auth=auth))
+        self.reconfigure(data={"_auth": auth})
 
     def del_auth(self):
         user = self.get_auth_user()
@@ -130,8 +130,8 @@ class Current(object):
         if user not in auth_users:
             return False
         del auth_users[user]
-        auth[rooturl] = list(sorted(auth_users.items()))
-        self.reconfigure(data=dict(_auth=auth))
+        auth[rooturl] = sorted(auth_users.items())
+        self.reconfigure(data={"_auth": auth})
         return True
 
     def get_auth_user(self, username=None):
@@ -187,7 +187,7 @@ class Current(object):
         url = self._get_normalized_url(self.root_url)
         basic_auth = self._get_basic_auth_dict()
         basic_auth[url] = (user, password)
-        self.reconfigure(data=dict(_basic_auth=basic_auth))
+        self.reconfigure(data={"_basic_auth": basic_auth})
 
     def get_basic_auth(self, url=None):
         url = self._get_normalized_url(url)
@@ -206,7 +206,7 @@ class Current(object):
         url = self._get_normalized_url(self.root_url)
         client_cert = self._get_client_cert_dict()
         client_cert[url] = cert
-        self.reconfigure(data=dict(_client_cert=client_cert))
+        self.reconfigure(data={"_client_cert": client_cert})
 
     def del_client_cert(self, url=None):
         # stored at root_url, so we can find it from any sub path
@@ -216,7 +216,7 @@ class Current(object):
             del client_cert[url]
         except KeyError:
             return False
-        self.reconfigure(data=dict(_client_cert=client_cert))
+        self.reconfigure(data={"_client_cert": client_cert})
         return True
 
     def get_client_cert(self, url=None):
@@ -465,7 +465,6 @@ def out_index_list(hub, data):
             hub.info("%-15s bases=%-15s volatile=%s" %(ixname,
                      ",".join(ixconfig.get("bases", [])),
                      ixconfig["volatile"]))
-    return
 
 
 def main(hub, args=None):
@@ -530,7 +529,7 @@ def main(hub, args=None):
     user = current.get_auth_user(args.user)
     if user:
         if args.user and user != current.username:
-            current.reconfigure(dict(username=user))
+            current.reconfigure({"username": user})
         r = hub.http_api("GET", current.root_url.joinpath("+api"))
         if r.status_code == 200:
             authstatus = r.json().get("result", {}).get("authstatus")
@@ -568,8 +567,8 @@ def main(hub, args=None):
     settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
-        current.reconfigure(dict(always_setcfg=always_setcfg,
-                                     settrusted=settrusted))
+        current.reconfigure({"always_setcfg": always_setcfg,
+                                     "settrusted": settrusted})
     pipcfg = PipCfg(venv=venvdir)
     if pipcfg.legacy_location == pipcfg.default_location:
         hub.warn(

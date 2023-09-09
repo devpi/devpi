@@ -200,7 +200,7 @@ def test_profiling_tween(capsys):
         class config:
             class args:
                 profile_requests = 10
-    registry = dict(xom=xom)
+    registry = {"xom": xom}
     handler = tween_request_profiling(lambda req: None, registry)
     for i in range(10):
         handler(None)

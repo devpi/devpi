@@ -47,7 +47,7 @@ def test_devpi_mirror_initialnames_original_name(caplog, pypistage):
     from devpi_common.validation import normalize_name
     from devpi_web.main import devpiserver_mirror_initialnames
     from devpi_web.main import get_indexer
-    projects = set(["Django", "pytest", "ploy_ansible"])
+    projects = {"Django", "pytest", "ploy_ansible"}
     pypistage.mock_simple_projects(projects)
     pypistage.mock_simple(
         "Django", pypiserial=10,
@@ -152,10 +152,10 @@ class TestConfig:
         class Plugin:
             @hookimpl
             def devpiweb_indexer_backend(self):
-                return dict(
-                    indexer=Index,
-                    name="foo",
-                    description="Foo backend")
+                return {
+                    "indexer": Index,
+                    "name": "foo",
+                    "description": "Foo backend"}
         options = ("--indexer-backend", "foo:bar=ham")
         config = make_config(("devpi-server",) + options)
         assert config.args.indexer_backend == "foo:bar=ham"
@@ -178,10 +178,10 @@ class TestConfig:
         class Plugin:
             @hookimpl
             def devpiweb_indexer_backend(self):
-                return dict(
-                    indexer=Index,
-                    name="foo",
-                    description="Foo backend")
+                return {
+                    "indexer": Index,
+                    "name": "foo",
+                    "description": "Foo backend"}
         yaml_path = make_yaml_config(textwrap.dedent("""\
             devpi-server:
               indexer-backend:

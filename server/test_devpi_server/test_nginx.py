@@ -38,7 +38,7 @@ def fetch(url, headers=None):
         "http://outside3.com:3141")])
 def test_outside_url_nginx(headers, path, expected, nginx_host_port):
     (host, port) = nginx_host_port
-    headers = dict((str(k), str(v)) for k, v in headers.items())
+    headers = {str(k): str(v) for k, v in headers.items()}
     r = fetch(f'http://{host}:{port}{path}/+api', headers=headers)
     assert r.json['result']['login'] == "%s/+login" % expected
     r = fetch(f'http://{host}:{port}{path}', headers=headers)

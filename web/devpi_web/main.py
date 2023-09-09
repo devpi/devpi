@@ -54,41 +54,41 @@ def navigation_version(context):
 
 def navigation_info(request):
     context = request.context
-    path = [dict(
-        url=request.route_url("root"),
-        title="devpi")]
-    result = dict(path=path)
+    path = [{
+        "url": request.route_url("root"),
+        "title": "devpi"}]
+    result = {"path": path}
     if context.matchdict and 'user' in context.matchdict:
         user = context.username
-        path.append(dict(
-            url=request.route_url(
+        path.append({
+            "url": request.route_url(
                 "/{user}", user=user),
-            title="%s" % user))
+            "title": "%s" % user})
     else:
         return result
     if 'index' in context.matchdict:
         index = context.index
-        path.append(dict(
-            url=request.stage_url(user, index),
-            title="%s" % index))
+        path.append({
+            "url": request.stage_url(user, index),
+            "title": "%s" % index})
     else:
         return result
     if 'project' in context.matchdict:
         project = context.matchdict['project']
         name = normalize_name(project)
-        path.append(dict(
-            url=request.route_url(
+        path.append({
+            "url": request.route_url(
                 "/{user}/{index}/{project}", user=user, index=index, project=name),
-            title=name))
+            "title": name})
     else:
         return result
     if 'version' in context.matchdict:
         version = navigation_version(context)
-        path.append(dict(
-            url=request.route_url(
+        path.append({
+            "url": request.route_url(
                 "/{user}/{index}/{project}/{version}",
                 user=user, index=index, project=name, version=version),
-            title=version))
+            "title": version})
     else:
         return result
     return result
@@ -98,9 +98,8 @@ def status_info(request):
     msgs = []
     pm = request.registry['devpiweb-pluginmanager']
     for result in pm.hook.devpiweb_get_status_info(request=request):
-        for msg in result:
-            msgs.append(msg)
-    states = set(x['status'] for x in msgs)
+        msgs += list(result)
+    states = {x['status'] for x in msgs}
     if 'fatal' in states:
         status = 'fatal'
         short_msg = 'fatal'
@@ -111,7 +110,7 @@ def status_info(request):
         status = 'ok'
         short_msg = 'ok'
     url = request.route_url('/+status')
-    return dict(status=status, short_msg=short_msg, msgs=msgs, url=url)
+    return {"status": status, "short_msg": short_msg, "msgs": msgs, "url": url}
 
 
 def query_docs_html(request):

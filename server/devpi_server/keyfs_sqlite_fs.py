@@ -178,25 +178,25 @@ class Connection(BaseConnection):
 class Storage(BaseStorage):
     Connection = Connection
     db_filename = ".sqlite"
-    expected_schema = dict(
-        index=dict(
-            kv_serial_idx="""
+    expected_schema = {
+        "index": {
+            "kv_serial_idx": """
                 CREATE INDEX kv_serial_idx ON kv (serial);
-            """),
-        table=dict(
-            changelog="""
+            """},
+        "table": {
+            "changelog": """
                 CREATE TABLE changelog (
                     serial INTEGER PRIMARY KEY,
                     data BLOB NOT NULL
                 )
             """,
-            kv="""
+            "kv": """
                 CREATE TABLE kv (
                     key TEXT NOT NULL PRIMARY KEY,
                     keyname TEXT,
                     serial INTEGER
                 )
-            """))
+            """}}
 
     def perform_crash_recovery(self):
         # get last changes and verify all renames took place
@@ -210,11 +210,11 @@ class Storage(BaseStorage):
 
 @hookimpl
 def devpiserver_storage_backend(settings):
-    return dict(
-        storage=Storage,
-        name="sqlite",
-        description="SQLite backend with files on the filesystem",
-        _test_markers=["storage_with_filesystem"])
+    return {
+        "storage": Storage,
+        "name": "sqlite",
+        "description": "SQLite backend with files on the filesystem",
+        "_test_markers": ["storage_with_filesystem"]}
 
 
 class LazyChangesFormatter:
@@ -237,7 +237,7 @@ class LazyChangesFormatter:
 
 
 def drop_dirty_files(dirty_files):
-    for path, dirty_file in dirty_files.items():
+    for dirty_file in dirty_files.values():
         if dirty_file is not None:
             os.remove(dirty_file.tmppath)
 

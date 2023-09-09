@@ -21,12 +21,12 @@ class Index:
         pass
 
     def query_projects(self, querystring, page=1):
-        return dict(items=[])
+        return {"items": []}
 
     def _matcher(self, searchinfo):
-        items = list(
+        items = [
             re.escape(x)
-            for x in searchinfo['fields']['name'])
+            for x in searchinfo['fields']['name']]
         return re.compile('|'.join(items)).search
 
     def query_packages(self, searchinfo, sro):
@@ -47,9 +47,9 @@ class Index:
                     version = stage.get_latest_version(name)
                     metadata = stage.get_versiondata(name, version)
                     summary += ' %s' % metadata.get('summary', '')
-                hits.append(dict(
-                    name=name, summary=summary.strip(), version=version,
-                    _pypi_ordering=0))
+                hits.append({
+                    "name": name, "summary": summary.strip(), "version": version,
+                    "_pypi_ordering": 0})
         return sorted(hits, key=itemgetter('name'))
 
     def get_query_parser_html_help(self):
@@ -60,7 +60,7 @@ class Index:
 
 @hookimpl
 def devpiweb_indexer_backend():
-    return dict(
-        indexer=Index,
-        name="null",
-        description="Null indexer backend, only name based 'pip search' supported.")
+    return {
+        "indexer": Index,
+        "name": "null",
+        "description": "Null indexer backend, only name based 'pip search' supported."}

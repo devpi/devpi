@@ -175,7 +175,7 @@ class TestReplicaThread:
                           uuid="123", headers=None):
             if headers is None:
                 headers = {}
-            headers = dict((k.lower(), v) for k, v in headers.items())
+            headers = {k.lower(): v for k, v in headers.items()}
             if uuid is not None:
                 headers.setdefault(H_MASTER_UUID.lower(), "123")
             headers.setdefault("x-devpi-serial", str(2))
@@ -325,7 +325,7 @@ def test_clean_request_headers(blank_request):
 def test_clean_response_headers(mock):
     from devpi_server.replica import clean_response_headers
     response = mock.Mock()
-    response.headers = dict(foo='bar')
+    response.headers = {"foo": 'bar'}
     # make sure the result is a case insensitive header dict
     headers = clean_response_headers(response)
     assert 'foo' in headers
@@ -345,7 +345,7 @@ class TestProxyViewToMaster:
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         request = blank_request(method="PUT")
-        request.registry = dict(xom=xom)
+        request.registry = {"xom": xom}
         response = proxy_view_to_master(None, request)
         # exhaust app_iter to close the proxied response
         list(response.app_iter)
@@ -360,7 +360,7 @@ class TestProxyViewToMaster:
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         request = blank_request(method="PUT")
-        request.registry = dict(xom=xom)
+        request.registry = {"xom": xom}
         response = proxy_view_to_master(None, request)
         # exhaust app_iter to close the proxied response
         list(response.app_iter)
@@ -377,8 +377,8 @@ class TestProxyViewToMaster:
                             lambda x: l.append(x))
         # normally the app is wrapped by OutsideURLMiddleware, since this is
         # not the case here, we have to set the host explicitly
-        request = blank_request(method="PUT", headers=dict(host='my.domain'))
-        request.registry = dict(xom=xom)
+        request = blank_request(method="PUT", headers={"host": 'my.domain'})
+        request.registry = {"xom": xom}
         response = proxy_view_to_master(None, request)
         # exhaust app_iter to close the proxied response
         list(response.app_iter)
@@ -398,7 +398,7 @@ class TestProxyViewToMaster:
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: x)
         request = blank_request(method="PUT")
-        request.registry = dict(xom=xom)
+        request.registry = {"xom": xom}
         response = proxy_view_to_master(None, request)
         # exhaust app_iter to close the proxied response
         list(response.app_iter)

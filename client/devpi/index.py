@@ -3,13 +3,13 @@ from devpi.use import get_keyvalues
 
 def index_create(hub, url, kvdict):
     hub.http_api("put", url, kvdict)
-    no_projects_url = url.replace(query=dict(no_projects=""))
+    no_projects_url = url.replace(query={"no_projects": ""})
     index_show(hub, no_projects_url)
 
 
 def index_modify(hub, url, keyvalues):
     features = hub.current.features or set()
-    no_projects_url = url.replace(query=dict(no_projects=""))
+    no_projects_url = url.replace(query={"no_projects": ""})
     reply = hub.http_api("get", no_projects_url, type="indexconfig")
     if 'server-keyvalue-parsing' in features:
         # the server supports key value parsing
@@ -61,7 +61,7 @@ def index_show(hub, url):
     hub.info(url.url + ":")
     key_order = ["type", "bases", "volatile", "acl_upload"]
     additional_keys = set(ixconfig) - set(key_order)
-    additional_keys = additional_keys - set(('projects',))
+    additional_keys = additional_keys - {'projects'}
     key_order.extend(sorted(additional_keys))
     for key in key_order:
         if key not in ixconfig:
@@ -107,7 +107,7 @@ def main(hub, args):
         return index_modify(hub, url, keyvalues)
     else:
         if args.no_projects:
-            url = url.replace(query=dict(no_projects=""))
+            url = url.replace(query={"no_projects": ""})
         return index_show(hub, url)
 
 

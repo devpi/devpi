@@ -305,7 +305,7 @@ class TestStatusView:
 
     def test_warn(self, dummyrequest, plugin):
         from devpi_web.main import status_info
-        plugin.results = [[dict(status="warn", msg="Foo")]]
+        plugin.results = [[{'status': "warn", 'msg': "Foo"}]]
         result = status_info(dummyrequest)
         assert result['status'] == 'warn'
         assert result['short_msg'] == 'degraded'
@@ -313,15 +313,15 @@ class TestStatusView:
 
     def test_fatal(self, dummyrequest, plugin):
         from devpi_web.main import status_info
-        plugin.results = [[dict(status="fatal", msg="Foo")]]
+        plugin.results = [[{'status': "fatal", 'msg': "Foo"}]]
         result = status_info(dummyrequest)
         assert result['status'] == 'fatal'
         assert result['short_msg'] == 'fatal'
         assert result['msgs'] == [{'status': 'fatal', 'msg': 'Foo'}]
 
     @pytest.mark.parametrize("msgs", [
-        [dict(status="warn", msg="Bar"), dict(status="fatal", msg="Foo")],
-        [dict(status="fatal", msg="Foo"), dict(status="warn", msg="Bar")]])
+        [{'status': "warn", 'msg': "Bar"}, {'status': "fatal", 'msg': "Foo"}],
+        [{'status': "fatal", 'msg': "Foo"}, {'status': "warn", 'msg': "Bar"}]])
     def test_mixed(self, dummyrequest, plugin, msgs):
         from devpi_web.main import status_info
         plugin.results = [msgs]
@@ -344,7 +344,7 @@ class TestStatusView:
     def test_status_macros_warn(self, dummyrequest, plugin, statusview):
         from bs4 import BeautifulSoup
         from devpi_web.main import status_info
-        plugin.results = [[dict(status="warn", msg="Foo")]]
+        plugin.results = [[{'status': "warn", 'msg': "Foo"}]]
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')
@@ -355,7 +355,7 @@ class TestStatusView:
     def test_status_macros_fatal(self, dummyrequest, plugin, statusview):
         from bs4 import BeautifulSoup
         from devpi_web.main import status_info
-        plugin.results = [[dict(status="fatal", msg="Foo")]]
+        plugin.results = [[{'status': "fatal", 'msg': "Foo"}]]
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')
@@ -364,12 +364,12 @@ class TestStatusView:
         assert 'Foo' in html.select('#serverstatus')[0].text
 
     @pytest.mark.parametrize("msgs", [
-        [dict(status="warn", msg="Bar"), dict(status="fatal", msg="Foo")],
-        [dict(status="fatal", msg="Foo"), dict(status="warn", msg="Bar")]])
+        [{'status': "warn", 'msg': "Bar"}, {'status': "fatal", 'msg': "Foo"}],
+        [{'status': "fatal", 'msg': "Foo"}, {'status': "warn", 'msg': "Bar"}]])
     def test_status_macros_mixed(self, dummyrequest, plugin, statusview, msgs):
         from bs4 import BeautifulSoup
         from devpi_web.main import status_info
-        plugin.results = [[dict(status="fatal", msg="Foo")]]
+        plugin.results = [[{'status': "fatal", 'msg': "Foo"}]]
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')

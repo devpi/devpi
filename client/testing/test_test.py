@@ -111,10 +111,10 @@ def test_download_and_unpack(makehub, tmpdir, pseudo_current, monkeypatch,
             self.called = True
 
     hub = makehub(['test', '-epy27', 'somepkg'])
-    hub.current.reconfigure(dict(
-        index='http://dev/foo/bar',
-        login='http://dev/+login',
-        pypisubmit='http://dev/foo/bar'))
+    hub.current.reconfigure({
+        "index": 'http://dev/foo/bar',
+        "login": 'http://dev/+login',
+        "pypisubmit": 'http://dev/foo/bar'})
     if basic_auth:
         hub.current.set_basic_auth(*basic_auth)
     index = DevIndex(hub, tmpdir, pseudo_current)

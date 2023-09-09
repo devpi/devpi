@@ -122,7 +122,7 @@ class TestIndexThings:
         mapp.create_index("not_exists/dev", code=404)
 
     def test_create_index_base_not_exists(self, mapp):
-        indexconfig = dict(bases=("not/exists",))
+        indexconfig = {"bases": ("not/exists",)}
         mapp.login_root()
         m = mapp.create_index("root/hello", indexconfig=indexconfig, code=400)
         if m:  # only server-side mapp returns messages
@@ -143,21 +143,21 @@ class TestIndexThings:
         assert '{name}' in res["mirror_web_url_fmt"]
 
     def test_create_index_base_empty(self, mapp):
-        indexconfig = dict(bases="")
+        indexconfig = {"bases": ""}
         mapp.login_root()
         mapp.create_index("root/empty", indexconfig=indexconfig, code=200)
         data = mapp.getjson("/root/empty")
         assert not data["result"]["bases"]
 
     def test_create_index_base_normalized(self, mapp):
-        indexconfig = dict(bases=("/root/pypi",))
+        indexconfig = {"bases": ("/root/pypi",)}
         mapp.login_root()
         mapp.create_index("root/hello", indexconfig=indexconfig,
                           code=200)
 
     def test_create_index_base_invalid(self, mapp):
         mapp.login_root()
-        indexconfig = dict(bases=("/root/dev/123",))
+        indexconfig = {"bases": ("/root/dev/123",)}
         m = mapp.create_index("root/newindex1",
                               indexconfig=indexconfig, code=400)
         if m:
@@ -185,7 +185,7 @@ class TestIndexThings:
 
     def test_create_with_invalid_type(self, mapp):
         mapp.login_root()
-        indexconfig = dict(type="foo")
+        indexconfig = {"type": "foo"}
         mapp.create_index("root/newindex1",
                           indexconfig=indexconfig, code=400)
 
@@ -355,7 +355,7 @@ class TestProjectThings:
         content = mapp.makepkg("hello-1.0.tar.gz", b"content", "hello", "1.0")
         mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         (pkg_url,) = mapp.getreleaseslist("hello")
-        tox_result_data = dict(foo="bar")
+        tox_result_data = {"foo": "bar"}
         mapp.upload_toxresult(pkg_url, json.dumps(tox_result_data))
         info = mapp.getjson("/%s/hello" % mapp.api.stagename)
         (toxresult_url,) = [
@@ -374,10 +374,10 @@ class TestMirrorIndexThings:
         mapp.create_and_login_user('mirror1')
         indexname = mapp.auth[0] + "/mirror"
         assert indexname not in mapp.getindexlist()
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         assert indexname in mapp.getindexlist()
         result = mapp.getjson('/mirror1/mirror')
@@ -388,10 +388,10 @@ class TestMirrorIndexThings:
 
     def test_missing_package(self, mapp, simpypi):
         mapp.create_and_login_user('mirror2')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror2/mirror")
         result = mapp.getpkglist()
@@ -399,10 +399,10 @@ class TestMirrorIndexThings:
 
     def test_no_releases(self, mapp, simpypi):
         mapp.create_and_login_user('mirror3')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror3/mirror")
         simpypi.add_project('pkg')
@@ -411,10 +411,10 @@ class TestMirrorIndexThings:
 
     def test_releases(self, mapp, simpypi):
         mapp.create_and_login_user('mirror4')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror4/mirror")
         simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
@@ -425,10 +425,10 @@ class TestMirrorIndexThings:
 
     def test_download_release_error(self, mapp, simpypi):
         mapp.create_and_login_user('mirror5')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror5/mirror")
         simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
@@ -443,10 +443,10 @@ class TestMirrorIndexThings:
 
     def test_download_release(self, mapp, simpypi):
         mapp.create_and_login_user('mirror6')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror6/mirror")
         content = b'13'
@@ -459,10 +459,10 @@ class TestMirrorIndexThings:
 
     def test_deleted_package(self, mapp, simpypi):
         mapp.create_and_login_user('mirror7')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror7/mirror")
         simpypi.add_project('pkg')
@@ -483,14 +483,14 @@ class TestMirrorIndexThings:
             # happens in the devpi-client tests
             pytest.skip("Mapp implementation doesn't have 'get_simple' method.")
         mapp.create_and_login_user('mirror8')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=1800)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 1800}
         mapp.create_index("mirror", indexconfig=indexconfig)
-        indexconfig = dict(
-            mirror_whitelist="*",
-            bases="mirror8/mirror")
+        indexconfig = {
+            "mirror_whitelist": "*",
+            "bases": "mirror8/mirror"}
         mapp.create_index("regular", indexconfig=indexconfig)
         mapp.use("mirror8/regular")
         content = mapp.makepkg("pkg-1.0.tar.gz", b"content", "pkg", "1.0")
@@ -503,10 +503,10 @@ class TestMirrorIndexThings:
         if server_version < quoting_devpi_version:
             pytest.skip("devpi-server without mirror url quoting fix")
         mapp.create_and_login_user('mirror9')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror9/mirror")
         url_quoted_pkgver = url_quote('pkg-1!2017.4+devpi.zip')
@@ -522,10 +522,10 @@ class TestMirrorIndexThings:
         if server_version < quoting_devpi_version:
             pytest.skip("devpi-server without mirror url quoting fix")
         mapp.create_and_login_user('mirror10')
-        indexconfig = dict(
-            type="mirror",
-            mirror_url=simpypi.simpleurl,
-            mirror_cache_expiry=0)
+        indexconfig = {
+            "type": "mirror",
+            "mirror_url": simpypi.simpleurl,
+            "mirror_cache_expiry": 0}
         mapp.create_index("mirror", indexconfig=indexconfig)
         mapp.use("mirror10/mirror")
         url_quoted_pkgver = "%s#sha256=1234" % url_quote('pkg-1!2017.4+devpi.zip')

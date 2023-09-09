@@ -15,7 +15,7 @@ def linkver(index, basename, d=None, rel="releasefile"):
         d = {}
     links = d.setdefault("+links", [])
     href = href="/{index}/+f/{basename}".format(index=index, basename=basename)
-    links.append(dict(href=href, rel=rel))
+    links.append({"href": href, "rel": rel})
     return d
 
 
@@ -40,11 +40,11 @@ def test_out_index(loghub, input, output):
 ])
 def test_out_project(loghub, input, output, monkeypatch):
     from devpi import list_remove
-    loghub.current.reconfigure(dict(
-                simpleindex="/index",
-                index="/root/dev/",
-                login="/login/",
-                ))
+    loghub.current.reconfigure({
+                "simpleindex": "/index",
+                "index": "/root/dev/",
+                "login": "/login/",
+                })
     loghub.args.status = False
     loghub.args.all = True
     loghub.args.failures = None
@@ -66,12 +66,12 @@ def test_out_project(loghub, input, output, monkeypatch):
 
 
 def test_confirm_delete(loghub, monkeypatch):
-    loghub.current.reconfigure(dict(
-                pypisubmit="/post",
-                simpleindex="/index",
-                index="/root/dev/",
-                login="/login",
-                ))
+    loghub.current.reconfigure({
+                "pypisubmit": "/post",
+                "simpleindex": "/index",
+                "index": "/root/dev/",
+                "login": "/login",
+                })
     monkeypatch.setattr(loghub, "ask_confirm", lambda msg: True)
 
     class r:

@@ -115,7 +115,7 @@ class TestKeyFS:
     @notransaction
     @pytest.mark.parametrize("before,after", [
         ({u'a': 1}, {u'b': 2}),
-        (set([3]), set([4])),
+        ({3}, {4}),
         (5, 6)])
     def test_delete_and_readd(self, keyfs, before, after):
         key = keyfs.add_key("NAME", "somekey", type(before))
@@ -150,7 +150,7 @@ class TestGetKey:
         pkey = keyfs.add_key("NAME", "{hello}/{this}", dict)
         found_key = keyfs.get_key("NAME")
         assert found_key == pkey
-        assert pkey.extract_params("cat/dog") == dict(hello="cat", this="dog")
+        assert pkey.extract_params("cat/dog") == {"hello": "cat", "this": "dog"}
         assert pkey.extract_params("cat") == {}
         assert pkey.name == "NAME"
         key = pkey(hello="cat", this="dog")
@@ -159,7 +159,7 @@ class TestGetKey:
 
 @pytest.mark.parametrize(("type", "val"),
         [(dict, {1:2}),
-         (set, set([1,2])),
+         (set, {1,2}),
          (int, 3),
          (tuple, (3,4)),
          (str, "hello")])
@@ -280,7 +280,7 @@ class TestKey:
 @notransaction
 @pytest.mark.parametrize(("type", "val"),
         [(dict, {1:2}),
-         (set, set([1,2])),
+         (set, {1,2}),
          (int, 3),
          (tuple, (3,4)),
          (str, "hello")])
@@ -439,7 +439,7 @@ class TestTransactionIsolation:
     def test_get_value_at_modify_inplace_is_safe(self, keyfs):
         from copy import deepcopy
         D = keyfs.add_key("NAME", "hello", dict)
-        d = {1: set(), 2: dict(), 3: []}
+        d = {1: set(), 2: {}, 3: []}
         d_orig = deepcopy(d)
         with keyfs.transaction(write=True):
             D.set(d)
@@ -637,7 +637,7 @@ class TestDeriveKey:
 
     def test_pattern_from_file(self, keyfs):
         pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
-        params = dict(name="hello", index="world")
+        params = {"name": "hello", "index": "world"}
         D = pkey(**params)
         with keyfs.transaction(write=True):
             D.set({1:1})
@@ -657,7 +657,7 @@ class TestDeriveKey:
 
     def test_pattern_not_committed(self, keyfs):
         pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
-        params = dict(name="hello", index="world")
+        params = {"name": "hello", "index": "world"}
         D = pkey(**params)
         with keyfs.transaction(write=True) as tx:
             D.set({})

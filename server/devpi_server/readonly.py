@@ -277,7 +277,7 @@ def _(val: list) -> list:
 
 @get_mutable_deepcopy.register
 def _(val: set) -> set:
-    return {item for item in val}
+    return set(val)
 
 
 @get_mutable_deepcopy.register

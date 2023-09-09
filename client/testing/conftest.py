@@ -522,7 +522,7 @@ class Gen:
 
     def releasemetadata(self, **kwargs):
         from devpi.server.db import metadata_keys
-        kw = dict([(x, u"") for x in metadata_keys])
+        kw = {x: u"" for x in metadata_keys}
         kw["version"] = u"0.0"
         for key, val in kwargs.items():
             assert key in kw
@@ -755,9 +755,9 @@ def mock_http_api(monkeypatch, reqmock):  # noqa
         def __call__(self, method, url, kvdict=None, quiet=False,
                      auth=None, basic_auth=None, cert=None,
                      check_version=True, fatal=True, type=None, verify=None):
-            kwargs = dict(
-                kvdict=kvdict, quiet=quiet, auth=auth, basic_auth=basic_auth,
-                cert=cert, fatal=fatal)
+            kwargs = {
+                "kvdict": kvdict, "quiet": quiet, "auth": auth, "basic_auth": basic_auth,
+                "cert": cert, "fatal": fatal}
             self.called.append((method, url, kwargs))
             reply_data = self._json_responses.get(url)
             if isinstance(reply_data, list):

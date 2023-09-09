@@ -69,7 +69,7 @@ class TestSetReadonlyView:
 
     def test_nonzero(self) -> None:
         assert not ensure_deeply_readonly(set())
-        assert ensure_deeply_readonly(set([1]))
+        assert ensure_deeply_readonly({1})
 
     def test_simple(self) -> None:
         x: set = set()
@@ -84,10 +84,10 @@ class TestSetReadonlyView:
 
     def test_nogetitem(self) -> None:
         with pytest.raises(TypeError):
-            ensure_deeply_readonly(set([1, 2]))[0]
+            ensure_deeply_readonly({1, 2})[0]
 
     def test_iter(self) -> None:
-        l = list(ensure_deeply_readonly(set([1, 2])))
+        l = list(ensure_deeply_readonly({1, 2}))
         assert l == [1, 2]
 
 

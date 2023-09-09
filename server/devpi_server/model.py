@@ -197,7 +197,7 @@ class RootModel:
         return [User(self, name) for name in self.keyfs.USERLIST.get()]
 
     def get_usernames(self):
-        return set(user.name for user in self.get_userlist())
+        return {user.name for user in self.get_userlist()}
 
     def _get_user_and_index(self, user, index=None):
         assert isinstance(user, str)
@@ -512,7 +512,7 @@ class BaseStageCustomizer(object):
 
     def get_principals_for_index_delete(self, restrict_modify=None):
         if restrict_modify is None:
-            modify_principals = set(['root', self.stage.username])
+            modify_principals = {'root', self.stage.username}
         else:
             modify_principals = restrict_modify
         return modify_principals
@@ -791,11 +791,11 @@ class BaseStage(object):
 
     def _make_elink(self, project, link_meta):
         return ELink(
-            self.filestore, dict(
-                entrypath=link_meta.path,
-                hash_spec=link_meta.hash_spec,
-                require_python=link_meta.require_python,
-                yanked=link_meta.yanked),
+            self.filestore, {
+                "entrypath": link_meta.path,
+                "hash_spec": link_meta.hash_spec,
+                "require_python": link_meta.require_python,
+                "yanked": link_meta.yanked},
             project, link_meta.version)
 
     def get_linkstore_perstage(self, name, version, readonly=True):
@@ -955,19 +955,19 @@ class BaseStage(object):
             if stage.ixconfig["type"] == "mirror":
                 if private_hit and not whitelisted:
                     # don't check the mirror for private packages
-                    return dict(
-                        has_mirror_base=Unknown,
-                        blocked_by_mirror_whitelist=stage.name)
+                    return {
+                        "has_mirror_base": Unknown,
+                        "blocked_by_mirror_whitelist": stage.name}
                 in_index = stage.has_project_perstage(project)
                 if in_index is Unknown:
-                    return dict(
-                        has_mirror_base=Unknown,
-                        blocked_by_mirror_whitelist=None)
+                    return {
+                        "has_mirror_base": Unknown,
+                        "blocked_by_mirror_whitelist": None}
                 has_mirror_base = in_index and (not private_hit or whitelisted)
                 blocked_by_mirror_whitelist = in_index and private_hit and not whitelisted
-                return dict(
-                    has_mirror_base=has_mirror_base,
-                    blocked_by_mirror_whitelist=stage.name if blocked_by_mirror_whitelist else None)
+                return {
+                    "has_mirror_base": has_mirror_base,
+                    "blocked_by_mirror_whitelist": stage.name if blocked_by_mirror_whitelist else None}
             else:
                 in_index = stage.has_project_perstage(project)
             private_hit = private_hit or in_index
@@ -985,9 +985,9 @@ class BaseStage(object):
                     % whitelist_inheritance)
             if whitelisted or whitelist.intersection(('*', project)):
                 whitelisted = True
-        return dict(
-            has_mirror_base=False,
-            blocked_by_mirror_whitelist=None)
+        return {
+            "has_mirror_base": False,
+            "blocked_by_mirror_whitelist": None}
 
     def has_mirror_base(self, project):
         return self.get_mirror_whitelist_info(project)['has_mirror_base']

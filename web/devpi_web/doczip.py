@@ -207,10 +207,10 @@ class Docs(DictMixin):
         entry = self._entries[name]
         if entry.basename.endswith('.fjson'):
             info = json.loads(entry.read())
-            return dict(
-                title=BeautifulSoup(info.get('title', ''), "html.parser").text,
-                text=BeautifulSoup(info.get('body', ''), "html.parser").text,
-                path=info.get('current_page_name', name))
+            return {
+                "title": BeautifulSoup(info.get('title', ''), "html.parser").text,
+                "text": BeautifulSoup(info.get('body', ''), "html.parser").text,
+                "path": info.get('current_page_name', name)}
         else:
             soup = BeautifulSoup(entry.read(mode='rb'), "html.parser")
             body = soup.find('body')
@@ -221,10 +221,10 @@ class Docs(DictMixin):
                 title = ''
             else:
                 title = title.text
-            return dict(
-                title=title,
-                text=body.text,
-                path=name)
+            return {
+                "title": title,
+                "text": body.text,
+                "path": name}
 
 
 def remove_docs(stage, project, version):

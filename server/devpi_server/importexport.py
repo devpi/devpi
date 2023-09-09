@@ -207,7 +207,7 @@ class Exporter:
             indexes = data.pop("indexes", {})
             self.export_users[user.name] = data
             self.completed("user %r" % user.name)
-            for indexname, indexconfig in indexes.items():
+            for indexname in indexes:
                 stage = self.xom.model.getstage(user.name, indexname)
                 IndexDump(self, stage, userdir.join(indexname)).dump()
         self._write_json(path.join("dataindex.json"), self.export)
@@ -522,7 +522,7 @@ class Importer:
                         if normalize_name(filedesc["projectname"]) == normalize_name(project):
                             imported_files.add(filedesc["relpath"])
                             self.import_filedesc(stage, filedesc, versions)
-            missing = set(x["relpath"] for x in files) - imported_files
+            missing = {x["relpath"] for x in files} - imported_files
             if missing:
                 fatal(
                     "Some files weren't imported: %s" % ", ".join(

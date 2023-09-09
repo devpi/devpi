@@ -55,9 +55,9 @@ class TestStatusInfoPlugin:
     def _xomrequest(self, xom):
         from pyramid.request import Request
         request = Request.blank("/blankpath")
-        request.registry = dict(
-            xom=xom,
-            devpi_version_info=[])
+        request.registry = {
+            "xom": xom,
+            "devpi_version_info": []}
         return request
 
     @pytest.mark.with_notifier
@@ -100,9 +100,9 @@ class TestStatusInfoPlugin:
         # fatal after 5 minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
-        assert result == [dict(
-            status='fatal',
-            msg="The event processing doesn't seem to start")]
+        assert result == [{
+            "status": 'fatal',
+            "msg": "The event processing doesn't seem to start"}]
         # fake first event processed
         xom.keyfs.notifier.write_event_serial(0)
         xom.keyfs.notifier.event_serial_in_sync_at = now
@@ -113,35 +113,35 @@ class TestStatusInfoPlugin:
         # warning after 5 minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
-        assert result == [dict(
-            status='warn',
-            msg='No changes processed by plugins for more than 5 minutes')]
+        assert result == [{
+            "status": 'warn',
+            "msg": 'No changes processed by plugins for more than 5 minutes'}]
         # fatal after 30 minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 1810)
         result = plugin(request)
-        assert result == [dict(
-            status='fatal',
-            msg='No changes processed by plugins for more than 30 minutes')]
+        assert result == [{
+            "status": 'fatal',
+            "msg": 'No changes processed by plugins for more than 30 minutes'}]
         # warning about sync after one hour
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 3610)
         result = plugin(request)
         assert result == [
-            dict(
-                status='warn',
-                msg="The event processing hasn't been in sync for more than 1 hour"),
-            dict(
-                status='fatal',
-                msg='No changes processed by plugins for more than 30 minutes')]
+            {
+                "status": 'warn',
+                "msg": "The event processing hasn't been in sync for more than 1 hour"},
+            {
+                "status": 'fatal',
+                "msg": 'No changes processed by plugins for more than 30 minutes'}]
         # fatal sync state after 6 hours
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 21610)
         result = plugin(request)
         assert result == [
-            dict(
-                status='fatal',
-                msg="The event processing hasn't been in sync for more than 6 hours"),
-            dict(
-                status='fatal',
-                msg='No changes processed by plugins for more than 30 minutes')]
+            {
+                "status": 'fatal',
+                "msg": "The event processing hasn't been in sync for more than 6 hours"},
+            {
+                "status": 'fatal',
+                "msg": 'No changes processed by plugins for more than 30 minutes'}]
 
     def test_replica_lagging(self, plugin, makexom, monkeypatch):
         import time
@@ -158,15 +158,15 @@ class TestStatusInfoPlugin:
         # warning after one minute
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
         result = plugin(request)
-        assert result == [dict(
-            status='warn',
-            msg='Replica is behind master for more than 1 minute')]
+        assert result == [{
+            "status": 'warn',
+            "msg": 'Replica is behind master for more than 1 minute'}]
         # fatal after five minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
-        assert result == [dict(
-            status='fatal',
-            msg='Replica is behind master for more than 5 minutes')]
+        assert result == [{
+            "status": 'fatal',
+            "msg": 'Replica is behind master for more than 5 minutes'}]
 
     def test_initial_master_connection(self, plugin, makexom, monkeypatch):
         import time
@@ -183,15 +183,15 @@ class TestStatusInfoPlugin:
         # warning after one minute
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
         result = plugin(request)
-        assert result == [dict(
-            status='warn',
-            msg='No contact to master for more than 1 minute')]
+        assert result == [{
+            "status": 'warn',
+            "msg": 'No contact to master for more than 1 minute'}]
         # fatal after five minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
-        assert result == [dict(
-            status='fatal',
-            msg='No contact to master for more than 5 minutes')]
+        assert result == [{
+            "status": 'fatal',
+            "msg": 'No contact to master for more than 5 minutes'}]
 
     @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
     @pytest.mark.with_replica_thread
@@ -214,12 +214,12 @@ class TestStatusInfoPlugin:
         # warning after one minute
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
         result = plugin(request)
-        assert result == [dict(
-            status='warn',
-            msg='No update from master for more than 1 minute')]
+        assert result == [{
+            "status": 'warn',
+            "msg": 'No update from master for more than 1 minute'}]
         # fatal after five minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
-        assert result == [dict(
-            status='fatal',
-            msg='No update from master for more than 5 minutes')]
+        assert result == [{
+            "status": 'fatal',
+            "msg": 'No update from master for more than 5 minutes'}]

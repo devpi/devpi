@@ -43,17 +43,17 @@ class Auth:
                     if x["status"] != "unknown"]
             except AuthException:
                 threadlog.exception("Error in authentication plugin.")
-                return dict(status="nouser")
+                return {"status": "nouser"}
         if [x for x in results if x["status"] != "ok"]:
             # a plugin discovered invalid credentials or returned an invalid
             # status, so we abort
-            return dict(status="reject")
+            return {"status": "reject"}
         userinfo_list = [x for x in results if x is not False]
         if userinfo_list and not is_root:
             # one of the plugins returned valid userinfo
             # return union of all groups which may be contained in that info
             groups = (ui.get('groups', []) for ui in userinfo_list)
-            return dict(status="ok", groups=sorted(set(sum(groups, []))))
+            return {"status": "ok", "groups": sorted(set(sum(groups, [])))}
 
     def _validate(self, authuser, authpassword, request=None):
         """ Validates user credentials.
@@ -76,7 +76,7 @@ class Auth:
             result = self.hook(request=request, userdict=userinfo, username=authuser, password=authpassword)
             if result is not None:
                 if result["status"] != "ok":
-                    return dict(status="reject")
+                    return {"status": "reject"}
                 # plugins may never return from_user_object
                 result.pop('from_user_object', None)
                 return result
@@ -87,7 +87,7 @@ class Auth:
             return result
         if user is None:
             # we got no user model
-            return dict(status="nouser")
+            return {"status": "nouser"}
         # none of the plugins returned valid groups, check our own data
         # first get a potentially cached value
         result = getattr(request, '__devpiserver_user_validate_result', notset)
@@ -98,31 +98,31 @@ class Auth:
                 # we have to use setattr to avoid name mangling of prefix dunder
                 setattr(request, '__devpiserver_user_validate_result', result)
         if result:
-            return dict(status="ok", from_user_object=True)
-        return dict(status="reject")
+            return {"status": "ok", "from_user_object": True}
+        return {"status": "reject"}
 
     def _get_auth_status(self, authuser, authpassword, request=None):
         try:
             val = self.serializer.loads(authpassword, max_age=self.LOGIN_EXPIRATION)
         except itsdangerous.SignatureExpired:
-            return dict(status="expired")
+            return {"status": "expired"}
         except itsdangerous.BadData:
             # check if we got user/password direct authentication
             return self._validate(authuser, authpassword, request=request)
         else:
             if not isinstance(val, list):
                 threadlog.debug("invalid auth token type for user %r", authuser)
-                return dict(status="nouser")
+                return {"status": "nouser"}
             if len(val) != 3:
                 threadlog.debug("missing auth token info for user %r", authuser)
-                return dict(status="nouser")
+                return {"status": "nouser"}
             if val[0] != authuser:
                 threadlog.debug("auth token username mismatch for user %r", authuser)
-                return dict(status="nouser")
+                return {"status": "nouser"}
             if val[2] and self.model.get_user(authuser) is None:
                 threadlog.debug("missing user object for user %r", authuser)
-                return dict(status="nouser")
-            return dict(status="ok", groups=val[1])
+                return {"status": "nouser"}
+            return {"status": "ok", "groups": val[1]}
 
     def new_proxy_auth(self, username, password, request=None):
         result = self._validate(username, password, request=request)

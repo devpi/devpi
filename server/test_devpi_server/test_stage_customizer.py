@@ -36,7 +36,7 @@ def test_permissions_for_unknown_index(mapp, xom):
         stage.modify(**dict(stage.ixconfig, bases=[]))
         with pytest.raises(ReadonlyIndex):
             stage.set_versiondata(
-                dict(name="hello", version="1.0", requires_python=">=3.5"))
+                {"name": "hello", "version": "1.0", "requires_python": ">=3.5"})
         with pytest.raises(ReadonlyIndex):
             stage.add_project_name("foo")
         with pytest.raises(ReadonlyIndex):
@@ -49,7 +49,7 @@ def test_permissions_for_unknown_index(mapp, xom):
             stage.store_toxresult(link, {})
     assert mapp.getjson(api.index)['result']['type'] == 'unknown'
     # now check via views, which are protected by permissions most of the time
-    mapp.modify_index(api.stagename, indexconfig=dict(bases=["root/pypi"]), code=403)
+    mapp.modify_index(api.stagename, indexconfig={"bases": ["root/pypi"]}, code=403)
     mapp.testapp.xdel(403, path)
     mapp.delete_project('hello', code=403)
     mapp.upload_file_pypi("hello1-1.0.tar.gz", b'content1', "hello1", "1.0", code=403)
@@ -85,26 +85,26 @@ def test_indexconfig_items(makemapp, maketestapp, makexom):
     # test missing setting
     mapp.create_index(
         'user/foo',
-        indexconfig=dict(type='mystage'),
+        indexconfig={"type": 'mystage'},
         code=400)
     # test list conversion
     api = mapp.create_index(
         'user/foo',
-        indexconfig=dict(type='mystage', bar="foo"))
+        indexconfig={"type": 'mystage', "bar": "foo"})
     result = mapp.getjson(api.index)
     assert result['result']['bar'] == ['foo']
     assert 'ham' not in result['result']
     # test passing list directly
     api = mapp.create_index(
         'user/dev',
-        indexconfig=dict(type='mystage', bar=["dev"]))
+        indexconfig={"type": 'mystage', "bar": ["dev"]})
     result = mapp.getjson(api.index)
     assert result['result']['bar'] == ['dev']
     assert 'ham' not in result['result']
     # test optional setting
     api = mapp.create_index(
         'user/ham',
-        indexconfig=dict(type='mystage', bar=["dev"], ham="something"))
+        indexconfig={"type": 'mystage', "bar": ["dev"], "ham": "something"})
     result = mapp.getjson(api.index)
     assert result['result']['bar'] == ['dev']
     assert result['result']['ham'] == 'something'
@@ -126,7 +126,7 @@ def test_validate_config(makemapp, maketestapp, makexom):
     password = '123'
     mapp.create_and_login_user(user, password=password)
     api = mapp.create_index('user/foo')
-    api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
+    api = mapp.create_index('user/dev', indexconfig={"type": 'mystage'})
     result = mapp.getjson(api.index)
     assert result['result']['bases'] == []
     # add a base
@@ -153,7 +153,7 @@ def test_on_modified(makemapp, maketestapp, makexom):
     user = 'user'
     password = '123'
     mapp.create_and_login_user(user, password=password)
-    api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
+    api = mapp.create_index('user/dev', indexconfig={"type": 'mystage'})
     r = testapp.patch_json(
         api.index, ['bases+=user/dev'],
         headers={'X-Fail': str('foo')}, expect_errors=True)
@@ -182,7 +182,7 @@ def test_on_modified_http_exception(makemapp, maketestapp, makexom):
     password = '123'
     mapp.create_and_login_user(user, password=password)
     r = testapp.put_json(
-        '/user/dev', dict(type='mystage'), expect_errors=True)
+        '/user/dev', {"type": 'mystage'}, expect_errors=True)
     assert r.status_code == 500
     assert "request.apifatal instead" in r.json['message']
 
@@ -231,8 +231,8 @@ def test_package_filters(makemapp, maketestapp, makexom):
     r = mapp.get_simple('pkg')
     assert 'pkg-1.0.tar.gz' in r.text
     assert 'pkg-1.2.tar.gz' in r.text
-    api = mapp.create_index('user/dev', indexconfig=dict(
-        type='mystage', bases='user/foo'))
+    api = mapp.create_index('user/dev', indexconfig={
+        "type": 'mystage', "bases": 'user/foo'})
     assert len(mapp.getreleaseslist('hello')) == 1
     assert mapp.getreleaseslist('pkg', code=404) is None
     with xom.keyfs.transaction(write=False):
@@ -281,7 +281,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
         200, '/+authcheck',
         headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push should work
-    req = dict(name="hello", version="1.0", targetindex="someuser/dev_b")
+    req = {"name": "hello", "version": "1.0", "targetindex": "someuser/dev_b"}
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 200
     # cleanup
@@ -294,7 +294,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
         200, '/+authcheck',
         headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push should work
-    req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
+    req = {"name": "hello", "version": "1.0", "targetindex": "otheruser/dev"}
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 200
     # cleanup
@@ -313,7 +313,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
         200, '/+authcheck',
         headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push
-    req = dict(name="hello", version="1.0", targetindex="someuser/dev_b")
+    req = {"name": "hello", "version": "1.0", "targetindex": "someuser/dev_b"}
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 200
     # but now it should be forbidden for the other user
@@ -323,7 +323,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
         403, '/+authcheck',
         headers=ResponseHeaders({'X-Original-URI': 'http://localhost' + path}))
     # and push should be forbidden as well
-    req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
+    req = {"name": "hello", "version": "1.0", "targetindex": "otheruser/dev"}
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 403
     with xom.keyfs.transaction(write=False):
@@ -375,9 +375,9 @@ def test_sro_skip_plugin(makemapp, maketestapp, makexom, pypistage):
 
     api1 = mapp.create_and_use(
         "someuser/dev",
-        indexconfig=dict(
-            acl_pkg_read="someuser",
-            bases=[pypistage.name]))
+        indexconfig={
+            "acl_pkg_read": "someuser",
+            "bases": [pypistage.name]})
     ixconfig = mapp.getjson(api1.index)["result"]
     assert ixconfig["acl_pkg_read"] == ["someuser"]
     assert ixconfig["bases"] == ["root/pypi"]
@@ -402,7 +402,7 @@ def test_sro_skip_plugin(makemapp, maketestapp, makexom, pypistage):
     plugin.calls.clear()
     api2 = mapp.create_and_use(
         "otheruser/dev",
-        indexconfig=dict(bases=[api1.stagename]))
+        indexconfig={"bases": [api1.stagename]})
     ixconfig = mapp.getjson(api2.index)["result"]
     assert ixconfig["acl_pkg_read"] == [":ANONYMOUS:"]
     assert ixconfig["bases"] == [api1.stagename]

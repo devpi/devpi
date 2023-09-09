@@ -239,7 +239,7 @@ class DevpiSecurityPolicy:
         # use the identity to build a list of principals, and pass them
         # to the ACLHelper to determine allowed/denied
         identity = request.identity
-        principals = set([Everyone])
+        principals = {Everyone}
         if identity is not None:
             principals.add(Authenticated)
             principals.add(identity.username)

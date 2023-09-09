@@ -97,7 +97,7 @@ def devpipostgresql_postgresql(request):
                 'createdb', '-h', host, '-p', str(port), 'devpi'])
             user = getpass.getuser()
 
-            settings = dict(host=host, port=port, user=user)
+            settings = {"host": host, "port": port, "user": user}
 
             if pg_ssl:
                 # Make client certificate for user and authenticate with it.

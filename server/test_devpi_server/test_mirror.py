@@ -380,10 +380,10 @@ class TestExtPYPIDB:
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=20)
-        pypistage.url2response["https://download.com/index.html"] = dict(
-            status_code=200, text = '''
+        pypistage.url2response["https://download.com/index.html"] = {
+            "status_code": 200, "text": '''
                 <a href="pytest-1.1.tar.gz" /> ''',
-            headers = {"content-type": "text/plain"})
+            "headers": {"content-type": "text/plain"}}
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
@@ -426,8 +426,8 @@ class TestExtPYPIDB:
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''')
-        pypistage.url2response["https://download.com/index.html"] = dict(
-            status_code=errorcode, text = 'not found')
+        pypistage.url2response["https://download.com/index.html"] = {
+            "status_code": errorcode, "text": 'not found'}
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
         assert links[0].entry.url == \
@@ -492,7 +492,7 @@ class TestExtPYPIDB:
     @pytest.mark.notransaction
     def test_offline_requires_python(self, mapp, simpypi, testapp, xom):
         mapp.login('root')
-        mapp.modify_index("root/pypi", indexconfig=dict(type='mirror', mirror_url=simpypi.simpleurl))
+        mapp.modify_index("root/pypi", indexconfig={"type": 'mirror', "mirror_url": simpypi.simpleurl})
         # turn off offline mode for preparations
         xom.config.args.offline_mode = False
         content = b'13'
@@ -517,7 +517,7 @@ class TestExtPYPIDB:
     @pytest.mark.notransaction
     def test_offline_yanked(self, mapp, simpypi, testapp, xom):
         mapp.login('root')
-        mapp.modify_index("root/pypi", indexconfig=dict(type='mirror', mirror_url=simpypi.simpleurl))
+        mapp.modify_index("root/pypi", indexconfig={"type": 'mirror', "mirror_url": simpypi.simpleurl})
         # turn off offline mode for preparations
         xom.config.args.offline_mode = False
         content = b'13'
@@ -578,7 +578,7 @@ class TestExtPYPIDB:
 
     @pytest.mark.notransaction
     def test_stale_nocache_inherit(self, mapp, pypistage, testapp):
-        api = mapp.create_and_use(indexconfig=dict(bases='root/pypi'))
+        api = mapp.create_and_use(indexconfig={"bases": 'root/pypi'})
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz"</a>')
         r = testapp.xget(200, f'{api.index}/+simple/foo/')
         assert 'Cache-Control' not in r.headers
@@ -735,8 +735,8 @@ class TestMirrorStageprojects:
             assert pypistage.list_projects_perstage() == {"django": "Django"}
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
-        pypistage.url2response["https://pypi.org/simple/proj3/"] = dict(
-            status_code=404)
+        pypistage.url2response["https://pypi.org/simple/proj3/"] = {
+            "status_code": 404}
         with pypistage.keyfs.transaction(write=False):
             assert len(pypistage.get_releaselinks("proj1")) == 1
             assert len(pypistage.get_releaselinks("proj2")) == 1
@@ -814,7 +814,7 @@ class TestMirrorStageprojects:
         mapp.login('root')
         mapp.modify_index(
             "root/pypi",
-            indexconfig=dict(type='mirror', mirror_url=url.url))
+            indexconfig={"type": 'mirror', "mirror_url": url.url})
         simpypi.add_release("pkg", pkgver="pkg-1.0.zip")
         content = b'13'
         simpypi.add_file('/pkg/pkg-1.0.zip', content)
@@ -854,7 +854,7 @@ class TestMirrorStageprojects:
         mapp.login('root')
         mapp.modify_index(
             "root/pypi",
-            indexconfig=dict(type='mirror', mirror_url=url.url))
+            indexconfig={"type": 'mirror', "mirror_url": url.url})
         simpypi.add_release("pkg", pkgver="pkg-1.0.zip#sha256=3fdba35f04dc8c462986c992bcf875546257113072a909c162f7e470e581e278")
         content = b'13'
         simpypi.add_file('/pkg/pkg-1.0.zip', content)
@@ -1076,7 +1076,7 @@ class TestProjectNamesCache:
         return ProjectNamesCache()
 
     def test_get_set(self, cache):
-        assert cache.get() == dict()
+        assert cache.get() == {}
         s = {1: 1, 2: 2, 3: 3}
         cache.set(s, '"foo"')
         s[4] = 4
@@ -1129,10 +1129,10 @@ def test_ProjectUpdateCache(monkeypatch):
 def test_redownload_locally_removed_release(mapp, simpypi):
     from devpi_common.url import URL
     mapp.create_and_login_user('mirror')
-    indexconfig = dict(
-        type="mirror",
-        mirror_url=simpypi.simpleurl,
-        mirror_cache_expiry=0)
+    indexconfig = {
+        "type": "mirror",
+        "mirror_url": simpypi.simpleurl,
+        "mirror_cache_expiry": 0}
     mapp.create_index("mirror", indexconfig=indexconfig)
     mapp.use("mirror/mirror")
     content = b'14'

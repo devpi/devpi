@@ -139,7 +139,7 @@ def test_dont_index_deleted_mirror(mapp, monkeypatch, simpypi, testapp):
     api = mapp.use("root/pypi")
     mapp.modify_index(
         "root/pypi",
-        indexconfig=dict(type="mirror", mirror_url=simpypi.simpleurl, volatile=True))
+        indexconfig={"type": "mirror", "mirror_url": simpypi.simpleurl, "volatile": True})
     # fetching the index json triggers project names loading patched above
     r = testapp.get_json(api.index)
     assert r.status_code == 200
@@ -166,7 +166,7 @@ def test_dont_index_deleted_mirror(mapp, monkeypatch, simpypi, testapp):
 
 class FakeStage(object):
     def __init__(self, index_type):
-        self.ixconfig = dict(type=index_type)
+        self.ixconfig = {"type": index_type}
         self.name = index_type
         self.serials = {}
         self.serial = -1

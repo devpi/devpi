@@ -83,52 +83,52 @@ def test_has_mirror_base(model, pypistage):
 
 def test_get_mirror_whitelist_info(model, pypistage):
     pypistage.mock_simple("pytest", "<a href='pytest-1.0.zip' /a>")
-    assert pypistage.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=True,
-        blocked_by_mirror_whitelist=None)
+    assert pypistage.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": True,
+        "blocked_by_mirror_whitelist": None}
     user = model.create_user("user1", "pass")
     stage1 = user.create_stage("stage1", bases=())
-    assert stage1.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=False,
-        blocked_by_mirror_whitelist=None)
+    assert stage1.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": False,
+        "blocked_by_mirror_whitelist": None}
     register_and_store(stage1, "pytest-1.1.tar.gz")
-    assert stage1.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=False,
-        blocked_by_mirror_whitelist=None)
+    assert stage1.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": False,
+        "blocked_by_mirror_whitelist": None}
     stage2 = user.create_stage("stage2", bases=("root/pypi",))
-    assert stage2.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=True,
-        blocked_by_mirror_whitelist=None)
+    assert stage2.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": True,
+        "blocked_by_mirror_whitelist": None}
     register_and_store(stage2, "pytest-1.1.tar.gz")
-    assert stage2.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=Unknown,
-        blocked_by_mirror_whitelist='root/pypi')
+    assert stage2.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": Unknown,
+        "blocked_by_mirror_whitelist": 'root/pypi'}
     # now add to whitelist
     ixconfig = stage2.ixconfig.copy()
     ixconfig["mirror_whitelist"] = ["pytest"]
     stage2.modify(**ixconfig)
-    assert stage2.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=True,
-        blocked_by_mirror_whitelist=None)
+    assert stage2.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": True,
+        "blocked_by_mirror_whitelist": None}
     # now remove from whitelist
     ixconfig = stage2.ixconfig.copy()
     ixconfig["mirror_whitelist"] = []
     stage2.modify(**ixconfig)
-    assert stage2.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=Unknown,
-        blocked_by_mirror_whitelist='root/pypi')
+    assert stage2.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": Unknown,
+        "blocked_by_mirror_whitelist": 'root/pypi'}
     # and try "*"
     ixconfig = stage2.ixconfig.copy()
     ixconfig["mirror_whitelist"] = ["*"]
     stage2.modify(**ixconfig)
-    assert stage2.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=True,
-        blocked_by_mirror_whitelist=None)
+    assert stage2.get_mirror_whitelist_info("pytest") == {
+        "has_mirror_base": True,
+        "blocked_by_mirror_whitelist": None}
 
 
 @pytest.mark.notransaction
 def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
-    api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
+    api = mapp.create_and_use(indexconfig={"bases": ["root/pypi"]})
     mapp.set_versiondata(
         {"name": "pkg1", "version": "2.6", "description": "foo"},
         set_whitelist=False)
@@ -241,7 +241,7 @@ class TestStage:
         links = stage.get_releaselinks("someproject")
         assert len(links) == 1
         stage.set_versiondata(udict(name="someproject", version="1.1"))
-        assert stage.list_projects_perstage() == set(["someproject"])
+        assert stage.list_projects_perstage() == {"someproject"}
 
     def test_inheritance_twice(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -258,7 +258,7 @@ class TestStage:
         assert links[1].basename == "someproject-1.1.tar.gz"
         assert links[2].basename == "someproject-1.0.zip"
         assert stage.list_projects_perstage() == set()
-        assert stage_dev2.list_projects_perstage() == set(["someproject"])
+        assert stage_dev2.list_projects_perstage() == {"someproject"}
 
     def test_inheritance_complex_issue_214(self, model):
         prov_user = model.create_user('provider', password="123")
@@ -277,14 +277,14 @@ class TestStage:
         register_and_store(prov_a, "pkg-3.0.zip", content)
         register_and_store(prov_b, "pkg-1.0.zip", content)
         register_and_store(prov_b, "pkg-2.0.zip", content)
-        assert prov_a.list_versions_perstage('pkg') == set(['1.0', '2.0', '3.0'])
-        assert prov_b.list_versions_perstage('pkg') == set(['1.0', '2.0'])
-        assert prov_a.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
-        assert prov_b.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
-        assert aggr_index.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
-        assert cons_index.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
-        assert extagg_index1.list_versions('pkg') == set([])
-        assert extagg_index2.list_versions('pkg') == set(['1.0', '2.0', '3.0'])
+        assert prov_a.list_versions_perstage('pkg') == {'1.0', '2.0', '3.0'}
+        assert prov_b.list_versions_perstage('pkg') == {'1.0', '2.0'}
+        assert prov_a.list_versions('pkg') == {'1.0', '2.0', '3.0'}
+        assert prov_b.list_versions('pkg') == {'1.0', '2.0', '3.0'}
+        assert aggr_index.list_versions('pkg') == {'1.0', '2.0', '3.0'}
+        assert cons_index.list_versions('pkg') == {'1.0', '2.0', '3.0'}
+        assert extagg_index1.list_versions('pkg') == set()
+        assert extagg_index2.list_versions('pkg') == {'1.0', '2.0', '3.0'}
 
     def test_inheritance_complex_issue_214_pypi(self, pypistage, model):
         pypi = model.getstage('root/pypi')
@@ -304,20 +304,20 @@ class TestStage:
         extagg_index2 = extagg_user.create_stage(index='index2', bases=['aggregator/index', 'extagg/index1'])
         content = b"123"
         register_and_store(prov_a, "pkg-1.0.zip", content)
-        assert pypi.list_versions_perstage('pkg') == set(['2.0'])
-        assert prov_a.list_versions_perstage('pkg') == set(['1.0'])
-        assert prov_b.list_versions_perstage('pkg') == set([])
-        assert aggr_index.list_versions_perstage('pkg') == set([])
-        assert cons_index.list_versions_perstage('pkg') == set([])
-        assert extagg_index1.list_versions_perstage('pkg') == set([])
-        assert extagg_index2.list_versions_perstage('pkg') == set([])
-        assert pypi.list_versions('pkg') == set(['2.0'])
-        assert prov_a.list_versions('pkg') == set(['1.0'])
-        assert prov_b.list_versions('pkg') == set(['1.0'])
-        assert aggr_index.list_versions('pkg') == set(['1.0'])
-        assert cons_index.list_versions('pkg') == set(['1.0'])
-        assert extagg_index1.list_versions('pkg') == set(['2.0'])
-        assert extagg_index2.list_versions('pkg') == set(['1.0'])
+        assert pypi.list_versions_perstage('pkg') == {'2.0'}
+        assert prov_a.list_versions_perstage('pkg') == {'1.0'}
+        assert prov_b.list_versions_perstage('pkg') == set()
+        assert aggr_index.list_versions_perstage('pkg') == set()
+        assert cons_index.list_versions_perstage('pkg') == set()
+        assert extagg_index1.list_versions_perstage('pkg') == set()
+        assert extagg_index2.list_versions_perstage('pkg') == set()
+        assert pypi.list_versions('pkg') == {'2.0'}
+        assert prov_a.list_versions('pkg') == {'1.0'}
+        assert prov_b.list_versions('pkg') == {'1.0'}
+        assert aggr_index.list_versions('pkg') == {'1.0'}
+        assert cons_index.list_versions('pkg') == {'1.0'}
+        assert extagg_index1.list_versions('pkg') == {'2.0'}
+        assert extagg_index2.list_versions('pkg') == {'1.0'}
 
     def test_inheritance_normalize_multipackage(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['some-project'])
@@ -334,7 +334,7 @@ class TestStage:
         assert links[0].basename == "some_project-1.2.tar.gz"
         assert links[1].basename == "some_project-1.0.zip"
         assert links[2].basename == "some_project-1.0.tar.gz"
-        assert stage.list_projects_perstage() == set(["some-project"])
+        assert stage.list_projects_perstage() == {"some-project"}
 
     def test_inheritance_tolerance_on_different_names(self, stage, user):
         register_and_store(stage, "some_project-1.2.tar.gz",
@@ -365,7 +365,7 @@ class TestStage:
         stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
         pypistage.mock_simple("someproject", status_code = -1)
         assert stage.get_releaselinks("someproject") == []
-        assert stage.list_versions("someproject") == set([])
+        assert stage.list_versions("someproject") == set()
 
     def test_get_versiondata_inherited(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
@@ -390,7 +390,7 @@ class TestStage:
         entries = stage.get_releaselinks("some")
         assert len(entries) == 1
         assert entries[0].hash_spec == entry.hash_spec
-        assert stage.list_projects_perstage() == set(["some"])
+        assert stage.list_projects_perstage() == {"some"}
         verdata = stage.get_versiondata("some", "1.0")
         links = verdata["+elinks"]
         assert len(links) == 1
@@ -1620,19 +1620,19 @@ def test_ensure_boolean():
 def test_ensure_list():
     assert isinstance(ensure_list([]), list)
     assert isinstance(ensure_list(set()), list)
-    assert isinstance(ensure_list(tuple()), list)
+    assert isinstance(ensure_list(()), list)
     assert ensure_list("foo") == ["foo"]
     assert ensure_list("foo,bar") == ["foo", "bar"]
     assert ensure_list(" foo , bar ") == ["foo", "bar"]
     with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_list(None), list)
-        assert isinstance(ensure_list(dict()), list)
+        assert isinstance(ensure_list({}), list)
 
 
 def test_ensure_acl_list():
     assert isinstance(ensure_acl_list([]), list)
     assert isinstance(ensure_acl_list(set()), list)
-    assert isinstance(ensure_acl_list(tuple()), list)
+    assert isinstance(ensure_acl_list(()), list)
     assert ensure_acl_list("foo") == ["foo"]
     assert ensure_acl_list("foo,bar") == ["foo", "bar"]
     assert ensure_acl_list(" foo , bar ") == ["foo", "bar"]
@@ -1641,47 +1641,47 @@ def test_ensure_acl_list():
         ":ANONYMOUS:", "FOO", ":AUTHENTICATED:"]
     with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_acl_list(None), list)
-        assert isinstance(ensure_acl_list(dict()), list)
+        assert isinstance(ensure_acl_list({}), list)
 
 
 @pytest.mark.parametrize(["input", "expected"], [
     ({},
-     dict(type="stage")),
+     {"type": "stage"}),
 
     ({"volatile": "foo"},
      InvalidIndexconfig),
 
     ({"volatile": True},
-     dict(type="stage", volatile=True)),
+     {"type": "stage", "volatile": True}),
 
     ({"volatile": "true"},
-     dict(type="stage", volatile=True)),
+     {"type": "stage", "volatile": True}),
 
     ({"volatile": "Yes"},
-     dict(type="stage", volatile=True)),
+     {"type": "stage", "volatile": True}),
 
     ({"volatile": False},
-     dict(type="stage", volatile=False)),
+     {"type": "stage", "volatile": False}),
 
     ({"volatile": "False"},
-     dict(type="stage", volatile=False)),
+     {"type": "stage", "volatile": False}),
 
     ({"volatile": "no"},
-     dict(type="stage", volatile=False)),
+     {"type": "stage", "volatile": False}),
 
     ({"volatile": "False", "bases": "root/pypi"},
-     dict(type="stage", volatile=False, bases=("root/pypi",))),
+     {"type": "stage", "volatile": False, "bases": ("root/pypi",)}),
 
     ({"volatile": "False", "bases": ["root/pypi"]},
-     dict(type="stage", volatile=False, bases=("root/pypi",))),
+     {"type": "stage", "volatile": False, "bases": ("root/pypi",)}),
 
     ({"volatile": "False", "bases": ["root/pypi"], "acl_upload": ["hello"]},
-     dict(type="stage", volatile=False, bases=("root/pypi",),
-          acl_upload=["hello"])),
+     {"type": "stage", "volatile": False, "bases": ("root/pypi",),
+          "acl_upload": ["hello"]}),
 
     ({"volatile": "False", "bases": ["root/pypi"], "acl_toxresult_upload": ["hello"]},
-     dict(type="stage", volatile=False, bases=("root/pypi",),
-          acl_toxresult_upload=["hello"])),
+     {"type": "stage", "volatile": False, "bases": ("root/pypi",),
+          "acl_toxresult_upload": ["hello"]}),
 ])
 def test_get_indexconfig_values(xom, input, expected):
     stage = PrivateStage(

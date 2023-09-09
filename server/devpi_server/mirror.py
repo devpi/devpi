@@ -100,7 +100,7 @@ class ProjectJSONv1Parser:
             raise ValueError(
                 "Wrong API version %r in mirror json response."
                 % api_version)
-        self.projects = set(x['name'] for x in data['projects'])
+        self.projects = {x['name'] for x in data['projects']}
 
 
 class IndexParser:
@@ -234,7 +234,7 @@ class MirrorStage(BaseStage):
     @property
     def mirror_url_auth(self):
         url = self.mirror_url
-        return dict(username=url.username, password=url.password)
+        return {"username": url.username, "password": url.password}
 
     @property
     def no_project_list(self):
@@ -320,8 +320,8 @@ class MirrorStage(BaseStage):
         # for the possibility to re-download a release
         (is_expired, links, cache_serial) = self._load_cache_links(project)
         if links is not None:
-            entries = list(self._entry_from_href(x[1]) for x in links)
-            entries = list(x for x in entries if x.version == version and x.file_exists())
+            entries = [self._entry_from_href(x[1]) for x in links]
+            entries = [x for x in entries if x.version == version and x.file_exists()]
             for entry in entries:
                 entry.file_delete()
 
@@ -593,14 +593,14 @@ class MirrorStage(BaseStage):
             key_hrefs[index] = (releaselink.basename, href)
             requires_python[index] = releaselink.requires_python
             yanked[index] = None if releaselink.yanked is False else releaselink.yanked
-        newlinks_future.set_result(dict(
-            serial=serial,
-            releaselinks=releaselinks,
-            key_hrefs=key_hrefs,
-            requires_python=requires_python,
-            yanked=yanked,
-            devpi_serial=response.headers.get("X-DEVPI-SERIAL"),
-            etag=response.headers.get("ETag")))
+        newlinks_future.set_result({
+            "serial": serial,
+            "releaselinks": releaselinks,
+            "key_hrefs": key_hrefs,
+            "requires_python": requires_python,
+            "yanked": yanked,
+            "devpi_serial": response.headers.get("X-DEVPI-SERIAL"),
+            "etag": response.headers.get("ETag")})
 
     def _update_simplelinks(self, project, info, links, newlinks):
         if self.xom.is_replica():
@@ -788,7 +788,7 @@ class MirrorStage(BaseStage):
 
     def list_versions_perstage(self, project):
         try:
-            return set(x.version for x in self.get_simplelinks_perstage(project))
+            return {x.version for x in self.get_simplelinks_perstage(project)}
         except self.UpstreamNotFoundError:
             return set()
 
@@ -845,7 +845,7 @@ class ProjectNamesCache:
     def __init__(self):
         self._lock = threading.RLock()
         self._timestamp = -1
-        self._data = dict()
+        self._data = {}
         self._etag = None
 
     def exists(self):

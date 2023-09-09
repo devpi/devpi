@@ -19,7 +19,7 @@ def render(confname, format=None, **kw):
     from importlib.resources import read_text
     templatestring = read_text("devpi_server.cfg", template)
 
-    kw = dict((x[0], str(x[1])) for x in kw.items())
+    kw = {x[0]: str(x[1]) for x in kw.items()}
     if format is None:
         result = templatestring.format(**kw)
     else:

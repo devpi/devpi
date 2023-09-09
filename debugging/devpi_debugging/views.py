@@ -30,9 +30,9 @@ def keyfs_view(request):
             start = range(0, min(5, conn.last_changelog_serial + 1))
             end = range(max(0, conn.last_changelog_serial - 4), conn.last_changelog_serial + 1)
             serials.extend(sorted(set(chain(start, end))))
-    return dict(
-        query=query,
-        serials=serials)
+    return {
+        "query": query,
+        "serials": serials}
 
 
 def diff(prev, current):
@@ -85,15 +85,15 @@ def keyfs_changelog_view(request):
             formatted = pformat(v[2])
             diffed = diff(prev_formatted, formatted)
             (_, latest_serial) = conn.db_read_typedkey(k)
-            changes[k] = dict(
-                type=v[0],
-                previous_serial=v[1],
-                latest_serial=latest_serial,
-                diffed=diffed)
-    return dict(
-        changes=changes,
-        rel_renames=rel_renames,
-        pformat=pformat,
-        last_changelog_serial=last_changelog_serial,
-        serial=int(serial),
-        query=query)
+            changes[k] = {
+                "type": v[0],
+                "previous_serial": v[1],
+                "latest_serial": latest_serial,
+                "diffed": diffed}
+    return {
+        "changes": changes,
+        "rel_renames": rel_renames,
+        "pformat": pformat,
+        "last_changelog_serial": last_changelog_serial,
+        "serial": int(serial),
+        "query": query}

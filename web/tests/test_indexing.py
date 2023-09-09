@@ -15,7 +15,7 @@ devpi_server_version = parse_version(_devpi_server_version)
     reason="Needs un-normalized project names from list_projects_perstage on mirrors")
 def test_original_project_name(pypistage):
     xom = pypistage.xom
-    projects = set(["Django", "pytest", "ploy_ansible"])
+    projects = {"Django", "pytest", "ploy_ansible"}
     result = set()
     with xom.keyfs.transaction(write=False):
         pypistage.mock_simple_projects(projects)

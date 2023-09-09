@@ -348,9 +348,9 @@ def httpget(pypiurls):
                                 f"http_api call to {url} has no further replies")
                         fakeresponse = fakeresponse.pop(0)
                     if fakeresponse is None:
-                        fakeresponse = dict(
-                            status_code=404,
-                            reason="Not Found")
+                        fakeresponse = {
+                            "status_code": 404,
+                            "reason": "Not Found"}
                     fakeresponse["headers"] = requests.structures.CaseInsensitiveDict(
                         fakeresponse.setdefault("headers", {}))
                     xself.__dict__.update(fakeresponse)
@@ -379,12 +379,12 @@ def httpget(pypiurls):
                                                          xself.url)
             r = mockresponse(url)
             log.debug("returning %s", r)
-            self.call_log.append(dict(
-                url=url,
-                allow_redirects=allow_redirects,
-                extra_headers=extra_headers,
-                kw=kw,
-                response=r))
+            self.call_log.append({
+                "url": url,
+                "allow_redirects": allow_redirects,
+                "extra_headers": extra_headers,
+                "kw": kw,
+                "response": r})
             return r
 
         def _prepare_kw(self, kw):
@@ -603,13 +603,13 @@ class Mapp(MappMixin):
         return r.json
 
     def change_password(self, user, password):
-        r = self.testapp.patch_json("/%s" % user, dict(password=password))
+        r = self.testapp.patch_json("/%s" % user, {"password": password})
         assert r.status_code == 200
         self.testapp.auth = (self.testapp.auth[0],
                              r.json["result"]["password"])
 
     def create_user(self, user, password, email="hello@example.com", code=201):
-        reqdict = dict(password=password)
+        reqdict = {"password": password}
         if email:
             reqdict["email"] = email
         r = self.testapp.put_json("/%s" % user, reqdict, expect_errors=True)
@@ -628,7 +628,7 @@ class Mapp(MappMixin):
         r = self.testapp.patch_json("/%s" % user, reqdict, expect_errors=True)
         assert r.status_code == code
         if code == 200:
-            assert r.json == dict(message="user updated")
+            assert r.json == {"message": "user updated"}
 
     def create_user_fails(self, user, password, email="hello@example.com"):
         with pytest.raises(webtest.AppError) as excinfo:
@@ -790,7 +790,7 @@ class Mapp(MappMixin):
         #    version = name_version[1]
         if register and code == 200:
             self.set_versiondata(
-                dict(name=name, version=version), set_whitelist=set_whitelist)
+                {"name": name, "version": version}, set_whitelist=set_whitelist)
         r = self.testapp.post("/%s/" % indexname,
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
@@ -807,7 +807,7 @@ class Mapp(MappMixin):
 
     def push(self, name, version, index, indexname=None, code=200):
         indexname = self._getindexname(indexname)
-        req = dict(name=name, version=version, targetindex=index)
+        req = {"name": name, "version": version, "targetindex": index}
         r = self.testapp.push(
             '/%s' % indexname, json.dumps(req), expect_errors=True)
         assert r.status_code == code
@@ -977,7 +977,7 @@ class MyFunctionalTestApp(MyTestApp):
         for name, val in self.headers.items():
             headers.setdefault(name, val)
 
-        kw = dict(headers=headers)
+        kw = {"headers": headers}
         if params and params is not webtest.utils.NoDefault:
             if method.lower() in ('post', 'put', 'patch'):
                 kw['data'] = params

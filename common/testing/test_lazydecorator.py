@@ -41,7 +41,7 @@ def test_simpler_dict():
     l = dec.discover(d)
     assert len(l) == 2
     assert l[0] == (f, (), {})
-    assert l[1] == (g, (), dict(x=1))
+    assert l[1] == (g, (), {"x": 1})
 
 
 def test_multi():

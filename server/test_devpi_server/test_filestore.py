@@ -180,8 +180,8 @@ class TestFileStore:
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
         headers = ResponseHeaders({})
-        httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, raw = BytesIO(b"123"))
+        httpget.url2response[link.url] = {"status_code": 200,
+                "headers": headers, "raw": BytesIO(b"123")}
         for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         rheaders = entry.gethttpheaders()
@@ -194,8 +194,8 @@ class TestFileStore:
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec
         headers = ResponseHeaders({"Content-Type": ""})
-        httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, raw = BytesIO(b"123"))
+        httpget.url2response[link.url] = {"status_code": 200,
+                "headers": headers, "raw": BytesIO(b"123")}
         for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         rheaders = entry.gethttpheaders()
@@ -211,8 +211,8 @@ class TestFileStore:
             "content-length": "3",
             "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
             "content-type": "application/zip"})
-        httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, raw = BytesIO(b"1"))
+        httpget.url2response[link.url] = {"status_code": 200,
+                "headers": headers, "raw": BytesIO(b"1")}
         with pytest.raises(ValueError):
             for part in iter_cache_remote_file(xom, entry, entry.url):
                 pass
@@ -225,8 +225,8 @@ class TestFileStore:
             "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
             "content-length": None})
         assert entry.file_size() is None
-        httpget.url2response[link.url] = dict(status_code=200,
-                headers=headers, raw=BytesIO(b"1"))
+        httpget.url2response[link.url] = {"status_code": 200,
+                "headers": headers, "raw": BytesIO(b"1")}
         for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         assert entry.file_get_content() == b"1"
@@ -244,8 +244,8 @@ class TestFileStore:
             "content-length": "3",
             "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
             "content-type": "application/zip"})
-        httpget.url2response[link.url_nofrag] = dict(status_code=200,
-                headers=headers, raw=BytesIO(b"123"))
+        httpget.url2response[link.url_nofrag] = {"status_code": 200,
+                "headers": headers, "raw": BytesIO(b"123")}
         with pytest.raises(ValueError, match=link.md5):
             for part in iter_cache_remote_file(xom, entry, entry.url):
                 pass
@@ -261,10 +261,10 @@ def test_cache_remote_file(filestore, httpget, gen, xom):
         headers = ResponseHeaders({
             "content-length": "3",
             "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT"})
-        httpget.url2response[link.url] = dict(
-            status_code=200,
-            headers=headers,
-            raw=BytesIO(b"123"))
+        httpget.url2response[link.url] = {
+            "status_code": 200,
+            "headers": headers,
+            "raw": BytesIO(b"123")}
         for part in iter_cache_remote_file(xom, entry, entry.url):
             pass
         rheaders = entry.gethttpheaders()

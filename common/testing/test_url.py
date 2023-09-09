@@ -348,21 +348,21 @@ class TestURL:
         assert URL("http://example.com?foo=bar").query == "foo=bar"
 
     @pytest.mark.parametrize("url,kwargs,expected", [
-        ("http://example.com", dict(), dict()),
-        ("http://example.com?foo=bar", dict(), dict(foo=["bar"])),
-        ("http://example.com?foo=ham&foo=bar", dict(), dict(foo=["ham", "bar"])),
-        ("http://example.com?foo=ham&foo=bar&bar=", dict(), dict(foo=["ham", "bar"])),
-        ("http://example.com?foo=ham&foo=bar&bar=", dict(keep_blank_values=True), dict(foo=["ham", "bar"], bar=[""])),
+        ("http://example.com", {}, {}),
+        ("http://example.com?foo=bar", {}, {"foo": ["bar"]}),
+        ("http://example.com?foo=ham&foo=bar", {}, {"foo": ["ham", "bar"]}),
+        ("http://example.com?foo=ham&foo=bar&bar=", {}, {"foo": ["ham", "bar"]}),
+        ("http://example.com?foo=ham&foo=bar&bar=", {"keep_blank_values": True}, {"foo": ["ham", "bar"], "bar": [""]}),
     ])
     def test_query_dict(self, url, kwargs, expected):
         assert URL(url).get_query_dict(**kwargs) == expected
 
     @pytest.mark.parametrize("url,kwargs,expected", [
-        ("http://example.com", dict(), []),
-        ("http://example.com?foo=bar", dict(), [("foo", "bar")]),
-        ("http://example.com?foo=ham&foo=bar", dict(), [("foo", "ham"), ("foo", "bar")]),
-        ("http://example.com?foo=ham&foo=bar&bar=", dict(), [("foo", "ham"), ("foo", "bar")]),
-        ("http://example.com?foo=ham&foo=bar&bar=", dict(keep_blank_values=True), [("foo", "ham"), ("foo", "bar"), ("bar", "")]),
+        ("http://example.com", {}, []),
+        ("http://example.com?foo=bar", {}, [("foo", "bar")]),
+        ("http://example.com?foo=ham&foo=bar", {}, [("foo", "ham"), ("foo", "bar")]),
+        ("http://example.com?foo=ham&foo=bar&bar=", {}, [("foo", "ham"), ("foo", "bar")]),
+        ("http://example.com?foo=ham&foo=bar&bar=", {"keep_blank_values": True}, [("foo", "ham"), ("foo", "bar"), ("bar", "")]),
     ])
     def test_query_items(self, url, kwargs, expected):
         assert URL(url).get_query_items(**kwargs) == expected
@@ -370,10 +370,10 @@ class TestURL:
     @pytest.mark.parametrize("url,query,expected", [
         ("http://example.com", "foo=bar", "http://example.com?foo=bar"),
         ("http://example.com", [("foo", "bar")], "http://example.com?foo=bar"),
-        ("http://example.com", dict(foo="bar"), "http://example.com?foo=bar"),
+        ("http://example.com", {"foo": "bar"}, "http://example.com?foo=bar"),
         ("http://example.com?foo=ham", "foo=bar", "http://example.com?foo=bar"),
         ("http://example.com?foo=ham", [("foo", "bar")], "http://example.com?foo=bar"),
-        ("http://example.com?foo=ham", dict(foo="bar"), "http://example.com?foo=bar"),
+        ("http://example.com?foo=ham", {"foo": "bar"}, "http://example.com?foo=bar"),
     ])
     def test_query_replace(self, url, query, expected):
         assert URL(url).replace(query=query) == expected

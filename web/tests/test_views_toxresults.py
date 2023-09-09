@@ -19,12 +19,12 @@ def test_testdata(mapp, testapp, tox_result_data):
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
     r = testapp.post(path, json.dumps({"testenvs": {"py27": {}}}))
-    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index, headers={'accept': "text/html"})
     passed, = r.html.select('.passed')
     assert passed.text == 'tests'
     assert passed.attrs['href'].endswith(
         '/user1/dev/pkg1/2.6/+toxresults/pkg1-2.6.tgz')
-    r = testapp.xget(200, api.index + '/pkg1/2.6', headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + '/pkg1/2.6', headers={'accept': "text/html"})
     toxresult, = r.html.select('tbody .toxresults')
     links = toxresult.select('a')
     assert len(links) == 2
@@ -55,7 +55,7 @@ def test_testdata_notfound(mapp, testapp):
     r = testapp.xget(
         404,
         '/user1/dev/pkg1/2.7/+toxresults/pkg1-2.7.tgz',
-        headers=dict(accept="text/html"))
+        headers={'accept': "text/html"})
     assert 'pkg1-2.7 is not registered' in r.text
 
 
@@ -70,7 +70,7 @@ def test_testdata_corrupt(mapp, testapp):
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps({"testenvs": {"py27": {}}}))
     assert r.status_code == 200
-    testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    testapp.xget(200, api.index, headers={'accept': "text/html"})
 
 
 @pytest.mark.with_notifier
@@ -91,7 +91,7 @@ def test_testdata_missing(mapp, testapp, tox_result_data):
         toxresult_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
         # delete the tox result file
         toxresult_link.entry.file_delete()
-    r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index, headers={'accept': "text/html"})
     assert '.toxresult' not in r.unicode_body
 
 
@@ -106,7 +106,7 @@ def test_testdata_latest_version(mapp, testapp, tox_result_data):
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
-    r = testapp.xget(200, api.index + '/pkg1/latest', headers=dict(accept="text/html"))
+    r = testapp.xget(200, api.index + '/pkg1/latest', headers={'accept': "text/html"})
     links = r.html.select('td.toxresults a')
     assert len(links) == 2
     assert links[0].attrs['href'].startswith(api.index + '/pkg1/2.6')

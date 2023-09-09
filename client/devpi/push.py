@@ -12,8 +12,8 @@ class PyPIPush:
 
     def execute(self, hub, name, version):
         password = hub.derive_token(self.password, name)
-        req = dict(name=name, version=str(version), posturl=self.posturl,
-                   username=self.user, password=password)
+        req = {"name": name, "version": str(version), "posturl": self.posturl,
+                   "username": self.user, "password": password}
         index = hub.current.index
         return hub.http_api("push", index, kvdict=req, fatal=False)
 
@@ -24,8 +24,8 @@ class DevpiPush:
         self.index = index
 
     def execute(self, hub, name, version):
-        req = dict(name=name, version=str(version),
-                   targetindex=self.targetindex)
+        req = {"name": name, "version": str(version),
+                   "targetindex": self.targetindex}
         return hub.http_api("push", self.index, kvdict=req, fatal=True)
 
 

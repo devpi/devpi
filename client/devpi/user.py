@@ -66,7 +66,7 @@ def user_show(hub, user):
     reply = hub.http_api("get", url, quiet=True, type="userconfig")
     userconfig = reply.result
     hub.info(url.url + ":")
-    skip = set(('indexes', 'username'))
+    skip = {'indexes', 'username'}
     for key, value in sorted(userconfig.items()):
         if key in skip:
             continue
@@ -98,4 +98,4 @@ def passwd(hub, args):
         user = hub.current.get_auth_user()
     if not user:
         hub.fatal("no user specified and no user currently active")
-    user_modify(hub, user, dict(password=getnewpass(hub, user)))
+    user_modify(hub, user, {"password": getnewpass(hub, user)})

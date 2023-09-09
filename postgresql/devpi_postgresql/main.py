@@ -529,39 +529,39 @@ class Storage:
     password = None
     use_copy = True
     ssl_context = None
-    expected_schema = dict(
-        index=dict(
-            kv_serial_idx="""
+    expected_schema = {
+        'index': {
+            'kv_serial_idx': """
                 CREATE INDEX kv_serial_idx ON kv (serial);
-            """),
-        sequence=dict(
-            changelog_serial_seq="""
+            """},
+        'sequence': {
+            'changelog_serial_seq': """
                 CREATE SEQUENCE changelog_serial_seq
                 AS BIGINT
                 MINVALUE 0
                 START :startserial;
-            """),
-        table=dict(
-            changelog="""
+            """},
+        'table': {
+            'changelog': """
                 CREATE TABLE changelog (
                     serial INTEGER PRIMARY KEY,
                     data BYTEA NOT NULL
                 )
             """,
-            kv="""
+            'kv': """
                 CREATE TABLE kv (
                     key TEXT NOT NULL PRIMARY KEY,
                     keyname TEXT,
                     serial INTEGER
                 )
             """,
-            files="""
+            'files': """
                 CREATE TABLE files (
                     path TEXT PRIMARY KEY,
                     size INTEGER NOT NULL,
                     data BYTEA NOT NULL
                 )
-            """))
+            """}}
 
     def __init__(self, basedir, notify_on_commit, cache_size, settings=None):
         if settings is None:
@@ -636,11 +636,11 @@ class Storage:
 
     def ensure_tables_exist(self):
         schema = self._reflect_schema()
-        missing = dict()
+        missing = {}
         for kind, objs in self.expected_schema.items():
             for name, q in objs.items():
                 if name not in schema.get(kind, set()):
-                    missing.setdefault(kind, dict())[name] = q
+                    missing.setdefault(kind, {})[name] = q
         if not missing:
             return
         with self.get_connection() as conn:
@@ -650,9 +650,9 @@ class Storage:
             else:
                 threadlog.info("DB: Updating schema")
             if "changelog" not in missing.get("table", {}):
-                kw = dict(startserial=conn.db_read_last_changelog_serial() + 1)
+                kw = {'startserial': conn.db_read_last_changelog_serial() + 1}
             else:
-                kw = dict(startserial=0)
+                kw = {'startserial': 0}
             for kind in ('table', 'index', 'sequence'):
                 objs = missing.pop(kind, {})
                 for name in list(objs):
@@ -667,10 +667,10 @@ class Storage:
 
 @devpiserver_hookimpl
 def devpiserver_storage_backend(settings):
-    return dict(
-        storage=partial(Storage, settings=settings),
-        name="pg8000",
-        description="Postgresql backend")
+    return {
+        'storage': partial(Storage, settings=settings),
+        'name': "pg8000",
+        'description': "Postgresql backend"}
 
 
 class Writer:

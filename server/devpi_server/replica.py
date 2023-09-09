@@ -813,14 +813,14 @@ def devpiweb_get_status_info(request):
             elif shared_data.last_processed:
                 last_activity_seconds = (now - shared_data.last_processed)
             if last_activity_seconds > 300:
-                msgs.append(dict(status="fatal", msg="No files downloaded for more than 5 minutes"))
+                msgs.append({"status": "fatal", "msg": "No files downloaded for more than 5 minutes"})
             elif last_activity_seconds > 60:
-                msgs.append(dict(status="warn", msg="No files downloaded for more than 1 minute"))
+                msgs.append({"status": "warn", "msg": "No files downloaded for more than 1 minute"})
             if qsize > 10:
-                msgs.append(dict(status="warn", msg="%s items in file download queue" % qsize))
+                msgs.append({"status": "warn", "msg": "%s items in file download queue" % qsize})
         error_qsize = shared_data.error_queue.qsize()
         if error_qsize:
-            msgs.append(dict(status="warn", msg="Errors during file downloads, %s files queued for retry" % error_qsize))
+            msgs.append({"status": "warn", "msg": "Errors during file downloads, %s files queued for retry" % error_qsize})
     return msgs
 
 
@@ -963,10 +963,10 @@ class FileReplicationThread:
                     "error downloading '%s' from master, will be retried later: %s",
                     relpath, r.reason)
                 # add the error for the UI
-                self.shared_data.errors.add(dict(
-                    url=r.url,
-                    message=r.reason,
-                    relpath=entry.relpath))
+                self.shared_data.errors.add({
+                    "url": r.url,
+                    "message": r.reason,
+                    "relpath": entry.relpath})
                 # and raise for retrying later
                 raise FileReplicationError(r, relpath)
 
@@ -1003,10 +1003,10 @@ class FileReplicationThread:
                             relpath, r.reason)
 
                 if err is not None:
-                    self.shared_data.errors.add(dict(
-                        url=r.url,
-                        message=str(err),
-                        relpath=entry.relpath))
+                    self.shared_data.errors.add({
+                        "url": r.url,
+                        "message": str(err),
+                        "relpath": entry.relpath})
                     return
 
                 # in case there were errors before, we can now remove them
@@ -1257,7 +1257,7 @@ def proxy_view_to_master(context, request):
 
 class ReplicationErrors:
     def __init__(self):
-        self.errors = dict()
+        self.errors = {}
 
     def remove(self, entry):
         self.errors.pop(entry.relpath, None)

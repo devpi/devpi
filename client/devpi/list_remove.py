@@ -10,7 +10,7 @@ def out_index(hub, projects):
         if hub.args.verbose:
             url = hub.current.get_project_url(name)
             if hub.args.ignore_bases:
-                url = url.replace(query=dict(ignore_bases=""))
+                url = url.replace(query={"ignore_bases": ""})
             reply = hub.http_api("get", url, type="projectconfig")
             versions = map(Version, reply.result)
             if hub.args.all:
@@ -118,7 +118,7 @@ def main_list(hub, args):
         url = hub.current.get_project_url(
             req.project_name, indexname=args.index)
         if args.ignore_bases:
-            url = url.replace(query=dict(ignore_bases=""))
+            url = url.replace(query={"ignore_bases": ""})
         reply = hub.http_api("get", url, type="projectconfig")
         out_project(hub, reply, req)
     else:
@@ -158,7 +158,7 @@ def main_remove(hub, args):
         req.project_name, indexname=args.index)
     if args.force:
         proj_url = add_force_flag(proj_url)
-    reply = hub.http_api("get", proj_url.replace(query=dict(ignore_bases="")), type="projectconfig")
+    reply = hub.http_api("get", proj_url.replace(query={"ignore_bases": ""}), type="projectconfig")
     ver_to_delete = get_versions_to_delete(index_url, reply, req)
     if not ver_to_delete:
         hub.error(
