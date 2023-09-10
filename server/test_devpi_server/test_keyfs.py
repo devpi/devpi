@@ -479,7 +479,7 @@ class TestTransactionIsolation:
 
         with keyfs.transaction() as tx:
             for i in range(size * 2):
-                j = random.randrange(0, size * 3)
+                j = random.randrange(0, size * 3)  # noqa: S311
                 tx.get_value_at(D, j)
                 assert len(keyfs._storage._changelog_cache) <= \
                        keyfs._storage.CHANGELOG_CACHE_SIZE + 1

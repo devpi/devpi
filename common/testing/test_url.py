@@ -207,7 +207,6 @@ class TestURL:
         ("/", "/this/that/", "this/that/"),
         ("/something/this/", "/something/that", "../that"),
         ("/something/this/", "/other/that", "../../other/that"),
-        ("/something/this/", "/other/that", "../../other/that"),
         ("/something/this/", "/something/this/that", "that"),
         ("/something/this/", "/something/this/that/there", "that/there"),
     ])

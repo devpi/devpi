@@ -69,7 +69,7 @@ class BaseConnection:
     def _print_rows(self, rows):
         # for debugging
         for row in rows:
-            print(row)
+            print(row)  # noqa: T201
 
     def executemany(self, query, *args):
         c = self._sqlconn.cursor()

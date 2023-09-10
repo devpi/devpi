@@ -1,31 +1,85 @@
 [tool.ruff]
-select = [
-    "B", "COM", "DTZ", "E", "ERA", "EXE", "F",
-    "ICN", "ISC", "PGH", "PIE", "PLC", "PLE", "PLR", "PLW",
-    "RUF", "SIM", "T10", "TID", "TRY", "W", "YTT",
-]
+select = ["ALL"]
 ignore = [
+    "A001", # cleanup later - variable name shadows builtin
+    "A002", # cleanup later - argument name shadows builtin
+    "A003", # ignore - class attribute name shadows builtin
+    "ANN", # ignore - annotations
+    "ARG001", # maybe cleanup later - unused function argument
+    "ARG002", # maybe cleanup later - unused method argument
+    "ARG003", # cleanup soon - unused method argument
+    "ARG005", # maybe cleanup later - unused lambda argument
     "B007", # maybe cleanup later
     "B008", # cleanup later
     "B904", # maybe cleanup later
+    "BLE001", # cleanup soon - blind exception
+    "C400", # maybe cleanup later - rewrite as list comprehension
+    "C401", # maybe cleanup later - rewrite as set comprehension
+    "C402", # maybe cleanup later - rewrite as dict comprehension
+    "C403", # maybe cleanup later - rewrite as set comprehension
+    "C404", # cleanup soon - rewrite as dict comprehension
+    "C405", # cleanup soon - set literal instead of set call
+    "C408", # ignore - dict call
+    "C416", # cleanup soon - set instead of comprehension
+    "C901", # ignore - complex structure
     "COM812", # cleanup later
+    "D", # ignore - docstrings
     "DTZ001", # cleanup soon
-    "E501",
-    "E741",
+    "E501", # ignore - line too long
+    "E741", # ignore - ambiguous variable name
+    "EM101", # ignore - string literal in exception
+    "EM102", # ignore - f-string in exception
     "ERA001", # cleanup soon
+    "FBT002", # cleanup soon - boolean positional argument
+    "FIX001", # cleanup later - fixme
+    "FIX002", # cleanup later - todo
+    "FIX003", # cleanup later - xxx
+    "FLY002", # maybe cleanup later - f-string instead of join
+    "G002", # cleanup soon - logging statement uses %
+    "G010", # cleanup soon - log.warn instead of log.warning
+    "I001", # maybe cleanup later - import block unsorted
+    "N", # ignore - naming
+    "PERF102", # cleanup soon - keys/values of dict
+    "PERF203", # ignore (false positive?) - try-except in loop
+    "PERF401", # maybe cleanup later - list comprehension
+    "PERF402", # maybe cleanup later - list copy
     "PGH003", # cleanup later
     "PIE804", # cleanup later
     "PIE808", # maybe cleanup later
     "PLC1901", # maybe cleanup later
     "PLR0911", # cleanup later
     "PLR0912", # maybe cleanup later
-    "PLR0913",
+    "PLR0913", # ignore - too many arguments
     "PLR0915", # maybe cleanup later
-    "PLR2004",
+    "PLR2004", # ignore - magic value comparison
     "PLW2901", # maybe cleanup later
+    "PT001", # ignore - pytest.fixture
+    "PT004", # maybe cleanup later - fixture returning no value
+    "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
+    "PT007", # maybe cleanup later - wrong type for pytest.mark.parametrize
+    "PT011", # cleanup soon - pytest.raises match
+    "PT012", # cleanup soon - pytest.raises
+    "PT017", # cleanup later - use pytest.raises
+    "PT018", # maybe cleanup later - composite assert
+    "PT021", # maybe cleanup later - yield instead of addfinalizer
+    "PT022", # maybe cleanup later - return instead of yield
+    "PT023", # ignore - pytest.mark.nomocking
+    "PTH", # ignore - pathlib
+    "Q", # ignore - quotes style
+    "RET501", # maybe cleanup later - no explicit return None
+    "RET502", # maybe cleanup later - implicit return None
+    "RET503", # maybe cleanup later - missing return
+    "RET504", # maybe cleanup later - unnecessary assignment before return
+    "RET505", # maybe cleanup later - unnecessary elif after return
+    "RET506", # maybe cleanup later - unnecessary elif after raise
+    "RET507", # maybe cleanup later - unnecessary elif after continue
+    "RET508", # maybe cleanup later - unnecessary else after break
     "RUF005", # cleanup later
     "RUF012", # cleanup later
     "RUF100", # after soon to cleanup
+    "RSE102", # maybe cleanup later
+    "S101", # ignore - asserts
+    "S608", # cleanup soon - possible sql injection
     "SIM102", # maybe cleanup later
     "SIM105", # cleanup soon
     "SIM108", # cleanup later
@@ -33,12 +87,64 @@ ignore = [
     "SIM114", # maybe cleanup later
     "SIM115", # cleanup soon
     "SIM117", # cleanup later
-    "TRY003",
+    "SLF001", # ignore - private member accessed
+    "TD", # ignore - todos
+    "TRY003", # ignore - raise vanilla args
     "TRY004", # maybe cleanup later
     "TRY200", # cleanup later
     "TRY301", # maybe cleanup later
+    "UP004", # cleanup later - inherit from 'object'
+    "UP008", # cleanup later - super
+    "UP012", # false positives (bug in ruff?) - unnecessary utf-8 encode
+    "UP015", # cleanup later - open mode parameters
+    "UP018", # cleanup later - unnecessary str call
+    "UP020", # cleanup soon - use builtin 'open'
+    "UP024", # maybe cleanup later - aliased errors
+    "UP025", # maybe cleanup later - unicode literals
+    "UP027", # maybe cleanup later - unpacked list comprehension
+    "UP031", # ignore - printf string formatting
+    "UP030", # cleanup later - implicit references for positional format fields
+    "UP032", # cleanup later - f-string instead of format
 ]
+
 exclude = [
     "doc/",
 ]
+pyupgrade.keep-runtime-typing = true
 target-version = "py37"
+
+
+[tool.ruff.isort]
+case-sensitive = true
+
+
+[tool.ruff.per-file-ignores]
+".ci/cleanup_devpi_indices.py" = [
+    "INP001", # ignore - implicit namespace package
+    "S603", # ignore - subprocess untrusted input
+    "S607", # ignore - subprocess partial executable path
+    "T201", # ignore - print found
+]
+"conftest.py" = [
+    "INP001", # ignore - implicit namespace package
+    "S603", # ignore - subprocess untrusted input
+    "S607", # ignore - subprocess partial executable path
+    "T201", # ignore - print found
+]
+"*/pytest_devpi_postgresql/__init__.py" = [
+    "S603", # ignore - subprocess untrusted input
+    "S607", # ignore - subprocess partial executable path
+]
+"setup.py" = [
+    "INP001", # ignore - implicit namespace package
+]
+"test_*" = [
+    "INP001", # ignore - implicit namespace package
+    "S105", # ignore - possible hardcoded password
+    "S106", # ignore - possible hardcoded password
+    "S113", # ignore - requests call without timeout
+    "S324", # ignore - md5
+    "S603", # ignore - subprocess untrusted input
+    "S607", # ignore - subprocess partial executable path
+    "T201", # ignore - print found
+]

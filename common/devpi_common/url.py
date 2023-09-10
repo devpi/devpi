@@ -41,7 +41,7 @@ class URL:
     def __repr__(self):
         cloaked = self
         if self.password:
-            cloaked = self.replace(password="****")
+            cloaked = self.replace(password="****")  # noqa: S106
         cloaked = repr(cloaked.url.encode("utf8"))
         cloaked = cloaked.lstrip("b")
         return "%s(%s)" % (self.__class__.__name__, cloaked)

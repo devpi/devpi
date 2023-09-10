@@ -401,7 +401,7 @@ class Hub:
         encoding = sys.getdefaultencoding()
         try:
             return subprocess.check_output(
-                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)
+                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)  # noqa: S603
         except subprocess.CalledProcessError as e:
             self.fatal(e.output.decode(encoding))
 
@@ -417,7 +417,7 @@ class Hub:
             dryrun = self.args.dryrun
         if dryrun:
             return
-        popen = subprocess.Popen(args, cwd=str(cwd), **popen_kwargs)
+        popen = subprocess.Popen(args, cwd=str(cwd), **popen_kwargs)  # noqa: S603
         out, err = popen.communicate()
         ret = popen.wait()
         if ret:
@@ -446,7 +446,7 @@ class Hub:
         assert kwargs.get('stderr') != subprocess.PIPE
         assert kwargs.get('stdout') != subprocess.PIPE
         try:
-            subprocess.check_call(args, env=env, **kwargs)
+            subprocess.check_call(args, env=env, **kwargs)  # noqa: S603
         except subprocess.CalledProcessError as e:
             self.fatal_code("command failed", code=e.returncode)
             return e.returncode

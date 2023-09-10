@@ -328,7 +328,7 @@ def httpget(pypiurls):
     class MockHTTPGet:
         def __init__(self):
             self.url2response = {}
-            self._md5 = hashlib.md5()
+            self._md5 = hashlib.md5()  # noqa: S324
             self.call_log = []
 
         async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
@@ -636,7 +636,7 @@ class Mapp(MappMixin):
             self.create_user(user, password)
         assert "409" in excinfo.value.args[0]
 
-    def create_and_login_user(self, user="someuser", password="123"):
+    def create_and_login_user(self, user="someuser", password="123"):  # noqa: S107
         self.create_user(user, password)
         self.login(user, password)
 
@@ -1311,7 +1311,7 @@ def gen():
 
 class Gen:
     def __init__(self):
-        self._md5 = hashlib.md5()
+        self._md5 = hashlib.md5()  # noqa: S324
 
     def pypi_package_link(self, pkgname, md5=True):
         link = "https://pypi.org/package/some/%s" % pkgname

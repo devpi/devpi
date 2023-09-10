@@ -19,7 +19,7 @@ class API:
 class MappMixin:
     _usercount = 0
 
-    def create_and_use(self, stagename=None, password="123", indexconfig=None):
+    def create_and_use(self, stagename=None, password="123", indexconfig=None):  # noqa: S107
         if stagename is None:
             stagename = self.get_new_stagename()
         user, index = stagename.split("/")
@@ -47,8 +47,7 @@ class MappMixin:
 class TestUserThings:
     def test_root_cannot_modify_unknown_user(self, mapp):
         mapp.login_root()
-        mapp.modify_user("user", password="123", email="whatever",
-                         code=404)
+        mapp.modify_user("user", password="123", email="whatever", code=404)  # noqa: S106
 
     def test_root_is_refused_with_wrong_password(self, mapp):
         mapp.login("root", "123123", code=401)
@@ -58,7 +57,7 @@ class TestUserThings:
         mapp.delete_user("root", code=403)
 
     def test_create_and_delete_user(self, mapp):
-        password = "somepassword123123"
+        password = "somepassword123123"  # noqa: S105
         assert "hello" not in mapp.getuserlist()
         mapp.create_user("hello", password)
         mapp.create_user("hello", password, code=409)
@@ -71,7 +70,7 @@ class TestUserThings:
 
     def test_create_and_delete_user_no_email(self, mapp):
         name = "hello_noemail"
-        password = "somepassword123123"
+        password = "somepassword123123"  # noqa: S105
         assert name not in mapp.getuserlist()
         mapp.create_user(name, password, email=None)
         mapp.create_user(name, password, code=409)

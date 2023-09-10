@@ -7,7 +7,7 @@ import sys
 
 
 def getmd5(s):
-    return hashlib.md5(s.encode("utf8")).hexdigest()
+    return hashlib.md5(s.encode("utf8")).hexdigest()  # noqa: S324
 
 
 def getsha256(s):
@@ -123,7 +123,7 @@ class SimPyPI:
 
     def add_log(self, *args):
         msg = ' '.join(str(x) for x in args)
-        print(msg, file=sys.stderr)
+        print(msg, file=sys.stderr)  # noqa: T201
         self.log.append(msg)
 
     def add_project(self, name, title=None):

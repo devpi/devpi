@@ -416,7 +416,7 @@ def gen():
 class Gen:
     def __init__(self):
         import hashlib
-        self._md5 = hashlib.md5()
+        self._md5 = hashlib.md5()  # noqa: S324
         self._pkgname = 0
         self._version = 0
         self._usernum = 0

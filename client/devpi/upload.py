@@ -394,8 +394,7 @@ class Exported:
 
     def setup_name_and_version(self):
         metadata = build.util.project_wheel_metadata(
-            str(self.rootpath), False
-        )
+            str(self.rootpath), isolated=False)
         name = metadata["name"]
         version = metadata["version"]
         self.hub.debug("name, version = %s, %s" % (name, version))
