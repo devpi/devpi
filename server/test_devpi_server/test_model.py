@@ -1599,12 +1599,12 @@ def test_ensure_boolean():
         return tuple(
             "".join(x)
             for x in itertools.product(*zip(value.lower(), value.upper())))
-    assert ensure_boolean(True) is True
+    assert ensure_boolean(True) is True  # noqa: FBT003
     for s in upper_lower_case_permutations("yes"):
         assert ensure_boolean(s) is True
     for s in upper_lower_case_permutations("true"):
         assert ensure_boolean(s) is True
-    assert ensure_boolean(False) is False
+    assert ensure_boolean(False) is False  # noqa: FBT003
     for s in upper_lower_case_permutations("no"):
         assert ensure_boolean(s) is False
     for s in upper_lower_case_permutations("false"):

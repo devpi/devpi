@@ -118,7 +118,7 @@ def _main(pluginmanager, argv=None):
 
     # meta commands
     if args.version:
-        print(server_version)
+        print(server_version)  # noqa: T201
         return 0
 
     # now we can configure logging

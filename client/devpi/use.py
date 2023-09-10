@@ -129,7 +129,7 @@ class Current(object):
         if user not in auth_users:
             return False
         del auth_users[user]
-        auth[rooturl] = list(sorted(auth_users.items()))
+        auth[rooturl] = sorted(auth_users.items())
         self.reconfigure(data=dict(_auth=auth))
         return True
 
@@ -615,7 +615,7 @@ def show_one_conf(hub, cfg):
     else:
         url = URL(cfg.indexserver)
         if url.password:
-            url = url.replace(password="****")
+            url = url.replace(password="****")  # noqa: S106
         status = url.url
     hub.info("%-23s: %s" %(cfg.screen_name, status))
 

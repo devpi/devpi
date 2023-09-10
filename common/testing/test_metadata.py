@@ -67,8 +67,6 @@ def test_get_pyversion_filetype(releasename, expected):
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest-2.3.4", ".zip")),
     ("green-0.4.0-py2.5-win32.egg", ("green-0.4.0-py2.5-win32", ".egg")),
-    ("green-0.4.0-py2.5-win32.egg", ("green-0.4.0-py2.5-win32", ".egg")),
-    ("green-1.0.tar.gz", ("green-1.0", ".tar.gz")),
     ("green-1.0.tar.gz", ("green-1.0", ".tar.gz")),
     ("green-1.0.doc.zip", ("green-1.0", ".doc.zip")),
 ])

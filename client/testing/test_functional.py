@@ -133,7 +133,7 @@ class Mapp(MappMixin):
             args.append("email=%s" % email)
         self.devpi("user", flag, user, *args, code=code)
 
-    def create_and_login_user(self, user="someuser", password="123"):
+    def create_and_login_user(self, user="someuser", password="123"):  # noqa: S107
         self.create_user(user, password)
         self.login(user, password)
 
@@ -338,7 +338,7 @@ def new_user_id(gen, mapp):
     yield user_id
     try:  # noqa: SIM105
         mapp.delete_user(user=user_id, code=201)
-    except:  # noqa: E722
+    except:  # noqa: E722,S110
         # We need a bare except here, because there are exceptions from
         # pytest and other places which don't derive from Exception and
         # listing them all would be long and not future proof

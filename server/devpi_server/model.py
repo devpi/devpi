@@ -356,7 +356,7 @@ class User:
         with self.key.update() as userconfig:
             if password is not None or pwhash:
                 self._setpassword(userconfig, password, pwhash=pwhash)
-                modified["password"] = "*******"
+                modified["password"] = "*******"  # noqa: S105
                 kwargs['pwsalt'] = None
             for key, value in kwargs.items():
                 key = ensure_unicode(key)

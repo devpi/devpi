@@ -147,7 +147,7 @@ def show_stacks(signal, stack):
                 delta = time.time() - request._devpi_debugging_start_time
                 stack = stack + f"\n  Request {request.method} {request.url} from {request.client_addr} ({request.user_agent}) running for {delta}"
             output.append(f"Thread {thread_name} is in:\n{stack}")
-    print(*output, sep='\n', file=sys.stderr, flush=True)
+    print(*output, sep='\n', file=sys.stderr, flush=True)  # noqa: T201
 
 
 class PokingThread:

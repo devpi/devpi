@@ -28,7 +28,7 @@ class DevIndex:
             url = auth_url
         else:
             auth_url = self.hub.current.add_auth_to_url(link.href)
-            url = auth_url.replace(password="****")
+            url = auth_url.replace(password="****")  # noqa: S106
         r = self.hub.http.get(auth_url,
                               auth=basic_auth,
                               cert=self.hub.current.get_client_cert(url))
@@ -39,7 +39,7 @@ class DevIndex:
 
         self.hub.info("received", url)
         if hasattr(link, "md5"):
-            md5 = hashlib.md5()
+            md5 = hashlib.md5()  # noqa: S324
             md5.update(content)
             digest = md5.hexdigest()
             assert digest == link.md5, (digest, link.md5)

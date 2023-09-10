@@ -5,7 +5,7 @@ import pytest
 @pytest.mark.skipif("sys.platform == 'win32'")
 def test_gen_config_all(tmpdir):
     tmpdir.chdir()
-    proc = subprocess.Popen(["devpi-gen-config"])
+    proc = subprocess.Popen(["devpi-gen-config"])  # noqa: S603,S607
     res = proc.wait()
     assert res == 0
     b = tmpdir.join("gen-config")

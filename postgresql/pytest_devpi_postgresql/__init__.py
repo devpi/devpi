@@ -136,7 +136,7 @@ class Storage(main.Storage):
     @classmethod
     def _get_test_db(cls, basedir):
         import hashlib
-        db = hashlib.md5(
+        db = hashlib.md5(  # noqa: S324
             str(basedir).encode('ascii', errors='ignore')).hexdigest()
         if db not in cls._dbs_created:
             subprocess.call([
