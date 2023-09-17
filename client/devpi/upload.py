@@ -559,11 +559,27 @@ def sdistformat(format):
     return res
 
 
+class SetupCFG:
+    notset = object()
+
+    def __init__(self, hub, section):
+        self.hub = hub
+        self._section = section
+
+    def get(self, key):
+        value = self._section.get(key, self.notset)
+        if value is not self.notset:
+            self.hub.info(
+                "Got %s=%r from setup.cfg [devpi:upload]." % (key, value))
+            return value
+        return None
+
+
 def read_setupcfg(hub, path):
     setup_cfg = path.join("setup.cfg")
     if setup_cfg.exists():
         cfg = iniconfig.IniConfig(setup_cfg)
         if 'devpi:upload' in cfg.sections:
             hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)
-            return cfg.sections["devpi:upload"]
-    return {}
+            return SetupCFG(hub, cfg.sections["devpi:upload"])
+    return SetupCFG(hub, {})
