@@ -9,6 +9,7 @@ import check_manifest
 import pep517.meta
 
 from devpi_common.metadata import Version, get_pyversion_filetype
+from devpi_common.metadata import splitext_archive
 from devpi_common.archive import Archive
 from devpi_common.archive import zip_dir
 from devpi_common.types import CompareMixin
@@ -271,8 +272,15 @@ def get_pkginfo(archivepath):
         return DocZipMeta(*info)
 
     import pkginfo
-    info = pkginfo.get_metadata(str(archivepath))
-    return info
+    (name, ext) = splitext_archive(str(archivepath))
+    ext = ext.lower()
+    if ext == '.whl':
+        cls = pkginfo.Wheel
+    elif ext == '.egg':
+        cls = pkginfo.BDist
+    else:
+        cls = pkginfo.SDist
+    return cls(str(archivepath))
 
 
 def find_parent_subpath(startpath, relpath, raising=True):
