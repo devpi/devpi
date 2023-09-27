@@ -21,6 +21,32 @@ from devpi_common.url import URL
 import subprocess
 
 
+def _check_output(request, args, env=None):
+    result = subprocess.run(
+        args,  # noqa: S603 only used for tests
+        check=False,
+        env=env,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if not result.returncode:
+        print(result.stdout.decode())  # noqa: T201 only used for tests
+    else:
+        capman = request.config.pluginmanager.getplugin("capturemanager")
+        capman.suspend()
+        print(result.stdout.decode())  # noqa: T201 only used for tests
+        capman.resume()
+    result.check_returncode()
+    return result
+
+
+def check_call(request, args, env=None):
+    _check_output(request, args, env=env)
+
+
+def check_output(request, args, env=None):
+    result = _check_output(request, args, env=env)
+    return result.stdout
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--devpi-server-requirements",
@@ -79,46 +105,13 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
-def find_python3():
-    locations = [
-        "C:\\Python37-x64\\python.exe",
-        "C:\\Python37\\python.exe",
-        "C:\\Python38-x64\\python.exe",
-        "C:\\Python38\\python.exe",
-        "C:\\Python39-x64\\python.exe",
-        "C:\\Python39\\python.exe"]
-    for location in locations:
-        if not os.path.exists(location):
-            continue
-        try:
-            output = subprocess.check_output([location, '--version'])
-            if output.strip().startswith(b'Python 3'):
-                return location
-        except subprocess.CalledProcessError:
-            continue
-    names = [
-        'python3.7',
-        'python3.8',
-        'python3.9',
-        'python3']
-    for name in names:
-        path = shutil.which(name)
-        if path is None:
-            continue
-        try:
-            print("Checking %s at %s" % (name, path))
-            output = subprocess.check_output([path, '--version'])
-            if output.strip().startswith(b'Python 3'):
-                return path
-        except subprocess.CalledProcessError:
-            continue
-    raise RuntimeError("Can't find a Python 3 executable.")
-
-
 def get_venv_script(venv_path, script_names):
     for bindir in ('Scripts', 'bin'):
         for script_name in script_names:
             script = venv_path.join(bindir, script_name)
+            print(venv_path.listdir())
+            if venv_path.join(bindir).exists():
+                print(venv_path.join(bindir).listdir())
             if script.exists():
                 return str(script)
     raise RuntimeError("Can't find %s in %s." % (script_names, venv_path))
@@ -134,66 +127,47 @@ def server_executable(request, tmpdir_factory):
         # first try installed devpi-server for quick runs during development
         path = shutil.which("devpi-server")
         if path is not None:
-            print("server_executable: Using existing devpi-server at %s" % path)
+            print(  # noqa: T201 only used for tests
+                f"server_executable: Using existing devpi-server at {path}")
             return path
     # there is no devpi-server installed
-    python3 = find_python3()
-    # prepare environment for subprocess call
-    env = dict(os.environ)
-    env.pop("VIRTUALENV_PYTHON", None)
-    env.pop("VIRTUAL_ENV", None)
-    if sys.platform != "win32":
-        env.pop("PATH", None)
-    # create a virtualenv with Python 3
+    # create a virtualenv
     venv_path = tmpdir_factory.mktemp("server_venv")
-    subprocess.check_call(
-        [sys.executable, '-m', 'virtualenv', '-p', python3, str(venv_path)],
-        env=env)
+    check_call(
+        request,
+        [sys.executable, '-m', 'virtualenv', str(venv_path)])
     # install devpi-server
-    venv_pip = get_venv_script(venv_path, ('pip', 'pip.exe'))
-    print("server_executable: Installing %r with %s" % (requirements, venv_pip))
-    subprocess.check_call(
-        [venv_pip, 'install', '--pre'] + requirements,
-        env=env)
+    venv_python = get_venv_script(venv_path, ('python', 'python.exe'))
+    print(  # noqa: T201 only used for tests
+        f"server_executable: Installing {requirements!r} with {venv_python}")
+    check_call(
+        request,
+        [venv_python, '-m', 'pip', 'install', '--pre', *requirements])
     return get_venv_script(venv_path, ('devpi-server', 'devpi-server.exe'))
 
 
 @pytest.fixture(scope="session")
-def server_version(server_executable):
-    try:
-        output = subprocess.check_output([server_executable, "--version"])
-        return parse_version(output.decode('ascii').strip())
-    except subprocess.CalledProcessError as e:
-        # this won't output anything on Windows
-        print(
-            getattr(e, 'output', "Can't get process output on Windows"),
-            file=sys.stderr)
-        raise
+def server_version(request, server_executable):
+    output = check_output(request, [server_executable, "--version"])
+    return parse_version(output.decode('ascii').strip())
 
 
 @pytest.fixture(scope="session")
-def indexer_backend_option(server_executable):
-    out = subprocess.check_output([server_executable, '-h'])
+def indexer_backend_option(request, server_executable):
+    out = check_output(request, [server_executable, '-h'])
     if b'--indexer-backend' in out:
         return ['--indexer-backend', 'null']
     return []
 
 
-def _liveserver(clientdir, indexer_backend_option, server_executable, server_version):
+def _liveserver(request, clientdir, indexer_backend_option, server_executable):
     host = 'localhost'
     port = get_open_port(host)
-    try:
-        args = [
-            "--serverdir", str(clientdir)]
-        init_executable = server_executable.replace(
-            "devpi-server", "devpi-init")
-        subprocess.check_call([init_executable] + args)
-    except subprocess.CalledProcessError as e:
-        # this won't output anything on Windows
-        print(
-            getattr(e, 'output', "Can't get process output on Windows"),
-            file=sys.stderr)
-        raise
+    args = [
+        "--serverdir", str(clientdir)]
+    init_executable = server_executable.replace(
+        "devpi-server", "devpi-init")
+    check_call(request, [init_executable] + args)
     args.extend(indexer_backend_option)
     p = subprocess.Popen([server_executable] + args + [
         "--debug", "--host", host, "--port", str(port)])
@@ -202,14 +176,14 @@ def _liveserver(clientdir, indexer_backend_option, server_executable, server_ver
 
 
 @pytest.fixture(scope="session")
-def url_of_liveserver(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
+def url_of_liveserver(request, indexer_backend_option, server_executable, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     if request.config.option.live_url:
         yield URL(request.config.option.live_url)
         return
     clientdir = tmpdir_factory.mktemp("liveserver")
-    (p, url) = _liveserver(clientdir, indexer_backend_option, server_executable, server_version)
+    (p, url) = _liveserver(request, clientdir, indexer_backend_option, server_executable)
     try:
         yield url
     finally:
@@ -218,11 +192,11 @@ def url_of_liveserver(request, indexer_backend_option, server_executable, server
 
 
 @pytest.fixture(scope="session")
-def url_of_liveserver2(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
+def url_of_liveserver2(request, indexer_backend_option, server_executable, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     clientdir = tmpdir_factory.mktemp("liveserver2")
-    (p, url) = _liveserver(clientdir, indexer_backend_option, server_executable, server_version)
+    (p, url) = _liveserver(request, clientdir, indexer_backend_option, server_executable)
     try:
         yield url
     finally:
@@ -633,7 +607,7 @@ def create_venv(request, tmpdir_factory, monkeypatch):
         # too long on windows
         venvinstalldir.ensure_dir()
         os.chdir(venvinstalldir)
-        subprocess.check_call([
+        check_call(request, [
             "virtualenv", "--never-download", str(venvdir)])
         # activate
         if sys.platform == "win32":
