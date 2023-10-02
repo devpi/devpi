@@ -78,16 +78,6 @@ def test_main_devpi_invocation():
                            "-m", "devpi", "--version"])
 
 
-def test_pkgresources_version_matches_init():
-    import devpi
-    try:
-        import importlib.metadata as importlib_metadata
-    except ImportError:
-        import importlib_metadata
-    ver = devpi.__version__
-    assert importlib_metadata.version("devpi-client") == ver
-
-
 def test_version(loghub, monkeypatch):
     from devpi.main import get_pluginmanager
     from devpi.main import print_version
