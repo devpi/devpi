@@ -554,12 +554,12 @@ class MirrorStage(BaseStage):
             headers["If-None-Match"] = etag
         (response, text) = await self.async_httpget(
             get_url, allow_redirects=True, extra_headers=headers)
-        if response.status == 304:
+        if response.status_code == 304:
             raise self.UpstreamNotModified(
-                "%s status on GET %r" % (response.status, url),
+                "%s status on GET %r" % (response.status_code, url),
                 etag=etag)
-        elif response.status != 200:
-            if response.status == 404:
+        elif response.status_code != 200:
+            if response.status_code == 404:
                 # immediately cache the not found with no ETag
                 self.cache_retrieve_times.refresh(project, None)
                 raise self.UpstreamNotFoundError(
@@ -567,7 +567,7 @@ class MirrorStage(BaseStage):
 
             # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %r" % (
-                response.status, url))
+                response.status_code, url))
 
         # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
         # devpi-master may provide a 200 but not supply the header
