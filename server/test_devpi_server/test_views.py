@@ -1710,7 +1710,7 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     # patch async_httpget to simulate broken PyPI
     async def async_httpget(url, **kwargs):
         class Response:
-            status = 503
+            status_code = 503
             reason = "Service Unavailable"
         return (Response(), None)
     xom.async_httpget = async_httpget

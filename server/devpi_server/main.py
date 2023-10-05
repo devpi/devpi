@@ -3,7 +3,7 @@
 a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
-import aiohttp
+import httpx
 import inspect
 import os
 import os.path
@@ -396,25 +396,25 @@ class XOM:
         self._httpsession.close()
 
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
-        timeout = aiohttp.ClientTimeout(total=timeout)
-        connector = aiohttp.TCPConnector(ssl=self._ssl_context)
         try:
-            async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True) as session:
-                async with session.get(
-                    url, allow_redirects=allow_redirects, headers=extra_headers
-                ) as response:
-                    if response.status < 300:
-                        text = await response.text()
-                    else:
-                        text = None
-                    return (response, text)
+            async with httpx.AsyncClient(
+                    timeout=timeout,
+                    verify=self._ssl_context,
+                    follow_redirects=allow_redirects,
+            ) as client:
+                response = await client.get(url, headers=extra_headers)
+                if response.status_code < 300:
+                    text = response.text
+                else:
+                    text = None
+                return response, text
         except OSError as e:
             location = get_caller_location()
             threadlog.warn(
                 "OS error during async_httpget of %s at %s: %s",
                 url, location, lazy_format_exception_only(e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
-        except aiohttp.ClientError as e:
+        except httpx.RequestError as e:
             location = get_caller_location()
             threadlog.warn(
                 "OS error during async_httpget of %s at %s: %s",
