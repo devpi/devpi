@@ -27,7 +27,7 @@ if __name__ == "__main__":
     CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
-                        "aiohttp!=4.0.0a0,!=4.0.0a1",
+                        "httpx>=0.25",
                         "argon2-cffi",
                         "attrs>=21.3.0",
                         "defusedxml",

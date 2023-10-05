@@ -1,4 +1,4 @@
-import aiohttp
+import httpx
 import requests.exceptions
 import time
 import hashlib
@@ -958,17 +958,14 @@ def test_requests_httpget_error(exc, xom, monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.nomocking
 @pytest.mark.parametrize("exc", [
-    OSError,
-    aiohttp.ClientError])
+    OSError(),
+    httpx.RequestError(message="fail")])
 async def test_async_httpget_error(exc, xom, monkeypatch):
-    from contextlib import asynccontextmanager
 
-    @asynccontextmanager
     async def async_httpget(self, url, **kw):
-        raise exc()
-        yield
+        raise exc
 
-    monkeypatch.setattr(aiohttp.ClientSession, "get", async_httpget)
+    monkeypatch.setattr(httpx.AsyncClient, "get", async_httpget)
     r = await xom.async_httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 
@@ -976,8 +973,8 @@ async def test_async_httpget_error(exc, xom, monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.nomocking
 @pytest.mark.parametrize("exc", [
-    OSError,
-    aiohttp.ClientError])
+    OSError(),
+    httpx.RequestError(message="fail")])
 async def test_get_simplelinks_perstage_when_http_error(exc, pypistage, monkeypatch):
     from contextlib import asynccontextmanager
     from devpi_server.model import SimpleLinks
@@ -986,16 +983,14 @@ async def test_get_simplelinks_perstage_when_http_error(exc, pypistage, monkeypa
     links = [("key", "href", "req_py", "yanked")]
 
     def mock_load_cache_links(project):
-        return (True, links, 42)
+        return True, links, 42
 
     monkeypatch.setattr(pypistage, "_load_cache_links", mock_load_cache_links)
 
-    @asynccontextmanager
     async def async_httpget(self, url, **kw):
-        raise exc()
-        yield
+        raise exc
 
-    monkeypatch.setattr(aiohttp.ClientSession, "get", async_httpget)
+    monkeypatch.setattr(httpx.AsyncClient, "get", async_httpget)
 
     assert pypistage.get_simplelinks_perstage("def_missing") == SimpleLinks(links)
 

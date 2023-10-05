@@ -1360,8 +1360,8 @@ class PyPIView:
         # in the response url, unlike requests did.
         # we do it in _pkgserv now to avoid storing the credentials
         # in the database and avoid changes in the db when mirror_url changes.
-        mirror_url_auth = getattr(stage, "mirror_url_auth", {})
-        url = URL(entry.url).replace(**mirror_url_auth)
+        # mirror_url_auth = getattr(stage, "mirror_url_auth", {})
+        # url = URL(entry.url).replace(**mirror_url_auth)
 
         file_exists = entry.file_exists()
         if entry.last_modified is None or not file_exists:
