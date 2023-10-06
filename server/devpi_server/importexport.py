@@ -383,7 +383,7 @@ class Importer:
                 "Any ascii symbol besides -.@_ is blocked." % index)
             errors = True
         if errors:
-            self.xom.log.warn(
+            self.xom.log.warning(
                 "You could also try to edit %s manually to fix the above errors." % json_path)
             raise SystemExit(1)
 
