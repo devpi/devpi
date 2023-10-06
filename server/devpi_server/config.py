@@ -439,7 +439,7 @@ def find_config_file():
         if os.path.exists(config_file):
             config_files.append(config_file)
     if len(config_files) > 1:
-        log.warn("Multiple configuration files found:\n%s", "\n".join(config_files))
+        log.warning("Multiple configuration files found:\n%s", "\n".join(config_files))
     if len(config_files):
         return config_files[-1]
 
@@ -476,7 +476,7 @@ def default_getter(name, config_options, environ):
         return
     if name == "serverdir":
         if "DEVPI_SERVERDIR" in environ:
-            log.warn(
+            log.warning(
                 "Using deprecated DEVPI_SERVERDIR environment variable. "
                 "You should switch to use DEVPISERVER_SERVERDIR.")
             return environ["DEVPI_SERVERDIR"]
@@ -884,7 +884,7 @@ class Config(object):
             secretfile = self.serverdir.join('.secret')
             if not secretfile.check(file=True):
                 return None
-            log.warn(
+            log.warning(
                 "Using deprecated existing secret file at '%s', use "
                 "--secretfile to explicitly provide the location." % secretfile)
             return secretfile
@@ -918,7 +918,7 @@ class Config(object):
     @cached_property
     def basesecret(self):
         if self.secretfile is None:
-            log.warn(
+            log.warning(
                 "No secret file provided, creating a new random secret. "
                 "Login tokens issued before are invalid. "
                 "Use --secretfile option to provide a persistent secret. "

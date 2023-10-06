@@ -113,8 +113,9 @@ class TxNotificationThread:
             except mythread.Shutdown:
                 raise
             except MissingFileException as e:
-                self.log.warn("Waiting for file %s in event serial %s" % (
-                    e.relpath, e.serial))
+                self.log.warning(
+                    "Waiting for file %s in event serial %s",
+                    e.relpath, e.serial)
                 self.thread.sleep(5)
             except Exception:
                 self.log.exception(
