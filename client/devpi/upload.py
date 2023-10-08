@@ -518,6 +518,8 @@ class Exported:
     def setup_build_docs(self):
         name, version = self.setup_name_and_version()
         build = self.rootpath.join("build")
+        if build.exists():
+            build.remove()
         for guess in ("doc", "docs", "source"):
             docs = self.rootpath.join(guess)
             if docs.isdir():

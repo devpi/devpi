@@ -390,19 +390,18 @@ def test_post_derived_devpi_token(initproj, uploadhub):
 
 class TestUploadFunctional:
     @pytest.fixture(params=["hello-1.0", "my-pkg-123-1.0"])
-    def projname_version(self, request, initproj):
-        initproj(
-            request.param.rsplit("-", 1),
+    def projname_version_project(self, request, initproj):
+        project = initproj(request.param.rsplit("-", 1), {
+            "doc" if request.param.startswith("hello") else "docs":
             {
-                "doc" if request.param.startswith("hello") else "docs":
-                {
-                    "conf.py": "#nothing",
-                    "contents.rst": "",
-                    "index.html": "<html/>"
-                },
-            }
-        )
-        return request.param
+                "conf.py": "#nothing",
+                "contents.rst": "",
+                "index.html": "<html/>"}})
+        return (request.param, project)
+
+    @pytest.fixture
+    def projname_version(self, projname_version_project):
+        return projname_version_project[0]
 
     def test_plain_dry_run(self, devpi, out_devpi, projname_version):
         assert py.path.local("setup.py").check()
@@ -493,6 +492,26 @@ class TestUploadFunctional:
             file_upload of {projname_version}.*
             doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
+
+    def test_no_artifacts_in_docs(self, out_devpi, projname_version_project):
+        from devpi_common.archive import Archive
+        out = out_devpi("upload", "--wheel", "--with-docs", code=[200, 200])
+        assert out.ret == 0
+        (projname_version, project) = projname_version_project
+        projname_version_norm = projname_version.replace("-", "*")
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of {projname_version_norm}*.whl*
+            doc_upload of {projname_version}.doc.zip*
+            """.format(
+            projname_version=projname_version,
+            projname_version_norm=projname_version_norm))
+        archive_path = project.join('dist', '%s.doc.zip' % projname_version)
+        with Archive(archive_path) as archive:
+            artifacts = [
+                x for x in archive.namelist()
+                if x.startswith(('lib/', 'bdist'))]
+            assert artifacts == []
 
     def test_sdist_zip_with_docs(self, devpi, out_devpi, projname_version):
         out = out_devpi(

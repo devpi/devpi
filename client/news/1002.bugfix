@@ -1,0 +1,1 @@
+Fix #1002: cleanup ``build`` directory before running Sphinx to prevent build artifacts from being added to documentation zip.
