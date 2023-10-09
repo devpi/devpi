@@ -17,6 +17,8 @@ from devpi_common.types import CompareMixin
 from .main import HTTPReply, set_devpi_auth_header
 from pathlib import Path
 from shutil import rmtree
+from subprocess import CalledProcessError
+from traceback import format_exception_only
 
 
 def main(hub, args):
@@ -393,8 +395,18 @@ class Exported:
         return "<Exported %s>" % self.rootpath
 
     def setup_name_and_version(self):
-        metadata = build.util.project_wheel_metadata(
-            str(self.rootpath), isolated=False)
+        try:
+            metadata = build.util.project_wheel_metadata(
+                str(self.rootpath), isolated=False)
+        except build.BuildBackendException as e:
+            exc = '\n'.join(format_exception_only(
+                e.__class__, e))
+            if isinstance(e.exception, CalledProcessError):
+                process_exc = '\n'.join(format_exception_only(
+                    e.exception.__class__, e.exception))
+                self.hub.fatal(
+                    "%s%s%s" % (exc, process_exc, e.exception.stdout.decode()))
+            self.hub.fatal(exc)
         name = metadata["name"]
         version = metadata["version"]
         self.hub.debug("name, version = %s, %s" % (name, version))
