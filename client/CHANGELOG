@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+6.0.6 (2023-10-11)
+==================
+
+Bug Fixes
+---------
+
+- Fix #997: Directly use ``BDist``, ``SDist`` and ``Wheel`` from ``pkginfo`` based on file extension instead of ``get_metadata``, as the latter does auto-detection on content which fails in some cases.
+
+- Fix #1002: cleanup ``build`` directory before running Sphinx to prevent build artifacts from being added to documentation zip.
+
+
 6.0.5 (2023-07-02)
 ==================
 
