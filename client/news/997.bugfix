@@ -1,1 +1,0 @@
-Fix #997: Directly use ``BDist``, ``SDist`` and ``Wheel`` from ``pkginfo`` based on file extension instead of ``get_metadata``, as the latter does auto-detection on content which fails in some cases.
