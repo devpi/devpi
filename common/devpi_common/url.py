@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, parse_qsl
 from urllib.parse import urlencode, urlparse, urlunsplit, urljoin, unquote
 
 
-def _joinpath(url, args, asdir=False):
+def _joinpath(url, args, *, asdir=False):
     url = URL(url)
     query = url.query
     url = url.replace(query="").url
@@ -40,9 +40,11 @@ class URL:
 
     def __repr__(self):
         cloaked = self
+        if self.username:
+            cloaked = cloaked.replace(username="****")
         if self.password:
-            cloaked = self.replace(password="****")  # noqa: S106
-        cloaked = repr(cloaked.url.encode("utf8"))
+            cloaked = cloaked.replace(password="****")  # noqa: S106
+        cloaked = repr(cloaked.url.encode())
         cloaked = cloaked.lstrip("b")
         return "%s(%s)" % (self.__class__.__name__, cloaked)
 

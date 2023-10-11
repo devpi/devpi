@@ -455,7 +455,7 @@ class TestFunctional:
         assert result.ret == 0
         result.stdout.fnmatch_lines("""*tests passed*""")
 
-    def test_test_hides_auth_in_url(self, capsys, create_and_upload, devpi_username, monkeypatch, devpi):
+    def test_test_hides_auth_in_url(self, capsys, create_and_upload, monkeypatch, devpi):
         create_and_upload(("foo", "1.0"), filedefs={
             "tox.ini": """
                 [testenv]
@@ -471,5 +471,5 @@ class TestFunctional:
         assert len(calls) == 1
         (out, err) = capsys.readouterr()
         (line,) = [x for x in out.splitlines() if 'PIP_INDEX_URL' in x]
-        expected = 'http://%s:****@localhost' % devpi_username
+        expected = 'http://****:****@localhost'
         assert expected in line
