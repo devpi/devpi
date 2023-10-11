@@ -2,6 +2,35 @@
 
 .. towncrier release notes start
 
+4.0.0 (2023-10-11)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- Removed ``HTMLPage`` class originally vendored from pip.
+
+- Dropped support for Python <= 3.6.
+
+
+
+Features
+--------
+
+- Add ``chdir`` context handler in devpi_common.contextlib. Starting with Python 3.11 the original from ``contextlib`` is used.
+
+- Hide username from URL representation.
+
+- Added stripped down TerminalWriter from ``py`` library which only supports coloring.
+
+
+
+Bug Fixes
+---------
+
+- Fix #939: custom legacy version parsing (non PEP 440) after packaging >= 22.0 removed support.
+
+
 3.7.2 (2023-01-24)
 ==================
 
