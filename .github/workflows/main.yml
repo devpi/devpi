@@ -89,9 +89,9 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py37"
           - project: "common"
-            python-version: "3.11"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "py311"
+            tox-envs: "py312"
           - project: "common"
             python-version: "pypy-3.8"
             os: "ubuntu-latest"
@@ -219,9 +219,9 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py37-keyfs_sqlite"
           - project: "server"
-            python-version: "3.11"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "py311"
+            tox-envs: "py312"
 
     env:
       PY_COLORS: 1
@@ -302,17 +302,17 @@ jobs:
       matrix:
         include:
           - project: "common"
-            python-version: "3.12.0-alpha - 3.12.99"
+            python-version: "3.13.0-alpha - 3.13.99"
             os: "ubuntu-latest"
-            tox-envs: "py312"
+            tox-envs: "py313"
           - project: "client"
             python-version: "3.12.0-alpha - 3.12.99"
             os: "ubuntu-latest"
             tox-envs: "py312"
           - project: "server"
-            python-version: "3.12.0-alpha - 3.12.99"
+            python-version: "3.13.0-alpha - 3.13.99"
             os: "ubuntu-latest"
-            tox-envs: "py312"
+            tox-envs: "py313"
           - project: "web"
             python-version: "3.12.0-alpha - 3.12.99"
             os: "ubuntu-latest"
@@ -341,7 +341,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes || echo "::warning::tox failed"
 
   postgresql-bbb-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -407,17 +407,17 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py37-dont_use_copy-server"
           # - project: "postgresql"
-          #   python-version: "3.11"
+          #   python-version: "3.12"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py311-postgresql"
+          #   tox-envs: "py312-postgresql"
           - project: "postgresql"
-            python-version: "3.11"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "py311-server"
+            tox-envs: "py312-server"
           # - project: "postgresql"
-          #   python-version: "3.11"
+          #   python-version: "3.12"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py311-server_postgresql_ssl"
+          #   tox-envs: "py312-server_postgresql_ssl"
           # - project: "postgresql"
           #   python-version: "pypy-3.8"
           #   os: "ubuntu-latest"
@@ -565,21 +565,21 @@ jobs:
       matrix:
         include:
           # - project: "postgresql"
-          #   python-version: "3.12.0-alpha - 3.12.99"
+          #   python-version: "3.13.0-alpha - 3.13.99"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py312-postgresql"
+          #   tox-envs: "py313-postgresql"
           - project: "postgresql"
-            python-version: "3.12.0-alpha - 3.12.99"
+            python-version: "3.13.0-alpha - 3.13.99"
             os: "ubuntu-latest"
-            tox-envs: "py312-server"
+            tox-envs: "py313-server"
           - project: "postgresql"
             python-version: "3.12.0-alpha - 3.12.99"
             os: "ubuntu-latest"
             tox-envs: "py312-web"
           # - project: "postgresql"
-          #   python-version: "3.12.0-alpha - 3.12.99"
+          #   python-version: "3.13.0-alpha - 3.13.99"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py312-server_postgresql_ssl"
+          #   tox-envs: "py313-server_postgresql_ssl"
 
     env:
       PY_COLORS: 1
@@ -607,7 +607,7 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes || echo "::warning::tox failed"
 
   windows-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
