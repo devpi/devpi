@@ -844,7 +844,7 @@ class TestMirrorStageprojects:
             if "foo:bar" in x
             and "mockresponse" not in x
             and "modified index" not in x]
-        assert [x for x in msgs if "foo:***" in x]
+        assert [x for x in msgs if ("foo:***" in x) or ("***:***" in x)]
 
     @pytest.mark.nomocking
     @pytest.mark.notransaction
@@ -884,20 +884,20 @@ class TestMirrorStageprojects:
             if "foo:bar" in x
             and "mockresponse" not in x
             and "modified index" not in x]
-        assert [x for x in msgs if "foo:***" in x]
+        assert [x for x in msgs if ("foo:***" in x) or ("***:***" in x)]
 
     def test_auth_mirror_url_hidden_in_logs(self, caplog, pypistage):
         pypistage.ixconfig["mirror_url"] = "https://foo:bar@example.com/simple/"
         pypistage.get_releaselinks("pkg")
         msgs = [x.getMessage() for x in caplog.getrecords()]
         assert not [x for x in msgs if "foo:bar" in x and "mockresponse" not in x]
-        assert [x for x in msgs if "foo:***" in x]
+        assert [x for x in msgs if ("foo:***" in x) or ("***:***" in x)]
 
     def test_auth_mirror_url_user_only(self, caplog, pypistage):
         pypistage.ixconfig["mirror_url"] = "https://foo@example.com/simple/"
         pypistage.get_releaselinks("pkg")
         msgs = [x.getMessage() for x in caplog.getrecords()]
-        assert [x for x in msgs if "foo@" in x]
+        assert [x for x in msgs if ("foo@" in x) or ("***@" in x)]
 
     def test_auth_mirror_url_password_only(self, caplog, pypistage):
         pypistage.ixconfig["mirror_url"] = "https://:bar@example.com/simple/"

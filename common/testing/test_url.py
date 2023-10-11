@@ -23,8 +23,12 @@ class TestURL:
         d = URL("http://host.com/path?foo=bar")
         assert repr(d) == "URL('http://host.com/path?foo=bar')"
         assert d.query == "foo=bar"
+        d = URL("http://foo@host.com/path")
+        assert repr(d) == "URL('http://****@host.com/path')"
+        d = URL("http://:bar@host.com/path")
+        assert repr(d) == "URL('http://:****@host.com/path')"
         d = URL("http://foo:bar@host.com/path")
-        assert repr(d) == "URL('http://foo:****@host.com/path')"
+        assert repr(d) == "URL('http://****:****@host.com/path')"
 
     def test_str(self):
         d = URL("http://foo:bar@host.com/path")
