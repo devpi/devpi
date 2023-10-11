@@ -1,2 +1,0 @@
-.. note::
-    Potentially breaking fix #939: devpi-common 4.x now has custom legacy version parsing (non PEP 440) after packaging >= 22.0 removed support. This might affect commands like ``devpi remove`` if used with version ranges. Legacy versions were always and still are sorted before PEP 440 compliant versions, but the ordering between legacy versions might be affected.
