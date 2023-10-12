@@ -1,0 +1,1 @@
+Restore flushing after each written line in new TerminalWriter.
