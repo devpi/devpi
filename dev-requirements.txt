@@ -20,6 +20,7 @@ pytest-instafail
 pytest-pdb
 pytest-sugar
 pytest-timeout
+regendoc
 setuptools_changelog_shortener
 supervisor
 towncrier>=21.9.0
