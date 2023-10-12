@@ -20,10 +20,10 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
 # This variable is not auto generated as the order is important.
-USER_MAN_CHAPTERS = commands\
-                    user\
-                    indices\
-                    packages\
+USER_MAN_CHAPTERS = devpi_commands\
+                    devpi_user\
+                    devpi_indices\
+                    devpi_packages\
 #                 userman/index.rst\
 #                 userman/devpi_misc.rst\
 #                 userman/devpi_concepts.rst\
@@ -210,7 +210,7 @@ quickstart-server:
 
 $(USER_MAN_CHAPTERS):
 	@echo Regenerating $@
-	USER=testuser sh regen.sh --update userman/devpi_$@.rst
+	USER=testuser sh regen.sh --update userman/$@.rst
 
 regen.sample_undo:
 	-git checkout userman/pysober
