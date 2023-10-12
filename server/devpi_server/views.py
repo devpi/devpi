@@ -55,17 +55,15 @@ devpiweb_hookimpl = HookimplMarker("devpiweb")
 server_version = devpi_server.__version__
 
 
-H_MASTER_UUID = str("X-DEVPI-MASTER-UUID")
+H_MASTER_UUID = "X-DEVPI-MASTER-UUID"
 SIMPLE_API_V1_JSON = "application/vnd.pypi.simple.v1+json"
 
 
 API_VERSION = "2"
 
-# we use str() here so that Python 2 gets bytes, Python 3 gets string
-# so that wsgiref's parsing does not choke
-
-meta_headers = {str("X-DEVPI-API-VERSION"): str(API_VERSION),
-                str("X-DEVPI-SERVER-VERSION"): server_version}
+meta_headers = {
+    "X-DEVPI-API-VERSION": API_VERSION,
+    "X-DEVPI-SERVER-VERSION": server_version}
 
 
 INSTALLER_USER_AGENT = r"([^ ]* )*(distribute|setuptools|pip|pex)/.*"
@@ -109,7 +107,7 @@ def abort_submit(request, code, msg, level="error"):
     # we construct our own type because we need to set the title
     # so that setup.py upload/register use it to explain the failure
     error = type(
-        str('HTTPError'), (HTTPException,), dict(
+        'HTTPError', (HTTPException,), dict(
             code=code, title=msg))
     if level == "info":
         threadlog.info("while handling %s:\n%s" % (request.url, msg))
@@ -122,11 +120,11 @@ def abort_submit(request, code, msg, level="error"):
 
 def abort_authenticate(request, msg="authentication required"):
     err = type(
-        str('HTTPError'), (HTTPException,), dict(
+        'HTTPError', (HTTPException,), dict(
             code=401, title=msg))
     err = err()
-    err.headers.add(str('WWW-Authenticate'), str('Basic realm="pypi"'))
-    err.headers.add(str('location'), str(request.route_url("/+login")))
+    err.headers.add('WWW-Authenticate', 'Basic realm="pypi"')
+    err.headers.add('location', request.route_url("/+login"))
     raise err
 
 
@@ -149,7 +147,7 @@ def apireturn(code, message=None, result=None, type=None):
     if message:
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
-    headers = {str("content-type"): str("application/json")}
+    headers = {"content-type": "application/json"}
     raise HTTPResponse(body=data, status=code, headers=headers)
 
 
@@ -197,8 +195,8 @@ def tween_request_logging(handler, registry):
             serial = rheaders.get("X-DEVPI-SERIAL")
             rheaders.update(meta_headers)
             uuid, master_uuid = make_uuid_headers(nodeinfo)
-            rheaders[str("X-DEVPI-UUID")] = str(uuid)
-            rheaders[H_MASTER_UUID] = str(master_uuid)
+            rheaders["X-DEVPI-UUID"] = uuid
+            rheaders[H_MASTER_UUID] = master_uuid
 
             log.debug("%s %.3fs serial=%s length=%s type=%s",
                       response.status,
@@ -247,7 +245,7 @@ def set_header_devpi_serial(response, tx):
         serial = tx.commit_serial
     else:
         serial = tx.at_serial
-    response.headers[str("X-DEVPI-SERIAL")] = str(serial)
+    response.headers["X-DEVPI-SERIAL"] = str(serial)
 
 
 def is_mutating_http_method(method):
@@ -619,7 +617,7 @@ class PyPIView:
         if stage.ixconfig['type'] == 'mirror':
             serial = stage.key_projsimplelinks(project).get().get("serial")
             if serial is not None and serial > 0:
-                response.headers[str("X-PYPI-LAST-SERIAL")] = str(serial)
+                response.headers["X-PYPI-LAST-SERIAL"] = str(serial)
         if result.stale:
             response.cache_expires()
         return response
@@ -1583,12 +1581,12 @@ def _headers_from_response(r):
     if isinstance(content_type, tuple):
         content_type = content_type[0]
     headers = {
-        str("X-Accel-Buffering"): str("no"),  # disable buffering in nginx
+        "X-Accel-Buffering": "no",  # disable buffering in nginx
         "content-type": content_type}
     if "last-modified" in r.headers:
-        headers[str("last-modified")] = r.headers["last-modified"]
+        headers["last-modified"] = r.headers["last-modified"]
     if "content-length" in r.headers:
-        headers[str("content-length")] = str(r.headers["content-length"])
+        headers["content-length"] = str(r.headers["content-length"])
     return headers
 
 
@@ -1705,9 +1703,9 @@ def iter_remote_file_replica(xom, entry, url):
     r = xom.httpget(
         master_url, allow_redirects=True,
         extra_headers={
-            rt.H_REPLICA_FILEREPL: str("YES"),
+            rt.H_REPLICA_FILEREPL: "YES",
             rt.H_REPLICA_UUID: uuid,
-            str('Authorization'): 'Bearer %s' % token})
+            'Authorization': 'Bearer %s' % token})
     if r.status_code != 200:
         r.close()
         msg = "%s: received %s from master" % (master_url, r.status_code)
