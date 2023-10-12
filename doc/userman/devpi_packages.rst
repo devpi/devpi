@@ -97,11 +97,7 @@ Then we install a package from PyPI::
      Downloading http://localhost:3141/root/pypi/%2Bf/9f2/93fd531546f3e/lazy-1.4-py2.py3-none-any.whl (6.2 kB)
    Installing collected packages: lazy
    Successfully installed lazy-1.4
-   
-From there::
 
-   pysober $ pwd
-   /home/devpi/devpi/doc/pysober
 
 .. _devpi_um_packages_rf_upload:
 
@@ -110,7 +106,7 @@ Uploading a Release File
 
 Uploading the sample release file can be done as follow (default format is sdist)::
 
-   $ cd pysober; devpi upload 
+   pysober $ devpi upload
    using workdir /tmp/devpi0
    -->  /home/devpi/devpi/doc/pysober$ /tmp/docenv/bin/python setup.py sdist --formats gztar
    built: /home/devpi/devpi/doc/pysober/dist/pysober-0.1.0.tar.gz [SDIST.TGZ] 3.102kb
