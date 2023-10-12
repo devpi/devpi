@@ -413,8 +413,8 @@ class Exported:
         return name, version
 
     def prepare(self):
-        if self.target_distdir.is_dir():
-            self.hub.line("pre-build: cleaning %s" % self.target_distdir)
+        self.hub.line("pre-build: cleaning %s" % self.target_distdir)
+        if self.target_distdir.exists():
             rmtree(self.target_distdir)
         self.target_distdir.mkdir()
 
