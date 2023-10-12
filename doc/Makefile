@@ -31,6 +31,7 @@ USER_MAN_CHAPTERS = commands\
                                  
 #export DEVPI_CLIENTDIR=$(CURDIR)/.tmp_devpi_user_man/client
 #export DEVPISERVER_SERVERDIR=$(CURDIR)/.tmp_devpi_user_man/server
+export PIP_PROGRESS_BAR=off
 
 chapter = commands
 
