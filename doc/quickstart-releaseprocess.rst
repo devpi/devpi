@@ -127,7 +127,7 @@ devpi install: installing a package
 We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
-    $ devpi install pytest
+    $ devpi install pytest==6.2.4
     -->  /home/devpi/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_PRE=1,PIP_USE_WHEEL=1]
     Looking in indexes: http://localhost:3141/testuser/dev/+simple/
     Collecting pytest

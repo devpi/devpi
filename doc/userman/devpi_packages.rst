@@ -90,7 +90,7 @@ For this we first add ``root/pypi`` to the bases of ``emilie/prod``::
 
 Then we install a package from PyPI::
 
-   $ devpi install lazy
+   $ devpi install lazy==1.4
    -->  /home/devpi/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/emilie/dev/+simple/ lazy  [PIP_PRE=1,PIP_USE_WHEEL=1]
    Looking in indexes: http://localhost:3141/emilie/dev/+simple/
    Collecting lazy
