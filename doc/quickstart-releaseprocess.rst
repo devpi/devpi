@@ -71,7 +71,8 @@ see :ref:`quickstart-server` for more details::
     $ supervisord -c gen-config/supervisord.conf
 
 ..
-    $ sleep 6
+    $ waitforports -t 60 3141
+    Waiting for 127.0.0.1:3141
 
 Then we point the devpi client to it::
 

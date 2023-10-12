@@ -8,6 +8,7 @@ Sphinx
 beautifulsoup4 != 4.12.1
 certauth
 execnet
+mr.laforge
 mock
 mypy[python2]==0.971
 mypy-zope
