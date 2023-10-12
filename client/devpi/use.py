@@ -617,7 +617,7 @@ def show_one_conf(hub, cfg):
         if url.password:
             url = url.replace(password="****")  # noqa: S106
         status = url.url
-    hub.info("%-23s: %s" %(cfg.screen_name, status))
+    hub.info("%s: %s" % (cfg.screen_name, status))
 
 
 class BaseCfg(object):
