@@ -298,6 +298,7 @@ jobs:
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["client-tests", "server-tests", "web-tests"]
     strategy:
+      fail-fast: false
       matrix:
         include:
           - project: "common"
@@ -335,7 +336,6 @@ jobs:
           python -m site
           python -m pip install --upgrade pip setuptools wheel tox
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
-        continue-on-error: true
         run: |
           set -xe -o nounset
           source .ci/set-index-env.sh
@@ -561,6 +561,7 @@ jobs:
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["nightly-tests", "postgresql-tests", "postgresql-web-tests"]
     strategy:
+      fail-fast: false
       matrix:
         include:
           # - project: "postgresql"
@@ -598,7 +599,6 @@ jobs:
           python -m site
           python -m pip install --upgrade pip setuptools wheel tox
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
-        continue-on-error: true
         run: |
           set -xe -o nounset
           source .ci/set-index-env.sh
@@ -672,6 +672,8 @@ jobs:
       PY_COLORS: 1
 
     runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
 
     steps:
       - uses: "actions/checkout@v3"
@@ -687,7 +689,6 @@ jobs:
           python -m site
           python -m pip install --upgrade pip setuptools wheel -r dev-requirements.txt
       - name: "Run mypy"
-        continue-on-error: true
         shell: "bash"
         run: |
           set -xe -o nounset
@@ -730,6 +731,8 @@ jobs:
       PY_COLORS: 1
 
     runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
 
     steps:
       - uses: "actions/checkout@v3"
