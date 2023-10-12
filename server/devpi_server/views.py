@@ -9,6 +9,7 @@ from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from html import escape
 from lazy import lazy
+from operator import attrgetter
 from pluggy import HookimplMarker
 from pyramid.authentication import b64encode
 from pyramid.interfaces import IRequestExtensions
@@ -951,9 +952,9 @@ class PyPIView:
         except stage.MissesRegistration:
             apireturn(400, "there are no files for %s-%s on stage %s" % (
                 name, version, stage.name))
-        links = dict([
-            (rel, linkstore.get_links(rel=rel))
-            for rel in ('releasefile', 'doczip', 'toxresult')])
+        links = {
+            rel: sorted(linkstore.get_links(rel=rel), key=attrgetter('basename'))
+            for rel in ('releasefile', 'doczip', 'toxresult')}
         if not links["releasefile"]:
             self.log.info("%s: no release files for version %s-%s" %
                           (stage.name, name, version))
