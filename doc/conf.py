@@ -40,8 +40,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'devpi'
-copyright = u'2017, Florian Schulze, Holger Krekel and merlinux GmbH see http://merlinux.eu'
+project = 'devpi'
+copyright = '2023, Florian Schulze, pyfidelity UG, Holger Krekel and merlinux GmbH'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
