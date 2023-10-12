@@ -3,6 +3,7 @@ from devpi_common.metadata import get_sorted_versions, parse_requirement, Versio
 from devpi_common.url import URL
 from devpi_common.viewhelp import ViewLinkStore, iter_toxresults
 from functools import partial
+from operator import attrgetter
 
 
 def out_index(hub, projects):
@@ -49,7 +50,7 @@ def out_project(hub, reply, req):
 def out_project_version_files(hub, url, verdata, version, index):
     vv = ViewLinkStore(url, verdata)
     release_links = vv.get_links(rel="releasefile")
-    for link in release_links:
+    for link in sorted(release_links, key=attrgetter('basename')):
         if version.startswith("egg="):
             origin = "%s (%s) " % (link.href, version)
         else:
@@ -189,18 +190,20 @@ def get_versions_to_delete(index_url, response, requirement):
     for version, verdata in response.result.items():
         if version in requirement:
             vv = ViewLinkStore(basepath, verdata)
-            files_to_delete = [link for link in vv.get_links()
-                               if link.href.startswith(index_url.url)]
+            files_to_delete = sorted(
+                (
+                    link for link in vv.get_links()
+                    if link.href.startswith(index_url.url)),
+                key=attrgetter('basename'))
             ver_to_delete.append((version, files_to_delete))
-    # filter versions with no releases
-    ver_to_delete = [x for x in ver_to_delete if x[1]]
-    return ver_to_delete
+    # filter versions with no releases and sort by version
+    return sorted((x for x in ver_to_delete if x[1]), key=lambda x: Version(x[0]))
 
 
 def confirm_delete(hub, ver_to_delete):
     hub.info("About to remove the following releases and distributions")
     for ver, links in ver_to_delete:
-        hub.info("version: " + ver)
+        hub.info(f"version: {ver}")
         if links:
             for link in links:
                 hub.info("  - " + link.href)
