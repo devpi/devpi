@@ -24,6 +24,7 @@ echo devpi-server: `which devpi-server` $*
 regendoc \
     --verbose \
     --normalize "/[ \t]+\n/\n/" \
+    --normalize "@Waiting for (.+:3141) \.+@Waiting for \1@" \
     --normalize "@generated uuid: [0-9a-f]+@generated uuid: 446e22e0db5e41a5989fd671e98ec30b@" \
     --normalize "@\\\$PYTHON_PREFIX@/home/devpi/devpi@" \
     --normalize "@\\\$REGENDOC_TMPDIR@/home/devpi/devpi/doc@" \
