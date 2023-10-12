@@ -522,7 +522,7 @@ class Exported:
             if ret is None:  # dryrun
                 continue
 
-            for x in distdir.iterdir():  # usually just one
+            for x in sorted(distdir.iterdir()):  # usually just one
                 target = self.target_distdir / x.name
                 x.rename(target)
                 archives.append(target)
