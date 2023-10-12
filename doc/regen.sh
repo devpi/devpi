@@ -18,7 +18,7 @@ export PATH
 
 echo `which pip`
 
-pip install -q -U build pip
+pip install -U build pip
 echo devpi-server: `which devpi-server` $*
 
 regendoc \
