@@ -237,7 +237,7 @@ devpi test: testing an uploaded package
 
 If you have a package which uses tox_ for testing you may now invoke::
 
-    $ devpi test example  # package needs to contain tox.ini
+    $ devpi test --tox-args="-q" example  # package needs to contain tox.ini
     received http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
     /private/tmp/devpi-test0/targz/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini
