@@ -17,7 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    6.0.0
+    6.9.2
 
 .. note::
 
@@ -58,6 +58,7 @@ First we create the config file for it::
     wrote gen-config/net.devpi.plist
     wrote gen-config/launchd-macos.txt
     wrote gen-config/nginx-devpi.conf
+    wrote gen-config/nginx-devpi-caching.conf
     wrote gen-config/supervisor-devpi.conf
     wrote gen-config/supervisord.conf
     wrote gen-config/devpi.service
@@ -86,10 +87,18 @@ Let's install the ``pg8000`` package as a test from our cache::
 
     $ pip install -i http://localhost:3141/root/pypi/+simple/ pg8000==1.30.2
     Looking in indexes: http://localhost:3141/root/pypi/+simple/
-    Collecting simplejson
-      Downloading http://localhost:3141/root/pypi/%2Bf/c94/dc64b1a389a41/simplejson-3.17.2-cp38-cp38-macosx_10_14_x86_64.whl (74 kB)
-    Installing collected packages: simplejson
-    Successfully installed simplejson-3.17.2
+    Collecting pg8000==1.30.2
+      Downloading http://localhost:3141/root/pypi/%2Bf/2fc/6bf2d81d70255/pg8000-1.30.2-py3-none-any.whl (54 kB)
+    Collecting scramp>=1.4.4 (from pg8000==1.30.2)
+      Downloading http://localhost:3141/root/pypi/%2Bf/b14/2312df7c29772/scramp-1.4.4-py3-none-any.whl (13 kB)
+    Collecting python-dateutil>=2.8.2 (from pg8000==1.30.2)
+      Downloading http://localhost:3141/root/pypi/%2Bf/961/d03dc3453ebbc/python_dateutil-2.8.2-py2.py3-none-any.whl (247 kB)
+    Collecting six>=1.5 (from python-dateutil>=2.8.2->pg8000==1.30.2)
+      Downloading http://localhost:3141/root/pypi/%2Bf/8ab/b2f1d86890a2d/six-1.16.0-py2.py3-none-any.whl (11 kB)
+    Collecting asn1crypto>=1.5.1 (from scramp>=1.4.4->pg8000==1.30.2)
+      Downloading http://localhost:3141/root/pypi/%2Bf/db4/e40728b728508/asn1crypto-1.5.1-py2.py3-none-any.whl (105 kB)
+    Installing collected packages: asn1crypto, six, scramp, python-dateutil, pg8000
+    Successfully installed asn1crypto-1.5.1 pg8000-1.30.2 python-dateutil-2.8.2 scramp-1.4.4 six-1.16.0
 
 Feel free to install any other package.  If you encounter lookup/download
 issues when installing a public pypi package, please report the offending

@@ -60,6 +60,7 @@ First we create the config file for it::
     wrote gen-config/net.devpi.plist
     wrote gen-config/launchd-macos.txt
     wrote gen-config/nginx-devpi.conf
+    wrote gen-config/nginx-devpi-caching.conf
     wrote gen-config/supervisor-devpi.conf
     wrote gen-config/supervisord.conf
     wrote gen-config/devpi.service
@@ -77,7 +78,7 @@ see :ref:`quickstart-server` for more details::
 Then we point the devpi client to it::
 
     $ devpi use http://localhost:3141
-    using server: http://localhost:3141/ (logged in as sophie)
+    using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
     venv for install/set commands: /tmp/docenv
     only setting venv pip cfg, no global configuration changed
@@ -128,25 +129,24 @@ We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
     $ devpi install pytest==6.2.4
-    -->  /home/devpi/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ pytest  [PIP_PRE=1,PIP_USE_WHEEL=1]
-    Looking in indexes: http://localhost:3141/testuser/dev/+simple/
-    Collecting pytest
+    --> .$ /tmp/docenv/bin/pip --version
+    --> .$ /tmp/docenv/bin/pip install -U pytest==6.2.4  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/'),PIP_PRE='1',PIP_USE_WHEEL='1']
+    Looking in indexes: http://testuser:****@localhost:3141/testuser/dev/+simple/
+    Collecting pytest==6.2.4
       Downloading http://localhost:3141/root/pypi/%2Bf/91e/f2131a9bd6be8/pytest-6.2.4-py3-none-any.whl (280 kB)
-    Collecting toml
-      Downloading http://localhost:3141/root/pypi/%2Bf/806/143ae5bfb6a3c/toml-0.10.2-py2.py3-none-any.whl (16 kB)
-    Collecting pluggy<1.0.0a1,>=0.12
+    Collecting attrs>=19.2.0 (from pytest==6.2.4)
+      Downloading http://localhost:3141/root/pypi/%2Bf/1f2/8b4522cdc2fb4/attrs-23.1.0-py3-none-any.whl (61 kB)
+    Collecting iniconfig (from pytest==6.2.4)
+      Downloading http://localhost:3141/root/pypi/%2Bf/b6a/85871a79d2e3b/iniconfig-2.0.0-py3-none-any.whl (5.9 kB)
+    Requirement already satisfied: packaging in /tmp/docenv/lib/python3.8/site-packages (from pytest==6.2.4) (23.2)
+    Collecting pluggy<1.0.0a1,>=0.12 (from pytest==6.2.4)
       Downloading http://localhost:3141/root/pypi/%2Bf/467/f0219e89bb506/pluggy-1.0.0.dev0-py2.py3-none-any.whl (17 kB)
-    Requirement already satisfied: py>=1.8.2 in /tmp/docenv/lib/python3.8/site-packages (from pytest) (1.10.0)
-    Collecting attrs>=19.2.0
-      Downloading http://localhost:3141/root/pypi/%2Bf/149/e90d6d8ac20db/attrs-21.2.0-py2.py3-none-any.whl (53 kB)
-    Collecting packaging
-      Downloading http://localhost:3141/root/pypi/%2Bf/677/14da7f7bc052e/packaging-20.9-py2.py3-none-any.whl (40 kB)
-    Collecting iniconfig
-      Downloading http://localhost:3141/root/pypi/%2Bf/011/e24c64b7f47f6/iniconfig-1.1.1-py2.py3-none-any.whl (5.0 kB)
-    Collecting pyparsing>=2.0.2
-      Downloading http://localhost:3141/root/pypi/%2Bf/f48/96b4cc085a1f8/pyparsing-3.0.0b2-py3-none-any.whl (84 kB)
-    Installing collected packages: pyparsing, toml, pluggy, packaging, iniconfig, attrs, pytest
-    Successfully installed attrs-21.2.0 iniconfig-1.1.1 packaging-20.9 pluggy-1.0.0.dev0 pyparsing-3.0.0b2 pytest-6.2.4 toml-0.10.2
+    Collecting py>=1.8.2 (from pytest==6.2.4)
+      Downloading http://localhost:3141/root/pypi/%2Bf/607/c53218732647d/py-1.11.0-py2.py3-none-any.whl (98 kB)
+    Collecting toml (from pytest==6.2.4)
+      Downloading http://localhost:3141/root/pypi/%2Bf/806/143ae5bfb6a3c/toml-0.10.2-py2.py3-none-any.whl (16 kB)
+    Installing collected packages: toml, py, pluggy, iniconfig, attrs, pytest
+    Successfully installed attrs-23.1.0 iniconfig-2.0.0 pluggy-1.0.0.dev0 py-1.11.0 pytest-6.2.4 toml-0.10.2
 
 The ``devpi install`` command configured a pip call, using the
 pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
@@ -186,10 +186,11 @@ to our ``testuser/dev`` index::
 
     example $ devpi upload
     using workdir /tmp/devpi0
-    pre-build: cleaning /home/devpi/devpi/doc/example/dist
-    -->  /home/devpi/devpi/doc/example$ /tmp/docenv/bin/python setup.py sdist --formats gztar
-    built: /home/devpi/devpi/doc/example/dist/example-1.0.tar.gz [SDIST.TGZ] 0.868kb
-    register example-1.0 to http://localhost:3141/testuser/dev/
+    pre-build: cleaning dist
+    --> .$ /tmp/docenv/bin/python -m build
+    built: dist/example-1.0-py3-none-any.whl 1kb
+    built: dist/example-1.0.tar.gz 1kb
+    file_upload of example-1.0-py3-none-any.whl to http://localhost:3141/testuser/dev/
     file_upload of example-1.0.tar.gz to http://localhost:3141/testuser/dev/
 
 There are three triggered actions:
@@ -209,16 +210,11 @@ There are three triggered actions:
 We can now install the freshly uploaded package::
 
     $ devpi install example
-    -->  /home/devpi/devpi/doc$ /tmp/docenv/bin/pip install -U -i http://localhost:3141/testuser/dev/+simple/ example  [PIP_PRE=1,PIP_USE_WHEEL=1]
-    Looking in indexes: http://localhost:3141/testuser/dev/+simple/
+    --> .$ /tmp/docenv/bin/pip --version
+    --> .$ /tmp/docenv/bin/pip install -U example  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/'),PIP_PRE='1',PIP_USE_WHEEL='1']
+    Looking in indexes: http://testuser:****@localhost:3141/testuser/dev/+simple/
     Collecting example
-      Downloading http://localhost:3141/testuser/dev/%2Bf/853/34ff3d48c83ba/example-1.0.tar.gz (868 bytes)
-    Building wheels for collected packages: example
-      Building wheel for example (setup.py): started
-      Building wheel for example (setup.py): finished with status 'done'
-      Created wheel for example: filename=example-1.0-py3-none-any.whl size=1418 sha256=fc465974ebe4d4212f6a571152042726d0d5b71bb1578f49ea73411e04e15562
-      Stored in directory: /private/tmp/home/Library/Caches/pip/wheels/8a/e4/98/646215f67c7c7c58299cd09a094977f0a83f0373a1951f74ca
-    Successfully built example
+      Downloading http://localhost:3141/testuser/dev/%2Bf/0b1/6414c21b576b1/example-1.0-py3-none-any.whl (1.4 kB)
     Installing collected packages: example
     Successfully installed example-1.0
 
@@ -239,28 +235,22 @@ devpi test: testing an uploaded package
 If you have a package which uses tox_ for testing you may now invoke::
 
     $ devpi test --tox-args="-q" example  # package needs to contain tox.ini
-    received http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
+    using workdir /tmp/devpi-test0
+    only universal wheels supported, found example-1.0-py3-none-any.whl
+    received http://testuser:****@localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
-    /private/tmp/devpi-test0/targz/example-1.0$ tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz -i ALL=http://localhost:3141/testuser/dev/+simple/ --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini
-    python create: /tmp/devpi-test0/targz/example-1.0/.tox/python
-    python installdeps: pytest
-    python inst: /tmp/devpi-test0/targz/example-1.0/.tox/.tmp/package/1/example-1.0.tar.gz
-    python installed: attrs==21.2.0,example @ file:///private/tmp/devpi-test0/targz/example-1.0/.tox/.tmp/package/1/example-1.0.tar.gz,iniconfig==1.1.1,packaging==20.9,pluggy==0.13.1,py==1.10.0,pyparsing==2.4.7,pytest==6.2.4,toml==0.10.2
-    python run-test-pre: PYTHONHASHSEED='29129065'
-    python run-test: commands[0] | py.test
+    --> .$ /home/devpi/devpi/bin/tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini -q  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/')]
     ============================= test session starts ==============================
-    platform darwin -- Python 3.8.6, pytest-6.2.4, py-1.10.0, pluggy-0.13.1
-    cachedir: /tmp/devpi-test0/targz/example-1.0/.tox/python/.pytest_cache
-    rootdir: /private/tmp/devpi-test0/targz/example-1.0
+    platform linux -- Python 3.8.12, pytest-7.4.2, pluggy-1.3.0
+    cachedir: .tox/py/.pytest_cache
+    rootdir: /tmp/devpi-test0/targz/example-1.0
     collected 1 item
-    
+
     test_example.py .                                                        [100%]
-    
+
     ============================== 1 passed in 0.01s ===============================
-    ___________________________________ summary ____________________________________
-      python: commands succeeded
-      congratulations :)
-    write json report at: /tmp/devpi-test0/targz/toxreport.json
+      py: OK (10.57 seconds)
+      congratulations :) (10.85 seconds)
     posting tox result data to http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
     successfully posted tox result data
 
@@ -280,6 +270,7 @@ Here is what happened:
 We can verify that the test status was recorded via::
 
     $ devpi list example
+    http://localhost:3141/testuser/dev/+f/0b1/6414c21b576b1/example-1.0-py3-none-any.whl
     http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
 
 .. versionadded:: 2.6
@@ -321,8 +312,9 @@ our ``staging`` index::
 
     $ devpi push example==1.0 testuser/staging
        200 register example 1.0 -> testuser/staging
+       200 store_releasefile testuser/staging/+f/0b1/6414c21b576b1/example-1.0-py3-none-any.whl
        200 store_releasefile testuser/staging/+f/853/34ff3d48c83ba/example-1.0.tar.gz
-       200 store_toxresult testuser/staging/+f/853/34ff3d48c83ba/example-1.0.tar.gz.toxresult-20210510144324-0
+       200 store_toxresult testuser/staging/+f/853/34ff3d48c83ba/example-1.0.tar.gz.toxresult-20210510144323-0
 
 This will determine all files on our ``testuser/dev`` index belonging to
 the specified ``example==1.0`` release and copy them to the
@@ -354,6 +346,7 @@ Let's now use our ``testuser/staging`` index::
 and check the test result status again::
 
     $ devpi list example
+    http://localhost:3141/testuser/staging/+f/0b1/6414c21b576b1/example-1.0-py3-none-any.whl
     http://localhost:3141/testuser/staging/+f/853/34ff3d48c83ba/example-1.0.tar.gz
 
 Good, the test result status is still available after the push
@@ -403,7 +396,9 @@ If we now switch back to using ``testuser/dev``::
 and look at our example release files::
 
     $ devpi list example
+    http://localhost:3141/testuser/dev/+f/0b1/6414c21b576b1/example-1.0-py3-none-any.whl
     http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
+    http://localhost:3141/testuser/staging/+f/0b1/6414c21b576b1/example-1.0-py3-none-any.whl
     http://localhost:3141/testuser/staging/+f/853/34ff3d48c83ba/example-1.0.tar.gz
 
 we'll see that ``example-1.0.tar.gz`` is contained in both
@@ -412,6 +407,7 @@ indices.  Let's remove the ``testuser/dev`` ``example`` release::
     $ devpi remove -y example
     About to remove the following releases and distributions
     version: 1.0
+      - http://localhost:3141/testuser/dev/+f/0b1/6414c21b576b1/example-1.0-py3-none-any.whl
       - http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
       - http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz.toxresult-20210510144323-0
     Are you sure (yes/no)? yes (autoset from -y option)
@@ -423,6 +419,7 @@ The ``example-1.0`` release remains accessible through ``testuser/dev``
 because it inherits all releases from its ``testuser/staging`` base::
 
     $ devpi list example
+    http://localhost:3141/testuser/staging/+f/0b1/6414c21b576b1/example-1.0-py3-none-any.whl
     http://localhost:3141/testuser/staging/+f/853/34ff3d48c83ba/example-1.0.tar.gz
 
 Now shutdown supervisord which was started at the beginning of this tutorial::
