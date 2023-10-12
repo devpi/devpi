@@ -116,7 +116,7 @@ class Uploader:
             releasefile2pkginfo = filter_latest(releasefile2pkginfo)
             doczip2pkginfo = filter_latest(doczip2pkginfo)
 
-        for archivepath, pkginfo in releasefile2pkginfo.items():
+        for archivepath, pkginfo in sorted(releasefile2pkginfo.items()):
             self.upload_release_file(archivepath, pkginfo)
         for archivepath, pkginfo in doczip2pkginfo.items():
             self.upload_doc(archivepath, pkginfo)
