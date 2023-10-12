@@ -84,7 +84,7 @@ an index server url.  We use it to point installers to a special
 ``root/pypi`` index, served by ``devpi-server`` by default.
 Let's install the ``simplejson`` package as a test from our cache::
 
-    $ pip install -i http://localhost:3141/root/pypi/+simple/ simplejson
+    $ pip install -i http://localhost:3141/root/pypi/+simple/ simplejson==3.17.2
     Looking in indexes: http://localhost:3141/root/pypi/+simple/
     Collecting simplejson
       Downloading http://localhost:3141/root/pypi/%2Bf/c94/dc64b1a389a41/simplejson-3.17.2-cp38-cp38-macosx_10_14_x86_64.whl (74 kB)
