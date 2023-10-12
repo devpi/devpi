@@ -216,7 +216,7 @@ regen.sample_undo:
 	-git checkout userman/pysober
 
 regen.server-fresh: regen.server-clean
-	rm -rf $(TESTHOME)/.devpi/server
+	rm -rf $(TESTHOME)
 	devpi-init --serverdir=$(TESTHOME)/.devpi/server
 	devpi-gen-config --serverdir=$(TESTHOME)/.devpi/server
 	supervisord -c gen-config/supervisord.conf
@@ -228,8 +228,8 @@ regen.server-stop:
 regen.server-clean: regen.sample_undo
 	@echo stopping supervisord
 	-supervisorctl -c gen-config/supervisord.conf shutdown
-	@echo deleting $(TESTHOME)/.devpi state
-	-rm -rf $(TESTHOME)/.devpi
+	@echo deleting $(TESTHOME) state
+	-rm -rf $(TESTHOME)
 	@echo deleting pysober/dist
 	-rm -rf userman/pysober/dist
 	git checkout userman/pysober
