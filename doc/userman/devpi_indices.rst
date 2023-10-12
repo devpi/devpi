@@ -67,10 +67,11 @@ set the index::
 and then issue::
 
    $ devpi use --urls
-              index: http://localhost:3141/root/pypi
-        simpleindex: http://localhost:3141/root/pypi/+simple/
-         pypisubmit: None
-              login: http://localhost:3141/+login
+   current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
+           simpleindex: http://localhost:3141/root/pypi/+simple/
+            pypisubmit: None
+                 login: http://localhost:3141/+login
+   supported features: server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -130,7 +131,7 @@ which leads to the following::
                    "volatile": false
                }
            },
-           "modified": "2021-05-10T14:44:18Z",
+           "created": "2021-05-10T14:44:18Z",
            "title": "CTO",
            "username": "emilie"
        },
@@ -220,10 +221,11 @@ or (long endpoint)::
 And from there, the urls should be set to:: 
 
    $ devpi use --urls
-              index: http://localhost:3141/emilie/prod
-        simpleindex: http://localhost:3141/emilie/prod/+simple/
-         pypisubmit: http://localhost:3141/emilie/prod/
-              login: http://localhost:3141/+login
+   current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
+           simpleindex: http://localhost:3141/emilie/prod/+simple/
+            pypisubmit: http://localhost:3141/emilie/prod/
+                 login: http://localhost:3141/+login
+   supported features: server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -439,7 +441,6 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=*
      mirror_whitelist_inheritance=intersection
-     
 If you've modifyied the mirror whitelist to add a package you might need to run 
 `devpi refresh mypkg` to make the package versions from pypi visible. Multiple 
 packages can be added by comma separating them. 
