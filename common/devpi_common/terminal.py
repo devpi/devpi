@@ -56,6 +56,7 @@ class TerminalWriter:
         if self.hasmarkup and kwargs:
             msg = self.markup(msg, **kwargs)
         self.fd.write(msg)
+        self.fd.flush()
 
     def line(self, s='', **kwargs):
         self.write(s, **kwargs)
