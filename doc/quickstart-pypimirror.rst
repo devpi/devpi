@@ -120,6 +120,9 @@ and then start the server again::
     $ supervisorctl -c gen-config/supervisord.conf start devpi-server
     devpi-server: started
 
+..
+    $ sleep 10
+
 We can now use search with pip::
 
     $ pip search --index http://localhost:3141/root/pypi/ devpi-client
