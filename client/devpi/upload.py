@@ -397,7 +397,7 @@ class Exported:
     def setup_name_and_version(self):
         try:
             metadata = build.util.project_wheel_metadata(
-                str(self.rootpath), isolated=False)
+                str(self.rootpath), isolated=not self.args.no_isolation)
         except build.BuildBackendException as e:
             exc = '\n'.join(format_exception_only(
                 e.__class__, e))
