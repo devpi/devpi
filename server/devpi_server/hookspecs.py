@@ -150,7 +150,7 @@ def devpiserver_get_identity(request, credentials):
     """
 
 
-@hookspec(warn_on_impl="Use new devpiserver_auth_request hook instead")
+@hookspec(warn_on_impl=DeprecationWarning("Use new devpiserver_auth_request hook instead"))
 def devpiserver_auth_user(userdict, username, password):
     """return dict containing authentication validation results.
 
