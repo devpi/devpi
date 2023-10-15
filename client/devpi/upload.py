@@ -523,7 +523,7 @@ class Exported:
 
             for x in sorted(distdir.iterdir()):  # usually just one
                 target = self.target_distdir / x.name
-                x.rename(target)
+                shutil.move(x, target)
                 archives.append(target)
                 self.log_build(target)
 
