@@ -65,11 +65,11 @@ class ToxResultEnv:
 
     def _get_commands_info(self, commands):
         result = dict(
-            failed=any(try_int(x["retcode"]) != 0 for x in commands),
+            failed=any(try_int(x["retcode"]) not in (None, 0) for x in commands),
             commands=[])
         for command in commands:
             result["commands"].append(dict(
-                failed=try_int(command["retcode"]) != 0,
+                failed=try_int(command["retcode"]) not in (None, 0),
                 command=" ".join(command.get("command", [])),
                 output=command.get("output", [])))
         return result

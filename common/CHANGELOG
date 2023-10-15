@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.2 (2023-10-15)
+==================
+
+Bug Fixes
+---------
+
+- Do not mark commands with returncode ``None`` from tox 4.x as failed.
+
+
 4.0.1 (2023-10-15)
 ==================
 
