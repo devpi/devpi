@@ -16,7 +16,6 @@ from devpi_common.contextlib import chdir
 from devpi_common.types import CompareMixin
 from .main import HTTPReply, set_devpi_auth_header
 from pathlib import Path
-from shutil import rmtree
 from subprocess import CalledProcessError
 from traceback import format_exception_only
 
@@ -415,7 +414,7 @@ class Exported:
     def prepare(self):
         self.hub.line("pre-build: cleaning %s" % self.target_distdir)
         if self.target_distdir.exists():
-            rmtree(self.target_distdir)
+            shutil.rmtree(self.target_distdir)
         self.target_distdir.mkdir()
 
     @staticmethod
@@ -512,7 +511,7 @@ class Exported:
             distdir = self.rootpath / "dist"
             if self.rootpath != self.origrepo:
                 if distdir.exists():
-                    rmtree(distdir)
+                    shutil.rmtree(distdir)
 
             if self.args.verbose:
                 ret = self.hub.popen_check(cmd, cwd=self.rootpath)
@@ -534,7 +533,7 @@ class Exported:
         name, version = self.setup_name_and_version()
         build = self.rootpath / "build"
         if build.exists():
-            rmtree(build)
+            shutil.rmtree(build)
         for guess in ("doc", "docs", "source"):
             docs = self.rootpath / guess
             if docs.is_dir():
