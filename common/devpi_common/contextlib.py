@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 try:
-    from contextlib import chdir
+    from contextlib import chdir  # type: ignore[attr-defined]
 except ImportError:
     @contextmanager
     def chdir(path):
