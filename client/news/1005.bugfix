@@ -1,1 +1,0 @@
-Fix #1005: use ``shutil.move`` instead of ``Path.rename`` to move distribution after building to prevent cross-device link errors.

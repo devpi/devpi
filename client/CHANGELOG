@@ -2,6 +2,17 @@
 
 .. towncrier release notes start
 
+7.0.1 (2023-10-15)
+==================
+
+Bug Fixes
+---------
+
+- Fix #1005: use ``shutil.move`` instead of ``Path.rename`` to move distribution after building to prevent cross-device link errors.
+
+- Fix #1008: pass ``--no-isolation`` option to ``build`` when determining name/version for documentation.
+
+
 7.0.0 (2023-10-11)
 ==================
 

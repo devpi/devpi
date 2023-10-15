@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.1 (2023-10-15)
+==================
+
+Bug Fixes
+---------
+
+- Restore flushing after each written line in new TerminalWriter.
+
+
 4.0.0 (2023-10-11)
 ==================
 

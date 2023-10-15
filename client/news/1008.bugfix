@@ -1,1 +1,0 @@
-Fix #1008: pass ``--no-isolation`` option to ``build`` when determining name/version for documentation.
