@@ -7,6 +7,16 @@ body, html {
     padding: 0;
 }
 
+html {
+    height: 100%;
+}
+
+body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
 pre, table {
     font-size: inherit;
 }
@@ -21,6 +31,10 @@ a {
 
 a:hover {
     text-decoration: underline;
+}
+
+#content {
+    flex: auto;
 }
 
 form, #content, #navigation, .searchresults {
@@ -545,10 +559,16 @@ table.projectinfos .closed .value:after,
 }
 
 div.iframe {
+    flex: auto;
     margin: 0;
+    display: flex;
 }
 
-div.iframe, iframe {
+div.iframe iframe {
+    flex: auto;
+}
+
+div.iframe, div.iframe iframe {
     width: 100%;
     border: 0;
 }
