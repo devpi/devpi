@@ -451,7 +451,7 @@ class PersistentCurrent(Current):
         currentdict = {}
         _load_json(self.current_path, currentdict)
         for key, value in self._currentdict.items():
-            prop = getattr(self.__class__, key)
+            prop = getattr(self.__class__, key, None)
             if isinstance(prop, indexproperty) and not self.persist_index:
                 continue
             currentdict[key] = value
