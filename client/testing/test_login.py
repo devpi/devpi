@@ -129,3 +129,20 @@ def test_login_with_relative_index_environment(capfd, devpi, devpi_username, mon
         url,
         devpi_username)
     assert msg in out
+
+
+@pytest.mark.skipif("config.option.fast")
+def test_login_with_old_client_data(capfd, devpi, devpi_username, tmp_path, url_of_liveserver):
+    from shutil import rmtree
+    client_path = tmp_path / "client"
+    rmtree(str(client_path))
+    client_path.mkdir()
+    # starting with 6.0.4 there was an error if there was old authentication data
+    with client_path.joinpath('current.json').open('w') as f:
+        f.write(u"""{"auth": {}}""")
+    devpi("use", url_of_liveserver.url)
+    (out, err) = capfd.readouterr()
+    assert "using server: %s/ (not logged in)" % url_of_liveserver.url in out
+    devpi("login", devpi_username, "--password", "123")
+    (out, err) = capfd.readouterr()
+    assert 'credentials valid for' in out
