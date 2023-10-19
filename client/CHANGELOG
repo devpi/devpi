@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+7.0.2 (2023-10-19)
+==================
+
+Bug Fixes
+---------
+
+- Fix #992: Fix error added in 6.0.4 when old authentication data from before 6.x exists.
+
+
 7.0.1 (2023-10-15)
 ==================
 

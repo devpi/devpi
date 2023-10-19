@@ -1,1 +1,0 @@
-Fix #992: Fix error added in 6.0.4 when old authentication data from before 6.x exists.
