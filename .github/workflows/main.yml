@@ -750,4 +750,4 @@ jobs:
         shell: "bash"
         run: |
           set -xe -o nounset
-          ruff --format=github .
+          ruff --output-format=github .
