@@ -17,7 +17,7 @@ def fetch(url, headers=None):
     if headers is None:
         headers = {}
     opener = build_opener(NoRedirect)
-    req = Request(url, headers=headers)
+    req = Request(url, headers=headers)  # noqa: S310 - only for tests
     try:
         with opener.open(req) as f:
             data = f.read()
