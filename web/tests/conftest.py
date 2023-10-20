@@ -1,20 +1,26 @@
-from test_devpi_server.conftest import gentmp, httpget, makemapp  # noqa: F401
-from test_devpi_server.conftest import maketestapp, makexom, mapp  # noqa: F401
-from test_devpi_server.conftest import pypiurls, testapp, pypistage  # noqa: F401
-from test_devpi_server.conftest import dummyrequest  # noqa: F401
-from test_devpi_server.conftest import simpypi, simpypiserver  # noqa: F401
-from test_devpi_server.conftest import storage_info  # noqa: F401
-from test_devpi_server.conftest import mock, pyramidconfig  # noqa: F401
-from test_devpi_server.conftest import speed_up_sqlite  # noqa: F401
-from test_devpi_server.conftest import speed_up_sqlite_fs  # noqa: F401
-try:
-    from test_devpi_server.conftest import lower_argon2_parameters  # noqa: F401
-except ImportError:
-    pass
+from devpi_common.metadata import parse_version
+from devpi_server import __version__ as _devpi_server_version
 import pytest
 
 
-(makexom,)  # noqa: B018 shut up pyflakes
+devpi_server_version = parse_version(_devpi_server_version)
+
+
+if devpi_server_version < parse_version("6.9.3dev"):
+    from test_devpi_server.conftest import gentmp, httpget, makemapp  # noqa: F401
+    from test_devpi_server.conftest import maketestapp, makexom, mapp  # noqa: F401
+    from test_devpi_server.conftest import pypiurls, testapp, pypistage  # noqa: F401
+    from test_devpi_server.conftest import dummyrequest  # noqa: F401
+    from test_devpi_server.conftest import simpypi, simpypiserver  # noqa: F401
+    from test_devpi_server.conftest import storage_info  # noqa: F401
+    from test_devpi_server.conftest import mock, pyramidconfig  # noqa: F401
+    from test_devpi_server.conftest import speed_up_sqlite  # noqa: F401
+    from test_devpi_server.conftest import speed_up_sqlite_fs  # noqa: F401
+    if devpi_server_version >= parse_version("6.0.0dev"):
+        from test_devpi_server.conftest import lower_argon2_parameters  # noqa: F401
+    (makexom,)  # noqa: B018 shut up pyflakes
+else:
+    pytest_plugins = ["pytest_devpi_server", "test_devpi_server.plugin"]
 
 
 def pytest_addoption(parser):
