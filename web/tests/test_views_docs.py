@@ -5,7 +5,12 @@ import re
 import sys
 
 
-pytestmark = pytest.mark.xfail(sys.platform.startswith("win"), run=False, reason="flaky test on windows")
+pytestmark = [
+    pytest.mark.notransaction,
+    pytest.mark.xfail(
+        sys.platform.startswith("win"),
+        run=False,
+        reason="flaky test on windows")]
 
 
 def compareable_text(text):

@@ -7,7 +7,8 @@ from devpi_server.log import thread_pop_log, thread_push_log
 from devpi_server.log import threadlog
 from .test_config import make_config
 
-pytestmark = pytest.mark.notransaction
+
+pytestmark = [pytest.mark.notransaction]
 
 
 @pytest.fixture

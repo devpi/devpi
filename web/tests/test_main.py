@@ -5,6 +5,7 @@ import textwrap
 
 
 devpi_server_version = parse_version(_devpi_server_version)
+pytestmark = [pytest.mark.notransaction]
 
 
 def test_importable():
