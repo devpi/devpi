@@ -5,6 +5,9 @@ import pytest
 import re
 
 
+pytestmark = [pytest.mark.notransaction]
+
+
 @pytest.fixture
 def makexom(request, makexom):
     orig_makexom = makexom

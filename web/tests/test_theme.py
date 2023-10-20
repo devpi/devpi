@@ -1,6 +1,9 @@
 import pytest
 
 
+pytestmark = [pytest.mark.notransaction]
+
+
 @pytest.fixture
 def themedir(tmpdir):
     path = tmpdir.join('theme')

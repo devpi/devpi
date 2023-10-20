@@ -4,6 +4,9 @@ import pytest
 import re
 
 
+pytestmark = [pytest.mark.notransaction]
+
+
 def compareable_text(text):
     return re.sub(r'\s+', ' ', text.strip())
 
