@@ -54,7 +54,7 @@ class ProjectHTMLParser(HTMLParser):
         HTMLParser.__init__(self)
         self.projects = set()
         self.baseurl = URL(url)
-        self.basehost = self.baseurl.replace(path='')
+        self.basehost = self.baseurl.hostname
         self.project = None
 
     def handle_data(self, data):
@@ -78,7 +78,7 @@ class ProjectHTMLParser(HTMLParser):
                     return
                 if not newurl.path.startswith(self.baseurl.path):
                     return
-                if self.basehost != newurl.replace(path=''):
+                if self.basehost != newurl.hostname:
                     return
                 project = newurl.basename
             self.project = project
