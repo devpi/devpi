@@ -22,7 +22,7 @@ Overview
 In this chapter, we explore how we can create and modify indexes based according 
 to the following structure:
 
-.. image:: ../images/devpi-topology.png
+.. image:: ../images/devpi-topology.svg
 
 with the two users already created.
 
