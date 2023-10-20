@@ -8,7 +8,7 @@ dynamic = ["version", "readme"]
 name = "devpi-client"
 description = "devpi upload/install/... workflow commands for Python developers"
 dependencies = [
-    "build",
+    "build>=0.7.0",
     "check-manifest>=0.28",
     "colorama;platform_system=='Windows'",
     "devpi_common<5,>=4dev",
