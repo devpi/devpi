@@ -125,11 +125,17 @@ case-sensitive = true
     "S607", # ignore - subprocess partial executable path
     "T201", # ignore - print found
 ]
-"conftest.py" = [
+"client/testing/conftest.py" = [
     "INP001", # ignore - implicit namespace package
     "S603", # ignore - subprocess untrusted input
-    "S607", # ignore - subprocess partial executable path
     "T201", # ignore - print found
+]
+"server/test_devpi_server/plugin.py" = [
+    "S603", # ignore - subprocess untrusted input
+    "T201", # ignore - print found
+]
+"web/tests/conftest.py" = [
+    "INP001", # ignore - implicit namespace package
 ]
 "*/pytest_devpi_postgresql/__init__.py" = [
     "S603", # ignore - subprocess untrusted input
