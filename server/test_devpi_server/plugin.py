@@ -32,6 +32,33 @@ from webtest import TestResponse
 import hashlib
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "no_storage_option: do not set the --storage option in fixtures")
+    config.addinivalue_line(
+        "markers",
+        "nomocking: do not mock anything in fixtures")
+    config.addinivalue_line(
+        "markers",
+        "notransaction: do not open a transaction")
+    config.addinivalue_line(
+        "markers",
+        "start_threads: start devpi-server threads")
+    config.addinivalue_line(
+        "markers",
+        "storage_with_filesystem: require a storage backend which puts uploaded files on the filesystem")
+    config.addinivalue_line(
+        "markers",
+        "with_notifier: use the notifier thread")
+    config.addinivalue_line(
+        "markers",
+        "with_replica_thread: start the replica thread")
+    config.addinivalue_line(
+        "markers",
+        "writetransaction: start with a write transaction")
+
+
 @pytest.fixture(scope="session")
 def server_version():
     from devpi_server import __version__
