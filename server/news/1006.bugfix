@@ -1,0 +1,1 @@
+Only compare hostname instead of full URL prefix when parsing mirror packages to fix mirrors with basic authentication and absolute URLs. See #1006

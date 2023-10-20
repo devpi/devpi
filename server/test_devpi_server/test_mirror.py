@@ -466,6 +466,17 @@ class TestExtPYPIDB:
         recs = caplog.getrecords("serving stale.*pytest.*")
         assert len(recs) >= 1
 
+    def test_basic_auth_mirror(self, pypistage):
+        pypistage.ixconfig["mirror_url"] = "https://foo:bar@example.com/simple/"
+        pypistage.xom.httpget.mockresponse(
+            pypistage.mirror_url, code=200, text="""
+            <html><head><title>Simple Index</title>
+            <meta name="api-version" value="2" /></head>
+            <body>
+                <a href="https://example.com/simple/pkg">Pkg</a><br/>
+            </body></html>""")
+        assert pypistage._get_remote_projects() == (dict(pkg='Pkg'), None)
+
     def test_pypi_mirror_redirect_to_canonical_issue139(self, pypistage):
         # GET https://pypi.org/simple/Hello_World
         # will result in the request response to have a "real" URL of
