@@ -90,8 +90,8 @@ permanent hosting infrastructure.
 
 If you have improvements or additions to the example configs please
 share them with a
-`Merge/Pull Request on the configuration template files <https://github.com/devpi/devpi/tree/master/server/devpi_server/cfg>`_ and
-`devpi-gen-config implementation <https://github.com/devpi/devpi/blob/master/server/devpi_server/genconfig.py>`_ along with a little doc section.
+`Merge/Pull Request on the configuration template files <https://github.com/devpi/devpi/tree/main/server/devpi_server/cfg>`_ and
+`devpi-gen-config implementation <https://github.com/devpi/devpi/blob/main/server/devpi_server/genconfig.py>`_ along with a little doc section.
 
 Here is an example run::
 
