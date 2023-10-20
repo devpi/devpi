@@ -259,7 +259,7 @@ class TestIndexParsing:
 def test_get_updated(pypistage):
     c = pypistage.cache_retrieve_times
     c2 = pypistage.cache_retrieve_times
-    return c == c2
+    assert c == c2
 
 
 class TestExtPYPIDB:
