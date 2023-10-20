@@ -1,0 +1,1 @@
+Require ``build>=0.7.0`` to prevent import error with older versions.
