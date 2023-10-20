@@ -174,7 +174,7 @@ def parse_index_v1_json(disturl, text):
         if 'sha256' in hashes:
             url = url.replace(fragment=f"sha256={hashes['sha256']}")
         elif hashes:
-            url = url.replace(fragment="=".join(next(hashes.items())))
+            url = url.replace(fragment="=".join(next(iter(hashes.items()))))
         # the BasenameMeta wrapping essentially does link validation
         result.append(BasenameMeta(Link(
             url,

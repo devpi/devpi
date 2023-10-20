@@ -306,6 +306,27 @@ class TestExtPYPIDB:
         assert link.yanked == "brownbag"
         assert link.require_python == ">=3.6"
 
+    def test_parse_pep691_md5(self, pypistage):
+        pypistage.mock_simple_projects(["devpi"])
+        pypistage.xom.httpget.mockresponse(
+            URL(pypistage.mirror_url).joinpath("devpi").asdir().url, code=200,
+            content_type="application/vnd.pypi.simple.v1+json",
+            text="""{
+                "meta": {"api-version": "1.0"},
+                "name": "devpi",
+                "files": [
+                    {
+                        "filename":"devpi-0.9.tar.gz",
+                        "hashes":{
+                            "md5":"dbb53f3699703c028483658773628452"},
+                        "requires-python":null,
+                        "url":"https://files.pythonhosted.org/packages/40/b6/45e98504eba446c8e97ce946760893072cdf3bf6cdd18c296394a55621f9/devpi-0.9.tar.gz",
+                        "yanked":false}]}""")
+        (link,) = pypistage.get_releaselinks("devpi")
+        assert link.hash_spec == 'md5=dbb53f3699703c028483658773628452'
+        assert link.yanked is None
+        assert link.require_python is None
+
     def test_parse_project_nomd5(self, pypistage):
         pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip")
         links = pypistage.get_releaselinks("pytest")
