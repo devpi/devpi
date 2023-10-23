@@ -823,3 +823,76 @@ jobs:
           cd $PLUGIN
           python -m tox -a -vv
           PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes ${{ matrix.pytest-options }}
+
+  released-plugins-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    name: "${{ matrix.plugin }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["client-tests", "server-tests", "web-tests"]
+
+    env:
+      PY_COLORS: 1
+      PLUGIN: "${{ matrix.plugin }}"
+
+    runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plugin: "devpi-constrained"
+            python-version: "3.11"
+            repository: "devpi/devpi-constrained"
+            tox-envs: "py311"
+          - plugin: "devpi-findlinks"
+            python-version: "3.11"
+            repository: "devpi/devpi-findlinks"
+            tox-envs: "py311"
+          - plugin: "devpi-jenkins"
+            python-version: "3.11"
+            repository: "devpi/devpi-jenkins"
+            tox-envs: "py311"
+          - plugin: "devpi-ldap"
+            python-version: "3.11"
+            repository: "devpi/devpi-ldap"
+            tox-envs: "py311"
+          - plugin: "devpi-lockdown"
+            python-version: "3.11"
+            repository: "devpi/devpi-lockdown"
+            tox-envs: "py311"
+          - plugin: "devpi-passwd-reset"
+            python-version: "3.11"
+            repository: "devpi/devpi-passwd-reset"
+            tox-envs: "py311"
+          - plugin: "devpi-pr"
+            python-version: "3.11"
+            repository: "devpi/devpi-pr"
+            tox-envs: "py311"
+          - plugin: "devpi-tokens"
+            python-version: "3.11"
+            repository: "devpi/devpi-tokens"
+            tox-envs: "py311"
+
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/checkout@v3"
+        with:
+          repository: "${{ matrix.repository }}"
+          path: "${{ matrix.plugin }}"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox -r dev-requirements.txt
+      - name: "Run tox targets for ${{ matrix.plugin }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PLUGIN
+          pip download --no-deps --dest=dist ${{ matrix.plugin }}
+          python -m tox -a -vv
+          PIP_PRE=1 python -m tox -v --installpkg $(ls dist/*) -e ${{ matrix.tox-envs }} -- -v --color=yes ${{ matrix.pytest-options }}
