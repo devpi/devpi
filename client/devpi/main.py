@@ -333,7 +333,12 @@ class Hub:
                 else:
                     self.warn(
                         "You don't have permission to access this index.")
-            raise SystemExit(1)
+            elif reply.status_code == 404:
+                self.warn("Connected index does not exist.")
+            else:
+                self.fatal("Unhandled status code %s %s%s" % (
+                    reply.status_code, reply.reason,
+                    reply.get_error_message(self.args.debug)))
 
     @property
     def venv(self):
