@@ -11,7 +11,7 @@ Reporting Bugs
 Pull Requests
 -------------
 
-- Submit Pull Requests against the ``master`` branch.
+- Submit Pull Requests against the ``main`` branch.
 - Provide a good description of what you're doing and why.
 - Provide tests that cover your changes and try to run the tests locally first.
 - If you are unsure on how to write a test, please ask and we will point you to
