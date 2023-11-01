@@ -1,0 +1,1 @@
+change HTTP status codes >=400 to use self.fatal instead of raw SystemExit, protect 403 and 404 errors from SystemExit
