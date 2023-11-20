@@ -14,7 +14,7 @@ ALLOWED_ARCHIVE_EXTS = set(
     ".tar.bz2 .tar .tgz .zip .doc.zip".split())
 
 
-class LegacyVersion(object):
+class LegacyVersion:
     # "naturally" sorted and always smaller than a valid version
     __slots__ = ('_value', 'cmpval')
 
@@ -22,7 +22,14 @@ class LegacyVersion(object):
         self._value = version
         self.cmpval = tuple(
             (int(n) if n != '' else 0, a)
-            for n, a in re.findall(r'(\d*)([^\d]*)', version))
+            for n, a in re.findall(r'(\d*)([^\d]*)', version)
+            if a)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._value!r})"
+
+    def __iter__(self):
+        return iter(self.cmpval)
 
     def __lt__(self, other):
         if isinstance(other, PackagingVersion):
@@ -71,6 +78,50 @@ class LegacyVersion(object):
         if isinstance(other, LegacyVersion):
             return self.cmpval > other.cmpval
         return NotImplemented
+
+    @property
+    def public(self):
+        return self._version
+
+    @property
+    def base_version(self):
+        return self._version
+
+    @property
+    def epoch(self):
+        return -1
+
+    @property
+    def release(self):
+        return None
+
+    @property
+    def pre(self):
+        return None
+
+    @property
+    def post(self):
+        return None
+
+    @property
+    def dev(self):
+        return None
+
+    @property
+    def local(self):
+        return None
+
+    @property
+    def is_prerelease(self):
+        return False
+
+    @property
+    def is_postrelease(self):
+        return False
+
+    @property
+    def is_devrelease(self):
+        return False
 
 
 def parse_version(version):
@@ -209,7 +260,7 @@ class Version(CompareMixin):
         return self.string
 
     def __repr__(self):
-        return "Version(%r)" % self.string
+        return f"{self.__class__.__name__}({self.string!r})"
 
     def is_prerelease(self):
         if hasattr(self.cmpval, 'is_prerelease'):
