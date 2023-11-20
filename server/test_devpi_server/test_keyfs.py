@@ -254,7 +254,7 @@ class TestKey:
         assert is_deeply_readonly(key1.get())
 
         # if we get it new in write mode, we get a new copy
-        d2 = key1.get(readonly=False)
+        d2 = key1.get_mutable()
         assert d2 == d
         d2[3] = 4
         assert d2 != d

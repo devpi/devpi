@@ -346,7 +346,7 @@ class MirrorStage(BaseStage):
 
     def add_project_name(self, project):
         project = normalize_name(project)
-        projects = self.key_projects.get(readonly=False)
+        projects = self.key_projects.get_mutable()
         if project not in projects:
             projects.add(project)
             self.key_projects.set(projects)
@@ -361,7 +361,7 @@ class MirrorStage(BaseStage):
             for entry in entries:
                 entry.delete()
         self.key_projsimplelinks(project).delete()
-        projects = self.key_projects.get(readonly=False)
+        projects = self.key_projects.get_mutable()
         if project in projects:
             projects.remove(project)
             self.cache_retrieve_times.expire(project)
@@ -395,7 +395,7 @@ class MirrorStage(BaseStage):
         else:
             has_links = False
         if not has_links and cleanup:
-            projects = self.key_projects.get(readonly=False)
+            projects = self.key_projects.get_mutable()
             if project in projects:
                 projects.remove(project)
                 self.key_projects.set(projects)

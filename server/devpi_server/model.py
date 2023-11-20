@@ -138,7 +138,7 @@ class RootModel:
         self.keyfs = xom.keyfs
 
     def create_user(self, username, password, **kwargs):
-        userlist = self.keyfs.USERLIST.get(readonly=False)
+        userlist = self.keyfs.USERLIST.get_mutable()
         if username in userlist:
             raise InvalidUser("username '%s' already exists" % username)
         if not is_valid_name(username):
@@ -1308,11 +1308,10 @@ class PrivateStage(BaseStage):
         project = normalize_name(metadata["name"])
         version = metadata["version"]
         key_projversion = self.key_projversion(project, version)
-        versiondata = key_projversion.get(readonly=False)
-        versiondata.update(metadata)
-        key_projversion.set(versiondata)
+        with key_projversion.update() as versiondata:
+            versiondata.update(metadata)
         threadlog.info("set_metadata %s-%s", project, version)
-        versions = self.key_projversions(project).get(readonly=False)
+        versions = self.key_projversions(project).get_mutable()
         if version not in versions:
             versions.add(version)
             self.key_projversions(project).set(versions)
@@ -1320,7 +1319,7 @@ class PrivateStage(BaseStage):
 
     def add_project_name(self, project):
         project = normalize_name(project)
-        projects = self.key_projects.get(readonly=False)
+        projects = self.key_projects.get_mutable()
         if project not in projects:
             if self.customizer.readonly:
                 raise ReadonlyIndex("index is marked read only")
@@ -1342,7 +1341,7 @@ class PrivateStage(BaseStage):
         if not self.has_project_perstage(project):
             raise self.NotFound("project %r not found on stage %r" %
                                 (project, self.name))
-        versions = self.key_projversions(project).get(readonly=False)
+        versions = self.key_projversions(project).get_mutable()
         if version not in versions:
             raise self.NotFound("version %r of project %r not found on stage %r" %
                                 (version, project, self.name))

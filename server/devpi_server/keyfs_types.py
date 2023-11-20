@@ -2,6 +2,7 @@ from attrs import define
 from typing import Any
 import contextlib
 import re
+import warnings
 
 
 @define
@@ -69,8 +70,21 @@ class TypedKey:
     def __repr__(self):
         return f"<TypedKey {self.name} {self.type.__name__} {self.relpath}>"
 
-    def get(self, readonly=True):
-        return self.keyfs.tx.get(self, readonly=readonly)
+    def get(self, *, readonly=None):
+        if readonly is None:
+            readonly = True
+        else:
+            warnings.warn(
+                "The 'readonly' argument is deprecated. "
+                "You should either drop it or use the 'get_mutable' method.",
+                stacklevel=2,
+            )
+        if readonly:
+            return self.keyfs.tx.get(self)
+        return self.keyfs.tx.get_mutable(self)
+
+    def get_mutable(self):
+        return self.keyfs.tx.get_mutable(self)
 
     @property
     def last_serial(self):
@@ -84,7 +98,7 @@ class TypedKey:
 
     @contextlib.contextmanager
     def update(self):
-        val = self.keyfs.tx.get(self, readonly=False)
+        val = self.keyfs.tx.get_mutable(self)
         yield val
         # no exception, so we can set and thus mark dirty the object
         self.set(val)

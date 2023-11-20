@@ -751,7 +751,7 @@ class Transaction(object):
             self._original[typedkey] = (serial, val)
         return self._original[typedkey]
 
-    def get(self, typedkey, readonly=True):
+    def _get(self, typedkey):
         if typedkey in self.cache:
             val = self.cache[typedkey]
         else:
@@ -759,10 +759,26 @@ class Transaction(object):
         if val in (absent, deleted):
             # for convenience we return an empty instance
             val = typedkey.type()
-        if readonly:
-            return ensure_deeply_readonly(val)
+        return val
+
+    def get(self, typedkey, *, readonly=None):
+        """Return current read-only value referenced by typedkey."""
+        if readonly is None:
+            readonly = True
         else:
-            return get_mutable_deepcopy(val)
+            warnings.warn(
+                "The 'readonly' argument is deprecated. You should either drop it, ",
+                "use the 'get_mutable' method "
+                "or wrap the result in the 'get_mutable_deepcopy' function.",
+                stacklevel=2,
+            )
+        if readonly:
+            return ensure_deeply_readonly(self._get(typedkey))
+        return get_mutable_deepcopy(self._get(typedkey))
+
+    def get_mutable(self, typedkey):
+        """Return current mutable value referenced by typedkey."""
+        return get_mutable_deepcopy(self._get(typedkey))
 
     def exists(self, typedkey):
         if typedkey in self.cache:

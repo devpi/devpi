@@ -781,7 +781,7 @@ def set_default_indexes(model):
             model.xom.config.root_passwd,
             pwhash=model.xom.config.root_passwd_hash)
         threadlog.info("created root user")
-    userconfig = root_user.key.get(readonly=False)
+    userconfig = root_user.key.get_mutable()
     indexes = userconfig["indexes"]
     if "pypi" not in indexes and not model.xom.config.no_root_pypi:
         indexes["pypi"] = _pypi_ixconfig_default.copy()
