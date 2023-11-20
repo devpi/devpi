@@ -161,16 +161,29 @@ def indexer_backend_option(request, server_executable):
 
 
 def _liveserver(request, clientdir, indexer_backend_option, server_executable):
+    from .functional import LOWER_ARGON2_MEMORY_COST
+    from .functional import LOWER_ARGON2_PARALLELISM
+    from .functional import LOWER_ARGON2_TIME_COST
     host = 'localhost'
     port = get_open_port(host)
     args = [
         "--serverdir", str(clientdir)]
     init_executable = server_executable.replace(
         "devpi-server", "devpi-init")
-    check_call(request, [init_executable] + args)
+    check_call(request, [init_executable, *args])
     args.extend(indexer_backend_option)
-    p = subprocess.Popen([server_executable] + args + [
-        "--debug", "--host", host, "--port", str(port)])
+    out = check_output(request, [server_executable, "-h"])
+    if b'--argon2' in out:
+        # add --argon2 arguments if supported for faster test runs
+        args.extend([
+            "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
+            "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
+            "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST)])
+    p = subprocess.Popen([  # noqa: S603 - only for testing
+        server_executable,
+        *args,
+        "--debug",
+        "--host", host, "--port", str(port)])
     wait_for_port(host, port)
     return (p, URL("http://%s:%s" % (host, port)))
 
