@@ -242,11 +242,9 @@ class MasterChangelogRequest:
             raw_entry = keyfs.tx.conn.get_raw_changelog_entry(serial)
 
             devpi_serial = keyfs.get_current_serial()
-            r = Response(body=raw_entry, status=200, headers={
-                str("Content-Type"): str("application/octet-stream"),
-                str("X-DEVPI-SERIAL"): str(devpi_serial),
-            })
-            return r
+            return Response(body=raw_entry, status=200, headers={
+                "Content-Type": "application/octet-stream",
+                "X-DEVPI-SERIAL": str(devpi_serial)})
 
     @view_config(route_name="/+changelog/{serial}-")
     def get_multiple_changes(self):
@@ -284,11 +282,9 @@ class MasterChangelogRequest:
                     threadlog.debug('Changelog timeout %s', raw_size)
                     break
             raw_entry = dumps(all_changes)
-            r = Response(body=raw_entry, status=200, headers={
-                str("Content-Type"): str("application/octet-stream"),
-                str("X-DEVPI-SERIAL"): str(devpi_serial),
-            })
-            return r
+            return Response(body=raw_entry, status=200, headers={
+                "Content-Type": "application/octet-stream",
+                "X-DEVPI-SERIAL": str(devpi_serial)})
 
     def get_streaming_changes(self):
         self.verify_master()
@@ -311,13 +307,11 @@ class MasterChangelogRequest:
             with self.update_replica_status(devpi_serial + 1, streaming=False):
                 pass
 
-        r = Response(
+        return Response(
             app_iter=buffered_iterator(iter_changelog_entries()),
             status=200, headers={
-                str("Content-Type"): str(REPLICA_CONTENT_TYPE),
-                str("X-DEVPI-SERIAL"): str(devpi_serial),
-            })
-        return r
+                "Content-Type": REPLICA_CONTENT_TYPE,
+                "X-DEVPI-SERIAL": str(devpi_serial)})
 
     def _wait_for_serial(self, serial):
         keyfs = self.xom.keyfs
@@ -333,8 +327,7 @@ class MasterChangelogRequest:
             if not arrived:
                 raise HTTPAccepted(
                     "no new transaction yet",
-                    headers={str("X-DEVPI-SERIAL"):
-                             str(keyfs.get_current_serial())})
+                    headers={"X-DEVPI-SERIAL": str(keyfs.get_current_serial())})
         return serial
 
 
@@ -422,9 +415,9 @@ class ReplicaThread:
                 H_REPLICA_UUID: uuid,
                 H_EXPECTED_MASTER_ID: master_uuid,
                 H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                str('Authorization'): 'Bearer %s' % token}
+                'Authorization': 'Bearer %s' % token}
             if self.use_streaming:
-                headers[str("Accept")] = REPLICA_ACCEPT_STREAMING
+                headers["Accept"] = REPLICA_ACCEPT_STREAMING
             r = self.session.get(
                 url,
                 allow_redirects=False,
@@ -925,9 +918,9 @@ class FileReplicationThread:
         r = session.get(
             url, allow_redirects=False,
             headers={
-                H_REPLICA_FILEREPL: str("YES"),
+                H_REPLICA_FILEREPL: "YES",
                 H_REPLICA_UUID: self.uuid,
-                str('Authorization'): 'Bearer %s' % token},
+                'Authorization': 'Bearer %s' % token},
             stream=True,
             timeout=self.xom.config.args.request_timeout)
         with contextlib.closing(r):
@@ -1236,12 +1229,12 @@ def proxy_write_to_master(xom, request):
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.wait_tx_serial(commit_serial)
     headers = clean_response_headers(r)
-    headers[str("X-DEVPI-PROXY")] = str("replica")
+    headers["X-DEVPI-PROXY"] = "replica"
     if r.status_code == 302:  # REDIRECT
         # rewrite master-related location to our replica site
         master_location = r.headers["location"]
         outside_url = request.application_url
-        headers[str("location")] = str(
+        headers["location"] = str(
             master_location.replace(xom.config.master_url.url, outside_url))
     return Response(status="%s %s" % (r.status_code, r.reason),
                     app_iter=app_iter(),

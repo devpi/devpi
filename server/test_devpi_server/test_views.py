@@ -245,7 +245,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
-    headers={str('X-outside-url'): str(outside_url)}
+    headers = {'X-outside-url': str(outside_url)}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
@@ -267,7 +267,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
-    headers={str('X-devpi-absolute-urls'): str("")}
+    headers = {'X-devpi-absolute-urls': ""}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
@@ -280,7 +280,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     testapp.xget(200, links[1], headers=headers)
     # we also test in combination with X-outside-url where devpi is "mounted"
     # in a sub path
-    headers.update({str('X-outside-url'): str("http://localhost/devpi")})
+    headers.update({'X-outside-url': "http://localhost/devpi"})
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
@@ -314,7 +314,7 @@ user_agent_parameter_ids = [
 def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
     # installers should get the simple projects info directly without redirect
     pypistage.mock_simple_projects(["hello1", "hello2"])
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
     r = testapp.get("/root/pypi", headers=headers, follow=False)
     assert r.status_code == 200
     assert 'href="hello1/"' in r.text
@@ -416,7 +416,7 @@ def test_project_pep_691_multiple(mapp, testapp):
 def test_projects_redirect(pypistage, testapp):
     # test non installer html requests which should go nowhere,
     # because devpi-server only returns json
-    headers = {"Accept": str("text/html")}
+    headers = {"Accept": "text/html"}
     r = testapp.get("/root/pypi", headers=headers, follow=False)
     assert r.status_code == 404
     r = testapp.get("/root/pypi/", headers=headers, follow=False)
@@ -430,7 +430,7 @@ def test_project_simple_results_for_installers(pypistage, testapp, user_agent):
     pypistage.mock_simple(
         "py",
         """<a href="/py-2.0.zip" /><a href="/py-3.0.zip" /><a href="/py-1.0.zip" />""")
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
 
     r = testapp.get("/root/pypi/py", headers=headers, follow=False)
     assert r.status_code == 200
@@ -450,7 +450,7 @@ def test_project_redirect(pypistage, testapp):
     name = "qpwoei"
     # test non installer html requests which should go nowhere,
     # because devpi-server only returns json
-    headers = {"Accept": str("text/html")}
+    headers = {"Accept": "text/html"}
 
     r = testapp.get("/root/pypi/%s" % name, headers=headers, follow=False)
     assert r.status_code == 404
@@ -465,7 +465,7 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
     pypistage.mock_simple(
         "py",
         """<a href="/py-2.0.zip" /><a href="/py-3.0.zip" /><a href="/py-1.0.zip" />""")
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
     # fail if called
     monkeypatch.setattr(
         BaseStage, "get_mirror_whitelist_info", lambda s, p: 0 / 0)
@@ -493,7 +493,7 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
 @pytest.mark.parametrize(*user_agent_parameter_args, ids=user_agent_parameter_ids)
 def test_simple_list_all_no_redirect_for_installers(pypistage, testapp, user_agent):
     pypistage.mock_simple_projects(["hello1", "hello2"])
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
     r = testapp.get("/root/pypi/+simple", headers=headers)
     assert r.status_code == 200
     assert 'href="hello1/"' in r.text
@@ -1424,7 +1424,7 @@ def test_acl_toxresults_upload(mapp, testapp, tox_result_data):
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
-    headers={str('X-outside-url'): str('')}
+    headers = {'X-outside-url': ''}
     r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
     assert r.status_code == 200
     mapp.set_acl(['user2'], acltype="toxresult_upload")
@@ -1450,7 +1450,7 @@ def test_upload_and_push_with_toxresults(mapp, testapp, outside_url, tox_result_
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
-    headers={str('X-outside-url'): str(outside_url)}
+    headers = {'X-outside-url': str(outside_url)}
     r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
     # store a second toxresult
     r = testapp.post(path, json.dumps(tox_result_data), headers=headers)

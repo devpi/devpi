@@ -1218,8 +1218,8 @@ class PyPIView:
         new_metadata = self._get_versiondata_from_form(
             stage, form, skip_missing=True)
         # now we have the name and version and look for existing metadata
-        metadata = stage.get_versiondata_perstage(
-            new_metadata["name"], new_metadata["version"], readonly=False)
+        metadata = get_mutable_deepcopy(stage.get_versiondata_perstage(
+            new_metadata["name"], new_metadata["version"]))
         if not metadata:
             # there is no existing metadata, so we do a full register
             # with default values for missing metadata

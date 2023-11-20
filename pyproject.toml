@@ -97,7 +97,6 @@ ignore = [
     "UP008", # cleanup later - super
     "UP012", # false positives (bug in ruff?) - unnecessary utf-8 encode
     "UP015", # cleanup later - open mode parameters
-    "UP018", # cleanup later - unnecessary str call
     "UP020", # cleanup soon - use builtin 'open'
     "UP024", # maybe cleanup later - aliased errors
     "UP025", # maybe cleanup later - unicode literals

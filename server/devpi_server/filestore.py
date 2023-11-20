@@ -269,11 +269,11 @@ class FileEntry(object):
     def gethttpheaders(self):
         assert self.file_exists()
         headers = {}
-        headers[str("last-modified")] = str(self.last_modified)
+        headers["last-modified"] = str(self.last_modified)
         m = mimetypes.guess_type(self.basename)[0]
-        headers[str("content-type")] = str(m)
-        headers[str("content-length")] = str(self.file_size())
-        headers[str("cache-control")] = str("max-age=365000000, immutable, public")
+        headers["content-type"] = str(m)
+        headers["content-length"] = str(self.file_size())
+        headers["cache-control"] = "max-age=365000000, immutable, public"
         return headers
 
     def __eq__(self, other):
