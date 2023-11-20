@@ -133,11 +133,21 @@ class TestKeyFS:
         key = keyfs.add_key("NAME", "somekey", dict)
         with keyfs.read_transaction() as tx:
             assert key not in tx.cache
+            assert key not in tx._original
             assert not tx.exists(key)
-            assert key in tx.cache
+            assert key not in tx.cache
+            assert key in tx._original
             # make get_value_at fail if it is called
             monkeypatch.setattr(tx, "get_value_at", lambda k, s: 0 / 0)
             assert not tx.exists(key)
+
+    @notransaction
+    def test_dirty_exists(self, keyfs):
+        key = keyfs.add_key("NAME", "somekey", dict)
+        with keyfs.write_transaction() as tx:
+            assert not tx.exists(key)
+            tx.set(key, {})
+            assert tx.exists(key)
 
 
 class TestGetKey:

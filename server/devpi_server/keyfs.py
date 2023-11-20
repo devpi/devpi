@@ -14,7 +14,7 @@ from .keyfs_types import PTypedKey
 from .keyfs_types import TypedKey
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
-from .markers import absent
+from .markers import absent, deleted
 from .model import RootModel
 from .readonly import ensure_deeply_readonly
 from .readonly import get_mutable_deepcopy
@@ -633,7 +633,7 @@ class Transaction(object):
 
     def get_key_in_transaction(self, relpath):
         for key in self.cache:
-            if key.relpath == relpath and self.cache[key] is not absent:
+            if key.relpath == relpath and self.cache[key] not in (absent, deleted):
                 return key
         raise KeyError(relpath)
 
@@ -643,36 +643,28 @@ class Transaction(object):
     def get_original(self, typedkey):
         """ Return original value from start of transaction,
             without changes from current transaction."""
-        try:
-            return self._original[typedkey]
-        except KeyError:
-            # will raise KeyError if it doesn't exist
-            val = self.get_value_at(typedkey, self.at_serial)
-            assert is_deeply_readonly(val)
-            self._original[typedkey] = val
-        return val
+        if typedkey not in self._original:
+            tup = self.get_last_serial_and_value_at(
+                typedkey, self.at_serial, raise_on_error=False)
+            if tup is None:
+                serial = -1
+                val = absent
+            else:
+                (serial, val) = tup
+                assert is_deeply_readonly(val)
+                if val is None:
+                    val = deleted
+            self._original[typedkey] = (serial, val)
+        return self._original[typedkey]
 
     def get(self, typedkey, readonly=True):
-        """ Return current value referenced by typedkey,
-            either as a readonly-view or as a mutable deep copy. """
-        try:
+        if typedkey in self.cache:
             val = self.cache[typedkey]
-            if val is absent:
-                raise KeyError
-        except KeyError:
-            absent_from_dirty = typedkey in self.dirty
-            if not absent_from_dirty:
-                try:
-                    val = self.get_original(typedkey)
-                except KeyError:
-                    absent_from_dirty = True
-            if absent_from_dirty:
-                # for convenience we return an empty instance
-                # but below we still respect the readonly property
-                val = typedkey.type()
-            else:
-                assert is_deeply_readonly(val)
-                self.cache[typedkey] = val
+        else:
+            (back_serial, val) = self.get_original(typedkey)
+        if val in (absent, deleted):
+            # for convenience we return an empty instance
+            val = typedkey.type()
         if readonly:
             return ensure_deeply_readonly(val)
         else:
@@ -680,42 +672,31 @@ class Transaction(object):
 
     def exists(self, typedkey):
         if typedkey in self.cache:
-            return self.cache[typedkey] is not absent
-        if typedkey in self.dirty:
-            return False
-        try:
-            val = self.get_value_at(typedkey, self.at_serial)
-        except KeyError:
-            self.cache[typedkey] = absent
-            return False
-        else:
-            assert val is not absent
-            assert is_deeply_readonly(val)
-            self.cache[typedkey] = val
+            val = self.cache[typedkey]
+            if val in (absent, deleted):
+                return False
             return True
+        (serial, val) = self.get_original(typedkey)
+        if val in (absent, deleted):
+            return False
+        return True
 
     def delete(self, typedkey):
         if not self.write:
             raise self.keyfs.ReadOnly()
-        self.cache.pop(typedkey, None)
+        self.cache[typedkey] = deleted
         self.dirty.add(typedkey)
 
-    def set(self, typedkey, val):
+    def set(self, typedkey, val):  # noqa: A003
         if not self.write:
             raise self.keyfs.ReadOnly()
         # sanity check for dictionaries: we always want to have unicode
         # keys, not bytes
         if typedkey.type == dict:
             check_unicode_keys(val)
-        try:
-            old_val = self.get_original(typedkey)
-        except KeyError:
-            old_val = absent
+        assert val is not None
         self.cache[typedkey] = val
-        if val != old_val:
-            self.dirty.add(typedkey)
-        else:
-            self.dirty.discard(typedkey)
+        self.dirty.add(typedkey)
 
     def commit(self):
         if self.doomed:
@@ -727,18 +708,25 @@ class Transaction(object):
             result = self._close()
             self._run_listeners(self._finished_listeners)
             return result
-        if not self.dirty and not self.conn.dirty_files:
+        records = []
+        for typedkey in self.dirty:
+            val = self.cache[typedkey]
+            assert val is not absent
+            (back_serial, old_val) = self.get_original(typedkey)
+            if val == old_val:
+                continue
+            if val is deleted:
+                val = None
+            records.append((typedkey, val, back_serial, old_val))
+        if not records and not self.conn.dirty_files:
             threadlog.debug("nothing to commit, just closing tx")
             result = self._close()
             self._run_listeners(self._finished_listeners)
             return result
         try:
             with self.conn.write_transaction() as fswriter:
-                for typedkey in self.dirty:
-                    val = self.cache.get(typedkey)
-                    assert val is not absent
-                    # None signals deletion
-                    fswriter.record_set(typedkey, val)
+                for (typedkey, val, back_serial, old_val) in records:
+                    fswriter.record_set(typedkey, val, back_serial)
                 commit_serial = getattr(fswriter, "commit_serial", absent)
                 if commit_serial is absent:
                     # for storages which don't have the attribute yet
