@@ -6,6 +6,7 @@ from .keyfs import KeyfsTimeoutError
 from .keyfs import RelpathInfo
 from .keyfs import get_relpath_at
 from .log import threadlog, thread_push_log, thread_pop_log
+from .markers import absent
 from .mythread import current_thread
 from .readonly import ReadonlyView
 from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
@@ -19,9 +20,6 @@ import os
 import shutil
 import sqlite3
 import time
-
-
-absent = object()
 
 
 class SpooledTemporaryFile(SpooledTemporaryFileBase):
