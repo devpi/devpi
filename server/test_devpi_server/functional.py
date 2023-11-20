@@ -5,6 +5,11 @@ from urllib.parse import quote as url_quote
 import pytest
 
 
+LOWER_ARGON2_MEMORY_COST = 8
+LOWER_ARGON2_PARALLELISM = 1
+LOWER_ARGON2_TIME_COST = 1
+
+
 class API:
     def __init__(self, d):
         self.__dict__ = d
