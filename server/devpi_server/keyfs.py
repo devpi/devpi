@@ -14,6 +14,7 @@ from .interfaces import IStorageConnection3
 from .keyfs_types import PTypedKey, RelpathInfo, TypedKey
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
+from .markers import absent
 from .model import RootModel
 from .readonly import ensure_deeply_readonly
 from .readonly import get_mutable_deepcopy
@@ -23,9 +24,6 @@ from .fileutil import read_int_from_file, write_int_to_file
 import time
 
 from devpi_common.types import cached_property
-
-
-absent = object()
 
 
 class KeyfsTimeoutError(TimeoutError):
