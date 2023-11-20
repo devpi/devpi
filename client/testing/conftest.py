@@ -5,7 +5,9 @@ from devpi_common.metadata import parse_version
 from io import StringIO
 from pathlib import Path
 import codecs
+import gc
 import os
+import platform
 import pytest
 import socket
 import textwrap
@@ -19,6 +21,9 @@ from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 
 import subprocess
+
+
+IS_PYPY = platform.python_implementation() == 'PyPy'
 
 
 def _check_output(request, args, env=None):
@@ -557,6 +562,9 @@ def cmd_devpi(tmpdir, monkeypatch):
                 raise
         finally:
             hub.close()
+            if IS_PYPY:
+                del hub.http
+                gc.collect()
         if expected is not None:
             if expected == -2:  # failed-to-start
                 assert hasattr(hub, "sysex")
@@ -652,7 +660,13 @@ def loghub(tmpdir):
         return LineMatcher(lines)
 
     hub._getmatcher = _getmatcher
-    return hub
+    try:
+        yield hub
+    finally:
+        hub.close()
+        if IS_PYPY:
+            del hub.http
+            gc.collect()
 
 
 @pytest.fixture(scope="session")
