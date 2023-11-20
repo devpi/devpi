@@ -108,8 +108,8 @@ def test_get_latest_stable_version(expected, versions):
         ["2004d", "2005i", "2022.7", "2022.7.1"]
     ),
     (
-        ["1.0alpha1", "1.0beta5prerelease2"],
-        ["1.0beta5prerelease2", "1.0alpha1"],
+        ["1.0alpha1", "1.0beta5prerelease2", "3.1.4-ec6"],
+        ["1.0beta5prerelease2", "3.1.4-ec6", "1.0alpha1"],
     ),
     (
         ["1.0", "2.0", "2005i", "2004d"],
@@ -118,6 +118,24 @@ def test_get_latest_stable_version(expected, versions):
 ])
 def test_get_sorted_versions_legacy(versions, expected):
     assert get_sorted_versions(versions, reverse=False) == expected
+
+
+@pytest.mark.parametrize(("versions", "expected"), [
+    (
+        ["2022.7.1", "2022.7", "2005i", "2004d"],
+        ["2004d", "2005i", "2022.7", "2022.7.1"],
+    ),
+    (
+        ["1.0alpha1", "1.0beta5prerelease2", "3.1.4-ec6"],
+        ["1.0beta5prerelease2", "3.1.4-ec6"],
+    ),
+    (
+        ["1.0", "2.0", "2005i", "2004d"],
+        ["2004d", "2005i", "1.0", "2.0"],
+    ),
+])
+def test_get_sorted_versions_legacy_stable(versions, expected):
+    assert get_sorted_versions(versions, stable=True, reverse=False) == expected
 
 
 def test_version():
