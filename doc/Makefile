@@ -218,7 +218,7 @@ regen.sample_undo:
 regen.server-fresh: regen.server-clean
 	rm -rf $(TESTHOME)
 	devpi-init --serverdir=$(TESTHOME)/.devpi/server
-	devpi-gen-config --serverdir=$(TESTHOME)/.devpi/server
+	devpi-gen-config --serverdir=$(TESTHOME)/.devpi/server --argon2-memory-cost 8 --argon2-parallelism 1 --argon2-time-cost 1
 	supervisord -c gen-config/supervisord.conf
 
 regen.server-stop:
