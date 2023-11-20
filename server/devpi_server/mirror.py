@@ -32,6 +32,7 @@ from .views import make_uuid_headers
 from pyramid.authentication import b64encode
 import json
 import threading
+import warnings
 import weakref
 
 
@@ -858,10 +859,18 @@ class MirrorStage(BaseStage):
         (last_serial, links) = info
         return last_serial
 
-    def get_versiondata_perstage(self, project, version, readonly=True):
+    def get_versiondata_perstage(self, project, version, readonly=None):
         # we do not use normalize_name name here, so the returned data
         # contains whatever this method was called with, which is hopefully
         # the title from the project list
+        if readonly is None:
+            readonly = True
+        else:
+            warnings.warn(
+                "The 'readonly' argument is deprecated. "
+                "Use the 'get_mutable_deepcopy' function on the result instead.",
+                stacklevel=2,
+            )
         verdata = {}
         for sm in self.get_simplelinks_perstage(project):
             link_version = sm.version

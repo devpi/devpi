@@ -1371,9 +1371,20 @@ class PrivateStage(BaseStage):
     def list_versions_perstage(self, project):
         return self.key_projversions(project).get()
 
-    def get_versiondata_perstage(self, project, version, readonly=True):
+    def get_versiondata_perstage(self, project, version, readonly=None):
+        if readonly is None:
+            readonly = True
+        else:
+            warnings.warn(
+                "The 'readonly' argument is deprecated. "
+                "Use the 'get_mutable_deepcopy' function on the result instead.",
+                stacklevel=2,
+            )
         project = normalize_name(project)
-        return self.key_projversion(project, version).get(readonly=readonly)
+        result = self.key_projversion(project, version).get()
+        if not readonly:
+            return get_mutable_deepcopy(result)
+        return result
 
     def get_simplelinks_perstage(self, project):
         data = self.key_projsimplelinks(project).get()
@@ -1442,9 +1453,7 @@ class PrivateStage(BaseStage):
             threadlog.info("store_doczip: derived version of %s is %s",
                            project, version)
         basename = "%s-%s.doc.zip" % (project, version)
-        verdata = self.get_versiondata_perstage(
-            project, version, readonly=False)
-        if not verdata:
+        if not self.get_versiondata_perstage(project, version):
             self.set_versiondata({'name': project, 'version': version})
         linkstore = self.get_mutable_linkstore_perstage(project, version)
         return linkstore.create_linked_entry(
