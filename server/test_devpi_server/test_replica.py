@@ -49,7 +49,7 @@ class TestChangelog:
             token = auth_serializer.dumps(self.replica_uuid)
             req_headers = {H_REPLICA_UUID: self.replica_uuid,
                            H_REPLICA_OUTSIDE_URL: self.replica_url,
-                           str('Authorization'): 'Bearer %s' % token}
+                           'Authorization': 'Bearer %s' % token}
             url = "/+changelog/%s" % serial
             use_multi_endpoint = request.param
             if use_multi_endpoint:
@@ -100,12 +100,12 @@ class TestChangelog:
         token = auth_serializer.dumps(self.replica_uuid)
         testapp.xget(400, "/+changelog/0", headers={
             H_REPLICA_UUID: self.replica_uuid,
-            H_EXPECTED_MASTER_ID:str("123"),
-            str('Authorization'): 'Bearer %s' % token})
+            H_EXPECTED_MASTER_ID: "123",
+            'Authorization': 'Bearer %s' % token})
         r = testapp.xget(200, "/+changelog/0", headers={
             H_REPLICA_UUID: self.replica_uuid,
             H_EXPECTED_MASTER_ID: '',
-            str('Authorization'): 'Bearer %s' % token})
+            'Authorization': 'Bearer %s' % token})
         assert r.headers[H_MASTER_UUID]
         del testapp.headers[H_EXPECTED_MASTER_ID]
         testapp.xget(400, "/+changelog/0")
@@ -121,7 +121,7 @@ class TestMultiChangelog:
             token = auth_serializer.dumps(self.replica_uuid)
             req_headers = {H_REPLICA_UUID: self.replica_uuid,
                            H_REPLICA_OUTSIDE_URL: self.replica_url,
-                           str('Authorization'): 'Bearer %s' % token}
+                           'Authorization': 'Bearer %s' % token}
             url = "/+changelog/%s-" % serial
             return testapp.get(url, expect_errors=False, headers=req_headers)
         return reqchangelogs

@@ -156,7 +156,7 @@ def test_on_modified(makemapp, maketestapp, makexom):
     api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
     r = testapp.patch_json(
         api.index, ['bases+=user/dev'],
-        headers={'X-Fail': str('foo')}, expect_errors=True)
+        headers={'X-Fail': 'foo'}, expect_errors=True)
     assert r.status_code == 400
     assert r.json['message'] == "foo"
     result = mapp.getjson(api.index)

@@ -203,7 +203,7 @@ class MirrorStage(BaseStage):
             rt = self.xom.replica_thread
             token = rt.auth_serializer.dumps(uuid)
             extra_headers[rt.H_REPLICA_UUID] = uuid
-            extra_headers[str('Authorization')] = 'Bearer %s' % token
+            extra_headers['Authorization'] = 'Bearer %s' % token
         return extra_headers
 
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
@@ -558,7 +558,7 @@ class MirrorStage(BaseStage):
         # provide earlier versions of easy_install/pip to request the full
         # simple page.
         try:
-            serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL")))
+            serial = int(response.headers.get("X-PYPI-LAST-SERIAL"))
         except (TypeError, ValueError):
             # handle missing or invalid X-PYPI-LAST-SERIAL header
             serial = -1

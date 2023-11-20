@@ -942,7 +942,7 @@ class MyTestApp(TApp):
         accept = kwargs.pop("accept", None)
         if accept is not None:
             headers = kwargs.setdefault("headers", {})
-            headers[str("Accept")] = str(accept)
+            headers["Accept"] = str(accept)
         follow = kwargs.pop("follow", True)
         response = self._gen_request("GET", *args, **kwargs)
         if follow and response.status_code == 302:
