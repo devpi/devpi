@@ -1758,8 +1758,7 @@ def iter_cache_remote_file(stage, entry, url):
         if not entry.has_existing_metadata():
             with xom.keyfs.write_transaction(allow_restart=True):
                 if entry.readonly:
-                    entry = xom.filestore.get_file_entry(
-                        entry.relpath, readonly=False)
+                    entry = xom.filestore.get_file_entry_from_key(entry.key)
                 entry.file_set_content(
                     f,
                     last_modified=r.headers.get("last-modified", None),

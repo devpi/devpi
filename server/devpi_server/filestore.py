@@ -5,6 +5,7 @@ for all indexes.
 """
 import hashlib
 import mimetypes
+from .readonly import get_mutable_deepcopy
 from wsgiref.handlers import format_date_time
 import re
 from devpi_common.metadata import splitbasename
@@ -333,7 +334,7 @@ class FileStore:
 
     def maplink(self, link, user, index, project):
         key = key_from_link(self.keyfs, link, user, index)
-        entry = FileEntry(key, readonly=False)
+        entry = MutableFileEntry(key)
         entry.url = link.geturl_nofragment().url
         entry.hash_spec = unicode_if_bytes(link.hash_spec)
         entry.project = project
@@ -357,14 +358,14 @@ class FileStore:
             return None
         return key
 
-    def get_file_entry(self, relpath, readonly=True):
+    def get_file_entry(self, relpath):
         key = self.get_key_from_relpath(relpath)
         if key is None:
             return None
-        return self.get_file_entry_from_key(key, readonly=readonly)
+        return FileEntry(key)
 
-    def get_file_entry_from_key(self, key, meta=_nodefault, readonly=True):
-        return FileEntry(key, meta=meta, readonly=readonly)
+    def get_file_entry_from_key(self, key, meta=_nodefault):
+        return MutableFileEntry(key, meta=meta)
 
     def store(self, user, index, basename, content_or_file, *, dir_hash_spec=None, hashes=None):
         # dir_hash_spec is set for toxresult files
@@ -376,7 +377,7 @@ class FileStore:
         key = self.keyfs.STAGEFILE(
             user=user, index=index,
             hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
-        entry = FileEntry(key, readonly=False)
+        entry = MutableFileEntry(key)
         entry.file_set_content(content_or_file, hashes=hashes)
         return entry
 
@@ -401,8 +402,9 @@ class BadGateway(Exception):
         self.url = url
 
 
-class FileEntry(object):
-    __slots__ = ('_meta', '_storepath', 'basename', 'key', 'readonly', 'relpath')
+class BaseFileEntry:
+    __slots__ = ("_meta", "_storepath", "basename", "key", "relpath")
+
     BadGateway = BadGateway
     _hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
     last_modified = metaprop("last_modified")
@@ -410,11 +412,10 @@ class FileEntry(object):
     project = metaprop("project")
     version = metaprop("version")
 
-    def __init__(self, key, meta=_nodefault, readonly=True):
+    def __init__(self, key, meta=_nodefault):
         self.key = key
         self.relpath = key.relpath
         self.basename = self.relpath.split("/")[-1]
-        self.readonly = readonly
         self._storepath = "/".join(("+files", str(self.relpath)))
         self._meta = _nodefault
         if meta is not _nodefault:
@@ -517,9 +518,7 @@ class FileEntry(object):
 
     @property
     def meta(self):
-        if self._meta is _nodefault:
-            self._meta = self.key.get(readonly=self.readonly)
-        return self._meta
+        raise NotImplementedError
 
     def file_exists(self):
         return self.tx.conn.io_file_exists(self._storepath)
@@ -531,7 +530,7 @@ class FileEntry(object):
         return self.tx.conn.io_file_size(self._storepath)
 
     def __repr__(self):
-        return f"<FileEntry {self.key!r}>"
+        return f"<{self.__class__.__name__} {self.key!r}>"
 
     def file_new_open(self):
         return self.tx.conn.io_file_new_open(self._storepath)
@@ -609,6 +608,30 @@ class FileEntry(object):
             return errors.get(
                 self.best_available_hash_type, next(iter(errors.values())))['msg']
         return None
+
+
+class FileEntry(BaseFileEntry):
+    @property
+    def meta(self):
+        if self._meta is _nodefault:
+            self._meta = self.key.get()
+        return self._meta
+
+    @property
+    def readonly(self):
+        return True
+
+
+class MutableFileEntry(BaseFileEntry):
+    @property
+    def meta(self):
+        if self._meta is _nodefault:
+            self._meta = get_mutable_deepcopy(self.key.get())
+        return self._meta
+
+    @property
+    def readonly(self):
+        return False
 
 
 def get_checksum_error(content_or_hash, relpath, hash_spec):
