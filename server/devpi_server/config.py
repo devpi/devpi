@@ -626,7 +626,7 @@ class Config(object):
 
     @cached_property
     def waitress_info(self):
-        from .main import fatal
+        from .main import Fatal
         host = self.args.host
         port = self.args.port
         default_host_port = (host == 'localhost') and (port == 3141)
@@ -644,7 +644,7 @@ class Config(object):
                 port = None
         if self.args.listen:
             if not default_host_port:
-                fatal("You can use either --listen or --host/--port, not both together.")
+                raise Fatal("You can use either --listen or --host/--port, not both together.")
             host = None
             port = None
             for listen in self.args.listen:
@@ -831,13 +831,15 @@ class Config(object):
             self.nodeinfo["role"] = "standalone"
 
     def _automatic_role(self, role):
-        from .main import fatal
+        from .main import Fatal
         if role == "replica" and not self.master_url:
-            fatal("configuration error, masterurl isn't set in nodeinfo, but "
-                  "role is set to replica")
+            raise Fatal(
+                "configuration error, masterurl isn't set in nodeinfo, but "
+                "role is set to replica")
         if role != "replica" and self.master_url:
-            fatal("configuration error, masterurl set in nodeinfo, but role "
-                  "isn't set to replica")
+            raise Fatal(
+                "configuration error, masterurl set in nodeinfo, but role "
+                "isn't set to replica")
         if role != "replica":
             self.master_url = None
         if role == "master":
@@ -845,13 +847,13 @@ class Config(object):
             self.nodeinfo["role"] = "standalone"
 
     def _change_role(self, old_role, new_role):
-        from .main import fatal
+        from .main import Fatal
         if new_role == "replica":
             if old_role and old_role != "replica":
-                fatal("cannot run as replica, was previously run "
-                      "as %s" % old_role)
+                msg = f"cannot run as replica, was previously run as {old_role}"
+                raise Fatal(msg)
             if not self.master_url:
-                fatal("need to specify --master-url to run as replica")
+                raise Fatal("need to specify --master-url to run as replica")
         else:
             self.master_url = None
         self.nodeinfo["role"] = new_role
@@ -874,12 +876,13 @@ class Config(object):
             self.nodeinfo.pop("masterurl", None)
 
     def _storage_info_from_name(self, name, settings):
-        from .main import fatal
+        from .main import Fatal
         storages = self.pluginmanager.hook.devpiserver_storage_backend(settings=settings)
         for storage in storages:
             if storage['name'] == name:
                 return storage
-        fatal("The backend '%s' can't be found, is the plugin not installed?" % name)
+        msg = f"The backend {name!r} can't be found, is the plugin not installed?"
+        raise Fatal(msg)
 
     def _storage_info(self):
         name = self.storage_info["name"]
@@ -927,25 +930,25 @@ class Config(object):
             os.path.expanduser(self.args.secretfile))
 
     def get_validated_secret(self):
-        from .main import fatal
+        from .main import Fatal
         import stat
         if not self.secretfile.check(file=True):
-            fatal("The given secret file doesn't exist.")
+            raise Fatal("The given secret file doesn't exist.")
         if self.secretfile.stat().mode & stat.S_IRWXO and sys.platform != "win32":
-            fatal("The given secret file is world accessible, the access mode must be user accessible only (0600).")
+            raise Fatal("The given secret file is world accessible, the access mode must be user accessible only (0600).")
         if self.secretfile.stat().mode & stat.S_IRWXG and sys.platform != "win32":
-            fatal("The given secret file is group accessible, the access mode must be user accessible only (0600).")
+            raise Fatal("The given secret file is group accessible, the access mode must be user accessible only (0600).")
         if self.secretfile.dirpath().stat().mode & stat.S_IWGRP and sys.platform != "win32":
-            fatal("The folder of the given secret file is group writable, it must only be writable by the user.")
+            raise Fatal("The folder of the given secret file is group writable, it must only be writable by the user.")
         if self.secretfile.dirpath().stat().mode & stat.S_IWOTH and sys.platform != "win32":
-            fatal("The folder of the given secret file is world writable, it must only be writable by the user.")
+            raise Fatal("The folder of the given secret file is world writable, it must only be writable by the user.")
         secret = self.secretfile.read_binary()
         if len(secret) < 32:
-            fatal(
+            raise Fatal(
                 "The secret in the given secret file is too short, "
                 "it should be at least 32 characters long.")
         if len(set(secret)) < 6:
-            fatal(
+            raise Fatal(
                 "The secret in the given secret file is too weak, "
                 "it should use less repetition.")
         return secret
@@ -1006,7 +1009,7 @@ def gensecret():
     from .log import configure_cli_logging
     from .log import threadlog as log
     from .main import CommandRunner
-    from .main import fatal
+    from .main import Fatal
     import stat
     with CommandRunner() as runner:
         parser = runner.create_parser(
@@ -1018,7 +1021,7 @@ def gensecret():
         config = runner.get_config(sys.argv, parser=parser)
         configure_cli_logging(config.args)
         if config.args.secretfile is None:
-            fatal("You need to provide a location for the secret file.")
+            raise Fatal("You need to provide a location for the secret file.")
         if not config.secretfile.exists():
             with config.secretfile.open("wb") as f:
                 f.write(new_secret())

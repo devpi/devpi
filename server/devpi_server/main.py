@@ -13,6 +13,7 @@ import ssl
 import sys
 import threading
 import time
+import warnings
 
 from requests import Response, exceptions
 from requests.utils import DEFAULT_CA_BUNDLE_PATH
@@ -34,8 +35,12 @@ class Fatal(Exception):
     pass
 
 
-def fatal(msg):
-    raise Fatal(msg)
+def fatal(msg, *, exc=None):
+    warnings.warn(
+        "The 'fatal' function is deprecated, raise 'Fatal' exception directly.",
+        DeprecationWarning,
+        stacklevel=2)
+    raise Fatal(msg) from exc
 
 
 class CommandRunner:
@@ -98,10 +103,11 @@ def check_compatible_version(config):
 def get_state_version(config):
     versionfile = config.serverdir.join(".serverversion")
     if not versionfile.exists():
-        fatal(
+        msg = (
             "serverdir %s is non-empty and misses devpi-server meta information. "
             "You need to specify an empty directory or a directory that was "
             "previously managed by devpi-server>=1.2" % config.serverdir)
+        raise Fatal(msg)
     return versionfile.read()
 
 
@@ -125,12 +131,13 @@ def xom_from_config(config, init=False):
     config.init_nodeinfo()
 
     if not init and config.sqlite_file_needed_but_missing():
-        fatal(
+        msg = (
             "No sqlite storage found in %s."
             " Or you need to run with --storage to specify the storage type,"
             " or you first need to run devpi-init or devpi-import"
             " in order to create the sqlite database." % config.serverdir
         )
+        raise Fatal(msg)
 
     return XOM(config)
 
@@ -162,7 +169,10 @@ def _main(pluginmanager, argv=None):
     configure_logging(config.args)
 
     if not config.path_nodeinfo.exists():
-        fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
+        msg = (
+            f"The path '{config.serverdir}' contains no devpi-server data, "
+            f"use devpi-init to initialize.")
+        raise Fatal(msg)
 
     xom = xom_from_config(config)
 
@@ -221,7 +231,7 @@ class AsyncioLoopThread(object):
     def loop(self):
         if self._started.wait(2):
             return self._loop
-        fatal("Couldn't get async loop, was the thread not started?")
+        raise Fatal("Couldn't get async loop, was the thread not started?")
 
     def thread_run(self):
         thread_push_log("[ASYN]")
@@ -271,9 +281,10 @@ class XOM:
             from devpi_server.replica import register_key_subscribers
             search_path = self.config.replica_file_search_path
             if search_path and not os.path.exists(search_path):
-                fatal(
-                    "search path for existing replica files doesn't "
-                    "exist: %s" % search_path)
+                msg = (
+                    f"search path for existing replica files doesn't "
+                    f"exist: {search_path}")
+                raise Fatal(msg)
             register_key_subscribers(self)
             # the replica thread replays keyfs changes
             # and project-specific changes are discovered
@@ -376,7 +387,7 @@ class XOM:
     def fatal(self, msg):
         self.keyfs.release_all_wait_tx()
         self.thread_pool.shutdown()
-        fatal(msg)
+        raise Fatal(msg)
 
     @cached_property
     def filestore(self):
@@ -395,9 +406,9 @@ class XOM:
         add_keys(self, keyfs)
         try:
             keyfs.finalize_init()
-        except Exception:
+        except Exception as e:
             threadlog.exception("Error while trying to initialize storage")
-            fatal("Couldn't initialize storage")
+            raise Fatal("Couldn't initialize storage") from e
         if not self.config.requests_only:
             self.thread_pool.register(keyfs.notifier)
         return keyfs
@@ -543,7 +554,7 @@ class XOM:
             index_classes.setdefault(ixtype, []).append(ixclass)
         for ixtype, ixclasses in index_classes.items():
             if len(ixclasses) > 1:
-                fatal(
+                raise Fatal(
                     "multiple implementation classes for index type '%s':\n%s"
                     % (
                         ixtype,

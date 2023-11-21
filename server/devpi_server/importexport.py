@@ -14,7 +14,7 @@ from devpi_server.model import get_stage_customizer_classes
 from .log import configure_cli_logging
 from .main import CommandRunner
 from .main import DATABASE_VERSION
-from .main import fatal
+from .main import Fatal
 from .main import init_default_indexes
 from .main import set_state_version
 from .main import xom_from_config
@@ -43,7 +43,8 @@ def has_users_or_stages(xom):
 def do_export(path, tw, xom):
     path = py.path.local(path)
     if path.check() and path.listdir():
-        fatal("export directory %s must not exist or be empty" % path)
+        msg = f"export directory {path} must not exist or be empty"
+        raise Fatal(msg)
     path.ensure(dir=1)
     tw.line("creating %s" % path)
     dumper = Exporter(tw, xom)
@@ -72,7 +73,8 @@ def export(pluginmanager=None, argv=None):
         config = runner.get_config(argv, parser=parser)
         configure_cli_logging(config.args)
         if not config.path_nodeinfo.exists():
-            fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
+            msg = f"The path '{config.serverdir}' contains no devpi-server data, use devpi-init to initialize."
+            raise Fatal(msg)
         xom = xom_from_config(config)
         do_export(config.args.directory, runner.tw, xom)
     return runner.return_code or 0
@@ -83,12 +85,13 @@ def do_import(path, tw, xom):
     path = py.path.local(path)
 
     if not path.check():
-        fatal(f"path for importing not found: {path}")
+        msg = f"path for importing not found: {path}"
+        raise Fatal(msg)
 
     with xom.keyfs.transaction(write=False):
         if has_users_or_stages(xom):
-            fatal("serverdir must not contain users or stages: %s" %
-                  xom.config.serverdir)
+            msg = f"serverdir must not contain users or stages: {xom.config.serverdir}"
+            raise Fatal(msg)
     importer = Importer(tw, xom)
     importer.import_all(path)
     if xom.config.args.wait_for_events:
@@ -123,7 +126,8 @@ def import_(pluginmanager=None, argv=None):
         config = runner.get_config(argv, parser=parser)
         configure_cli_logging(config.args)
         if config.path_nodeinfo.exists():
-            fatal("The path '%s' already contains devpi-server data." % config.serverdir)
+            msg = f"The path {config.serverdir!r} already contains devpi-server data."
+            raise Fatal(msg)
         sdir = config.serverdir
         if not (sdir.exists() and len(sdir.listdir()) >= 2):
             set_state_version(config, DATABASE_VERSION)
@@ -253,7 +257,8 @@ class IndexDump:
             if not entry.last_modified:
                 continue
             if not entry.file_exists():
-                fatal(f"The file for {entry.relpath} is missing.")
+                msg = f"The file for {entry.relpath} is missing."
+                raise Fatal(msg)
             relpath = self.exporter.copy_file(
                 entry,
                 self.basedir.join(linkstore.project, link.version, entry.basename))
@@ -279,7 +284,8 @@ class IndexDump:
 
     def add_filedesc(self, type, project, relpath, **kw):
         if not self.exporter.basepath.join(relpath).check():
-            fatal(f"The file for {relpath} is missing.")
+            msg = f"The file for {relpath} is missing."
+            raise Fatal(msg)
         d = kw.copy()
         d["type"] = type
         d["projectname"] = project
@@ -378,7 +384,8 @@ class Importer:
         self.import_data = self.read_json(json_path)
         self.dumpversion = self.import_data["dumpversion"]
         if self.dumpversion not in ("1", "2"):
-            fatal(f"incompatible dumpversion: {self.dumpversion!r}")
+            msg = f"incompatible dumpversion: {self.dumpversion!r}"
+            raise Fatal(msg)
         self.import_users = self.import_data["users"]
         self.import_indexes = self.import_data["indexes"]
         self.display_import_header(path)
@@ -499,9 +506,8 @@ class Importer:
                             self.import_filedesc(stage, filedesc, versions)
             missing = set(x["relpath"] for x in files) - imported_files
             if missing:
-                fatal(
-                    "Some files weren't imported: %s" % ", ".join(
-                        sorted(missing)))
+                msg = f"Some files weren't imported: {', '.join(sorted(missing))}"
+                raise Fatal(msg)
 
         self.tw.line("********* import_all: importing finished ***********")
 
@@ -523,7 +529,8 @@ class Importer:
         project = filedesc["projectname"]
         p = self.import_rootdir.join(rel)
         if not p.check():
-            fatal(f"The file at {p} is missing.")
+            msg = f"The file at {p} is missing."
+            raise Fatal(msg)
         f = p.open("rb")
         if self.xom.config.hard_links:
             # additional attribute for hard links
@@ -566,8 +573,8 @@ class Importer:
                 hash_value = mapping["md5"]
                 digest = entry.file_get_checksum("md5")
                 if digest != hash_value:
-                    fatal("File %s has bad checksum %s, expected %s" % (
-                          p, digest, hash_value))
+                    msg = f"File {p} has bad checksum {digest}, expected {hash_value}"
+                    raise Fatal(msg)
             # note that the actual hash_type used within devpi-server is not
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
@@ -583,7 +590,8 @@ class Importer:
             link = stage.store_toxresult(
                 link, f, filename=posixpath.basename(filedesc["relpath"]))
         else:
-            fatal("unknown file type: %s" % (type,))
+            msg = f"unknown file type: {type}"
+            raise Fatal(msg)
         if link is not None:
             history_log = filedesc.get('log')
             if history_log is None:
@@ -618,9 +626,10 @@ class IndexTree:
         all_indexes = set(self.name2bases)
         missing = all_bases - all_indexes
         if missing:
-            fatal(
-                "The following indexes don't have information in the import "
-                "data: %s" % ", ".join(sorted(missing)))
+            msg = (
+                f"The following indexes don't have information in the import "
+                f"data: {', '.join(sorted(missing))}")
+            raise Fatal(msg)
 
     def iternames(self):
         self.validate()
@@ -642,6 +651,7 @@ class IndexTree:
                             pending.append(child)
         missed = set(self.name2bases) - created
         if missed:
-            fatal(
-                "The following stages couldn't be reached by the dependency "
-                "tree built from the bases: %s" % ", ".join(sorted(missed)))
+            msg = (
+                f"The following stages couldn't be reached by the dependency "
+                f"tree built from the bases: {', '.join(sorted(missed))}")
+            raise Fatal(msg)

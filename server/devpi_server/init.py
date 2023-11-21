@@ -1,7 +1,7 @@
 from .log import configure_cli_logging
 from .main import CommandRunner
 from .main import DATABASE_VERSION
-from .main import fatal
+from .main import Fatal
 from .main import init_default_indexes
 from .main import set_state_version
 from .main import xom_from_config
@@ -28,7 +28,8 @@ def init(pluginmanager=None, argv=None):
         config = runner.get_config(argv, parser=parser)
         configure_cli_logging(config.args)
         if config.path_nodeinfo.exists():
-            fatal("The path '%s' already contains devpi-server data." % config.serverdir)
+            msg = f"The path {config.serverdir!r} already contains devpi-server data."
+            raise Fatal(msg)
         sdir = config.serverdir
         if not (sdir.exists() and len(sdir.listdir()) >= 2):
             set_state_version(config, DATABASE_VERSION)
