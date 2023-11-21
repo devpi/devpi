@@ -43,7 +43,6 @@ ignore = [
     "PERF203", # ignore (false positive?) - try-except in loop
     "PERF401", # maybe cleanup later - list comprehension
     "PERF402", # maybe cleanup later - list copy
-    "PGH003", # cleanup later
     "PIE804", # cleanup later
     "PIE808", # maybe cleanup later
     "PLC1901", # maybe cleanup later

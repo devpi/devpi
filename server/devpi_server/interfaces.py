@@ -81,7 +81,7 @@ class IStorageConnection3(IStorageConnection2):
 
 def unwrap_connection_obj(obj: Any) -> Any:
     if isinstance(obj, closing):
-        obj = obj.thing  # type: ignore
+        obj = obj.thing  # type: ignore[attr-defined]
     return obj
 
 
@@ -104,7 +104,7 @@ def adapt(iface: IStorageConnection, obj: Any) -> Any:
         # any storage connection which needs to be adapted to this
         # interface is a legacy one and we can say that it provides
         # the original interface directly
-        classImplements(cls, IStorageConnection)  # type: ignore
+        classImplements(cls, IStorageConnection)  # type: ignore[misc]
         # make sure the object now actually provides this interface
         verifyObject(IStorageConnection, _obj)
         return obj
@@ -119,7 +119,7 @@ def adapt(iface: IStorageConnection, obj: Any) -> Any:
         cls.get_relpath_at = get_relpath_at
         cls.iter_relpaths_at = iter_relpaths_at
         # and add the interface
-        classImplements(cls, IStorageConnection2)  # type: ignore
+        classImplements(cls, IStorageConnection2)  # type: ignore[misc]
         # make sure the object now actually provides this interface
         verifyObject(IStorageConnection2, _obj)
         return obj
@@ -141,7 +141,7 @@ def adapt(iface: IStorageConnection, obj: Any) -> Any:
 
         cls.io_file_set = _io_file_set
         # and add the interface
-        classImplements(cls, IStorageConnection3)  # type: ignore
+        classImplements(cls, IStorageConnection3)  # type: ignore[misc]
         # make sure the object now actually provides this interface
         verifyObject(IStorageConnection3, _obj)
         return obj
