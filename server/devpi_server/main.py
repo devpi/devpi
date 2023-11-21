@@ -474,7 +474,7 @@ class XOM:
                         # replication protocol
                         return proxy_view_to_master
         return view
-    view_deriver.options = ('is_mutating',)  # type: ignore
+    view_deriver.options = ('is_mutating',)  # type: ignore[attr-defined]
 
     def create_app(self):
         from devpi_server.middleware import OutsideURLMiddleware
