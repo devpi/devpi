@@ -717,13 +717,14 @@ jobs:
       - name: "Run flake8"
         shell: "bash"
         run: |
-          set -xe -o nounset
-          pushd client; flake8 --config .flake8; popd
-          pushd common; flake8 --config .flake8; popd
-          pushd postgresql; flake8 --config .flake8; popd
-          pushd server; flake8 --config .flake8; popd
-          pushd web; flake8 --config .flake8; popd
-
+          set -x -o nounset
+          export FAILED="0"
+          pushd client; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd common; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd postgresql; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd server; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd web; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          test "$FAILED" = "0"
   ruff-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
 
