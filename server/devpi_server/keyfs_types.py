@@ -1,8 +1,35 @@
+from __future__ import annotations
+
+from .markers import Absent
+from .markers import Deleted
+from .readonly import ensure_deeply_readonly
 from attrs import define
-from typing import Any
+from attrs import frozen
+from typing import TYPE_CHECKING
 import contextlib
 import re
 import warnings
+
+
+if TYPE_CHECKING:
+    from typing import Any
+
+
+@frozen
+class Record:
+    key: PTypedKey | TypedKey
+    value: Any
+    back_serial: int
+    old_value: Any
+
+    def __attrs_post_init__(self):
+        if (
+            self.value is not None
+            and not isinstance(self.old_value, (Absent, Deleted, type(None)))
+            and not isinstance(ensure_deeply_readonly(self.value), type(self.old_value))
+        ):
+            msg = f"Mismatching types for value {self.value!r} and old_value {self.old_value!r}"
+            raise TypeError(msg)
 
 
 @define

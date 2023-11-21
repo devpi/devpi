@@ -10,7 +10,9 @@ import contextlib
 import py
 from . import mythread
 from .interfaces import IStorageConnection3
+from .interfaces import IWriter2
 from .keyfs_types import PTypedKey
+from .keyfs_types import Record
 from .keyfs_types import TypedKey
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
@@ -291,19 +293,28 @@ class KeyFS(object):
 
     def import_changes(self, serial, changes):
         with self.get_connection(write=True) as conn:
-            with conn.write_transaction() as fswriter:
+            with conn.write_transaction() as _fswriter:
+                fswriter = IWriter2(_fswriter)
                 next_serial = conn.last_changelog_serial + 1
                 assert next_serial == serial, (next_serial, serial)
-                changes = {
-                    self.get_key_instance(keyname, relpath): (val, back_serial)
-                    for relpath, (keyname, back_serial, val) in changes.items()}
-                for typedkey, (val, back_serial) in changes.items():
-                    fswriter.record_set(
-                        typedkey, get_mutable_deepcopy(val),
-                        back_serial=back_serial)
+                records = []
+                subscriber_changes = {}
+                for relpath, (keyname, back_serial, val) in changes.items():
+                    try:
+                        (_, _, old_val) = conn.get_relpath_at(relpath, serial - 1)
+                    except KeyError:
+                        old_val = absent
+                    typedkey = self.get_key_instance(keyname, relpath)
+                    subscriber_changes[typedkey] = (val, back_serial)
+                    records.append(
+                        Record(
+                            typedkey, get_mutable_deepcopy(val), back_serial, old_val
+                        )
+                    )
+                fswriter.records_set(records)
         if callable(self._import_subscriber):
             with self.read_transaction(at_serial=serial):
-                self._import_subscriber(serial, changes)
+                self._import_subscriber(serial, subscriber_changes)
 
     def subscribe_on_import(self, subscriber):
         assert self._import_subscriber is None
@@ -823,16 +834,16 @@ class Transaction(object):
                 continue
             if val is deleted:
                 val = None
-            records.append((typedkey, val, back_serial, old_val))
+            records.append(Record(typedkey, val, back_serial, old_val))
         if not records and not self.conn.dirty_files:
             threadlog.debug("nothing to commit, just closing tx")
             result = self._close()
             self._run_listeners(self._finished_listeners)
             return result
         try:
-            with self.conn.write_transaction() as fswriter:
-                for (typedkey, val, back_serial, old_val) in records:
-                    fswriter.record_set(typedkey, val, back_serial)
+            with self.conn.write_transaction() as _fswriter:
+                fswriter = IWriter2(_fswriter)
+                fswriter.records_set(records)
                 commit_serial = getattr(fswriter, "commit_serial", absent)
                 if commit_serial is absent:
                     # for storages which don't have the attribute yet

@@ -1,14 +1,17 @@
-class _absent:
-    def __repr__(self):
+from __future__ import annotations
+
+
+class Absent:
+    def __repr__(self) -> str:
         return '<absent>'
 
 
-absent = _absent()
+absent = Absent()
 
 
-class _deleted:
-    def __repr__(self):
+class Deleted:
+    def __repr__(self) -> str:
         return '<deleted>'
 
 
-deleted = _deleted()
+deleted = Deleted()
