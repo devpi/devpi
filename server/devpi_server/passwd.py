@@ -1,6 +1,6 @@
 from .log import configure_cli_logging
 from .main import CommandRunner
-from .main import fatal
+from .main import Fatal
 from .main import xom_from_config
 from .model import run_passwd
 import sys
@@ -31,6 +31,6 @@ def passwd():
         if username is None:
             username = get_username()
         if not username:
-            fatal("No user name provided.")
+            raise Fatal("No user name provided.")
         with xom.keyfs.transaction(write=True):
             return run_passwd(xom.model, username)
