@@ -412,9 +412,15 @@ By default anyone is allowed to do that.
 Modifying the mirror whitelist
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The mirror whitelist prevents malicious uploads from PyPI to be mixed in with your private packages.
+The mirror whitelist prevents malicious uploads from untrusted bases (e.g. PyPI) to be mixed in with your private packages.
 
-To allow uploads on PyPI or another mirror to be visible on your index, you have to add the project to the whitelist.
+By default, packages from configured bases are only visible on your index if the index itself does not host this package.
+This ensures that you will always get the latest version from this index, even if one of the bases contains a later
+(potentially untrusted) version. This measure prevents dependency confusion attacks, where an attacker would upload a malicious
+package to a public index with the same name as a private package on your index.
+
+If you want allow a package to be mirrored from the bases, even if it is also hosted on the index, you can add it to the
+whitelist. This should only be done for packages that you own or trust on all bases that are not fully under your control.
 
 .. code-block:: console
 
