@@ -412,15 +412,15 @@ By default anyone is allowed to do that.
 Modifying the mirror whitelist
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The mirror whitelist prevents malicious uploads from untrusted bases (e.g. PyPI) to be mixed in with your private packages.
+The mirror whitelist prevents malicious uploads from untrusted mirrors (e.g. PyPI) to be mixed in with your private packages.
 
-By default, packages from configured bases are only visible on your index if the index itself does not host this package.
-This ensures that you will always get the latest version from this index, even if one of the bases contains a later
-(potentially untrusted) version. This measure prevents dependency confusion attacks, where an attacker would upload a malicious
-package to a public index with the same name as a private package on your index.
+By default, packages from mirrors (bases of type ``mirror``, possibly through inheritance) are only visible on your index if
+the index itself does not host this package. This ensures that you will always get the latest version from this index, even if
+one of the mirrors contains a later (potentially untrusted) version. This measure prevents dependency confusion attacks, where
+an attacker would upload a malicious package to a public index with the same name as a private package on your index.
 
-If you want allow a package to be mirrored from the bases, even if it is also hosted on the index, you can add it to the
-whitelist. This should only be done for packages that you own or trust on all bases that are not fully under your control.
+If you want allow a package to be included from the mirrors even if it is also hosted on the index, you can add it to the
+whitelist. This should only be done for packages that you own or trust on all mirrors that are not fully under your control.
 
 .. code-block:: console
 
@@ -435,6 +435,9 @@ whitelist. This should only be done for packages that you own or trust on all ba
      mirror_whitelist_inheritance=intersection
 
 You can also whitelist all packages on an index by setting mirror_whitelist to an asterisk.
+
+Note that this also whitelists packages from mirrors configured by one of this index' bases, even that base has an empty
+whitelist itself.
 
 .. code-block:: console
 
