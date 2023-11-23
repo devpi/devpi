@@ -9,9 +9,10 @@ independent from any future changes.
 import contextlib
 import py
 from . import mythread
-from .fileutil import loads
 from .interfaces import IStorageConnection3
-from .keyfs_types import PTypedKey, RelpathInfo, TypedKey
+from .keyfs_types import PTypedKey
+from .keyfs_types import RelpathInfo  # noqa: F401 - imported by other packages
+from .keyfs_types import TypedKey
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
 from .markers import absent
@@ -434,25 +435,6 @@ def get_relpath_at(self, relpath, serial):
     raise KeyError(relpath)
 
 
-def io_file_new_open(self, path):
-    """ Fallback method for legacy storage connections. """
-    from tempfile import TemporaryFile
-    return TemporaryFile()
-
-
-def io_file_set(self, path, content_or_file, _io_file_set):
-    """ Fallback method wrapper for legacy storage connections. """
-    # _io_file_set is from the original class
-    if not isinstance(content_or_file, bytes):
-        content_or_file.seek(0)
-        content_or_file = content_or_file.read()
-    if len(content_or_file) > 1048576:
-        threadlog.warn(
-            "Got content with %.1f megabytes in memory while setting content for %s",
-            len(content_or_file) / 1048576, path)
-    return _io_file_set(self, path, content_or_file)
-
-
 def iter_serial_and_value_backwards(conn, relpath, last_serial):
     while last_serial >= 0:
         tup = conn.get_changes(last_serial).get(relpath)
@@ -464,23 +446,6 @@ def iter_serial_and_value_backwards(conn, relpath, last_serial):
 
     # we could not find any change below at_serial which means
     # the key didn't exist at that point in time
-
-
-def iter_relpaths_at(self, typedkeys, at_serial):
-    keynames = frozenset(k.name for k in typedkeys)
-    seen = set()
-    for serial in range(at_serial, -1, -1):
-        raw_entry = self.get_raw_changelog_entry(serial)
-        changes = loads(raw_entry)[0]
-        for relpath, (keyname, back_serial, val) in changes.items():
-            if keyname not in keynames:
-                continue
-            if relpath not in seen:
-                seen.add(relpath)
-                yield RelpathInfo(
-                    relpath=relpath, keyname=keyname,
-                    serial=serial, back_serial=back_serial,
-                    value=val)
 
 
 class TransactionRootModel(RootModel):

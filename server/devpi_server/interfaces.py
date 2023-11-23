@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .keyfs_types import RelpathInfo
 from contextlib import closing
 from inspect import getfullargspec
 from typing import TYPE_CHECKING
@@ -10,13 +11,13 @@ from zope.interface.verify import verifyObject
 
 
 if TYPE_CHECKING:
-    from .keyfs_types import PTypedKey, RelpathInfo, TypedKey
+    from .keyfs_types import PTypedKey, TypedKey
     from typing import Any
-    from typing import BinaryIO
     from typing import Callable
     from typing import ContextManager
+    from typing import IO
+    from typing import Iterable
     from typing import Iterator
-    from typing import List
     from typing import Optional
     from typing import Tuple
     from typing import Type
@@ -50,7 +51,7 @@ class IStorageConnection(Interface):
     def io_file_get(path: str) -> bytes:
         """ Returns binary content of the file at path. """
 
-    def io_file_open(path: str) -> BinaryIO:
+    def io_file_open(path: str) -> IO[bytes]:
         """ Returns an open file like object for binary reading. """
 
     def io_file_os_path(path: str) -> Optional[str]:
@@ -77,16 +78,16 @@ class IStorageConnection2(IStorageConnection):
             at given serial.
             Raises KeyError if not found. """
 
-    def iter_relpaths_at(typedkeys: List[Union[PTypedKey, TypedKey]], at_serial: int) -> Iterator[RelpathInfo]:
+    def iter_relpaths_at(typedkeys: Iterable[Union[PTypedKey, TypedKey]], at_serial: int) -> Iterator[RelpathInfo]:
         """ Iterate over all relpaths of the given typed keys starting
             from at_serial until the first serial in the database. """
 
 
 class IStorageConnection3(IStorageConnection2):
-    def io_file_set(path: str, content_or_file: Union[bytes, BinaryIO]) -> None:
+    def io_file_set(path: str, content_or_file: Union[bytes, IO[bytes]]) -> None:
         """ Set the binary content of the file at path. """
 
-    def io_file_new_open(path: str) -> BinaryIO:
+    def io_file_new_open(path: str) -> IO[bytes]:
         """ Returns a new open file like object for binary writing. """
 
 
@@ -136,12 +137,29 @@ def adapt_istorageconnection(iface: IStorageConnection, obj: Any) -> Any:
 
 @_register_adapter
 def adapt_istorageconnection2(iface: IStorageConnection2, obj: Any) -> Any:
+    from .fileutil import loads
     from .keyfs import get_relpath_at
-    from .keyfs import iter_relpaths_at
     # first make sure the old connection interface is implemented
     obj = IStorageConnection(obj)
     _obj = unwrap_connection_obj(obj)
     cls = get_connection_class(_obj)
+
+    def iter_relpaths_at(self: Any, typedkeys: Iterable[Union[PTypedKey, TypedKey]], at_serial: int) -> Iterator[RelpathInfo]:
+        keynames = frozenset(k.name for k in typedkeys)
+        seen = set()
+        for serial in range(at_serial, -1, -1):
+            raw_entry = self.get_raw_changelog_entry(serial)
+            changes = loads(raw_entry)[0]
+            for relpath, (keyname, back_serial, val) in changes.items():
+                if keyname not in keynames:
+                    continue
+                if relpath not in seen:
+                    seen.add(relpath)
+                    yield RelpathInfo(
+                        relpath=relpath, keyname=keyname,
+                        serial=serial, back_serial=back_serial,
+                        value=val)
+
     # now add fallback methods directly to the class
     cls.get_relpath_at = get_relpath_at
     cls.iter_relpaths_at = iter_relpaths_at
@@ -154,19 +172,36 @@ def adapt_istorageconnection2(iface: IStorageConnection2, obj: Any) -> Any:
 
 @_register_adapter
 def adapt_istorageconnection3(iface: IStorageConnection3, obj: Any) -> Any:
-    from .keyfs import io_file_new_open
-    from .keyfs import io_file_set
+    from .log import threadlog
     # first make sure the old connection interface is implemented
     obj = IStorageConnection2(obj)
     _obj = unwrap_connection_obj(obj)
     cls = get_connection_class(_obj)
+
+    def io_file_new_open(self: Any, path: str) -> IO[bytes]:
+        """ Fallback method for legacy storage connections. """
+        from tempfile import TemporaryFile
+        return TemporaryFile()
+
+    def io_file_set(self: Any, path: str, content_or_file: Union[bytes, IO[bytes]], _io_file_set: Callable) -> None:
+        """ Fallback method wrapper for legacy storage connections. """
+        # _io_file_set is from the original class
+        if not isinstance(content_or_file, bytes):
+            content_or_file.seek(0)
+            content_or_file = content_or_file.read()
+        if len(content_or_file) > 1048576:
+            threadlog.warn(
+                "Got content with %.1f megabytes in memory while setting content for %s",
+                len(content_or_file) / 1048576, path)
+        return _io_file_set(self, path, content_or_file)
+
     # now add fallback method directly to the class
     cls.io_file_new_open = io_file_new_open
     orig_io_file_set = cls.io_file_set
 
     # we need another wrapper to pass in the io_file_set from original class
     # for some reason a partial doesn't work here
-    def _io_file_set(self: Any, path: str, content_or_file: Union[bytes, BinaryIO]) -> None:
+    def _io_file_set(self: Any, path: str, content_or_file: Union[bytes, IO[bytes]]) -> None:
         return io_file_set(self, path, content_or_file, _io_file_set=orig_io_file_set)
 
     cls.io_file_set = _io_file_set
