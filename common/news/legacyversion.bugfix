@@ -1,1 +1,0 @@
-Add ``is_prerelease`` and other methods to ``LegacyVersion`` to fix ``get_sorted_versions`` with ``stable=True`` and some other cases.
