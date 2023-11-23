@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+4.0.3 (2023-11-23)
+==================
+
+Bug Fixes
+---------
+
+- Add ``is_prerelease`` and other methods to ``LegacyVersion`` to fix ``get_sorted_versions`` with ``stable=True`` and some other cases.
+
+
 4.0.2 (2023-10-15)
 ==================
 
