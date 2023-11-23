@@ -1,5 +1,6 @@
 from .filestore import Digests
 from .filestore import get_hashes
+from .log import threadlog
 from .main import CommandRunner
 from .main import DATABASE_VERSION
 from .main import Fatal
@@ -249,12 +250,31 @@ class IndexDump:
                 self.basedir.ensure(dir=1)
                 self.dump_releasefiles(linkstore)
                 self.dump_toxresults(linkstore)
-                entry = None
-                if hasattr(self.stage, 'get_doczip_entry'):
-                    entry = self.stage.get_doczip_entry(vername, version)
-                if entry:
-                    self.dump_docfile(vername, version, entry)
+                self.dump_docfiles(linkstore)
         self.exporter.completed("index %r" % self.stage.name)
+
+    def dump_docfiles(self, linkstore):
+        links = linkstore.get_links(rel="doczip")
+        if len(links) > 1:
+            threadlog.warning(
+                "Multiple documentation files for %s-%s, only exporting newest",
+                linkstore.project,
+                linkstore.version,
+            )
+            links = links[-1:]
+        for link in links:
+            entry = self.exporter.filestore.get_file_entry(link.relpath)
+            relpath = self.exporter.copy_file(
+                entry,
+                self.basedir.join("%s-%s.doc.zip" % (linkstore.project, link.version)),
+            )
+            self.add_filedesc(
+                "doczip",
+                linkstore.project,
+                relpath,
+                version=link.version,
+                entrymapping=entry.meta,
+            )
 
     def dump_releasefiles(self, linkstore):
         for link in linkstore.get_links(rel="releasefile"):
@@ -300,14 +320,6 @@ class IndexDump:
         d["relpath"] = relpath
         self.indexmeta["files"].append(d)
         self.exporter.completed(f"{type}: {relpath} ")
-
-    def dump_docfile(self, project, version, entry):
-        relpath = self.exporter.copy_file(
-            entry,
-            self.basedir.join("%s-%s.doc.zip" % (project, version)))
-        self.add_filedesc(
-            "doczip", project, relpath,
-            version=version, entrymapping=entry.meta)
 
 
 class Importer:
