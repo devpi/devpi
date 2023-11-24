@@ -1,13 +1,7 @@
-from .config import MyArgumentParser
-from .config import add_configfile_option
-from .config import add_help_option
-from .config import add_storage_options
-from .config import parseoptions, get_pluginmanager
 from .filestore import FileEntry
 from .log import configure_cli_logging
-from .main import Fatal
+from .main import CommandRunner
 from .main import xom_from_config
-import py
 import sys
 import time
 
@@ -23,16 +17,16 @@ def add_fsck_options(parser, pluginmanager):
 
 def fsck():
     """ devpi-fsck command line entry point. """
-    pluginmanager = get_pluginmanager()
-    try:
-        parser = MyArgumentParser(
+    with CommandRunner() as runner:
+        pluginmanager = runner.pluginmanager
+        parser = runner.create_parser(
             description="Run a file consistency check of the devpi-server database.",
             add_help=False)
-        add_help_option(parser, pluginmanager)
-        add_configfile_option(parser, pluginmanager)
-        add_storage_options(parser, pluginmanager)
+        parser.add_help_option()
+        parser.add_configfile_option()
+        parser.add_storage_options()
         add_fsck_options(parser.addgroup("fsck options"), pluginmanager)
-        config = parseoptions(pluginmanager, sys.argv, parser=parser)
+        config = runner.get_config(sys.argv, parser=parser)
         configure_cli_logging(config.args)
         xom = xom_from_config(config)
         args = xom.config.args
@@ -81,7 +75,4 @@ def fsck():
                 log.error(
                     "A total of %s files are missing."
                     % missing_files)
-    except Fatal as e:
-        tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("fatal: %s" % e.args[0], red=True)
-        return 1
+    return runner.return_code

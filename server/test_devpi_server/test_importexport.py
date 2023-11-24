@@ -17,9 +17,9 @@ import importlib.resources
 import devpi_server
 
 
-def make_export(tmpdir, xom):
+def make_export(tmpdir, terminalwriter, xom):
     xom.config.init_nodeinfo()
-    return do_export(tmpdir, xom)
+    return do_export(tmpdir, terminalwriter, xom)
 
 
 pytestmark = [pytest.mark.notransaction]
@@ -48,28 +48,28 @@ def test_has_users_or_stages(xom):
         assert xom.model.get_userlist() == []
 
 
-def test_not_exists(tmpdir, xom):
+def test_not_exists(tmpdir, terminalwriter, xom):
     p = tmpdir.join("hello")
     with pytest.raises(Fatal):
-        do_import(p, xom)
+        do_import(p, terminalwriter, xom)
 
 
-def test_import_wrong_dumpversion(tmpdir, xom):
+def test_import_wrong_dumpversion(tmpdir, terminalwriter, xom):
     tmpdir.join("dataindex.json").write('{"dumpversion": "0"}')
     with pytest.raises(Fatal):
-        do_import(tmpdir, xom)
+        do_import(tmpdir, terminalwriter, xom)
 
 
-def test_empty_export(tmpdir, xom):
+def test_empty_export(tmpdir, terminalwriter, xom):
     xom.config.init_nodeinfo()
-    ret = make_export(tmpdir, xom)
+    ret = make_export(tmpdir, terminalwriter, xom)
     assert not ret
     data = json.loads(tmpdir.join("dataindex.json").read())
     assert data["dumpversion"] == Exporter.DUMPVERSION
     assert data["pythonversion"] == list(sys.version_info)
     assert data["devpi_server"] == devpi_server.__version__
     with pytest.raises(Fatal):
-        make_export(tmpdir, xom)
+        make_export(tmpdir, terminalwriter, xom)
 
 
 def test_export_empty_serverdir(tmpdir, capfd, monkeypatch):
@@ -161,12 +161,12 @@ def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch):
     assert err == ''
 
 
-def test_import_on_existing_server_data(tmpdir, xom):
+def test_import_on_existing_server_data(tmpdir, terminalwriter, xom):
     with xom.keyfs.transaction(write=True):
         xom.model.create_user("someuser", password="qwe")
-    assert not make_export(tmpdir, xom)
+    assert not make_export(tmpdir, terminalwriter, xom)
     with pytest.raises(Fatal):
-        do_import(tmpdir, xom)
+        do_import(tmpdir, terminalwriter, xom)
 
 
 class TestIndexTree:

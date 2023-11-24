@@ -11,18 +11,9 @@ from devpi_common.url import URL
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
 from devpi_server.model import get_stage_customizer_classes
-from .config import MyArgumentParser
-from .config import add_configfile_option
-from .config import add_export_options
-from .config import add_hard_links_option
-from .config import add_help_option
-from .config import add_import_options
-from .config import add_init_options
-from .config import add_storage_options
-from .config import parseoptions, get_pluginmanager
 from .log import configure_cli_logging
+from .main import CommandRunner
 from .main import DATABASE_VERSION
-from .main import Fatal
 from .main import fatal
 from .main import init_default_indexes
 from .main import set_state_version
@@ -49,9 +40,8 @@ def has_users_or_stages(xom):
     return True
 
 
-def do_export(path, xom):
+def do_export(path, tw, xom):
     path = py.path.local(path)
-    tw = py.io.TerminalWriter()
     if path.check() and path.listdir():
         fatal("export directory %s must not exist or be empty" % path)
     path.ensure(dir=1)
@@ -69,36 +59,28 @@ def export(pluginmanager=None, argv=None):
     else:
         # for tests
         argv = [str(x) for x in argv]
-    if pluginmanager is None:
-        pluginmanager = get_pluginmanager()
-    try:
-        parser = MyArgumentParser(
+    with CommandRunner(pluginmanager=pluginmanager) as runner:
+        parser = runner.create_parser(
             description="Export the data of a devpi-server instance.",
             add_help=False)
-        add_help_option(parser, pluginmanager)
-        add_configfile_option(parser, pluginmanager)
-        add_storage_options(parser, pluginmanager)
-        add_export_options(parser, pluginmanager)
-        add_hard_links_option(parser, pluginmanager)
+        parser.add_help_option()
+        parser.add_configfile_option()
+        parser.add_storage_options()
+        parser.add_export_options()
+        parser.add_hard_links_option()
         parser.add_argument("directory")
-        config = parseoptions(pluginmanager, argv, parser=parser)
+        config = runner.get_config(argv, parser=parser)
         configure_cli_logging(config.args)
         if not config.path_nodeinfo.exists():
             fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
         xom = xom_from_config(config)
-        do_export(config.args.directory, xom)
-    except Fatal as e:
-        tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("fatal: %s" % e.args[0], red=True)
-        return 1
-    else:
-        return 0
+        do_export(config.args.directory, runner.tw, xom)
+    return runner.return_code or 0
 
 
-def do_import(path, xom):
+def do_import(path, tw, xom):
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     path = py.path.local(path)
-    tw = py.io.TerminalWriter()
 
     if not path.check():
         fatal(f"path for importing not found: {path}")
@@ -127,20 +109,18 @@ def import_(pluginmanager=None, argv=None):
     else:
         # for tests
         argv = [str(x) for x in argv]
-    if pluginmanager is None:
-        pluginmanager = get_pluginmanager()
-    try:
-        parser = MyArgumentParser(
+    with CommandRunner(pluginmanager=pluginmanager) as runner:
+        parser = runner.create_parser(
             description="Import previously exported data into a new devpi-server instance.",
             add_help=False)
-        add_help_option(parser, pluginmanager)
-        add_configfile_option(parser, pluginmanager)
-        add_storage_options(parser, pluginmanager)
-        add_init_options(parser, pluginmanager)
-        add_import_options(parser, pluginmanager)
-        add_hard_links_option(parser, pluginmanager)
+        parser.add_help_option()
+        parser.add_configfile_option()
+        parser.add_storage_options()
+        parser.add_init_options()
+        parser.add_import_options()
+        parser.add_hard_links_option()
         parser.add_argument("directory")
-        config = parseoptions(pluginmanager, argv, parser=parser)
+        config = runner.get_config(argv, parser=parser)
         configure_cli_logging(config.args)
         if config.path_nodeinfo.exists():
             fatal("The path '%s' already contains devpi-server data." % config.serverdir)
@@ -151,13 +131,8 @@ def import_(pluginmanager=None, argv=None):
         if config.args.wait_for_events:
             xom.thread_pool.start_one(xom.keyfs.notifier)
         init_default_indexes(xom)
-        do_import(config.args.directory, xom)
-    except Fatal as e:
-        tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("fatal: %s" % e.args[0], red=True)
-        return 1
-    else:
-        return 0
+        do_import(config.args.directory, runner.tw, xom)
+    return runner.return_code or 0
 
 
 class Exporter:
