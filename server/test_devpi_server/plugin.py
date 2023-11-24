@@ -1385,3 +1385,8 @@ def tox_result_data(request):
         retcode = int(tox_result_data['testenvs']['py27']['test'][0]['retcode'])
         tox_result_data['testenvs']['py27']['test'][0]['retcode'] = retcode
     return tox_result_data
+
+
+@pytest.fixture
+def terminalwriter():
+    return py.io.TerminalWriter()

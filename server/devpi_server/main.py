@@ -18,6 +18,7 @@ from requests import Response, exceptions
 from requests.utils import DEFAULT_CA_BUNDLE_PATH
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
+from .config import MyArgumentParser
 from .config import parseoptions, get_pluginmanager
 from .exceptions import lazy_format_exception_only
 from .log import configure_logging, threadlog
@@ -37,6 +38,44 @@ def fatal(msg):
     raise Fatal(msg)
 
 
+class CommandRunner:
+    def __init__(self, *, pluginmanager=None):
+        self._pluginmanager = pluginmanager
+        self.return_code = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, cls, val, tb):
+        if isinstance(val, Fatal):
+            self.tw_err.line(f"fatal: {val.args[0]}", red=True)
+            self.return_code = 1
+            return True
+        return False
+
+    def create_parser(self, *, add_help, description):
+        return MyArgumentParser(
+            add_help=add_help,
+            description=description,
+            pluginmanager=self.pluginmanager)
+
+    def get_config(self, argv, parser):
+        return parseoptions(self.pluginmanager, argv=argv, parser=parser)
+
+    @cached_property
+    def pluginmanager(self):
+        pm = self._pluginmanager
+        return pm if pm is not None else get_pluginmanager()
+
+    @cached_property
+    def tw(self):
+        return py.io.TerminalWriter()
+
+    @cached_property
+    def tw_err(self):
+        return py.io.TerminalWriter(sys.stderr)
+
+
 DATABASE_VERSION = "4"
 
 
@@ -47,11 +86,13 @@ def check_compatible_version(config):
     if server_version != state_version:
         state_ver = tuple(state_version.split("."))
         if state_ver[0] != DATABASE_VERSION:
-            fatal("Incompatible state: server %s cannot run serverdir "
-                  "%s created at database version %s.\n"
-                  "Use devpi-export from older version, then "
-                  "devpi-import with newer version."
-                  % (server_version, config.serverdir, state_ver[0]))
+            msg = (
+                f"Incompatible state: server {server_version} cannot run "
+                f"serverdir {config.serverdir} created at database "
+                f"version {state_ver[0]}.\n"
+                f"Use devpi-export from older version, then "
+                f"devpi-import with newer version.")
+            raise Fatal(msg)
 
 
 def get_state_version(config):
@@ -72,13 +113,9 @@ def set_state_version(config, version=DATABASE_VERSION):
 
 def main(argv=None):
     """ devpi-server command line entry point. """
-    pluginmanager = get_pluginmanager()
-    try:
-        return _main(pluginmanager, argv=argv)
-    except Fatal as e:
-        tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("fatal: %s" % e.args[0], red=True)
-        return 1
+    with CommandRunner() as runner:
+        return _main(runner.pluginmanager, argv=argv)
+    return runner.return_code
 
 
 def xom_from_config(config, init=False):

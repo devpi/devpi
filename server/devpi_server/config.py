@@ -420,7 +420,8 @@ def get_parser(pluginmanager):
                     "mirror of pypi.org and is created by default. "
                     "All indices are suitable for pip or easy_install usage "
                     "and setup.py upload ... invocations.",
-        add_help=False)
+        add_help=False,
+        pluginmanager=pluginmanager)
     addoptions(parser, pluginmanager)
     pluginmanager.hook.devpiserver_add_parser_options(parser=parser)
     return parser
@@ -540,8 +541,9 @@ def get_action_long_name(action):
 
 
 class MyArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, pluginmanager=None, **kwargs):
         self.addoption = self.add_argument
+        self.pluginmanager = pluginmanager
         super(MyArgumentParser, self).__init__(*args, **kwargs)
 
     def post_process_actions(self, defaultget=None):
@@ -572,6 +574,39 @@ class MyArgumentParser(argparse.ArgumentParser):
         grp = super(MyArgumentParser, self).add_argument_group(*args, **kwargs)
         grp.addoption = grp.add_argument
         return grp
+
+    def add_all_options(self):
+        addoptions(self, self.pluginmanager)
+
+    def add_configfile_option(self):
+        add_configfile_option(self, self.pluginmanager)
+
+    def add_export_options(self):
+        add_export_options(self, self.pluginmanager)
+
+    def add_hard_links_option(self):
+        add_hard_links_option(self, self.pluginmanager)
+
+    def add_help_option(self):
+        add_help_option(self, self.pluginmanager)
+
+    def add_import_options(self):
+        add_import_options(self, self.pluginmanager)
+
+    def add_init_options(self):
+        add_init_options(self, self.pluginmanager)
+
+    def add_master_url_option(self):
+        add_master_url_option(self, self.pluginmanager)
+
+    def add_role_option(self):
+        add_role_option(self, self.pluginmanager)
+
+    def add_secretfile_option(self):
+        add_secretfile_option(self, self.pluginmanager)
+
+    def add_storage_options(self):
+        add_storage_options(self, self.pluginmanager)
 
 
 def new_secret():
@@ -970,18 +1005,17 @@ def getpath(path):
 def gensecret():
     from .log import configure_cli_logging
     from .log import threadlog as log
-    from .main import Fatal
+    from .main import CommandRunner
     from .main import fatal
     import stat
-    try:
-        pluginmanager = get_pluginmanager()
-        parser = MyArgumentParser(
+    with CommandRunner() as runner:
+        parser = runner.create_parser(
             description="Create a random secret.",
             add_help=False)
-        add_help_option(parser, pluginmanager)
-        add_configfile_option(parser, pluginmanager)
-        add_secretfile_option(parser, pluginmanager)
-        config = parseoptions(pluginmanager, sys.argv, parser=parser)
+        parser.add_help_option()
+        parser.add_configfile_option()
+        parser.add_secretfile_option()
+        config = runner.get_config(sys.argv, parser=parser)
         configure_cli_logging(config.args)
         if config.args.secretfile is None:
             fatal("You need to provide a location for the secret file.")
@@ -999,7 +1033,4 @@ def gensecret():
         # run checks
         config.get_validated_secret()
         log.info("Permissions of secret file look good.")
-    except Fatal as e:
-        tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("fatal: %s" % e.args[0], red=True)
-        return 1
+    return runner.return_code
