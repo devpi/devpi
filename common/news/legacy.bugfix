@@ -1,0 +1,1 @@
+Remove custom ``LegacyVersion`` and use ``packaging-legacy`` instead, which is also used by pypi.org.
