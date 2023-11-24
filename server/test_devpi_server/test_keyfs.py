@@ -419,6 +419,11 @@ class TestTransactionIsolation:
             D.delete()
         with keyfs.transaction(write=True):
             D.set({2:2})
+        with keyfs.transaction() as tx:
+            assert tx.get_value_at(D, 0) == {1: 1}
+            with pytest.raises(KeyError):
+                assert tx.get_value_at(D, 1)
+            assert tx.get_value_at(D, 2) == {2: 2}
         with keyfs._storage.get_connection() as conn:
             serial = conn.last_changelog_serial
 
