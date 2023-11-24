@@ -727,6 +727,8 @@ class Transaction(object):
         return result
 
     def restart(self, write=False):
+        if self.write:
+            raise RuntimeError("Can't restart a write transaction.")
         self.commit()
         threadlog.debug(
             "restarting %s transaction afresh as %s transaction",
