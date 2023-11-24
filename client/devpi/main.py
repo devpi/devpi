@@ -691,8 +691,9 @@ def parse_args(argv, pm):
                 print_version(hub)
             parser.exit()
         if args.command is None:
-            raise parser.ArgumentError(
-                "the following arguments are required: command")
+            raise parser.ArgumentError(  # noqa: TRY301
+                "the following arguments are required: command"
+            )
     except parser.ArgumentError as e:
         if not argv[1:]:
             return parser.parse_args(["-h"])

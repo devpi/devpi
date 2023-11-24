@@ -272,14 +272,11 @@ class TestKey:
     def test_get_inplace(self, keyfs):
         key1 = keyfs.add_key("NAME", "some1", dict)
         keyfs.restart_as_write_transaction()
-        key1.set({1:2})
-        try:
-            with key1.update() as d:
-                d["hello"] = "world"
-                raise ValueError()
-        except ValueError:
-            pass
-        assert key1.get() == {1:2}  # , "hello": "world"}
+        key1.set({1: 2})
+        with contextlib.suppress(ValueError), key1.update() as d:
+            d["hello"] = "world"
+            raise ValueError
+        assert key1.get() == {1: 2}
 
     def test_filestore(self, keyfs):
         key1 = keyfs.add_key("NAME", "hello", bytes)
