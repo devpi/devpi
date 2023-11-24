@@ -498,6 +498,9 @@ class TransactionRootModel(RootModel):
 
 class Transaction(object):
     def __init__(self, keyfs, at_serial=None, write=False):
+        if write and at_serial:
+            raise RuntimeError(
+                "Can't open write transaction with 'at_serial'.")
         self.keyfs = keyfs
         self.commit_serial = None
         self.write = write
