@@ -1,9 +1,7 @@
 import posixpath
 import re
 from packaging.requirements import Requirement as BaseRequirement
-from packaging.version import InvalidVersion
-from packaging.version import Version as PackagingVersion
-from packaging.version import parse as orig_parse_version
+from packaging_legacy.version import parse as parse_version
 from .types import CompareMixin
 from .types import cached_property
 from .validation import normalize_name
@@ -12,123 +10,6 @@ from .validation import normalize_name
 ALLOWED_ARCHIVE_EXTS = set(
     ".dmg .deb .msi .rpm .exe .egg .whl .tar.gz "
     ".tar.bz2 .tar .tgz .zip .doc.zip".split())
-
-
-class LegacyVersion:
-    # "naturally" sorted and always smaller than a valid version
-    __slots__ = ('_value', 'cmpval')
-
-    def __init__(self, version):
-        self._value = version
-        self.cmpval = tuple(
-            (int(n) if n != '' else 0, a)
-            for n, a in re.findall(r'(\d*)([^\d]*)', version)
-            if a)
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self._value!r})"
-
-    def __iter__(self):
-        return iter(self.cmpval)
-
-    def __lt__(self, other):
-        if isinstance(other, PackagingVersion):
-            # always smaller
-            return True
-        if isinstance(other, LegacyVersion):
-            return self.cmpval < other.cmpval
-        return NotImplemented
-
-    def __le__(self, other):
-        if isinstance(other, PackagingVersion):
-            # always smaller or equal
-            return True
-        if isinstance(other, LegacyVersion):
-            return self.cmpval <= other.cmpval
-        return NotImplemented
-
-    def __eq__(self, other):
-        if isinstance(other, PackagingVersion):
-            # never equal
-            return False
-        if isinstance(other, LegacyVersion):
-            return self.cmpval == other.cmpval
-        return NotImplemented
-
-    def __ne__(self, other):
-        if isinstance(other, PackagingVersion):
-            # never equal
-            return True
-        if isinstance(other, LegacyVersion):
-            return self.cmpval != other.cmpval
-        return NotImplemented
-
-    def __ge__(self, other):
-        if isinstance(other, PackagingVersion):
-            # never greater or equal
-            return False
-        if isinstance(other, LegacyVersion):
-            return self.cmpval >= other.cmpval
-        return NotImplemented
-
-    def __gt__(self, other):
-        if isinstance(other, PackagingVersion):
-            # never greater
-            return False
-        if isinstance(other, LegacyVersion):
-            return self.cmpval > other.cmpval
-        return NotImplemented
-
-    @property
-    def public(self):
-        return self._version
-
-    @property
-    def base_version(self):
-        return self._version
-
-    @property
-    def epoch(self):
-        return -1
-
-    @property
-    def release(self):
-        return None
-
-    @property
-    def pre(self):
-        return None
-
-    @property
-    def post(self):
-        return None
-
-    @property
-    def dev(self):
-        return None
-
-    @property
-    def local(self):
-        return None
-
-    @property
-    def is_prerelease(self):
-        return False
-
-    @property
-    def is_postrelease(self):
-        return False
-
-    @property
-    def is_devrelease(self):
-        return False
-
-
-def parse_version(version):
-    try:
-        return orig_parse_version(version)
-    except InvalidVersion:
-        return LegacyVersion(version)
 
 
 _releasefile_suffix_rx = re.compile(

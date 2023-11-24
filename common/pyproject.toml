@@ -9,7 +9,7 @@ name = "devpi-common"
 description = "Utilities jointly used by devpi-server, devpi-client and others."
 dependencies = [
     "lazy",
-    "packaging>=22",
+    "packaging-legacy",
     "requests>=2.3.0",
 ]
 requires-python = ">=3.7"
