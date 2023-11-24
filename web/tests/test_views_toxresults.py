@@ -1,3 +1,4 @@
+from devpi_web.compat import write_transaction
 import hashlib
 import json
 import pytest
@@ -87,7 +88,7 @@ def test_testdata_missing(mapp, testapp, tox_result_data):
     path, = mapp.get_release_paths("pkg1")
     r = testapp.post(path, json.dumps(tox_result_data))
     assert r.status_code == 200
-    with mapp.xom.keyfs.transaction(write=True):
+    with write_transaction(mapp.xom.keyfs):
         stage = mapp.xom.model.getstage(api.stagename)
         link, = stage.get_releaselinks('pkg1')
         linkstore = stage.get_linkstore_perstage(link.project, link.version)

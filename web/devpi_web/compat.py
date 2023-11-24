@@ -34,3 +34,15 @@ def get_entry_hash_value(entry):
         entry.best_available_hash_value
         if hasattr(entry, 'best_available_hash_value') else
         entry.hash_value)
+
+
+def read_transaction(keyfs):
+    if hasattr(keyfs, 'read_transaction'):
+        return keyfs.read_transaction()
+    return keyfs.transaction(write=False)
+
+
+def write_transaction(keyfs):
+    if hasattr(keyfs, 'write_transaction'):
+        return keyfs.write_transaction()
+    return keyfs.transaction(write=True)

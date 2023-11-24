@@ -5,6 +5,7 @@ from devpi_server.log import thread_push_log
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_server import mythread
 from devpi_web.compat import fatal
+from devpi_web.compat import read_transaction
 from devpi_web.indexing import iter_projects
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
@@ -400,7 +401,7 @@ class IndexerThread(object):
         writer = project_ix.writer()
         searcher = project_ix.searcher()
         try:
-            with self.xom.keyfs.transaction(write=False) as tx:
+            with read_transaction(self.xom.keyfs) as tx:
                 stage = self.xom.model.getstage(indexname)
                 if stage is not None:
                     for name in names:
@@ -470,7 +471,7 @@ class InitialQueueThread(object):
 
     def thread_run(self):
         thread_push_log("[IDXQ]")
-        with self.xom.keyfs.transaction(write=False) as tx:
+        with read_transaction(self.xom.keyfs) as tx:
             indexer = get_indexer(self.xom)
             searcher = indexer.get_project_ix().searcher()
             self.shared_data.queue_projects(

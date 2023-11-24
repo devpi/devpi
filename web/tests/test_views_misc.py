@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from devpi_common.metadata import parse_version
 from devpi_server import __version__ as _devpi_server_version
 from devpi_web.compat import make_file_url
+from devpi_web.compat import read_transaction
 from devpi_web.main import hookimpl
 from functools import partial
 import pytest
@@ -117,7 +118,7 @@ def test_refresh_button(mapp, pypistage, testapp):
     r = testapp.xget(200, "/root/pypi/hello/")
     input, = r.html.select('form input[name=refresh]')
     assert input.attrs['value'] == 'Refresh'
-    with mapp.xom.keyfs.transaction(write=False):
+    with read_transaction(mapp.xom.keyfs):
         info = pypistage.key_projsimplelinks("hello").get()
     assert info != {}
     assert info["links"] == []
@@ -126,7 +127,7 @@ def test_refresh_button(mapp, pypistage, testapp):
     r = testapp.post("/root/pypi/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/hello")
-    with mapp.xom.keyfs.transaction(write=False):
+    with read_transaction(mapp.xom.keyfs):
         info = pypistage.key_projsimplelinks("hello").get()
     assert info["links"] == [
         ('hello-1.0.zip', 'root/pypi/+e/https_pypi.org_hello/hello-1.0.zip')]
