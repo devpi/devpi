@@ -147,7 +147,7 @@ case-sensitive = true
     "S105", # ignore - possible hardcoded password
     "S106", # ignore - possible hardcoded password
     "S113", # ignore - requests call without timeout
-    "S324", # ignore - md5
+    "S324", # ignore - md5 - use usedforsecurity=False with Python 3.9
     "S603", # ignore - subprocess untrusted input
     "S607", # ignore - subprocess partial executable path
     "T201", # ignore - print found
