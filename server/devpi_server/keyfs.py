@@ -167,71 +167,78 @@ class TxNotificationThread:
         log.debug("calling hooks for tx%s", event_serial)
         with self.keyfs.get_connection() as conn:
             changes = conn.get_changes(event_serial)
-            # we first check for missing files before we call subscribers
-            for relpath, (keyname, back_serial, val) in changes.items():
-                if keyname in ('STAGEFILE', 'PYPIFILE_NOMD5'):
-                    key = self.keyfs.get_key_instance(keyname, relpath)
-                    entry = FileEntry(key, val)
-                    if entry.meta == {} or entry.last_modified is None:
-                        # the file was removed
+        # we first check for missing files before we call subscribers
+        for relpath, (keyname, _back_serial, val) in changes.items():
+            if keyname in ("STAGEFILE", "PYPIFILE_NOMD5"):
+                key = self.keyfs.get_key_instance(keyname, relpath)
+                entry = FileEntry(key, val)
+                if entry.meta == {} or entry.last_modified is None:
+                    # the file was removed
+                    continue
+                ixconfig = self.get_ixconfig(entry, event_serial)
+                if ixconfig is None:
+                    # the index doesn't exist (anymore)
+                    continue
+                if ixconfig.get("type") == "mirror" and ixconfig.get(
+                    "mirror_use_external_urls", False
+                ):
+                    # the index uses external URLs now
+                    continue
+                with self.keyfs.filestore_transaction():
+                    if entry.file_exists():
+                        # all good
                         continue
-                    ixconfig = self.get_ixconfig(entry, event_serial)
-                    if ixconfig is None:
+                # the file is missing, check whether we can ignore it
+                serial = self.keyfs.get_current_serial()
+                if event_serial < serial:
+                    # there are newer serials existing
+                    with self.keyfs.read_transaction() as tx:
+                        current_val = tx.get(key)
+                    if current_val is None:
+                        # entry was deleted
+                        continue
+                    current_entry = FileEntry(key, current_val)
+                    if current_entry.meta == {} or current_entry.last_modified is None:
+                        # the file was removed at some point
+                        continue
+                    current_ixconfig = self.get_ixconfig(entry, serial)
+                    if current_ixconfig is None:
                         # the index doesn't exist (anymore)
                         continue
-                    elif ixconfig.get('type') == 'mirror' and ixconfig.get('mirror_use_external_urls', False):
-                        # the index uses external URLs now
-                        continue
-                    with self.keyfs.filestore_transaction():
-                        if entry.file_exists():
-                            # all good
+                    if current_ixconfig.get("type") == "mirror":
+                        if current_ixconfig.get("mirror_use_external_urls", False):
+                            # the index uses external URLs now
                             continue
-                    # the file is missing, check whether we can ignore it
-                    serial = self.keyfs.get_current_serial()
-                    if event_serial < serial:
-                        # there are newer serials existing
-                        with self.keyfs.read_transaction() as tx:
-                            current_val = tx.get(key)
-                        if current_val is None:
-                            # entry was deleted
+                        if current_entry.project is None:
+                            # this is an old mirror entry with no
+                            # project info, so this can be ignored
                             continue
-                        current_entry = FileEntry(key, current_val)
-                        if current_entry.meta == {} or current_entry.last_modified is None:
-                            # the file was removed at some point
-                            continue
-                        current_ixconfig = self.get_ixconfig(entry, serial)
-                        if current_ixconfig is None:
-                            # the index doesn't exist (anymore)
-                            continue
-                        if current_ixconfig.get('type') == 'mirror':
-                            if current_ixconfig.get('mirror_use_external_urls', False):
-                                # the index uses external URLs now
-                                continue
-                            if current_entry.project is None:
-                                # this is an old mirror entry with no
-                                # project info, so this can be ignored
-                                continue
-                        log.debug("missing current_entry.meta %r" % current_entry.meta)
-                    log.debug("missing entry.meta %r" % entry.meta)
-                    raise MissingFileException(relpath, event_serial)
-            # all files exist or are deleted in a later serial,
-            # call subscribers now
-            for relpath, (keyname, back_serial, val) in changes.items():
-                subscribers = self._on_key_change.get(keyname, [])
-                if not subscribers:
-                    continue
-                key = self.keyfs.get_key_instance(keyname, relpath)
-                ev = KeyChangeEvent(key, val, event_serial, back_serial)
-                for sub in subscribers:
-                    subname = getattr(sub, "__name__", sub)
-                    log.debug("%s(key=%r, at_serial=%r, back_serial=%r",
-                              subname, ev.typedkey, event_serial, ev.back_serial)
-                    try:
-                        sub(ev)
-                    except Exception:
-                        if raising:
-                            raise
-                        log.exception("calling %s failed, serial=%s", sub, event_serial)
+                    log.debug("missing current_entry.meta %r", current_entry.meta)
+                log.debug("missing entry.meta %r", entry.meta)
+                raise MissingFileException(relpath, event_serial)
+        # all files exist or are deleted in a later serial,
+        # call subscribers now
+        for relpath, (keyname, back_serial, val) in changes.items():
+            subscribers = self._on_key_change.get(keyname, [])
+            if not subscribers:
+                continue
+            key = self.keyfs.get_key_instance(keyname, relpath)
+            ev = KeyChangeEvent(key, val, event_serial, back_serial)
+            for sub in subscribers:
+                subname = getattr(sub, "__name__", sub)
+                log.debug(
+                    "%s(key=%r, at_serial=%r, back_serial=%r",
+                    subname,
+                    ev.typedkey,
+                    event_serial,
+                    ev.back_serial,
+                )
+                try:
+                    sub(ev)
+                except Exception:
+                    if raising:
+                        raise
+                    log.exception("calling %s failed, serial=%s", sub, event_serial)
 
         log.debug("finished calling all hooks for tx%s", event_serial)
 
