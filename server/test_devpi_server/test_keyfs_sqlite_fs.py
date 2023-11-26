@@ -1,6 +1,6 @@
-from devpi_server.keyfs_sqlite_fs import (
-    commit_renames, make_rel_renames, check_pending_renames
-)
+from devpi_server.filestore_fs import check_pending_renames
+from devpi_server.filestore_fs import commit_renames
+from devpi_server.filestore_fs import make_rel_renames
 import os
 import pytest
 
