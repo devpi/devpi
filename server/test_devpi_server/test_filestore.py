@@ -286,8 +286,7 @@ def test_cache_remote_file(filestore, httpget, gen, xom):
 
 @pytest.mark.notransaction
 @pytest.mark.storage_with_filesystem
-@pytest.mark.parametrize("mode", ("commit", "rollback"))
-def test_file_tx(filestore, gen, mode, xom):
+def test_file_tx_commit(filestore, gen, xom):
     filestore.keyfs.begin_transaction_in_thread(write=True)
     link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
     entry = filestore.maplink(link, "root", "pypi", "pytest")
@@ -296,19 +295,30 @@ def test_file_tx(filestore, gen, mode, xom):
     assert entry.file_exists()
     assert not xom.config.serverdir.join(entry._storepath).exists()
     assert entry.file_get_content() == b'123'
-    if mode == "commit":
-        # commit existing data and start new transaction
-        filestore.keyfs.commit_transaction_in_thread()
-        filestore.keyfs.begin_transaction_in_thread(write=True)
-        assert xom.config.serverdir.join(entry._storepath).exists()
-        entry.file_delete()
-        assert xom.config.serverdir.join(entry._storepath).exists()
-        assert not entry.file_exists()
-        filestore.keyfs.commit_transaction_in_thread()
-        assert not xom.config.serverdir.join(entry._storepath).exists()
-    elif mode == "rollback":
-        filestore.keyfs.rollback_transaction_in_thread()
-        assert not xom.config.serverdir.join(entry._storepath).exists()
+    # commit existing data and start new transaction
+    filestore.keyfs.commit_transaction_in_thread()
+    filestore.keyfs.begin_transaction_in_thread(write=True)
+    assert xom.config.serverdir.join(entry._storepath).exists()
+    entry.file_delete()
+    assert xom.config.serverdir.join(entry._storepath).exists()
+    assert not entry.file_exists()
+    filestore.keyfs.commit_transaction_in_thread()
+    assert not xom.config.serverdir.join(entry._storepath).exists()
+
+
+@pytest.mark.notransaction
+@pytest.mark.storage_with_filesystem
+def test_file_tx_rollback(filestore, gen, xom):
+    filestore.keyfs.begin_transaction_in_thread(write=True)
+    link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
+    entry = filestore.maplink(link, "root", "pypi", "pytest")
+    assert not entry.file_exists()
+    entry.file_set_content(b'123')
+    assert entry.file_exists()
+    assert not xom.config.serverdir.join(entry._storepath).exists()
+    assert entry.file_get_content() == b'123'
+    filestore.keyfs.rollback_transaction_in_thread()
+    assert not xom.config.serverdir.join(entry._storepath).exists()
 
 
 @pytest.mark.notransaction
