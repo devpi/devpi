@@ -1,5 +1,6 @@
 from devpi_common.types import cached_property
 from .config import hookimpl
+from .filestore_fs import LazyChangesFormatter
 from .fileutil import dumps, loads
 from .interfaces import IStorageConnection2
 from .keyfs import KeyfsTimeoutError
@@ -596,25 +597,6 @@ def devpiserver_metrics(request):
             ('devpi_server_relpath_cache_size', 'gauge', relpath_cache.size),
             ('devpi_server_relpath_cache_items', 'gauge', len(relpath_cache.data) if relpath_cache.data else 0)])
     return result
-
-
-class LazyChangesFormatter:
-    __slots__ = ('files_commit', 'files_del', 'keys')
-
-    def __init__(self, changes, files_commit, files_del):
-        self.files_commit = files_commit
-        self.files_del = files_del
-        self.keys = changes.keys()
-
-    def __str__(self):
-        msg = []
-        if self.keys:
-            msg.append(f"keys: {','.join(repr(c) for c in self.keys)}")
-        if self.files_commit:
-            msg.append(f"files_commit: {','.join(self.files_commit)}")
-        if self.files_del:
-            msg.append(f"files_del: {','.join(self.files_del)}")
-        return ", ".join(msg)
 
 
 class Writer:

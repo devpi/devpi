@@ -3,21 +3,20 @@ from .interfaces import IStorageConnection3
 from .keyfs_sqlite import BaseConnection
 from .keyfs_sqlite import BaseStorage
 from .log import threadlog
-from .fileutil import get_write_file_ensure_dir, rename, loads
+from .filestore_fs import IStorageFile
+from .filestore_fs import LazyChangesFormatter
+from .filestore_fs import check_pending_renames
+from .filestore_fs import commit_renames
+from .filestore_fs import make_rel_renames
+from .fileutil import get_write_file_ensure_dir, loads
 from hashlib import sha256
-from zope.interface import Interface
 from zope.interface import alsoProvides
 from zope.interface import implementer
 import errno
 import os
-import re
 import shutil
 import sys
 import threading
-
-
-class IStorageFile(Interface):
-    """ Marker interface. """
 
 
 class DirtyFile(object):
@@ -217,25 +216,6 @@ def devpiserver_storage_backend(settings):
         _test_markers=["storage_with_filesystem"])
 
 
-class LazyChangesFormatter:
-    __slots__ = ('files_commit', 'files_del', 'keys')
-
-    def __init__(self, changes, files_commit, files_del):
-        self.files_commit = files_commit
-        self.files_del = files_del
-        self.keys = changes.keys()
-
-    def __str__(self):
-        msg = []
-        if self.keys:
-            msg.append(f"keys: {','.join(repr(c) for c in self.keys)}")
-        if self.files_commit:
-            msg.append(f"files_commit: {','.join(self.files_commit)}")
-        if self.files_del:
-            msg.append(f"files_del: {','.join(self.files_del)}")
-        return ", ".join(msg)
-
-
 def drop_dirty_files(dirty_files):
     for path, dirty_file in dirty_files.items():
         if dirty_file is not None:
@@ -250,73 +230,3 @@ def write_dirty_files(dirty_files):
         else:
             pending_renames.append((dirty_file.tmppath, path))
     return pending_renames
-
-
-tmp_file_matcher = re.compile(r"(.*?)(-[0-9a-fA-F]{8,64})?(-tmp)$")
-
-
-def tmpsuffix_for_path(path):
-    # ends with -tmp and includes hash since temp files are written directly
-    # to disk instead of being kept in memory
-    m = tmp_file_matcher.match(path)
-    if m is not None:
-        if m.group(2):
-            suffix = m.group(2) + m.group(3)
-        else:
-            suffix = m.group(3)
-        return suffix
-
-
-def check_pending_renames(basedir, pending_relnames):
-    for relpath in pending_relnames:
-        path = os.path.join(basedir, relpath)
-        suffix = tmpsuffix_for_path(relpath)
-        if suffix is not None:
-            suffix_len = len(suffix)
-            dst = path[:-suffix_len]
-            if os.path.exists(path):
-                rename(path, dst)
-                threadlog.warn("completed file-commit from crashed tx: %s",
-                               dst)
-            elif not os.path.exists(dst):
-                raise OSError("missing file %s" % dst)
-        else:
-            try:
-                os.remove(path)  # was already removed
-                threadlog.warn("completed file-del from crashed tx: %s", path)
-            except OSError:
-                pass
-
-
-def commit_renames(basedir, pending_renames):
-    files_del = []
-    files_commit = []
-    for relpath in pending_renames:
-        path = os.path.join(basedir, relpath)
-        suffix = tmpsuffix_for_path(relpath)
-        if suffix is not None:
-            suffix_len = len(suffix)
-            rename(path, path[:-suffix_len])
-            files_commit.append(relpath[:-suffix_len])
-        else:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-            files_del.append(relpath)
-    return files_commit, files_del
-
-
-def make_rel_renames(basedir, pending_renames):
-    # produce a list of strings which are
-    # - paths relative to basedir
-    # - if they have "-tmp" at the end it means they should be renamed
-    #   to the path without the "-tmp" suffix
-    # - if they don't have "-tmp" they should be removed
-    for source, dest in pending_renames:
-        if source is not None:
-            assert source.startswith(dest) and source.endswith("-tmp")
-            yield source[len(basedir) + 1:]
-        else:
-            assert dest.startswith(basedir)
-            yield dest[len(basedir) + 1:]
