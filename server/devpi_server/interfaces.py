@@ -105,7 +105,7 @@ def get_connection_class(obj: Any) -> Type:
 
 
 def verify_connection_interface(obj: Any) -> None:
-    verifyObject(IStorageConnection2, unwrap_connection_obj(obj))
+    verifyObject(IStorageConnection3, unwrap_connection_obj(obj))
 
 
 _adapters = {}
