@@ -224,7 +224,7 @@ def mock():
 
 
 @pytest.fixture(scope="session")
-def storage_info(request):
+def storage_plugin(request):
     from pydoc import locate
     backend = getattr(request.config.option, 'backend', None)
     if backend is None:
@@ -232,9 +232,12 @@ def storage_info(request):
     plugin = locate(backend)
     if plugin is None:
         raise RuntimeError("Couldn't find storage backend '%s'" % backend)
-    result = plugin.devpiserver_storage_backend(settings=None)
-    result["_test_plugin"] = plugin
-    return result
+    return plugin
+
+
+@pytest.fixture(scope="session")
+def storage_info(storage_plugin):
+    return storage_plugin.devpiserver_storage_backend(settings=None)
 
 
 @pytest.fixture(scope="session")
@@ -243,7 +246,7 @@ def storage(storage_info):
 
 
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch, storage_info):
+def makexom(request, gentmp, httpget, monkeypatch, storage_info, storage_plugin):
     def makexom(opts=(), httpget=httpget, plugins=()):  # noqa: PLR0912
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
@@ -257,7 +260,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
             for plugin in plugins]
         default_plugins = [
             auth_basic, auth_devpi, mirror, model, replica, view_auth, views,
-            storage_info["_test_plugin"]]
+            storage_plugin]
         for plugin in default_plugins:
             if plugin not in plugins:
                 plugins.append(plugin)
@@ -283,13 +286,14 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info):
                 markers = info.get("_test_markers", [])
                 if marker not in markers:
                     pytest.skip("The storage doesn't have marker '%s'." % marker)
-        if not request.node.get_closest_marker("no_storage_option"):
-            assert storage_info["storage"] is config.storage
         if request.node.get_closest_marker("nomocking"):
             xom = XOM(config)
         else:
             xom = XOM(config, httpget=httpget)
             add_pypistage_mocks(monkeypatch, httpget)
+        if not request.node.get_closest_marker("no_storage_option"):
+            assert storage_plugin.__name__ in {
+                x.__module__ for x in xom.keyfs._storage.__class__.__mro__}
         # verify storage interface
         with xom.keyfs.get_connection() as conn:
             verify_connection_interface(conn)
