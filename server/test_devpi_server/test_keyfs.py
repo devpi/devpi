@@ -787,6 +787,7 @@ class TestSubscriber:
 
     def test_wait_tx_async(self, keyfs, pool, queue):
         # start a thread which waits for the next serial
+        key = keyfs.add_key("NAME", "hello", int)
         wait_serial = keyfs.get_next_serial()
 
         class T:
@@ -797,10 +798,10 @@ class TestSubscriber:
         pool.register(T())
         pool.start()
 
-        # directly  modify the database without keyfs-transaction machinery
+        # directly modify the database without keyfs-transaction machinery
         with keyfs._storage.get_connection(write=True) as conn:
-            with conn.write_transaction():
-                pass
+            with conn.write_transaction() as wtx:
+                wtx.record_set(key, 1, -1)
 
         # check wait_tx_serial() call from the thread returned True
         assert queue.get() is True
