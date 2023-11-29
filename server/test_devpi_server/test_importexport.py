@@ -27,7 +27,7 @@ pytestmark = [pytest.mark.notransaction]
 
 def test_has_users_or_stages(xom):
     from devpi_server.importexport import has_users_or_stages
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         assert not has_users_or_stages(xom)
         user = xom.model.create_user("user", "password", email="some@email.com")
         assert has_users_or_stages(xom)
@@ -162,7 +162,7 @@ def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch):
 
 
 def test_import_on_existing_server_data(tmpdir, terminalwriter, xom):
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         xom.model.create_user("someuser", password="qwe")
     assert not make_export(tmpdir, terminalwriter, xom)
     with pytest.raises(Fatal):
@@ -690,7 +690,7 @@ class TestImportExport:
         mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
 
         # simulate a data structure where "version" is missing
-        with mapp1.xom.keyfs.transaction(write=True):
+        with mapp1.xom.keyfs.write_transaction():
             stage = mapp1.xom.model.getstage(api.stagename)
             key_projversion = stage.key_projversion("hello", "1.0")
             verdata = key_projversion.get(readonly=False)
@@ -743,7 +743,7 @@ class TestImportExport:
         content = b'content'
         name = "plugin-ddpenc-3-5-1-rel"
         mapp1.upload_file_pypi(name + "-1.0.tar.gz", content, name, "1.0")
-        with mapp1.xom.keyfs.transaction(write=True):
+        with mapp1.xom.keyfs.write_transaction():
             stage = mapp1.xom.model.getstage(api.stagename)
             doccontent = zip_dict({"index.html": "<html><body>Hello"})
             link1 = stage.store_doczip(name, "1.0", content_or_file=doccontent)
@@ -990,7 +990,7 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         (user, index) = api.stagename.split('/')
-        with mapp1.xom.keyfs.transaction(write=True):
+        with mapp1.xom.keyfs.write_transaction():
             stage = mapp1.xom.model.getstage(api.stagename)
             with stage.user.key.update() as userconfig:
                 ixconfig = userconfig["indexes"][index]

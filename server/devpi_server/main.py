@@ -146,7 +146,7 @@ def init_default_indexes(xom):
     # we deliberately call get_current_serial first to establish a connection
     # to the backend and in case of sqlite create the database
     if xom.keyfs.get_current_serial() == -1 and not xom.is_replica():
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             set_default_indexes(xom.model)
 
 

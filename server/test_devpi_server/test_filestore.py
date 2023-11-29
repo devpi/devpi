@@ -254,7 +254,7 @@ class TestFileStore:
 
 @pytest.mark.notransaction
 def test_cache_remote_file(filestore, httpget, gen, xom):
-    with filestore.keyfs.transaction(write=True):
+    with filestore.keyfs.write_transaction():
         link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert not entry.hash_spec and not entry.file_exists()
@@ -323,7 +323,7 @@ def test_file_tx_rollback(filestore, gen, xom):
 
 @pytest.mark.notransaction
 def test_store_and_iter(filestore):
-    with filestore.keyfs.transaction(write=True):
+    with filestore.keyfs.write_transaction():
         content = b"hello"
         entry = filestore.store("user", "index", "something-1.0.zip", content)
         assert entry.hash_spec.endswith("="+getdigest(content, entry.hash_type))

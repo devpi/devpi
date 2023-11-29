@@ -23,11 +23,11 @@ def test_permissions_for_unknown_index(mapp, xom):
     assert mapp.getjson(api.index)['result']['type'] == 'stage'
     assert mapp.getjson(api.index)['result']['projects'] == ['hello']
     # change index type to unknown
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         stage = xom.model.getstage(api.stagename)
         with stage.user.key.update() as userconfig:
             userconfig["indexes"][stage.index]['type'] = 'unknown'
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         stage = xom.model.getstage(api.stagename)
         # first check direct stage access
         # modifying the stage directly is ok, as the view is protected by

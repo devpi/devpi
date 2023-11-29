@@ -438,9 +438,8 @@ class MirrorStage(BaseStage):
                 # when 0 it is new, when 1 it is pre 6.6.0 with
                 # only normalized names
                 if k.get() in (0, 1):
-                    if not self.keyfs.tx.write:
-                        self.keyfs.restart_as_write_transaction()
-                    k.set(2)
+                    with self.keyfs.write_transaction(allow_restart=True):
+                        k.set(2)
         else:
             # mark current without updating contents
             self.cache_projectnames.mark_current(etag)
@@ -644,13 +643,9 @@ class MirrorStage(BaseStage):
                 return self.SimpleLinks(links)
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)
-        else:
-            # on the master we need to write the updated links.
-            if not self.keyfs.tx.write:
-                # we are in a read-only transaction so we need to start a
-                # write transaction.
-                self.keyfs.restart_as_write_transaction()
 
+        with self.keyfs.write_transaction(allow_restart=True):
+            # on the master we need to write the updated links.
             maplink = partial(
                 self.filestore.maplink,
                 user=self.user.name, index=self.index, project=project)
@@ -675,7 +670,7 @@ class MirrorStage(BaseStage):
 
         newlinks = join_links_data(
             info["key_hrefs"], info["requires_python"], info["yanked"])
-        with self.keyfs.transaction(write=True):
+        with self.keyfs.write_transaction():
             self.keyfs.tx.on_finished(lock.release)
             # fetch current links
             (is_expired, links, cache_serial) = self._load_cache_links(project)
