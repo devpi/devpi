@@ -499,24 +499,24 @@ class TestExtPYPIDB:
     @pytest.mark.notransaction
     def test_requires_python_caching(self, pypistage):
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-requires-python="&lt;3"></a>')
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
         # make sure we get the cached data, if not throw an error
         pypistage.httpget = None
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
 
     @pytest.mark.notransaction
     def test_yanked_caching(self, pypistage):
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-yanked=""></a>')
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked == ""
         # make sure we get the cached data, if not throw an error
         pypistage.httpget = None
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked == ""
 
@@ -574,13 +574,13 @@ class TestExtPYPIDB:
     def test_etag(self, pypistage):
         pypistage.mock_simple(
             "foo", text='<a href="foo-1.0.tar.gz"</a>', etag='"foo"')
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             pypistage.get_simplelinks_perstage("foo")
         call = pypistage.xom.httpget.call_log.pop()
         assert 'If-None-Match' not in call['extra_headers']
         assert pypistage.cache_retrieve_times.get_etag("foo") == '"foo"'
         pypistage.cache_retrieve_times.expire("foo", etag='"foo"')
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             pypistage.get_simplelinks_perstage("foo")
         call = pypistage.xom.httpget.call_log.pop()
         assert pypistage.cache_retrieve_times.get_etag("foo") == '"foo"'
@@ -589,7 +589,7 @@ class TestExtPYPIDB:
             "foo", text='<a href="foo-1.0.tar.gz"</a>', etag='"bar"')
         # make sure an expired ETag exists
         pypistage.cache_retrieve_times.expire("foo", etag='"foo"')
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             pypistage.get_simplelinks_perstage("foo")
         call = pypistage.xom.httpget.call_log.pop()
         assert call['extra_headers']['If-None-Match'] == '"foo"'
@@ -763,18 +763,18 @@ class TestMirrorStageprojects:
     @pytest.mark.notransaction
     def test_single_project_access_updates_projects(self, pypistage):
         pypistage.mock_simple_projects(["Django"])
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             assert pypistage.list_projects_perstage() == {"django": "Django"}
         pypistage.mock_simple("proj1", pkgver="proj1-1.0.zip")
         pypistage.mock_simple("proj2", pkgver="proj2-1.0.zip")
         pypistage.url2response["https://pypi.org/simple/proj3/"] = dict(
             status_code=404)
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             assert len(pypistage.get_releaselinks("proj1")) == 1
             assert len(pypistage.get_releaselinks("proj2")) == 1
             assert not pypistage.has_project_perstage("proj3")
             assert not pypistage.get_releaselinks("proj3")
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             assert pypistage.list_projects_perstage() == {
                 "proj1": "proj1", "proj2": "proj2", "django": "Django"}
 
@@ -810,7 +810,7 @@ class TestMirrorStageprojects:
 
         # first we need some releases in the db
         pypistage.mock_simple("pkg", text='<a href="pkg-1.0.zip"</a>')
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             assert [
                 (x.project, x.version)
                 for x in pypistage.get_releaselinks("pkg")] == [
@@ -822,7 +822,7 @@ class TestMirrorStageprojects:
         pypistage.async_httpget = sleeping_async_httpget
         serial = pypistage.keyfs.get_current_serial()
         # we should get stale results
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             assert pypistage.cache_retrieve_times.is_expired("pkg", pypistage.cache_expiry)
             assert [
                 (x.project, x.version)
@@ -831,7 +831,7 @@ class TestMirrorStageprojects:
         # now we wait for the new serial to arrive
         pypistage.keyfs.wait_tx_serial(serial + 1)
         # and we should see the new version
-        with pypistage.keyfs.transaction(write=False):
+        with pypistage.keyfs.read_transaction():
             assert not pypistage.cache_retrieve_times.is_expired("pkg", pypistage.cache_expiry)
             assert sorted([
                 (x.project, x.version)
@@ -851,7 +851,7 @@ class TestMirrorStageprojects:
         content = b'13'
         simpypi.add_file('/pkg/pkg-1.0.zip', content)
         assert not simpypi.requests
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             pypistage = mapp.xom.model.getstage("root/pypi")
             assert pypistage.mirror_url == url
             (link,) = pypistage.get_simplelinks("pkg")
@@ -891,7 +891,7 @@ class TestMirrorStageprojects:
         content = b'13'
         simpypi.add_file('/pkg/pkg-1.0.zip', content)
         assert not simpypi.requests
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             pypistage = mapp.xom.model.getstage("root/pypi")
             assert pypistage.mirror_url == url
             (link,) = pypistage.get_simplelinks("pkg")
@@ -1046,7 +1046,7 @@ def test_404_on_pypi_cached(pypistage):
     serial = pypistage.keyfs.get_current_serial()
     retrieve_times = pypistage.cache_retrieve_times
     retrieve_times.expire('foo')
-    with pypistage.keyfs.transaction(write=False):
+    with pypistage.keyfs.read_transaction():
         assert not pypistage.has_project_perstage("foo")
         with pytest.raises(pypistage.UpstreamNotFoundError):
             pypistage.get_simplelinks_perstage("foo")
@@ -1054,7 +1054,7 @@ def test_404_on_pypi_cached(pypistage):
     assert updated_at > 0
     # if we check again, we should get a cached result and no change in the
     # updated_at time
-    with pypistage.keyfs.transaction(write=False):
+    with pypistage.keyfs.read_transaction():
         assert not pypistage.has_project_perstage("foo")
         with pytest.raises(pypistage.UpstreamNotFoundError):
             pypistage.get_simplelinks_perstage("foo")
@@ -1062,7 +1062,7 @@ def test_404_on_pypi_cached(pypistage):
 
     # we trigger a fresh check
     retrieve_times.expire('foo')
-    with pypistage.keyfs.transaction(write=False):
+    with pypistage.keyfs.read_transaction():
         assert not pypistage.has_project_perstage("foo")
         with pytest.raises(pypistage.UpstreamNotFoundError):
             pypistage.get_simplelinks_perstage("foo")
@@ -1074,7 +1074,7 @@ def test_404_on_pypi_cached(pypistage):
 
     # make the project exist on pypi, and verify we still get cached result
     pypistage.mock_simple("foo", text="", pypiserial=2, cache_expire=False)
-    with pypistage.keyfs.transaction(write=False):
+    with pypistage.keyfs.read_transaction():
         assert not pypistage.has_project_perstage("foo")
         with pytest.raises(pypistage.UpstreamNotFoundError):
             pypistage.get_simplelinks_perstage("foo")
@@ -1087,7 +1087,7 @@ def test_404_on_pypi_cached(pypistage):
     retrieve_times.expire('foo')
     pypistage.cache_projectnames.expire()
     time.sleep(0.01)  # to make sure we get a new timestamp
-    with pypistage.keyfs.transaction(write=False):
+    with pypistage.keyfs.read_transaction():
         assert pypistage.has_project_perstage("foo")
         assert len(pypistage.get_releaselinks('foo')) == 0
     assert retrieve_times.get_timestamp('foo') > updated_at
@@ -1169,18 +1169,18 @@ def test_redownload_locally_removed_release(mapp, simpypi):
     assert len(result) == 1
     r = mapp.downloadrelease(200, result[0])
     assert r == content
-    with mapp.xom.keyfs.transaction(write=False) as tx:
+    with mapp.xom.keyfs.read_transaction() as tx:
         assert tx.conn.io_file_exists(file_relpath)
     # now remove the local copy
     with mapp.xom.keyfs.write_transaction() as tx:
         tx.conn.io_file_delete(file_relpath)
-    with mapp.xom.keyfs.transaction(write=False) as tx:
+    with mapp.xom.keyfs.read_transaction() as tx:
         assert not tx.conn.io_file_exists(file_relpath)
     serial = mapp.xom.keyfs.get_current_serial()
     # and download again
     r = mapp.downloadrelease(200, result[0])
     assert r == content
-    with mapp.xom.keyfs.transaction(write=False) as tx:
+    with mapp.xom.keyfs.read_transaction() as tx:
         assert tx.conn.io_file_exists(file_relpath)
     # the serial should not have increased
     assert serial == mapp.xom.keyfs.get_current_serial()
@@ -1191,33 +1191,33 @@ def test_get_last_project_change_serial_perstage(xom, pypistage):
     pypistage.mock_simple_projects([], cache_expire=False)
     # get_last_project_change_serial_perstage only works with
     # committed transactions
-    with xom.keyfs.transaction() as tx:
+    with xom.keyfs.read_transaction() as tx:
         first_serial = tx.at_serial
         assert pypistage.list_projects_perstage() == {}
-    with xom.keyfs.transaction() as tx:
+    with xom.keyfs.read_transaction() as tx:
         # the list_projects_perstage call above triggered a MIRRORNAMESINIT update
         assert tx.at_serial == (first_serial + 1)
         assert pypistage.get_last_project_change_serial_perstage('pkg') == -1
         with pytest.raises(pypistage.UpstreamNotFoundError):
             pypistage.get_simplelinks_perstage('pkg')
-    with xom.keyfs.transaction() as tx:
+    with xom.keyfs.read_transaction() as tx:
         # no change in db yet
         assert tx.at_serial == (first_serial + 1)
         assert pypistage.get_last_project_change_serial_perstage('pkg') == -1
         pypistage.mock_simple("pkg", pkgver="pkg-1.0.zip")
         (link,) = pypistage.get_simplelinks_perstage('pkg')
         assert link.key == 'pkg-1.0.zip'
-    with xom.keyfs.transaction() as tx:
+    with xom.keyfs.read_transaction() as tx:
         # the new project has been updated in the db
         assert tx.at_serial == (first_serial + 2)
         assert pypistage.get_last_project_change_serial_perstage('pkg') == (first_serial + 2)
-    with xom.keyfs.transaction() as tx:
+    with xom.keyfs.read_transaction() as tx:
         # no change in db yet
         assert tx.at_serial == (first_serial + 2)
         pypistage.mock_simple("other", pkgver="other-1.0.zip")
         (link,) = pypistage.get_simplelinks_perstage('other')
         assert link.key == 'other-1.0.zip'
-    with xom.keyfs.transaction() as tx:
+    with xom.keyfs.read_transaction() as tx:
         # the new project has been updated in the db
         assert tx.at_serial == (first_serial + 3)
         assert pypistage.get_last_project_change_serial_perstage('other') == (first_serial + 3)

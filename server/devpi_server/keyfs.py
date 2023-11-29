@@ -142,7 +142,7 @@ class TxNotificationThread:
         cache_key = (user, index)
         if cache_key in self._get_ixconfig_cache:
             return self._get_ixconfig_cache[cache_key]
-        with self.keyfs.transaction(write=False):
+        with self.keyfs.read_transaction():
             key = self.keyfs.get_key('USER')(user=user)
             value = key.get()
         if value is None:
@@ -183,7 +183,7 @@ class TxNotificationThread:
                     serial = self.keyfs.get_current_serial()
                     if event_serial < serial:
                         # there are newer serials existing
-                        with self.keyfs.transaction(write=False) as tx:
+                        with self.keyfs.read_transaction() as tx:
                             current_val = tx.get(key)
                         if current_val is None:
                             # entry was deleted
@@ -278,7 +278,7 @@ class KeyFS(object):
                         typedkey, get_mutable_deepcopy(val),
                         back_serial=back_serial)
         if callable(self._import_subscriber):
-            with self.transaction(write=False, at_serial=serial):
+            with self.read_transaction(at_serial=serial):
                 self._import_subscriber(serial, changes)
 
     def subscribe_on_import(self, subscriber):
@@ -422,13 +422,31 @@ class KeyFS(object):
         self.commit_transaction_in_thread()
 
     @contextlib.contextmanager
+    def read_transaction(self, *, at_serial=None, allow_reuse=False):
+        tx = getattr(self._threadlocal, 'tx', None)
+        if tx is not None:
+            if not allow_reuse:
+                raise RuntimeError(
+                    "Can't open a read transaction "
+                    "within a running transaction.")
+            if at_serial is not None and tx.at_serial != at_serial:
+                msg = (
+                    f"Can't open a read transaction at "
+                    f"serial {at_serial!r} from within a running "
+                    f"transaction at serial {tx.at_serial!r}.")
+                raise RuntimeError(msg)
+            yield tx
+        else:
+            with self._transaction(write=False, at_serial=at_serial) as tx:
+                yield tx
+
+    @contextlib.contextmanager
     def transaction(self, write=False, at_serial=None):
-        if write:
-            warnings.warn(
-                "The 'write' argument is deprecated, "
-                "use 'write_transaction' instead.",
-                DeprecationWarning,
-                stacklevel=2)
+        warnings.warn(
+            "The 'transaction' method is deprecated, "
+            "use 'read_transaction' or 'write_transaction' instead.",
+            DeprecationWarning,
+            stacklevel=3)
         with self._transaction(write=write, at_serial=at_serial) as tx:
             yield tx
 

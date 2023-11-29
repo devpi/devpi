@@ -1879,7 +1879,7 @@ class EventSubscribers:
         index = params["index"]
         keyfs = self.xom.keyfs
         hook = self.xom.config.hook
-        with keyfs.transaction(write=False, at_serial=ev.at_serial) as tx:
+        with keyfs.read_transaction(at_serial=ev.at_serial) as tx:
             # find out if metadata changed
             if ev.back_serial == -1:
                 old = {}
@@ -1906,7 +1906,7 @@ class EventSubscribers:
         user = params.get("user")
         index = params.get("index")
         keyfs = self.xom.keyfs
-        with keyfs.transaction(at_serial=ev.at_serial):
+        with keyfs.read_transaction(at_serial=ev.at_serial):
             stage = self.xom.model.getstage(user, index)
             if stage is not None and stage.ixconfig["type"] == "mirror":
                 return  # we don't trigger on file changes of pypi mirror
@@ -1934,7 +1934,7 @@ class EventSubscribers:
         user = params.get("user")
         index = params.get("index")
         keyfs = self.xom.keyfs
-        with keyfs.transaction(at_serial=ev.at_serial):
+        with keyfs.read_transaction(at_serial=ev.at_serial):
             stage = self.xom.model.getstage(user, index)
             if stage is not None and stage.ixconfig["type"] == "mirror":
                 self.xom.config.hook.devpiserver_mirror_initialnames(
@@ -1947,7 +1947,7 @@ class EventSubscribers:
         params = ev.typedkey.params
         username = params.get("user")
         keyfs = self.xom.keyfs
-        with keyfs.transaction(at_serial=ev.at_serial) as tx:
+        with keyfs.read_transaction(at_serial=ev.at_serial) as tx:
 
             if ev.back_serial > -1:
                 try:

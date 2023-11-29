@@ -227,7 +227,7 @@ def tween_keyfs_transaction(handler, registry):
         transaction_method = (
             keyfs.write_transaction
             if write else
-            keyfs.transaction)
+            keyfs.read_transaction)
         with transaction_method() as tx:
             threadlog.debug("in-transaction %s", tx.at_serial)
             try:
