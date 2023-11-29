@@ -292,26 +292,24 @@ class KeyFS(object):
         self._storage.perform_crash_recovery()
 
     def import_changes(self, serial, changes):
-        with self.get_connection(write=True) as conn:
-            with conn.write_transaction() as _fswriter:
-                fswriter = IWriter2(_fswriter)
-                next_serial = conn.last_changelog_serial + 1
-                assert next_serial == serial, (next_serial, serial)
-                records = []
-                subscriber_changes = {}
-                for relpath, (keyname, back_serial, val) in changes.items():
-                    try:
-                        (_, _, old_val) = conn.get_relpath_at(relpath, serial - 1)
-                    except KeyError:
-                        old_val = absent
-                    typedkey = self.get_key_instance(keyname, relpath)
-                    subscriber_changes[typedkey] = (val, back_serial)
-                    records.append(
-                        Record(
-                            typedkey, get_mutable_deepcopy(val), back_serial, old_val
-                        )
-                    )
-                fswriter.records_set(records)
+        with contextlib.ExitStack() as cstack:
+            conn = cstack.enter_context(self.get_connection(write=True))
+            fswriter = IWriter2(cstack.enter_context(conn.write_transaction()))
+            next_serial = conn.last_changelog_serial + 1
+            assert next_serial == serial, (next_serial, serial)
+            records = []
+            subscriber_changes = {}
+            for relpath, (keyname, back_serial, val) in changes.items():
+                try:
+                    (_, _, old_val) = conn.get_relpath_at(relpath, serial - 1)
+                except KeyError:
+                    old_val = absent
+                typedkey = self.get_key_instance(keyname, relpath)
+                subscriber_changes[typedkey] = (val, back_serial)
+                records.append(
+                    Record(typedkey, get_mutable_deepcopy(val), back_serial, old_val)
+                )
+            fswriter.records_set(records)
         if callable(self._import_subscriber):
             with self.read_transaction(at_serial=serial):
                 self._import_subscriber(serial, subscriber_changes)
@@ -840,16 +838,14 @@ class Transaction(object):
             result = self._close()
             self._run_listeners(self._finished_listeners)
             return result
-        try:
-            with self.conn.write_transaction() as _fswriter:
-                fswriter = IWriter2(_fswriter)
-                fswriter.records_set(records)
-                commit_serial = getattr(fswriter, "commit_serial", absent)
-                if commit_serial is absent:
-                    # for storages which don't have the attribute yet
-                    commit_serial = self.conn.last_changelog_serial + 1
-        finally:
-            self._close()
+        with contextlib.ExitStack() as cstack:
+            cstack.callback(self._close)
+            fswriter = IWriter2(cstack.enter_context(self.conn.write_transaction()))
+            fswriter.records_set(records)
+            commit_serial = getattr(fswriter, "commit_serial", absent)
+            if commit_serial is absent:
+                # for storages which don't have the attribute yet
+                commit_serial = self.conn.last_changelog_serial + 1
         self.commit_serial = commit_serial
         self._run_listeners(self._success_listeners)
         self._run_listeners(self._finished_listeners)
