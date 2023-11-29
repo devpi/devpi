@@ -29,6 +29,7 @@ from .log import threadlog
 from .vendor._pip import HTMLPage
 from .views import SIMPLE_API_V1_JSON
 from .views import make_uuid_headers
+from pyramid.authentication import b64encode
 import json
 import threading
 import weakref
@@ -232,9 +233,21 @@ class MirrorStage(BaseStage):
         return url.asdir()
 
     @property
+    def mirror_url_without_auth(self):
+        return self.mirror_url.replace(username=None, password=None)
+
+    @property
     def mirror_url_auth(self):
         url = self.mirror_url
         return dict(username=url.username, password=url.password)
+
+    @property
+    def mirror_url_authorization_header(self):
+        url = self.mirror_url
+        if url.username or url.password:
+            auth = f"{url.username or ''}:{url.password or ''}".encode()
+            return f"Basic {b64encode(auth).decode()}"
+        return None
 
     @property
     def no_project_list(self):
@@ -378,9 +391,12 @@ class MirrorStage(BaseStage):
             timeout = max(self.timeout, 60)
         else:
             timeout = max(self.timeout, 30)
+        auth = self.mirror_url_authorization_header
+        if auth:
+            headers["Authorization"] = auth
         response = self.httpget(
-            self.mirror_url, allow_redirects=True, extra_headers=headers,
-            timeout=timeout)
+            self.mirror_url_without_auth, allow_redirects=True,
+            extra_headers=headers, timeout=timeout)
         if response.status_code == 304:
             return (self.cache_projectnames.get(), etag)
         elif response.status_code != 200:
@@ -527,13 +543,17 @@ class MirrorStage(BaseStage):
     async def _async_fetch_releaselinks(self, newlinks_future, project, cache_serial, _key_from_link):
         # get the simple page for the project
         url = self.mirror_url.joinpath(project).asdir()
+        get_url = self.mirror_url_without_auth.joinpath(project).asdir()
         threadlog.debug("reading index %r", url)
         headers = {"Accept": SIMPLE_API_ACCEPT}
+        auth = self.mirror_url_authorization_header
+        if auth:
+            headers["Authorization"] = auth
         etag = self.cache_retrieve_times.get_etag(project)
         if etag is not None:
             headers["If-None-Match"] = etag
         (response, text) = await self.async_httpget(
-            url, allow_redirects=True, extra_headers=headers)
+            get_url, allow_redirects=True, extra_headers=headers)
         if response.status == 304:
             raise self.UpstreamNotModified(
                 "%s status on GET %r" % (response.status, url),

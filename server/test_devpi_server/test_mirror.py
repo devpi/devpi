@@ -469,7 +469,7 @@ class TestExtPYPIDB:
     def test_basic_auth_mirror(self, pypistage):
         pypistage.ixconfig["mirror_url"] = "https://foo:bar@example.com/simple/"
         pypistage.xom.httpget.mockresponse(
-            pypistage.mirror_url, code=200, text="""
+            pypistage.mirror_url_without_auth, code=200, text="""
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
