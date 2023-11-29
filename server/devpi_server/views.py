@@ -7,6 +7,7 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
+from functools import partial
 from html import escape
 from lazy import lazy
 from operator import attrgetter
@@ -1590,22 +1591,32 @@ def _headers_from_response(r):
     return headers
 
 
-def iter_cache_remote_file(xom, entry, url):
-    # we get and cache the file and some http headers from remote
-    running_hash = entry.hash_algo()
-    hash_spec = entry.hash_spec
-    r = xom.httpget(url, allow_redirects=True)
-    f = entry.tx.conn.io_file_new_open(entry._storepath)
-    with contextlib.closing(f):
+class FileStreamer:
+    def __init__(self, entry, response):
+        self.file_new_open = partial(entry.tx.conn.io_file_new_open, entry._storepath)
+        self.hash_algo = entry.hash_algo
+        self.hash_spec = entry.hash_spec
+        self.relpath = entry.relpath
+        self.response = response
+        self.error = None
+        self.f = None
+
+    def close(self):
+        if self.f:
+            self.f.close()
+
+    def __enter__(self):
+        self.f = self.file_new_open()
+        return self
+
+    def __exit__(self, cls, val, tb):
+        self.close()
+
+    def __iter__(self):
         filesize = 0
-        with contextlib.closing(r):
-            if r.status_code != 200:
-                msg = "error %s getting %r" % (r.status_code, url)
-                threadlog.error(msg)
-                raise BadGateway(msg, code=r.status_code, url=url)
-            threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
+        running_hash = self.hash_algo()
+        with contextlib.closing(self.response) as r:
             content_size = r.headers.get("content-length")
-            err = None
 
             yield _headers_from_response(r)
 
@@ -1618,19 +1629,34 @@ def iter_cache_remote_file(xom, entry, url):
                     break
                 filesize += len(data)
                 running_hash.update(data)
-                f.write(data)
+                self.f.write(data)
                 yield data
 
         if content_size and int(content_size) != filesize:
-            err = ValueError(
+            self.error = ValueError(
                 "%s: got %s bytes of %r from remote, expected %s" % (
-                    entry.relpath, filesize, r.url, content_size))
-        if not err:
-            err = get_checksum_error(running_hash, entry.relpath, hash_spec)
+                    self.relpath, filesize, r.url, content_size))
+        if not self.error:
+            self.error = get_checksum_error(running_hash, self.relpath, self.hash_spec)
 
-        if err is not None:
-            threadlog.error(str(err))
-            raise err
+
+def iter_cache_remote_file(xom, entry, url):
+    # we get and cache the file and some http headers from remote
+    r = xom.httpget(url, allow_redirects=True)
+    if r.status_code != 200:
+        r.close()
+        msg = "error %s getting %r" % (r.status_code, url)
+        threadlog.error(msg)
+        raise BadGateway(msg, code=r.status_code, url=url)
+
+    with FileStreamer(entry, r) as file_streamer:
+        threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
+
+        yield from file_streamer
+
+        if file_streamer.error:
+            threadlog.error(str(file_streamer.error))
+            raise file_streamer.error
 
         try:
             # when pushing from a mirror to an index, we are still in a
@@ -1647,8 +1673,8 @@ def iter_cache_remote_file(xom, entry, url):
                 entry = xom.filestore.get_file_entry(
                     entry.relpath, readonly=False)
             entry.file_set_content(
-                f, r.headers.get("last-modified", None),
-                hash_spec=hash_spec)
+                file_streamer.f, r.headers.get("last-modified", None),
+                hash_spec=entry.hash_spec)
             if entry.project:
                 stage = xom.model.getstage(entry.user, entry.index)
                 # for mirror indexes this makes sure the project is in the database
@@ -1665,7 +1691,7 @@ def iter_cache_remote_file(xom, entry, url):
                     set_content()
                     # on Windows we need to close the file
                     # before the transaction closes
-                    f.close()
+                    file_streamer.close()
         else:  # noqa: PLR5501
             # the file was downloaded before but locally removed, so put
             # it back in place without creating a new serial
@@ -1673,23 +1699,21 @@ def iter_cache_remote_file(xom, entry, url):
             if tx is not None:
                 if not tx.write:
                     xom.keyfs.restart_as_write_transaction()
-                tx.conn.io_file_set(entry._storepath, f)
+                tx.conn.io_file_set(entry._storepath, file_streamer.f)
                 threadlog.debug(
                     "put missing file back into place: %s", entry._storepath)
             else:
                 with xom.keyfs.get_connection(write=True, timeout=300) as conn:
-                    conn.io_file_set(entry._storepath, f)
+                    conn.io_file_set(entry._storepath, file_streamer.f)
                     # on Windows we need to close the file
                     # before the transaction closes
-                    f.close()
+                    file_streamer.close()
                     threadlog.debug(
                         "put missing file back into place: %s", entry._storepath)
                     conn.commit_files_without_increasing_serial()
 
 
 def iter_remote_file_replica(xom, entry, url):
-    running_hash = entry.hash_algo()
-    hash_spec = entry.hash_spec
     replication_errors = xom.replica_thread.shared_data.errors
     # construct master URL with param
     master_url = xom.config.master_url.joinpath(entry.relpath).url
@@ -1714,32 +1738,18 @@ def iter_remote_file_replica(xom, entry, url):
             raise BadGateway(msg)
         # try to get from original location
         r = xom.httpget(url, allow_redirects=True)
-        with contextlib.closing(r):
-            if r.status_code != 200:
-                msg = "%s\n%s: received %s" % (msg, url, r.status_code)
-                threadlog.error(msg)
-                raise BadGateway(msg)
+        if r.status_code != 200:
+            r.close()
+            msg = "%s\n%s: received %s" % (msg, url, r.status_code)
+            threadlog.error(msg)
+            raise BadGateway(msg)
 
-    f = entry.tx.conn.io_file_new_open(entry._storepath)
-    with contextlib.closing(f):
-        with contextlib.closing(r):
-            yield _headers_from_response(r)
+    with FileStreamer(entry, r) as file_streamer:
+        yield from file_streamer
 
-            while 1:
-                try:
-                    data = r.raw.read(10240)
-                except IncompleteRead as e:
-                    raise BadGateway(str(e)) from e
-                if not data:
-                    break
-                running_hash.update(data)
-                f.write(data)
-                yield data
-
-        err = get_checksum_error(running_hash, entry.relpath, hash_spec)
-        if err:
+        if file_streamer.error:
             # the file we got is different, so we fail
-            raise BadGateway(str(err))
+            raise BadGateway(str(file_streamer.error))
 
         try:
             # there is no code path that still has a transaction at this point,
@@ -1750,14 +1760,14 @@ def iter_remote_file_replica(xom, entry, url):
             # to open a new one below
             tx = None
         if tx is not None and tx.write:
-            entry.tx.conn.io_file_set(entry._storepath, f)
+            entry.tx.conn.io_file_set(entry._storepath, file_streamer.f)
         else:
             # we need a direct write connection to use the io_file_* methods
             with xom.keyfs.get_connection(write=True, timeout=300) as conn:
-                conn.io_file_set(entry._storepath, f)
+                conn.io_file_set(entry._storepath, file_streamer.f)
                 # on Windows we need to close the file
                 # before the transaction closes
-                f.close()
+                file_streamer.close()
                 threadlog.debug(
                     "put missing file back into place: %s", entry._storepath)
                 conn.commit_files_without_increasing_serial()
