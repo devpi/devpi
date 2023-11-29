@@ -38,7 +38,7 @@ def fsck():
         last_time = time.time()
         processed = 0
         missing_files = 0
-        with xom.keyfs.transaction(write=False) as tx:
+        with xom.keyfs.read_transaction() as tx:
             log.info("Checking at serial %s" % tx.at_serial)
             relpaths = tx.iter_relpaths_at(keys, tx.at_serial)
             for item in relpaths:

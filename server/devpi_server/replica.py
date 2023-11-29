@@ -942,7 +942,7 @@ class FileReplicationThread:
 
             if r.status_code in (404, 502):
                 stagename = '/'.join(relpath.split('/')[:2])
-                with self.xom.keyfs.transaction(write=False, at_serial=serial):
+                with self.xom.keyfs.read_transaction(at_serial=serial):
                     stage = self.xom.model.getstage(stagename)
                 if stage.ixconfig['type'] == 'mirror':
                     threadlog.warn(
@@ -1029,7 +1029,7 @@ class FileReplicationThread:
         if not entry.project or not entry.version:
             return
         # run hook
-        with keyfs.transaction(write=False, at_serial=serial):
+        with keyfs.read_transaction(at_serial=serial):
             stage = self.xom.model.getstage(entry.user, entry.index)
             if stage is None:
                 return
@@ -1080,7 +1080,7 @@ class InitialQueueThread(object):
         # wait until we are in sync for the first time
         with self.shared_data._replica_in_sync_cv:
             self.shared_data._replica_in_sync_cv.wait()
-        with keyfs.transaction(write=False) as tx:
+        with keyfs.read_transaction() as tx:
             for user in self.xom.model.get_userlist():
                 for stage in user.getstages():
                     self.shared_data.set_index_type_for(
@@ -1132,7 +1132,7 @@ class SimpleLinksChanged:
             return
         assert normalize_name(project) == project
 
-        with self.xom.keyfs.transaction(write=False):
+        with self.xom.keyfs.read_transaction():
             mirror_stage = self.xom.model.getstage(username, index)
             if mirror_stage and mirror_stage.ixconfig["type"] == "mirror":
                 cache_projectnames = mirror_stage.cache_projectnames

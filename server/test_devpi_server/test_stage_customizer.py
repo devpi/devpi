@@ -214,7 +214,7 @@ def test_package_filters(makemapp, maketestapp, makexom):
     mapp.upload_file_pypi("pkg-1.2.tar.gz", b'pkg12', "pkg", "1.2")
     assert len(mapp.getreleaseslist('hello')) == 2
     assert len(mapp.getreleaseslist('pkg')) == 2
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage('user/foo')
         assert stage.get_latest_version_perstage('hello') == '1.1'
         assert stage.get_latest_version_perstage('pkg') == '1.2'
@@ -235,7 +235,7 @@ def test_package_filters(makemapp, maketestapp, makexom):
         type='mystage', bases='user/foo'))
     assert len(mapp.getreleaseslist('hello')) == 1
     assert mapp.getreleaseslist('pkg', code=404) is None
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage('user/dev')
         assert stage.get_latest_version_perstage('hello') is None
         assert stage.get_latest_version_perstage('pkg') is None
@@ -300,7 +300,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     # cleanup
     mapp.delete_project('hello', indexname="otheruser/dev")
     # check get_principals_for_pkg_read directly
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage(api1.stagename)
         assert stage.customizer.get_principals_for_pkg_read() == {
             ':ANONYMOUS:', 'root'}
@@ -326,7 +326,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 403
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage(api1.stagename)
         # by default get_principals_for_pkg_read returns just the set principals
         assert stage.customizer.get_principals_for_pkg_read() == {

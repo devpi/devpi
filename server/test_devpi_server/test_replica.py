@@ -90,7 +90,7 @@ class TestChangelog:
         req = blank_request()
         req.registry = {"xom": xom}
         mcr = MasterChangelogRequest(req)
-        with xom.keyfs.transaction():
+        with xom.keyfs.read_transaction():
             with pytest.raises(HTTPNotFound):
                 mcr._wait_for_serial(xom.keyfs.get_current_serial() + 10)
             serial = mcr._wait_for_serial(xom.keyfs.get_current_serial())
@@ -564,7 +564,7 @@ class TestUseExistingFiles:
         replica_xom.replica_thread.wait()
         assert len(caplog.getrecords('checking existing file')) == 1
         assert len(caplog.getrecords('sha256 mismatch, got ec7d057f450dc963f15978af98b9cdda64aca6751c677e45d4a358fe103dc05b')) == 1
-        with replica_xom.keyfs.transaction(write=False):
+        with replica_xom.keyfs.read_transaction():
             entry = replica_xom.filestore.get_file_entry(path[1:])
             assert entry.file_get_content() == content1
 
@@ -600,7 +600,7 @@ class TestUseExistingFiles:
         assert len(caplog.getrecords('sha256 mismatch, got ec7d057f450dc963f15978af98b9cdda64aca6751c677e45d4a358fe103dc05b')) == 1
         # check the number of links of the file
         assert existing_path.stat().nlink == 1
-        with replica_xom.keyfs.transaction(write=False):
+        with replica_xom.keyfs.read_transaction():
             entry = replica_xom.filestore.get_file_entry(path[1:])
             assert entry.file_get_content() == content1
 
@@ -618,7 +618,7 @@ class TestFileReplication:
             with replica_xom.keyfs.write_transaction():
                 pass
         with pytest.raises(replica_xom.keyfs.ReadOnly):
-            with replica_xom.keyfs.transaction():
+            with replica_xom.keyfs.read_transaction():
                 replica_xom.keyfs.restart_as_write_transaction()
 
     def test_transaction_api(self, replica_xom, xom):
@@ -630,7 +630,7 @@ class TestFileReplication:
         replay(xom, replica_xom)
 
         serial = xom.keyfs.get_current_serial() - 1
-        with replica_xom.keyfs.transaction(at_serial=serial):
+        with replica_xom.keyfs.read_transaction(at_serial=serial):
             assert not replica_xom.model.get_user("world")
             assert replica_xom.model.get_user("hello")
 
@@ -644,7 +644,7 @@ class TestFileReplication:
             assert not entry.file_exists()
 
         replay(xom, replica_xom)
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
             assert not r_entry.file_exists()
             assert r_entry.meta
@@ -663,7 +663,7 @@ class TestFileReplication:
         replication_errors = replica_xom.replica_thread.shared_data.errors
         assert list(replication_errors.errors.keys()) == [
             'root/pypi/+f/5d4/1402abc4b2a76/pytest-1.8.zip']
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             assert not r_entry.file_exists()
             assert not replica_xom.config.serverdir.join(r_entry._storepath).exists()
 
@@ -674,7 +674,7 @@ class TestFileReplication:
         reqmock.mockresponse(master_file_path, code=200, data=content1)
         replay(xom, replica_xom)
         assert replication_errors.errors == {}
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             assert r_entry.file_exists()
             assert r_entry.file_get_content() == content1
 
@@ -682,7 +682,7 @@ class TestFileReplication:
         with xom.keyfs.write_transaction():
             entry.delete()
         replay(xom, replica_xom)
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             assert not r_entry.file_exists()
 
     def test_fetch_later_deleted(self, gen, reqmock, xom, replica_xom):
@@ -713,7 +713,7 @@ class TestFileReplication:
         # and then we try to see if we can replicate the create and del changes
         replay(xom, replica_xom)
 
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
             assert not r_entry.file_exists()
 
@@ -729,7 +729,7 @@ class TestFileReplication:
             assert not entry.hash_spec
 
         replay(xom, replica_xom)
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
             assert not r_entry.file_exists()
             assert r_entry.meta
@@ -763,7 +763,7 @@ class TestFileReplication:
         # there should be no errors anymore
         assert replication_errors.errors == {}
         # and the file should exist
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             assert r_entry.file_exists()
             assert r_entry.file_get_content() == content1
         # and the event handling should continue
@@ -782,7 +782,7 @@ class TestFileReplication:
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert entry.hash_spec and not entry.file_exists()
         replay(xom, replica_xom)
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
             pypistage.xom.httpget.mockresponse(url, status_code=500)
@@ -805,7 +805,7 @@ class TestFileReplication:
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert entry.hash_spec and not entry.file_exists()
         replay(xom, replica_xom)
-        with replica_xom.keyfs.transaction():
+        with replica_xom.keyfs.read_transaction():
             headers = {
                 "content-length": "3",
                 "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
@@ -860,12 +860,12 @@ class TestFileReplication:
                    "content-type": "application/zip",
                    "X-DEVPI-SERIAL": str(xom.keyfs.get_current_serial())}
         replica_xom.httpget.mockresponse(master_file_url, code=200, content=content1, headers=headers)
-        with replica_xom.keyfs.transaction(write=False) as tx:
+        with replica_xom.keyfs.read_transaction() as tx:
             assert not tx.conn.io_file_exists(file_relpath)
         r = r_app.get(path)
         assert r.status_code == 200
         assert r.body == content1
-        with replica_xom.keyfs.transaction(write=False) as tx:
+        with replica_xom.keyfs.read_transaction() as tx:
             assert tx.conn.io_file_exists(file_relpath)
         replication_errors = replica_xom.replica_thread.shared_data.errors
         assert list(replication_errors.errors.keys()) == []
@@ -894,7 +894,7 @@ def test_get_simplelinks_perstage(monkeypatch, pypistage, replica_pypistage,
         'pytest',
         text='<a href="https://pypi.org/pytest/pytest-1.0.zip">pytest-1.0.zip</a>',
         headers={'X-DEVPI-SERIAL': str(serial)})
-    with replica_xom.keyfs.transaction():
+    with replica_xom.keyfs.read_transaction():
         ret = replica_pypistage.get_releaselinks("pytest")
     assert len(ret) == 1
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.org_pytest/pytest-1.0.zip'
@@ -942,7 +942,7 @@ def test_get_simplelinks_perstage(monkeypatch, pypistage, replica_pypistage,
         text='<a href="https://pypi.org/pkg/pytest-1.1.zip">pytest-1.1.zip</a>',
         pypiserial=10001,
         headers={'X-DEVPI-SERIAL': str(xom.keyfs.get_current_serial())})
-    with replica_xom.keyfs.transaction():
+    with replica_xom.keyfs.read_transaction():
         # make the replica believe it hasn't updated for a longer time
         r_pypistage = replica_xom.model.getstage("root/pypi")
         r_pypistage.cache_retrieve_times.expire("pytest")
@@ -1026,7 +1026,7 @@ def test_replica_user_auth_before_other_plugins(makexom):
     # register both plugins, so the above plugin would normally be called first
     xom = makexom(plugins=[replica, plugin])
     auth = Auth(xom, "qweqwe")
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         # because the replica auth has tryfirst our plugin shouldn't be called
         with pytest.raises(HTTPForbidden):
             auth._get_auth_status(replica.REPLICA_USER_NAME, '')

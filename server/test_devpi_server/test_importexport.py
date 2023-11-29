@@ -365,19 +365,19 @@ class TestImportExport:
 
     def test_acl_toxresults_upload_default(self, impexp):
         mapp = impexp.import_testdata('toxresult_upload_default')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')
             assert stage.ixconfig['acl_toxresult_upload'] == [u':ANONYMOUS:']
 
     def test_bases_cycle(self, caplog, impexp):
         mapp = impexp.import_testdata('basescycle')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')
             assert stage.ixconfig['bases'] == ('root/dev',)
 
     def test_deleted_base(self, caplog, impexp):
         mapp = impexp.import_testdata('deletedbase')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             assert mapp.xom.model.getstage('root/removed') is None
             stage = mapp.xom.model.getstage('root/dev1')
             assert stage.ixconfig['bases'] == ('root/removed',)
@@ -413,7 +413,7 @@ class TestImportExport:
         if norootpypi:
             options = ('--no-root-pypi',)
         mapp = impexp.import_testdata('nouser', options=options)
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             user = mapp.xom.model.get_user("root")
             assert user is not None
             stage = mapp.xom.model.getstage("root/pypi")
@@ -429,7 +429,7 @@ class TestImportExport:
         if norootpypi:
             options = ('--no-root-pypi',)
         mapp = impexp.import_testdata('nouser', options=options)
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             user = mapp.xom.model.get_user("root")
             assert user is not None
             stage = mapp.xom.model.getstage("root/pypi")
@@ -467,7 +467,7 @@ class TestImportExport:
         assert r.body == b"789"
         impexp.export()
         mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             stage.offline = True
             projects = stage.list_projects_perstage()
@@ -482,7 +482,7 @@ class TestImportExport:
 
     def test_mirrordata(self, caplog, impexp):
         mapp = impexp.import_testdata('mirrordata')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/pypi')
             stage.offline = True
             (link,) = stage.get_simplelinks_perstage("dddttt")
@@ -494,7 +494,7 @@ class TestImportExport:
 
     def test_modifiedpypi(self, caplog, impexp):
         mapp = impexp.import_testdata('modifiedpypi')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/pypi')
             # test that we actually get the config from the import and not
             # the default PyPI settings
@@ -504,7 +504,7 @@ class TestImportExport:
 
     def test_normalization(self, caplog, impexp):
         mapp = impexp.import_testdata('normalization')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')
             links = stage.get_releaselinks("hello.pkg")
             assert len(links) == 1
@@ -514,7 +514,7 @@ class TestImportExport:
 
     def test_normalization_merge(self, caplog, impexp):
         mapp = impexp.import_testdata('normalization_merge')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')
             links = sorted(
                 stage.get_releaselinks("hello.pkg"),
@@ -542,7 +542,7 @@ class TestImportExport:
         # now we test that we can skip the import
         mapp = impexp.import_testdata(
             'removedindexplugin', options=('--skip-import-type', 'custom'))
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('user/dev')
             assert stage is None
             userconfig = mapp.xom.model.get_user('user').get()
@@ -564,7 +564,7 @@ class TestImportExport:
         assert hash_value == toxresult_hash
         impexp.export()
         mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             links = stage.get_releaselinks("hello")
             assert len(links) == 1
@@ -590,7 +590,7 @@ class TestImportExport:
 
     def test_import_with_old_toxresult_naming_scheme(self, impexp):
         mapp = impexp.import_testdata('toxresult_naming_scheme')
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage("root/dev")
             ls = stage.get_linkstore_perstage("hello", "0.9")
             (release,) = ls.get_links(rel="releasefile")
@@ -660,7 +660,7 @@ class TestImportExport:
             fp.write(json.dumps(tox_result_data))
 
         mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage('user1/dev')
             links = stage.get_releaselinks("hello")
             assert len(links) == 1
@@ -701,7 +701,7 @@ class TestImportExport:
         # and check that it was derived while importing
         mapp2 = impexp.new_import()
 
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("hello", "1.0")
             assert verdata["version"] == "1.0"
@@ -722,7 +722,7 @@ class TestImportExport:
         impexp.export()
         mapp2 = impexp.new_import()
 
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             # first
             verdata = stage.get_versiondata_perstage("hello", "1.0")
@@ -752,7 +752,7 @@ class TestImportExport:
 
         mapp2 = impexp.new_import()
 
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             content = stage.get_doczip(name, "1.0")
             assert content == doccontent
@@ -849,7 +849,7 @@ class TestImportExport:
 
         # Run the import and check the version data
         mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("hello", "1.2-3")
             assert verdata["version"] == "1.2-3"
@@ -869,7 +869,7 @@ class TestImportExport:
         mapp1.upload_doc("hello.zip", content, "hello", "")
         impexp.export()
         mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction(write=False):
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             doczip = stage.get_doczip("hello", "1.0")
             archive = Archive(BytesIO(doczip))
@@ -887,7 +887,7 @@ class TestImportExport:
 
         mapp2 = impexp.new_import()
 
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("he_llo", "1.0")
             assert verdata["version"] == "1.0"
@@ -926,7 +926,7 @@ class TestImportExport:
         mapp2 = impexp.new_import()
 
         # and check that the files have the expected content
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("he_llo", "1.0")
             assert verdata["version"] == "1.0"
@@ -965,7 +965,7 @@ class TestImportExport:
         mapp2 = impexp.new_import(options=('--hard-links',))
 
         # check that the files have the expected content
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("he_llo", "1.0")
             assert verdata["version"] == "1.0"
@@ -995,7 +995,7 @@ class TestImportExport:
             with stage.user.key.update() as userconfig:
                 ixconfig = userconfig["indexes"][index]
                 ixconfig["uploadtrigger_jenkins"] = None
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.read_transaction():
             stage = mapp1.xom.model.getstage(api.stagename)
             assert "uploadtrigger_jenkins" in stage.ixconfig
             assert stage.ixconfig["uploadtrigger_jenkins"] is None
@@ -1003,7 +1003,7 @@ class TestImportExport:
         impexp.export()
 
         mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             assert "uploadtrigger_jenkins" not in stage.ixconfig
 
@@ -1015,12 +1015,12 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         mapp1.xom.config.pluginmanager.register(Plugin())
         api = mapp1.create_and_use()
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.read_transaction():
             stage = mapp1.xom.model.getstage(api.stagename)
             assert stage.ixconfig["foo_plugin"] == "stage"
 
         mapp1.set_indexconfig_option("foo_plugin", "foo")
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.read_transaction():
             stage = mapp1.xom.model.getstage(api.stagename)
             assert "foo_plugin" in stage.ixconfig
             assert stage.ixconfig["foo_plugin"] == "foo"
@@ -1028,7 +1028,7 @@ class TestImportExport:
         impexp.export()
 
         mapp2 = impexp.new_import(plugin=Plugin())
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
             assert "foo_plugin" in stage.ixconfig
             assert stage.ixconfig["foo_plugin"] == "foo"
@@ -1042,12 +1042,12 @@ class TestImportExport:
         mapp1.xom.config.pluginmanager.register(Plugin())
 
         api1 = mapp1.create_and_use()
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.read_transaction():
             stage1 = mapp1.xom.model.getstage(api1.stagename)
             assert stage1.ixconfig["foo_plugin"] == "stage"
 
         mapp1.set_indexconfig_option("foo_plugin", "foo")
-        with mapp1.xom.keyfs.transaction():
+        with mapp1.xom.keyfs.read_transaction():
             stage1 = mapp1.xom.model.getstage(api1.stagename)
             assert "foo_plugin" in stage1.ixconfig
             assert stage1.ixconfig["foo_plugin"] == "foo"
@@ -1059,7 +1059,7 @@ class TestImportExport:
 
         # now import without the plugin, the data should be preserved
         mapp2 = impexp.new_import()
-        with mapp2.xom.keyfs.transaction():
+        with mapp2.xom.keyfs.read_transaction():
             stage1 = mapp2.xom.model.getstage(api1.stagename)
             assert "foo_plugin" in stage1.ixconfig
             assert stage1.ixconfig["foo_plugin"] == "foo"

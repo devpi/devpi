@@ -275,7 +275,7 @@ def test_cache_remote_file(filestore, httpget, gen, xom):
         assert bytes == b"123"
 
     # reget entry and check about content
-    with filestore.keyfs.transaction(write=False):
+    with filestore.keyfs.read_transaction():
         entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
         assert entry.hash_value == getdigest(bytes, entry.hash_type)
@@ -328,7 +328,7 @@ def test_store_and_iter(filestore):
         entry = filestore.store("user", "index", "something-1.0.zip", content)
         assert entry.hash_spec.endswith("="+getdigest(content, entry.hash_type))
         assert entry.file_exists()
-    with filestore.keyfs.transaction(write=False):
+    with filestore.keyfs.read_transaction():
         entry2 = filestore.get_file_entry(entry.relpath)
         assert entry2.basename == "something-1.0.zip"
         assert entry2.file_exists()

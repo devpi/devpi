@@ -291,7 +291,7 @@ def test_no_root_pypi_option(gentmp, makexom, storage_info):
         argv.append("--storage=%s" % storage_info["name"])
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage('root/pypi')
         assert stage is None
 
@@ -359,7 +359,7 @@ def test_root_passwd_option(gentmp, makexom, storage_info):
         argv.append("--storage=%s" % storage_info["name"])
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         user = xom.model.get_user('root')
         assert user.validate("")
         assert not user.validate("foobar")
@@ -372,7 +372,7 @@ def test_root_passwd_option(gentmp, makexom, storage_info):
         argv.append("--storage=%s" % storage_info["name"])
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         user = xom.model.get_user('root')
         assert not user.validate("")
         assert user.validate("foobar")
@@ -387,7 +387,7 @@ def test_root_passwd_hash_option(gentmp, makexom, storage_info):
         argv.append("--storage=%s" % storage_info["name"])
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         user = xom.model.get_user('root')
         assert user.validate("")
         assert not user.validate("foobar")

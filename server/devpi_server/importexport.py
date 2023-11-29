@@ -48,7 +48,7 @@ def do_export(path, tw, xom):
     path.ensure(dir=1)
     tw.line("creating %s" % path)
     dumper = Exporter(tw, xom)
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         dumper.dump_all(path)
     return 0
 
@@ -88,7 +88,7 @@ def do_import(path, tw, xom):
         msg = f"path for importing not found: {path}"
         raise Fatal(msg)
 
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         if has_users_or_stages(xom):
             msg = f"serverdir must not contain users or stages: {xom.config.serverdir}"
             raise Fatal(msg)
@@ -406,7 +406,7 @@ class Importer:
         # memorize index inheritance structure
         tree = IndexTree()
         indexes = set(self.import_indexes)
-        with self.xom.keyfs.transaction(write=False):
+        with self.xom.keyfs.read_transaction():
             stage = self.xom.model.getstage("root/pypi")
         if stage is not None:
             indexes.add("root/pypi")
