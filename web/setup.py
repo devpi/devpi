@@ -49,7 +49,7 @@ setup(
         "Programming Language :: Python :: Implementation :: PyPy",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"] + [
             "Programming Language :: Python :: %s" % x
-            for x in "3.4 3.5 3.6 3.7 3.8 3.9 3.10 3.11".split()],
+            for x in "3.4 3.5 3.6 3.7 3.8 3.9 3.10 3.11 3.12".split()],
     entry_points={
         'console_scripts': [
             "devpi-clear-search-index = devpi_web.clear_index:clear_index"],
