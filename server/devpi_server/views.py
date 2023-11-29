@@ -1642,7 +1642,15 @@ class FileStreamer:
 
 def iter_cache_remote_file(xom, entry, url):
     # we get and cache the file and some http headers from remote
-    r = xom.httpget(url, allow_redirects=True)
+    headers = {}
+    url = URL(url)
+    username = url.username or ''
+    password = url.password or ''
+    if username or password:
+        url = url.replace(username=None, password=None)
+        auth = f"{username}:{password}".encode()
+        headers["Authorization"] = f"Basic {b64encode(auth).decode()}"
+    r = xom.httpget(url, allow_redirects=True, extra_headers=headers)
     if r.status_code != 200:
         r.close()
         msg = "error %s getting %r" % (r.status_code, url)
@@ -1737,7 +1745,15 @@ def iter_remote_file_replica(xom, entry, url):
             threadlog.error(msg)
             raise BadGateway(msg)
         # try to get from original location
-        r = xom.httpget(url, allow_redirects=True)
+        headers = {}
+        url = URL(url)
+        username = url.username or ''
+        password = url.password or ''
+        if username or password:
+            url = url.replace(username=None, password=None)
+            auth = f"{username}:{password}".encode()
+            headers["Authorization"] = f"Basic {b64encode(auth).decode()}"
+        r = xom.httpget(url, allow_redirects=True, extra_headers=headers)
         if r.status_code != 200:
             r.close()
             msg = "%s\n%s: received %s" % (msg, url, r.status_code)
