@@ -192,12 +192,12 @@ class TestStage:
     def test_delete_user_hooks_issue228(self, model, caplog):
         keyfs = model.xom.keyfs
         keyfs.commit_transaction_in_thread()
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             user = model.create_user("hello", password="123")
             user.create_stage("world", bases=(), type="stage", volatile=False)
             stage = model.getstage("hello", "world")
             register_and_store(stage, "someproject-1.0.zip", b"123")
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             user.delete()
         serial = keyfs.get_current_serial()
         keyfs.notifier.wait_event_serial(serial)
@@ -575,7 +575,7 @@ class TestStage:
 
     @pytest.mark.notransaction
     def test_legacy_pypi_whitelist_removed(self, xom):
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             user = xom.model.create_user("hello", password="123")
             config = udict(index="world", bases=(), type="stage", volatile=True)
             user.create_stage(**config)
@@ -583,7 +583,7 @@ class TestStage:
                 # here we inject the legacy setting
                 userconfig['indexes']['world']['pypi_whitelist'] = []
             del user
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             stage = xom.model.getstage('hello/world')
             assert stage.ixconfig['volatile'] is True
             assert 'pypi_whitelist' in stage.ixconfig
@@ -766,7 +766,7 @@ class TestStage:
     @pytest.mark.notransaction
     def test_mirror_whitelist_inheritance_bbb(self, xom):
         keyfs = xom.keyfs
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             user = xom.model.create_user("hello", password="123")
             config = udict(index="world", bases=(), type="stage", volatile=True)
             stage = user.create_stage(**config)
@@ -779,7 +779,7 @@ class TestStage:
             stage = xom.model.getstage("hello/world")
             assert 'mirror_whitelist_inheritance' not in stage.ixconfig
             assert stage.get_whitelist_inheritance() == "union"
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             stage = xom.model.getstage("hello/world")
             # now modify an unrelated setting
             stage.modify(bases=("root/pypi",))
@@ -831,7 +831,7 @@ class TestStage:
     def test_set_versiondata_twice(self, stage, bases, caplog):
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         stage.xom.keyfs.commit_transaction_in_thread()
-        with stage.xom.keyfs.transaction(write=True):
+        with stage.xom.keyfs.write_transaction():
             stage.set_versiondata(udict(name="pkg1", version="1.0"))
         assert caplog.getrecords("nothing to commit")
 
@@ -1027,7 +1027,7 @@ class TestStage:
         stage2, metadata = queue.get()
         assert stage2.name == stage.name
         assert metadata == orig_metadata
-        with stage.xom.keyfs.transaction(write=True):
+        with stage.xom.keyfs.write_transaction():
             stage.del_versiondata("hello", "1.0")
         stage2, metadata = queue.get()
         assert stage2.name == stage.name
@@ -1041,7 +1041,7 @@ class TestStage:
             def devpiserver_stage_created(self, stage):
                 queue.put(stage)
         xom.config.pluginmanager.register(Plugin())
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             model = xom.model
             user = model.create_user("user", "password", email="some@email.com")
             user.create_stage("hello")
@@ -1051,7 +1051,7 @@ class TestStage:
                 break
         assert stage.name == "user/hello"
 
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             user.create_stage("hello2")
         assert queue.get(timeout=10).name == "user/hello2"
 
@@ -1073,12 +1073,12 @@ class TestStage:
         with stage.xom.keyfs.transaction():
             assert link.entry.file_get_content() == content
         # delete, which shouldn't trigger devpiserver_on_upload
-        with stage.xom.keyfs.transaction(write=True):
+        with stage.xom.keyfs.write_transaction():
             linkstore = stage.get_linkstore_perstage("pkg1", "1.0", readonly=False)
             linkstore.remove_links()
 
         # now write again and check that we get something from the queue
-        with stage.xom.keyfs.transaction(write=True):
+        with stage.xom.keyfs.write_transaction():
             stage.store_doczip("pkg1", "1.0", content)
         nstage, name, version, link = queue.get()
         assert name == "pkg1" and version == "1.0"
@@ -1113,7 +1113,7 @@ class TestStage:
             assert link.entry.file_get_content() == content
 
         # remove, should trigger devpiserver_on_remove_file
-        with stage.xom.keyfs.transaction(write=True):
+        with stage.xom.keyfs.write_transaction():
             linkstore = stage.get_linkstore_perstage("pkg2", "1.0", readonly=False)
             linkstore.remove_links()
         nstage, relpath = queue.get()
@@ -1131,11 +1131,11 @@ class TestStage:
     @pytest.mark.notransaction
     def test_get_last_change_serial_perstage(self, xom):
         current_serial = xom.keyfs.get_current_serial()
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             user = xom.model.create_user("hello", password="123")
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             stage = user.create_stage(**udict(
                 index="world", bases=(), type="stage", volatile=True))
             with pytest.raises(KeyError, match='not committed yet'):
@@ -1152,7 +1152,7 @@ class TestStage:
             ('store_releasefile', "hello", "1.0", "hello-1.0.zip", b""),
             ('store_releasefile', "pkg", "1.0", "pkg-1.0.tar.gz", b"")]
         for action in actions:
-            with xom.keyfs.transaction(write=True):
+            with xom.keyfs.write_transaction():
                 getattr(stage, action[0])(*action[1:])
                 # inside the transaction there is no change yet
                 assert stage.get_last_change_serial_perstage() == current_serial
@@ -1161,7 +1161,7 @@ class TestStage:
             with xom.keyfs.transaction(write=False):
                 assert stage.get_last_change_serial_perstage() == current_serial
         # create a toxresult
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             (link,) = stage.get_releaselinks_perstage('hello')
             stage.store_toxresult(link, {})
         assert current_serial == xom.keyfs.get_current_serial() - 1
@@ -1170,13 +1170,13 @@ class TestStage:
             assert stage.get_last_change_serial_perstage() == current_serial
         # create another stage and run the same actions
         serial_before_new_stage = xom.keyfs.get_current_serial()
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             stage2 = user.create_stage(**udict(
                 index="world2", bases=(), type="stage", volatile=True))
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         for action in actions:
-            with xom.keyfs.transaction(write=True):
+            with xom.keyfs.write_transaction():
                 getattr(stage2, action[0])(*action[1:])
                 # inside the transaction there is no change yet
                 assert stage2.get_last_change_serial_perstage() == current_serial
@@ -1196,7 +1196,7 @@ class TestStage:
             ('del_versiondata', 'hello', '1.0', False),
             ('del_project', 'hello')]
         for action in actions:
-            with xom.keyfs.transaction(write=True):
+            with xom.keyfs.write_transaction():
                 getattr(stage2, action[0])(*action[1:])
                 # inside the transaction there is no change yet
                 assert stage2.get_last_change_serial_perstage() == current_serial
@@ -1208,14 +1208,14 @@ class TestStage:
         with xom.keyfs.transaction(write=False):
             assert stage.get_last_change_serial_perstage() == serial_before_new_stage
         # modifying the stage also should not affect the other one
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             stage2.modify(volatile=False)
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.transaction(write=False):
             assert stage.get_last_change_serial_perstage() == serial_before_new_stage
         # deleting the stage should not affect the other one either
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             stage2.delete()
             del stage2
         assert current_serial == xom.keyfs.get_current_serial() - 1
@@ -1224,7 +1224,7 @@ class TestStage:
 
     @pytest.mark.notransaction
     def test_get_last_project_change_serial_perstage(self, xom):
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             user = xom.model.create_user("hello", password="123")
             stage = user.create_stage(index="world", type="stage")
         # get_last_project_change_serial_perstage only works with
@@ -1233,7 +1233,7 @@ class TestStage:
             first_serial = tx.at_serial
             assert stage.list_projects_perstage() == set()
             assert stage.get_last_project_change_serial_perstage('pkg') == -1
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == first_serial
             stage.add_project_name('pkg')
@@ -1242,7 +1242,7 @@ class TestStage:
             # the addition of the project name updated the db
             assert tx.at_serial == (first_serial + 1)
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 1)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 1)
             with stage.key_projects.update() as projects:
@@ -1254,7 +1254,7 @@ class TestStage:
             # and we can't know when it happened, checking all changes in the
             # project name set would be too expensive
             assert stage.get_last_project_change_serial_perstage('pkg') == -1
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 2)
             stage.set_versiondata(udict(name='pkg', version='1.0'))
@@ -1264,7 +1264,7 @@ class TestStage:
             # the addition of the version updated the db
             assert tx.at_serial == (first_serial + 3)
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 3)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 3)
             stage.set_versiondata(udict(name='other', version='1.1'))
@@ -1275,7 +1275,7 @@ class TestStage:
             assert tx.at_serial == (first_serial + 4)
             # but the checked project didn't change
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 3)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 4)
             stage.set_versiondata(udict(name='pkg', version='2.0'))
@@ -1285,7 +1285,7 @@ class TestStage:
             # the addition of a second version updated the db
             assert tx.at_serial == (first_serial + 5)
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 5)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 5)
             stage.del_versiondata('pkg', '2.0')
@@ -1295,7 +1295,7 @@ class TestStage:
             # the deletion of the version updated the db
             assert tx.at_serial == (first_serial + 6)
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 6)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 6)
             link = stage.store_releasefile('pkg', '1.0', 'pkg-1.0.zip', b'123')
@@ -1303,7 +1303,7 @@ class TestStage:
             # the upload of the release updated the db
             assert tx.at_serial == (first_serial + 7)
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 7)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 7)
             other_link = stage.store_releasefile('other', '1.1', 'other-1.1.zip', b'123')
@@ -1312,7 +1312,7 @@ class TestStage:
             assert tx.at_serial == (first_serial + 8)
             # but the checked project didn't change
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 7)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 8)
             # delete only the release without removing the version
@@ -1321,7 +1321,7 @@ class TestStage:
             # the deletion of the release updated the db
             assert tx.at_serial == (first_serial + 9)
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 9)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 9)
             # delete only the release without removing the version
@@ -1331,7 +1331,7 @@ class TestStage:
             assert tx.at_serial == (first_serial + 10)
             # but the checked project didn't change
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 9)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 10)
             stage.del_project('other')
@@ -1340,7 +1340,7 @@ class TestStage:
             assert tx.at_serial == (first_serial + 11)
             # but the checked project didn't change
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 9)
-        with xom.keyfs.transaction(write=True) as tx:
+        with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 11)
             stage.del_project('pkg')
@@ -1571,7 +1571,7 @@ def test_user_set_without_indexes(model):
 @pytest.mark.notransaction
 def test_setdefault_indexes(xom):
     from devpi_server.main import set_default_indexes
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         set_default_indexes(xom.model)
     with xom.keyfs.transaction(write=False):
         assert xom.model.getstage("root/pypi").ixconfig["type"] == "mirror"

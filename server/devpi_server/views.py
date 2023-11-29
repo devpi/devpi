@@ -224,7 +224,11 @@ def tween_keyfs_transaction(handler, registry):
 
     def request_tx_handler(request):
         write = is_mutating_http_method(request.method) and not is_replica
-        with keyfs.transaction(write=write) as tx:
+        transaction_method = (
+            keyfs.write_transaction
+            if write else
+            keyfs.transaction)
+        with transaction_method() as tx:
             threadlog.debug("in-transaction %s", tx.at_serial)
             try:
                 response = handler(request)
@@ -1675,31 +1679,22 @@ def iter_cache_remote_file(xom, entry, url):
             # to open a new one below
             tx = None
 
-        def set_content():
-            nonlocal entry
-            if entry.readonly:
-                entry = xom.filestore.get_file_entry(
-                    entry.relpath, readonly=False)
-            entry.file_set_content(
-                file_streamer.f, r.headers.get("last-modified", None),
-                hash_spec=entry.hash_spec)
-            if entry.project:
-                stage = xom.model.getstage(entry.user, entry.index)
-                # for mirror indexes this makes sure the project is in the database
-                # as soon as a file was fetched
-                stage.add_project_name(entry.project)
-
         if not entry.has_existing_metadata():
-            if tx is not None:
-                if not tx.write:
-                    xom.keyfs.restart_as_write_transaction()
-                set_content()
-            else:
-                with xom.keyfs.transaction(write=True):
-                    set_content()
-                    # on Windows we need to close the file
-                    # before the transaction closes
-                    file_streamer.close()
+            with xom.keyfs.write_transaction(allow_restart=True):
+                if entry.readonly:
+                    entry = xom.filestore.get_file_entry(
+                        entry.relpath, readonly=False)
+                entry.file_set_content(
+                    file_streamer.f, r.headers.get("last-modified", None),
+                    hash_spec=entry.hash_spec)
+                if entry.project:
+                    stage = xom.model.getstage(entry.user, entry.index)
+                    # for mirror indexes this makes sure the project is in the database
+                    # as soon as a file was fetched
+                    stage.add_project_name(entry.project)
+                # on Windows we need to close the file
+                # before the transaction closes
+                file_streamer.close()
         else:  # noqa: PLR5501
             # the file was downloaded before but locally removed, so put
             # it back in place without creating a new serial

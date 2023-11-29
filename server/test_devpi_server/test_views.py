@@ -694,7 +694,7 @@ def test_simple_with_removed_base(caplog, mapp, testapp):
 
 
 def test_indexroot(testapp, model, xom):
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         user = model.create_user("user", "123")
         user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
@@ -1329,7 +1329,7 @@ def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypist
     (tag,) = testapp.get(pkg_url).html.select('a')
     r = testapp.get(URL(pkg_url).joinpath(tag['href']).url)
     assert r.body == b"123"
-    with mapp.xom.keyfs.transaction(write=True):
+    with mapp.xom.keyfs.write_transaction():
         # switch to external URLs
         pypistage.modify(mirror_use_external_urls=True)
         # and remove the file to simulate a cleanup
@@ -1433,7 +1433,7 @@ def test_acl_toxresults_upload(mapp, testapp, tox_result_data):
     assert r.status_code == 403
     # check that stage created before introduction of acl_toxresult_upload
     # still allow upload to anonymous
-    with mapp.xom.keyfs.transaction(write=True):
+    with mapp.xom.keyfs.write_transaction():
         stage = mapp.xom.model.getstage('user1/dev')
         with stage.user.key.update() as userconfig:
             del userconfig['indexes']['dev']['acl_toxresult_upload']
@@ -1898,7 +1898,7 @@ def test_mirror_use_external_urls(mapp, simpypi, testapp, xom):
     # we still get the locally stored file
     r = testapp.xget(200, link, follow=False)
     # now remove the file, but keep metadata in place
-    with testapp.xom.keyfs.transaction(write=True):
+    with testapp.xom.keyfs.write_transaction():
         getentry(testapp, path).file_delete()
     # we should get a redirect to the original URL again
     r = testapp.xget(302, link, follow=False)
@@ -2043,7 +2043,7 @@ def test_delete_package_where_file_was_deleted(mapp, testapp):
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     (link,) = vv.get_links()
     path = link.href.replace(api.index, '/' + api.stagename)
-    with testapp.xom.keyfs.transaction(write=True):
+    with testapp.xom.keyfs.write_transaction():
         # simulate removal of the file from file system outside of devpi
         getentry(testapp, path).file_delete()
     # delete the whole release

@@ -32,5 +32,5 @@ def passwd():
             username = get_username()
         if not username:
             raise Fatal("No user name provided.")
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             return run_passwd(xom.model, username)

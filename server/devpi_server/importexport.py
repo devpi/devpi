@@ -392,7 +392,7 @@ class Importer:
         self.validate(json_path)
 
         # first create all users
-        with self.xom.keyfs.transaction(write=True):
+        with self.xom.keyfs.write_transaction():
             for username, userconfig in self.import_users.items():
                 user = None
                 if username == "root":
@@ -428,7 +428,7 @@ class Importer:
 
         # create stages in inheritance/root-first order
         stages = []
-        with self.xom.keyfs.transaction(write=True):
+        with self.xom.keyfs.write_transaction():
             for stagename in tree.iternames():
                 if stagename == "root/pypi" and stagename not in self.import_indexes:
                     continue
@@ -482,7 +482,7 @@ class Importer:
             projects = import_index.get("projects", {})
             files = import_index.get("files", [])
             for project, versions in self.iter_projects_normalized(projects):
-                with self.xom.keyfs.transaction(write=True):
+                with self.xom.keyfs.write_transaction():
                     for version, versiondata in versions.items():
                         assert "+elinks" not in versiondata
                         versiondata.pop('+doczip', None)

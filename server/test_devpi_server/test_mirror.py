@@ -940,7 +940,7 @@ class TestMirrorStageprojects:
 
     @pytest.mark.notransaction
     def test_del_singletons(self, pypistage):
-        with pypistage.xom.keyfs.transaction(write=True):
+        with pypistage.xom.keyfs.write_transaction():
             pypistage.has_project_perstage("pkg")
             assert pypistage.name in pypistage.xom._stagecache
             pypistage.delete()
@@ -1172,7 +1172,7 @@ def test_redownload_locally_removed_release(mapp, simpypi):
     with mapp.xom.keyfs.transaction(write=False) as tx:
         assert tx.conn.io_file_exists(file_relpath)
     # now remove the local copy
-    with mapp.xom.keyfs.transaction(write=True) as tx:
+    with mapp.xom.keyfs.write_transaction() as tx:
         tx.conn.io_file_delete(file_relpath)
     with mapp.xom.keyfs.transaction(write=False) as tx:
         assert not tx.conn.io_file_exists(file_relpath)

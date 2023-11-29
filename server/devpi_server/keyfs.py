@@ -412,7 +412,7 @@ class KeyFS(object):
             self.clear_transaction()
 
     @contextlib.contextmanager
-    def transaction(self, write=False, at_serial=None):
+    def _transaction(self, *, write=False, at_serial=None):
         tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
             yield tx
@@ -420,6 +420,37 @@ class KeyFS(object):
             self.rollback_transaction_in_thread()
             raise
         self.commit_transaction_in_thread()
+
+    @contextlib.contextmanager
+    def transaction(self, write=False, at_serial=None):
+        if write:
+            warnings.warn(
+                "The 'write' argument is deprecated, "
+                "use 'write_transaction' instead.",
+                DeprecationWarning,
+                stacklevel=2)
+        with self._transaction(write=write, at_serial=at_serial) as tx:
+            yield tx
+
+    @contextlib.contextmanager
+    def write_transaction(self, *, allow_restart=False):
+        """ Get a write transaction.
+
+        If ``allow_restart`` is ``True`` then an existing read-only transaction is restarted as a write transaction.
+        """
+        tx = getattr(self._threadlocal, 'tx', None)
+        if tx is not None:
+            if not tx.write:
+                if allow_restart:
+                    self.restart_as_write_transaction()
+                else:
+                    raise self.ReadOnly(
+                        "Expected an existing write transaction, "
+                        "but there is an existing read transaction.")
+            yield tx
+        else:
+            with self._transaction(write=True) as tx:
+                yield tx
 
 
 class KeyChangeEvent:

@@ -402,7 +402,7 @@ def test_root_passwd_hash_option(gentmp, makexom, storage_info):
     xom = makexom(opts=("--serverdir", serverdir))
     # we allow writes, because the hash might be upgraded
     # this happened after passlib 1.7.2 made argon2id the default
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         user = xom.model.get_user('root')
         assert not user.validate("")
         assert user.validate("foobar")
