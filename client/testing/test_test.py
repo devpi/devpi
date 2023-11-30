@@ -375,6 +375,8 @@ class TestFunctional:
         assert "could not find/receive links for notexists73" in out
 
     def test_main_example(self, out_devpi, create_and_upload):
+        result = out_devpi("index", "bases=root/pypi")
+        assert result.ret == 0
         create_and_upload("exa-1.0", filedefs={
             "tox.ini": """
               [testenv]
@@ -420,6 +422,8 @@ class TestFunctional:
         assert result.ret == 0
 
     def test_specific_version(self, out_devpi, create_and_upload):
+        result = out_devpi("index", "bases=root/pypi")
+        assert result.ret == 0
         create_and_upload("exa-1.0", filedefs={
             "tox.ini": """
               [testenv]
@@ -443,6 +447,8 @@ class TestFunctional:
             *tests passed*""")
 
     def test_pkgname_with_dashes(self, out_devpi, create_and_upload):
+        result = out_devpi("index", "bases=root/pypi")
+        assert result.ret == 0
         create_and_upload(("my-pkg-123", "1.0"), filedefs={
             "tox.ini": """
               [testenv]
