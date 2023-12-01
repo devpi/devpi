@@ -193,7 +193,8 @@ class TestAuthPlugins:
 
     @pytest.fixture
     def xom(self, makexom, plugin1, plugin2):
-        xom = makexom(plugins=[plugin1,plugin2])
+        with pytest.warns(DeprecationWarning, match='new devpiserver_auth_request hook instead'):
+            xom = makexom(plugins=[plugin1,plugin2])
         return xom
 
     @pytest.fixture
