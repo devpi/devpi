@@ -1,8 +1,8 @@
 from devpi_common.types import cached_property
 from devpi_server import interfaces as ds_interfaces
 from devpi_server.fileutil import dumps, loads
-from devpi_server.keyfs import RelpathInfo
 from devpi_server.keyfs import get_relpath_at
+from devpi_server.keyfs_types import RelpathInfo
 from devpi_server.log import threadlog, thread_push_log, thread_pop_log
 from devpi_server.readonly import ReadonlyView
 from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy
