@@ -478,6 +478,21 @@ def model(xom):
 
 
 @pytest.fixture
+def devpiserver_makepypistage():
+    def makepypistage(xom):
+        from devpi_server.main import _pypi_ixconfig_default
+        from devpi_server.mirror import MirrorStage
+        from devpi_server.mirror import MirrorCustomizer
+        # we copy _pypi_ixconfig_default, otherwise the defaults will
+        # be modified during config updates later on
+        return MirrorStage(
+            xom, username="root", index="pypi",
+            ixconfig=dict(_pypi_ixconfig_default),
+            customizer_cls=MirrorCustomizer)
+    return makepypistage
+
+
+@pytest.fixture
 def pypistage(devpiserver_makepypistage, xom):
     return devpiserver_makepypistage(xom)
 
