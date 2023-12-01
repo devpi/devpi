@@ -18,26 +18,26 @@ def mapp(makemapp, nginx_host_port, secretfile):
         app.xom.thread_pool.shutdown()
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestProjectThings(BaseTestProjectThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestUserThings(BaseTestUserThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestIndexThings(BaseTestIndexThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestIndexPushThings(BaseTestIndexPushThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestMirrorIndexThings(BaseTestMirrorIndexThings):
     pass
