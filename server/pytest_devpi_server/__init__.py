@@ -5,7 +5,7 @@ import pytest
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--backend", action="store",
+        "--devpi-server-storage-backend", action="store",
         help="run tests with specified dotted name backend")
 
 

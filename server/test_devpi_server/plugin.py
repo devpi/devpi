@@ -44,6 +44,9 @@ def pytest_configure(config):
         "notransaction: do not open a transaction")
     config.addinivalue_line(
         "markers",
+        "slow: marks tests as slow (deselect with '-m \"not slow\"')")
+    config.addinivalue_line(
+        "markers",
         "start_threads: start devpi-server threads")
     config.addinivalue_line(
         "markers",
