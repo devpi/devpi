@@ -1024,7 +1024,8 @@ def test_replica_user_auth_before_other_plugins(makexom):
 
     plugin = Plugin()
     # register both plugins, so the above plugin would normally be called first
-    xom = makexom(plugins=[replica, plugin])
+    with pytest.warns(DeprecationWarning, match='new devpiserver_auth_request hook instead'):
+        xom = makexom(plugins=[replica, plugin])
     auth = Auth(xom, "qweqwe")
     with xom.keyfs.read_transaction():
         # because the replica auth has tryfirst our plugin shouldn't be called
