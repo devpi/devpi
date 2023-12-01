@@ -4,8 +4,8 @@ from .filestore_fs import LazyChangesFormatter
 from .fileutil import dumps, loads
 from .interfaces import IStorageConnection2
 from .keyfs import KeyfsTimeoutError
-from .keyfs import RelpathInfo
 from .keyfs import get_relpath_at
+from .keyfs_types import RelpathInfo
 from .log import threadlog, thread_push_log, thread_pop_log
 from .markers import absent
 from .mythread import current_thread

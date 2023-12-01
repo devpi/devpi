@@ -11,7 +11,6 @@ import py
 from . import mythread
 from .interfaces import IStorageConnection3
 from .keyfs_types import PTypedKey
-from .keyfs_types import RelpathInfo  # noqa: F401 - imported by other packages
 from .keyfs_types import TypedKey
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
@@ -22,9 +21,22 @@ from .readonly import get_mutable_deepcopy
 from .readonly import is_deeply_readonly
 from .filestore import FileEntry
 from .fileutil import read_int_from_file, write_int_to_file
-import time
-
 from devpi_common.types import cached_property
+import time
+import warnings
+
+
+def __getattr__(name):
+    if name == 'RelpathInfo':
+        from .keyfs_types import RelpathInfo
+        warnings.warn(
+            'Importing RelpathInfo from devpi_server.keyfs is deprecated. '
+            'Import from devpi_server.keyfs_types instead.',
+            DeprecationWarning,
+            stacklevel=2)
+        return RelpathInfo
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 class KeyfsTimeoutError(TimeoutError):
