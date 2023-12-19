@@ -1,1 +1,0 @@
-Fix #996: support hashes other than sha256 in application/vnd.pypi.simple.v1+json responses.
