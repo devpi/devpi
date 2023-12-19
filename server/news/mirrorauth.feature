@@ -1,1 +1,0 @@
-Use ``Authorization`` header instead of adding username/password to URL when fetching from mirror.

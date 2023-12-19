@@ -2,6 +2,27 @@
 
 .. towncrier release notes start
 
+6.10.0 (2023-12-19)
+===================
+
+Features
+--------
+
+- Use ``Authorization`` header instead of adding username/password to URL when fetching from mirror.
+
+- Fix #993: Use the pure Python httpx library instead of aiohttp to prevent delays in supporting newest Python releases.
+
+
+
+Bug Fixes
+---------
+
+- Fix #996: support hashes other than sha256 in application/vnd.pypi.simple.v1+json responses.
+
+- Only compare hostname instead of full URL prefix when parsing mirror packages to fix mirrors with basic authentication and absolute URLs. See #1006
+
+
+
 6.9.2 (2023-08-06)
 ==================
 

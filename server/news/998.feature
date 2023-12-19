@@ -1,1 +1,0 @@
-Fix #993: Use the pure Python httpx library instead of aiohttp to prevent delays in supporting newest Python releases.
