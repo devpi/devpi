@@ -10,7 +10,7 @@ Features
 
 - Use ``Authorization`` header instead of adding username/password to URL when fetching from mirror.
 
-- Fix #993: Use the pure Python httpx library instead of aiohttp to prevent delays in supporting newest Python releases.
+- Fix #998: Use the pure Python httpx library instead of aiohttp to prevent delays in supporting newest Python releases.
 
 
 
