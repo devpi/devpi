@@ -14,7 +14,7 @@ def linkver(index, basename, d=None, rel="releasefile"):
     if d is None:
         d = {}
     links = d.setdefault("+links", [])
-    href = href="/{index}/+f/{basename}".format(index=index, basename=basename)
+    href = "/{index}/+f/{basename}".format(index=index, basename=basename)
     links.append(dict(href=href, rel=rel))
     return d
 
