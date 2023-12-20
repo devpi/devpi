@@ -561,12 +561,14 @@ class Importer:
                 links = [(url.basename, entry.relpath)]
                 requires_python = [versions[version].get('requires_python')]
                 yanked = [versions[version].get('yanked')]
-                for key, href, require_python, is_yanked in links_with_data:
+                upload_time = [versions[version].get('upload_time')]
+                for key, href, require_python, is_yanked, upload_time_ in links_with_data:
                     links.append((key, href))
                     requires_python.append(require_python)
                     yanked.append(is_yanked)
+                    upload_time.append(upload_time_)
                 stage._save_cache_links(
-                    project, links, requires_python, yanked, serial, None)
+                    project, links, requires_python, yanked, upload_time, serial, None)
             # devpi-server-2.1 exported with md5 checksums
             if "md5" in mapping:
                 assert "hash_spec" not in mapping

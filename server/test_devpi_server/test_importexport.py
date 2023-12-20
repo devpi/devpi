@@ -473,12 +473,12 @@ class TestImportExport:
             projects = stage.list_projects_perstage()
             assert projects == {'package': 'package'}
             links = sorted(
-                (x.key, x.href, x.require_python, x.yanked)
+                (x.key, x.href, x.require_python, x.yanked, x.upload_time)
                 for x in stage.get_simplelinks_perstage("package"))
             assert links == [
-                ('package-1.1.zip', 'root/pypi/+f/a66/5a45920422f9d/package-1.1.zip', None, None),
-                ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, ""),
-                ('package-2.0.zip', 'root/pypi/+f/35a/9e381b1a27567/package-2.0.zip', '>=3.5', None)]
+                ('package-1.1.zip', 'root/pypi/+f/a66/5a45920422f9d/package-1.1.zip', None, None, None),
+                ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, "", None),
+                ('package-2.0.zip', 'root/pypi/+f/35a/9e381b1a27567/package-2.0.zip', '>=3.5', None, None)]
 
     def test_mirrordata(self, caplog, impexp):
         mapp = impexp.import_testdata('mirrordata')

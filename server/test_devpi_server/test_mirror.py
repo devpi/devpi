@@ -1011,7 +1011,7 @@ async def test_get_simplelinks_perstage_when_http_error(exc, pypistage, monkeypa
     from devpi_server.model import SimpleLinks
 
     # to reach the code path in question, we must have cached links
-    links = [("key", "href", "req_py", "yanked")]
+    links = [("key", "href", "req_py", "yanked", "upload_time")]
 
     def mock_load_cache_links(project):
         return (True, links, 42)

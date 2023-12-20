@@ -37,13 +37,13 @@ class _Unknown:
 Unknown = _Unknown()
 
 
-def join_links_data(links, requires_python, yanked):
-    # build list of (key, href, require_python, yanked) tuples
+def join_links_data(links, requires_python, yanked, upload_time):
+    # build list of (key, href, require_python, yanked, upload_time) tuples
     result = []
-    links = zip_longest(links, requires_python, yanked, fillvalue=None)
-    for link, require_python, yanked in links:
+    links = zip_longest(links, requires_python, yanked, upload_time, fillvalue=None)
+    for link, require_python, yanked, upload_time in links:
         key, href = link
-        result.append((key, href, require_python, yanked))
+        result.append((key, href, require_python, yanked, upload_time))
     return result
 
 
@@ -1348,9 +1348,10 @@ class PrivateStage(BaseStage):
         data = self.key_projsimplelinks(project).get()
         links = data.get("links", [])
         requires_python = data.get("requires_python", [])
+        upload_time = data.get("upload_time", [])
         yanked = []  # PEP 592 isn't supported for private stages yet
         return self.SimpleLinks(
-            join_links_data(links, requires_python, yanked))
+            join_links_data(links, requires_python, yanked, upload_time))
 
     def _regen_simplelinks(self, project_input):
         project = normalize_name(project_input)
@@ -1711,7 +1712,7 @@ class SimplelinkMeta:
     __slots__ = (
         '__basename', '__cmpval', '__ext', '__hash_spec',
         '__name', '__path', '__url', '__version',
-        'key', 'href', 'require_python', 'yanked')
+        'key', 'href', 'require_python', 'yanked', "upload_time")
 
     def __init__(self, link_info):
         self.__basename = notset
@@ -1722,7 +1723,7 @@ class SimplelinkMeta:
         self.__path = notset
         self.__url = notset
         self.__version = notset
-        (self.key, self.href, self.require_python, self.yanked) = link_info
+        (self.key, self.href, self.require_python, self.yanked, self.upload_time) = link_info
 
     def __eq__(self, other):
         if isinstance(other, type(self)):
@@ -1748,6 +1749,8 @@ class SimplelinkMeta:
             return self.require_python
         elif index == 3:
             return self.yanked
+        elif index == 4:
+            return self.upload_time
         raise IndexError(f"{self.__class__.__name__} index out of range")
 
     def __splitbasename(self):
@@ -1812,7 +1815,8 @@ class SimplelinkMeta:
             f"key={self.key!r} "
             f"href={self.href!r} "
             f"require_python={self.require_python!r} "
-            f"yanked={self.yanked!r}>")
+            f"yanked={self.yanked!r} "
+            f"upload_time={self.upload_time!r}>>")
 
 
 def make_key_and_href(entry):

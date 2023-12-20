@@ -692,6 +692,8 @@ class PyPIView:
                 data["requires-python"] = link.require_python
             if link.yanked is not None and link.yanked is not False:
                 data["yanked"] = link.yanked
+            if link.upload_time is not None:
+                data["upload-time"] = link.upload_time
             info = json.dumps(data, indent=None, sort_keys=False)
             if first:
                 yield f'{info}'.encode("utf-8")

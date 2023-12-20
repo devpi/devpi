@@ -47,6 +47,7 @@ class Link(URL):
     def __init__(self, url="", *args, **kwargs):
         self.requires_python = kwargs.pop('requires_python', None)
         self.yanked = kwargs.pop('yanked', None)
+        self.upload_time = kwargs.pop('upload_time', None)
         URL.__init__(self, url, *args, **kwargs)
 
 
@@ -180,7 +181,8 @@ def parse_index_v1_json(disturl, text):
         result.append(BasenameMeta(Link(
             url,
             requires_python=item.get('requires-python'),
-            yanked=item.get('yanked'))).obj)
+            yanked=item.get('yanked'),
+            upload_time=item.get('upload-time'))).obj)
     return result
 
 
@@ -480,14 +482,15 @@ class MirrorStage(BaseStage):
         """ return True if we have some cached simpelinks information. """
         return self.key_projsimplelinks(project).exists()
 
-    def _save_cache_links(self, project, links, requires_python, yanked, serial, etag):
+    def _save_cache_links(self, project, links, requires_python, yanked, upload_time, serial, etag):
         assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
         data = {
             "serial": serial, "links": links,
             "requires_python": requires_python,
-            "yanked": yanked}
+            "yanked": yanked,
+            "upload_time": upload_time}
         key = self.key_projsimplelinks(project)
         old = key.get()
         if old != data:
@@ -516,7 +519,8 @@ class MirrorStage(BaseStage):
             links_with_data = join_links_data(
                 cache["links"],
                 cache.get("requires_python", []),
-                cache.get("yanked", []))
+                cache.get("yanked", []),
+                cache.get("upload_time", []))
             if self.offline and links_with_data:
                 links_with_data = ensure_deeply_readonly(list(
                     filter(self._is_file_cached, links_with_data)))
@@ -604,6 +608,7 @@ class MirrorStage(BaseStage):
         key_hrefs = [None] * num_releaselinks
         requires_python = [None] * num_releaselinks
         yanked = [None] * num_releaselinks
+        upload_time = [None] * num_releaselinks
         for index, releaselink in enumerate(releaselinks):
             key = _key_from_link(releaselink)
             href = key.relpath
@@ -612,12 +617,14 @@ class MirrorStage(BaseStage):
             key_hrefs[index] = (releaselink.basename, href)
             requires_python[index] = releaselink.requires_python
             yanked[index] = None if releaselink.yanked is False else releaselink.yanked
+            upload_time[index] = None if releaselink.upload_time is False else releaselink.upload_time
         newlinks_future.set_result(dict(
             serial=serial,
             releaselinks=releaselinks,
             key_hrefs=key_hrefs,
             requires_python=requires_python,
             yanked=yanked,
+            upload_time=upload_time,
             devpi_serial=response.headers.get("X-DEVPI-SERIAL"),
             etag=response.headers.get("ETag")))
 
@@ -658,7 +665,7 @@ class MirrorStage(BaseStage):
             # this stores the simple links info
             self._save_cache_links(
                 project,
-                info["key_hrefs"], info["requires_python"], info["yanked"],
+                info["key_hrefs"], info["requires_python"], info["yanked"], info["upload_time"],
                 info["serial"],
                 info["etag"])
             return self.SimpleLinks(newlinks)
@@ -669,7 +676,7 @@ class MirrorStage(BaseStage):
         threadlog.debug("Got simple links for %r", project)
 
         newlinks = join_links_data(
-            info["key_hrefs"], info["requires_python"], info["yanked"])
+            info["key_hrefs"], info["requires_python"], info["yanked"], info(["upload_time"]))
         with self.keyfs.write_transaction():
             self.keyfs.tx.on_finished(lock.release)
             # fetch current links
@@ -782,7 +789,7 @@ class MirrorStage(BaseStage):
         info = newlinks_future.result()
 
         newlinks = join_links_data(
-            info["key_hrefs"], info["requires_python"], info["yanked"])
+            info["key_hrefs"], info["requires_python"], info["yanked"], info["upload_time"])
         if links is not None and set(links) == set(newlinks):
             # no changes
             self.cache_retrieve_times.refresh(project, info["etag"])
