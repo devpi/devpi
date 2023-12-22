@@ -1131,73 +1131,72 @@ class PyPIView:
             # register always overwrites the metadata
             self._set_versiondata_form(stage, request.POST)
             return Response("")
-        elif action in ("doc_upload", "file_upload"):
+        if action not in ("doc_upload", "file_upload"):
+            abort_submit(request, 400, "action %r not supported" % action)
+        try:
+            content = request.POST["content"]
+        except KeyError:
+            abort_submit(request, 400, "content file field not found")
+        name = ensure_unicode(request.POST["name"])
+        # version may be empty on plain doczip uploads
+        version = ensure_unicode(request.POST.get("version") or "")
+        project = normalize_name(name)
+
+        if action == "file_upload":
+            # we only check for release files if version is
+            # contained in the filename because for doczip files
+            # we construct the filename ourselves anyway.
+            if not version_in_filename(version, content.filename):
+                abort_submit(
+                    request, 400,
+                    "filename %r does not contain version %r" % (
+                        content.filename, version))
+
+            abort_if_invalid_filename(request, name, content.filename)
+            self._update_versiondata_form(stage, request.POST)
             try:
-                content = request.POST["content"]
-            except KeyError:
-                abort_submit(request, 400, "content file field not found")
-            name = ensure_unicode(request.POST["name"])
-            # version may be empty on plain doczip uploads
-            version = ensure_unicode(request.POST.get("version") or "")
-            project = normalize_name(name)
-
-            if action == "file_upload":
-                # we only check for release files if version is
-                # contained in the filename because for doczip files
-                # we construct the filename ourselves anyway.
-                if not version_in_filename(version, content.filename):
-                    abort_submit(
-                        request, 400,
-                        "filename %r does not contain version %r" % (
-                            content.filename, version))
-
-                abort_if_invalid_filename(request, name, content.filename)
-                self._update_versiondata_form(stage, request.POST)
-                try:
-                    link = stage.store_releasefile(
-                        project, version,
-                        content.filename, content.file)
-                except stage.NonVolatile as e:
-                    if e.link.matches_checksum(content.file):
-                        abort_submit(
-                            request, 200,
-                            "Upload of identical file to non volatile index.",
-                            level="info")
-                    abort_submit(
-                        request, 409,
-                        "%s already exists in non-volatile index" % (
-                            content.filename,))
-                try:
-                    self.xom.config.hook.devpiserver_on_upload_sync(
-                        log=request.log, application_url=request.application_url,
-                        stage=stage, project=project, version=version)
-                except Exception as e:
+                link = stage.store_releasefile(
+                    project, version,
+                    content.filename, content.file)
+            except stage.NonVolatile as e:
+                if e.link.matches_checksum(content.file):
                     abort_submit(
                         request, 200,
-                        "OK, but a trigger plugin failed: %s" % e, level="warn")
-            else:
-                if "version" in request.POST:
-                    self._update_versiondata_form(stage, request.POST)
-                try:
-                    link = stage.store_doczip(project, version, content.file)
-                except stage.MissesVersion as e:
-                    abort_submit(
-                        request, 400,
-                        "%s" % e)
-                except stage.NonVolatile as e:
-                    if e.link.matches_checksum(content.file):
-                        abort_submit(
-                            request, 200,
-                            "Upload of identical file to non volatile index.",
-                            level="info")
-                    abort_submit(
-                        request, 409,
-                        "%s already exists in non-volatile index" % (
-                            content.filename,))
-            link.add_log(
-                'upload', request.authenticated_userid, dst=stage.name)
+                        "Upload of identical file to non volatile index.",
+                        level="info")
+                abort_submit(
+                    request, 409,
+                    "%s already exists in non-volatile index" % (
+                        content.filename,))
+            try:
+                self.xom.config.hook.devpiserver_on_upload_sync(
+                    log=request.log, application_url=request.application_url,
+                    stage=stage, project=project, version=version)
+            except Exception as e:
+                abort_submit(
+                    request, 200,
+                    "OK, but a trigger plugin failed: %s" % e, level="warn")
         else:
-            abort_submit(request, 400, "action %r not supported" % action)
+            if "version" in request.POST:
+                self._update_versiondata_form(stage, request.POST)
+            try:
+                link = stage.store_doczip(project, version, content.file)
+            except stage.MissesVersion as e:
+                abort_submit(
+                    request, 400,
+                    "%s" % e)
+            except stage.NonVolatile as e:
+                if e.link.matches_checksum(content.file):
+                    abort_submit(
+                        request, 200,
+                        "Upload of identical file to non volatile index.",
+                        level="info")
+                abort_submit(
+                    request, 409,
+                    "%s already exists in non-volatile index" % (
+                        content.filename,))
+        link.add_log(
+            'upload', request.authenticated_userid, dst=stage.name)
         return Response("")
 
     def _get_versiondata_from_form(self, stage, form, skip_missing=False):
