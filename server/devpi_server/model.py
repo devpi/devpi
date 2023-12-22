@@ -813,7 +813,8 @@ class BaseStage(object):
         assert len(links) < 2
         return links[0] if links else None
 
-    def store_toxresult(self, link, toxresultdata, filename=None):
+    def store_toxresult(self, link, toxresultdata,
+                        *, filename=None, last_modified=None):
         if self.customizer.readonly:
             raise ReadonlyIndex("index is marked read only")
         linkstore = self.get_linkstore_perstage(link.project, link.version, readonly=False)
@@ -823,7 +824,8 @@ class BaseStage(object):
             rel="toxresult",
             content_or_file=toxresultdata,
             for_entrypath=link,
-            filename=filename)
+            filename=filename,
+            last_modified=last_modified)
 
     def get_toxresults(self, link):
         l = []
@@ -1373,7 +1375,7 @@ class PrivateStage(BaseStage):
         return normalize_name(project) in self.list_projects_perstage()
 
     def store_releasefile(self, project, version, filename, content_or_file,
-                          last_modified=None):
+                          *, last_modified=None):
         if self.customizer.readonly:
             raise ReadonlyIndex("index is marked read only")
         project = normalize_name(project)
@@ -1396,7 +1398,8 @@ class PrivateStage(BaseStage):
         self._regen_simplelinks(project)
         return link
 
-    def store_doczip(self, project, version, content_or_file):
+    def store_doczip(self, project, version, content_or_file,
+                     *, last_modified=None):
         if self.customizer.readonly:
             raise ReadonlyIndex("index is marked read only")
         project = normalize_name(project)
@@ -1414,28 +1417,31 @@ class PrivateStage(BaseStage):
         if not verdata:
             self.set_versiondata({'name': project, 'version': version})
         linkstore = self.get_linkstore_perstage(project, version, readonly=False)
-        link = linkstore.create_linked_entry(
+        return linkstore.create_linked_entry(
             rel="doczip",
             basename=basename,
-            content_or_file=content_or_file)
-        return link
+            content_or_file=content_or_file,
+            last_modified=last_modified)
+
+    def get_doczip_link(self, project, version):
+        """ get link of documentation zip or None if no docs exists. """
+        linkstore = self.get_linkstore_perstage(project, version)
+        links = linkstore.get_links(rel="doczip")
+        if len(links) > 1:
+            threadlog.warning(
+                "Multiple documentation files for %s-%s, returning newest",
+                project, version)
+        return links[-1] if links else None
 
     def get_doczip_entry(self, project, version):
         """ get entry of documentation zip or None if no docs exists. """
-        linkstore = self.get_linkstore_perstage(project, version)
-        links = linkstore.get_links(rel="doczip")
-        if links:
-            if len(links) > 1:
-                threadlog.warn("Multiple documentation files for %s-%s, returning newest",
-                               project, version)
-            link = links[-1]
-            return link.entry
+        link = self.get_doczip_link(project, version)
+        return link.entry if link else None
 
     def get_doczip(self, project, version):
         """ get documentation zip content or None if no docs exists. """
-        entry = self.get_doczip_entry(project, version)
-        if entry is not None:
-            return entry.file_get_content()
+        link = self.get_doczip_link(project, version)
+        return link.entry.file_get_content() if link else None
 
     def get_last_change_serial_perstage(self, at_serial=None):
         tx = self.keyfs.tx
@@ -1629,7 +1635,8 @@ class LinkStore:
             link.add_log('overwrite', None, count=overwrite + 1)
         return link
 
-    def new_reflink(self, rel, content_or_file, for_entrypath, filename=None):
+    def new_reflink(self, rel, content_or_file, for_entrypath,
+                    *, filename=None, last_modified=None):
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
         links = self.get_links(entrypath=for_entrypath)
@@ -1642,6 +1649,8 @@ class LinkStore:
                 base_entry.basename, rel, timestamp, len(other_reflinks))
         entry = self._create_file_entry(
             filename, content_or_file, ref_hash_spec=base_entry.hash_spec)
+        if last_modified is not None:
+            entry.last_modified = last_modified
         return self._add_link_to_file_entry(
             rel, entry, for_entrypath=for_entrypath)
 

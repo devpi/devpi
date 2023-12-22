@@ -550,6 +550,7 @@ class TestImportExport:
 
     def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
         import hashlib
+        from time import sleep
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         content = b'content'
@@ -560,8 +561,10 @@ class TestImportExport:
         toxresult_hash = hashlib.sha256(toxresult_dump.encode("utf-8")).hexdigest()
         r = mapp1.upload_toxresult("/%s" % path, toxresult_dump)
         toxresult_link = mapp1.getjson(f'/{r.json["result"]}')["result"]
+        last_modified = toxresult_link["last_modified"]
         (hash_type, hash_value) = parse_hash_spec(toxresult_link["hash_spec"])
         assert hash_value == toxresult_hash
+        sleep(1.5)
         impexp.export()
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.read_transaction():
@@ -582,6 +585,7 @@ class TestImportExport:
                 link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             assert tox_link.hash_value == toxresult_hash
+            assert tox_link.entry.last_modified == last_modified
             history_log = tox_link.get_logs()
             assert len(history_log) == 1
             assert history_log[0]['what'] == 'upload'
@@ -862,15 +866,23 @@ class TestImportExport:
         mapp2.login("exp", "pass")
 
     def test_docs_are_preserved(self, impexp):
+        from time import sleep
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
         mapp1.set_versiondata({"name": "hello", "version": "1.0"})
         content = zip_dict({"index.html": "<html/>"})
         mapp1.upload_doc("hello.zip", content, "hello", "")
+        with mapp1.xom.keyfs.read_transaction():
+            stage = mapp1.xom.model.getstage(api.stagename)
+            entry = stage.get_doczip_entry("hello", "1.0")
+            last_modified = entry.last_modified
+        sleep(1.5)
         impexp.export()
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
+            entry = stage.get_doczip_entry("hello", "1.0")
+            assert entry.last_modified == last_modified
             doczip = stage.get_doczip("hello", "1.0")
             archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()

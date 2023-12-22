@@ -279,6 +279,7 @@ class IndexDump:
                               project=linkstore.project,
                               relpath=relpath,
                               version=linkstore.version,
+                              entrymapping=tox_link.entry.meta,
                               for_entrypath=reflink.entrypath,
                               log=tox_link.get_logs())
 
@@ -297,7 +298,9 @@ class IndexDump:
         relpath = self.exporter.copy_file(
             entry,
             self.basedir.join("%s-%s.doc.zip" % (project, version)))
-        self.add_filedesc("doczip", project, relpath, version=version)
+        self.add_filedesc(
+            "doczip", project, relpath,
+            version=version, entrymapping=entry.meta)
 
 
 class Importer:
@@ -535,8 +538,11 @@ class Importer:
         if self.xom.config.hard_links:
             # additional attribute for hard links
             f.devpi_srcpath = p.strpath
+
+        # docs and toxresults didn't always have entrymapping in export dump
+        mapping = filedesc.get("entrymapping", {})
+
         if filedesc["type"] == "releasefile":
-            mapping = filedesc["entrymapping"]
             if self.dumpversion == "1":
                 # previous versions would not add a version attribute
                 version = BasenameMeta(p.basename).version
@@ -579,16 +585,22 @@ class Importer:
             # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
             version = filedesc["version"]
-            link = stage.store_doczip(project, version, f)
+            # docs didn't always have entrymapping in export dump
+            last_modified = mapping.get("last_modified")
+            link = stage.store_doczip(
+                project, version, f, last_modified=last_modified)
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(
                 filedesc["projectname"], filedesc["version"])
             # we can not search for the full relative path because
             # it might use a different checksum
             basename = posixpath.basename(filedesc["for_entrypath"])
+            # toxresults didn't always have entrymapping in export dump
+            last_modified = mapping.get("last_modified")
             link, = linkstore.get_links(basename=basename)
             link = stage.store_toxresult(
-                link, f, filename=posixpath.basename(filedesc["relpath"]))
+                link, f, filename=posixpath.basename(filedesc["relpath"]),
+                last_modified=last_modified)
         else:
             msg = f"unknown file type: {type}"
             raise Fatal(msg)
