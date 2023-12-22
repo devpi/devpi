@@ -275,7 +275,7 @@ class TestUnit:
         with pytest.raises(SystemExit):
             current.configure_fromurl(loghub, "http://heise.de:1802:31/qwe")
 
-    def test_auth_handling(self, loghub):
+    def test_auth_handling(self):
         current = Current()
         d = {
             "index": "http://l/some/index",
@@ -296,7 +296,7 @@ class TestUnit:
         current._configure_from_server_api(d, current.root_url)
         assert not current.get_auth()
 
-    def test_rooturl_on_outside_url(self, loghub):
+    def test_rooturl_on_outside_url(self):
         current = Current()
         d = {
             "index": "http://l/subpath/some/index",
@@ -570,7 +570,7 @@ class TestUnit:
         res = out_devpi("use")
         res.stdout.fnmatch_lines("*venv*%s" % venvdir)
 
-    def test_new_venvsetting(self, capfd, out_devpi, cmd_devpi, tmpdir, monkeypatch):
+    def test_new_venvsetting(self, capfd, cmd_devpi, tmpdir, monkeypatch):
         venvdir = tmpdir.join('.venv')
         assert not venvdir.exists()
         monkeypatch.chdir(tmpdir)

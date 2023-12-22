@@ -72,7 +72,7 @@ def test_indexconfig_items(makemapp, maketestapp, makexom):
             if key == "ham":
                 return value
 
-        def validate_config(self, oldconfig, newconfig):
+        def validate_config(self, oldconfig, newconfig):  # noqa: ARG002
             if "bar" not in newconfig:
                 raise self.InvalidIndexconfig(["requires bar"])
 
@@ -143,7 +143,7 @@ def test_validate_config(makemapp, maketestapp, makexom):
 
 def test_on_modified(makemapp, maketestapp, makexom):
     class MyStageCustomizer(object):
-        def on_modified(self, request, oldconfig):
+        def on_modified(self, request, oldconfig):  # noqa: ARG002
             if request.headers.get('X-Fail'):
                 request.apifatal(400, request.headers['X-Fail'])
 
@@ -172,7 +172,7 @@ def test_on_modified_http_exception(makemapp, maketestapp, makexom):
     from pyramid.httpexceptions import HTTPClientError
 
     class MyStageCustomizer(object):
-        def on_modified(self, request, oldconfig):
+        def on_modified(self, request, oldconfig):  # noqa: ARG002
             raise HTTPClientError
 
     xom = makexom(plugins=[make_stage_plugin(MyStageCustomizer)])
@@ -193,11 +193,11 @@ def test_package_filters(makemapp, maketestapp, makexom):
             for project in projects:
                 yield project != 'pkg'
 
-        def get_versions_filter_iter(self, project, versions):
+        def get_versions_filter_iter(self, project, versions):  # noqa: ARG002
             for version in versions:
                 yield version != '1.0'
 
-        def get_simple_links_filter_iter(self, project, links):
+        def get_simple_links_filter_iter(self, project, links):  # noqa: ARG002
             for link_info in links:
                 yield '1.0' not in link_info.key
 
@@ -260,7 +260,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
 
     class Plugin:
         @hookimpl
-        def devpiserver_indexconfig_defaults(self, index_type):
+        def devpiserver_indexconfig_defaults(self, index_type):  # noqa: ARG002
             return {"acl_pkg_read": ACLList([':ANONYMOUS:'])}
 
         @hookimpl
@@ -347,7 +347,7 @@ def test_sro_skip_plugin(makemapp, maketestapp, makexom, pypistage):
         calls = []
 
         @hookimpl
-        def devpiserver_indexconfig_defaults(self, index_type):
+        def devpiserver_indexconfig_defaults(self, index_type):  # noqa: ARG002
             return {"acl_pkg_read": ACLList([":ANONYMOUS:"])}
 
         @hookimpl

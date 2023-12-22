@@ -192,7 +192,7 @@ class TestIndexTree:
 
 class TestImportExport:
     @pytest.fixture()
-    def makeimpexp(self, request, makemapp, gentmp, storage_info):
+    def makeimpexp(self, makemapp, gentmp, storage_info):
         class ImpExp:
             def __init__(self, options=()):
                 from devpi_server.main import set_state_version
@@ -369,13 +369,13 @@ class TestImportExport:
             stage = mapp.xom.model.getstage('root/dev')
             assert stage.ixconfig['acl_toxresult_upload'] == [u':ANONYMOUS:']
 
-    def test_bases_cycle(self, caplog, impexp):
+    def test_bases_cycle(self, impexp):
         mapp = impexp.import_testdata('basescycle')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')
             assert stage.ixconfig['bases'] == ('root/dev',)
 
-    def test_deleted_base(self, caplog, impexp):
+    def test_deleted_base(self, impexp):
         mapp = impexp.import_testdata('deletedbase')
         with mapp.xom.keyfs.read_transaction():
             assert mapp.xom.model.getstage('root/removed') is None
@@ -407,7 +407,7 @@ class TestImportExport:
         assert 'dataindex.json' in record.message
 
     @pytest.mark.parametrize("norootpypi", [False, True])
-    def test_import_no_user(self, caplog, impexp, norootpypi):
+    def test_import_no_user(self, impexp, norootpypi):
         from devpi_server.main import _pypi_ixconfig_default
         options = ()
         if norootpypi:
@@ -423,7 +423,7 @@ class TestImportExport:
                 assert stage.ixconfig == _pypi_ixconfig_default
 
     @pytest.mark.parametrize("norootpypi", [False, True])
-    def test_import_no_root_pypi(self, caplog, impexp, norootpypi):
+    def test_import_no_root_pypi(self, impexp, norootpypi):
         from devpi_server.main import _pypi_ixconfig_default
         options = ()
         if norootpypi:
@@ -438,7 +438,7 @@ class TestImportExport:
             else:
                 assert stage.ixconfig == _pypi_ixconfig_default
 
-    def test_include_mirrordata(self, caplog, makeimpexp, maketestapp, pypistage):
+    def test_include_mirrordata(self, makeimpexp, maketestapp, pypistage):
         impexp = makeimpexp(options=('--include-mirrored-files',))
         mapp1 = impexp.mapp1
         testapp = maketestapp(mapp1.xom)
@@ -480,7 +480,7 @@ class TestImportExport:
                 ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, ""),
                 ('package-2.0.zip', 'root/pypi/+f/35a/9e381b1a27567/package-2.0.zip', '>=3.5', None)]
 
-    def test_mirrordata(self, caplog, impexp):
+    def test_mirrordata(self, impexp):
         mapp = impexp.import_testdata('mirrordata')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/pypi')
@@ -492,7 +492,7 @@ class TestImportExport:
             assert link.relpath == 'root/pypi/+f/100/7f0cd10aaa290/dddttt-0.1.dev1.tar.gz'
             assert link.entry.hash_spec == 'sha256=1007f0cd10aaa290eb84f092e786639bbe930b7f2169f51f755a0f50a6aba489'
 
-    def test_modifiedpypi(self, caplog, impexp):
+    def test_modifiedpypi(self, impexp):
         mapp = impexp.import_testdata('modifiedpypi')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/pypi')
@@ -502,7 +502,7 @@ class TestImportExport:
             assert stage.ixconfig['mirror_url'] == 'https://example.com/simple/'
             assert stage.ixconfig['mirror_web_url_fmt'] == 'https://example.com/project/{name}/'
 
-    def test_normalization(self, caplog, impexp):
+    def test_normalization(self, impexp):
         mapp = impexp.import_testdata('normalization')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')
@@ -512,7 +512,7 @@ class TestImportExport:
             link = stage.get_link_from_entrypath(links[0].entrypath)
             assert link.entry.file_get_content() == b"content"
 
-    def test_normalization_merge(self, caplog, impexp):
+    def test_normalization_merge(self, impexp):
         mapp = impexp.import_testdata('normalization_merge')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')

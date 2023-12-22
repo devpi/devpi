@@ -142,7 +142,7 @@ def test_fatal_if_no_storage_and_no_sqlite_file(tmpdir):
 
     class Plugin:
         @hookimpl
-        def devpiserver_cmdline_run(self, xom):
+        def devpiserver_cmdline_run(self, xom):  # noqa: ARG002
             return 1
     pm = get_pluginmanager()
     pm.register(Plugin())

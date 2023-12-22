@@ -174,7 +174,7 @@ class FakeStage(object):
         self.serials = {}
         self.serial = -1
 
-    def get_last_project_change_serial_perstage(self, project, at_serial=None):
+    def get_last_project_change_serial_perstage(self, project, at_serial=None):  # noqa: ARG002
         return self.serials.get(project, self.serial)
 
 
@@ -351,11 +351,11 @@ class TestIndexingSharedData:
 
         result = []
 
-        def handler(is_from_mirror, serial, indexname, names):
+        def handler(is_from_mirror, serial, indexname, names):  # noqa: ARG001
             result.append(names)
 
         class FakeSearcher:
-            def document_number(self, path):
+            def document_number(self, path):  # noqa: ARG002
                 return None
 
         shared_data.queue_projects(prjs, 0, FakeSearcher())

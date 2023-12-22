@@ -134,7 +134,7 @@ class TestListRemove:
         out = out_devpi("list", "-v")
         assert len([x for x in out.stdout.lines if x.strip()]) == 0
 
-    def test_remove_file(self, initproj, devpi, out_devpi, server_version, url_of_liveserver):
+    def test_remove_file(self, initproj, devpi, out_devpi, server_version):
         if server_version < parse_version("4.6.0"):
             pytest.skip(
                 "devpi-server before 4.6.0 didn't support deleting "
@@ -257,7 +257,7 @@ class TestListRemove:
             out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-1\.0\.(tar\.gz|zip)")
         out.stdout.re_match_lines_random(r".*/dev2/.*/dddttt-2\.0\.(tar\.gz|zip)")
 
-    def test_delete_project_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
+    def test_delete_project_with_inheritance(self, initproj, devpi, out_devpi):
         api = devpi("index", "-c", "dev2", "volatile=false")
         initproj("dddttt-0.2", {"doc": {
             "conf.py": "",

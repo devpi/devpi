@@ -893,7 +893,7 @@ class TestSubmitValidation:
         mapp.upload_file_pypi("qlwkej", b"qwe", "name", "1.0",
                               indexname="nouser/nostage", code=404)
 
-    def test_metadata_normalize_to_previous_issue84(self, submit, testapp):
+    def test_metadata_normalize_to_previous_issue84(self, submit):
         metadata = {"name": "pKg1", "version": "1.0", ":action": "submit",
                     "description": "hello world"}
         submit.metadata(metadata, code=200)
@@ -968,7 +968,7 @@ class TestSubmitValidation:
         (release,) = mapp.getreleaseslist("Pkg5")
         assert release.endswith("Pkg5-1.0.tar.gz")
 
-    def test_upload_file_version_not_in_filename(self, submit, mapp):
+    def test_upload_file_version_not_in_filename(self, submit):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         submit.metadata(metadata, code=200)
         r = submit.file("pkg5-0.0.0.tgz", b"123", {"name": "Pkg5", "version": "1.0"},
@@ -1049,7 +1049,7 @@ class TestSubmitValidation:
         mapp.create_and_login_user("user2")
         testapp.xdel(403, "/%s/pkg5/2.6" % submit.stagename)
 
-    def test_upload_and_delete_user_issue130(self, submit, testapp, mapp):
+    def test_upload_and_delete_user_issue130(self, submit, mapp):
         metadata = {"name": "pkg5", "version": "2.6", ":action": "submit"}
         submit.metadata(metadata, code=200)
         submit.file("pkg5-2.6.tgz", b"123", {"name": "pkg5"}, code=200)
@@ -1190,7 +1190,7 @@ class TestSubmitValidation:
             verdata = new_stage.get_versiondata('Pkg5', '2.6')
             assert ':action' not in list(verdata.keys())
 
-    def test_upload_with_metadata(self, submit, testapp, mapp, pypistage):
+    def test_upload_with_metadata(self, submit, mapp, pypistage):
         pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
         mapp.upload_file_pypi(
                         "package-1.0.tar.gz", b'123',
@@ -1545,7 +1545,7 @@ class TestPluginPermissions:
             groups = ['plugingroup']
 
             @hookimpl
-            def devpiserver_auth_request(self, request, userdict, username, password):
+            def devpiserver_auth_request(self, request, userdict, username, password):  # noqa: ARG002
                 if username == 'pluginuser' and password == 'pluginpassword':
                     return dict(status="ok", groups=self.groups)
                 return None
@@ -1589,8 +1589,8 @@ class TestPluginPermissions:
 def test_upload_trigger(mapp):
     class Plugin:
         @hookimpl
-        def devpiserver_on_upload_sync(self, log, application_url,
-                                       stage, project, version):
+        def devpiserver_on_upload_sync(
+                self, log, application_url, stage, project, version):  # noqa: ARG002
             self.results.append(
                 (application_url, stage.name, project, version))
     plugin = Plugin()
@@ -2305,7 +2305,7 @@ class TestOfflineMode:
         return makexom(["--offline-mode"])
 
     @pytest.fixture(params=[None, "root/pypi"])
-    def stagename(self, request, gen, mapp, pypistage, testapp, xom):
+    def stagename(self, request, mapp, pypistage, testapp, xom):
         # we expect offline mode
         assert xom.config.args.offline_mode
         # turn of offline mode for preparations
@@ -2433,7 +2433,7 @@ class TestRestrictModify:
     def plugin(self):
         class Plugin:
             @hookimpl
-            def devpiserver_auth_request(self, request, userdict, username, password):
+            def devpiserver_auth_request(self, request, userdict, username, password):  # noqa: ARG002
                 if username == "regular" and password == "regular":
                     return dict(status="ok", groups=["regulars"])
                 if username == "admin" and password == "admin":

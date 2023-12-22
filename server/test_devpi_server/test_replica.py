@@ -44,7 +44,7 @@ class TestChangelog:
     replica_url = "http://qwe"
 
     @pytest.fixture(params=[False, True])
-    def reqchangelog(self, request, auth_serializer, testapp, xom):
+    def reqchangelog(self, request, auth_serializer, testapp):
         def reqchangelog(serial):
             token = auth_serializer.dumps(self.replica_uuid)
             req_headers = {H_REPLICA_UUID: self.replica_uuid,
@@ -67,7 +67,8 @@ class TestChangelog:
         mapp.create_user("hello", "pass")
         assert self.get_latest_serial(testapp) == latest_serial + 1
 
-    def test_get_since(self, testapp, mapp, noiter, reqchangelog):
+    @pytest.mark.usefixtures("noiter")
+    def test_get_since(self, testapp, mapp, reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         r = reqchangelog(latest_serial)
@@ -76,8 +77,8 @@ class TestChangelog:
         data = loads(body)
         assert "this" in str(data)
 
-    def test_wait_entry_fails(self, testapp, mapp, noiter, monkeypatch,
-                                    reqchangelog):
+    @pytest.mark.usefixtures("noiter")
+    def test_wait_entry_fails(self, testapp, mapp, monkeypatch, reqchangelog):
         mapp.create_user("this", password="p")
         latest_serial = self.get_latest_serial(testapp)
         monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_BLOCK_TIME", 0.01)
@@ -116,7 +117,7 @@ class TestMultiChangelog:
     replica_url = "http://qwe"
 
     @pytest.fixture
-    def reqchangelogs(self, request, auth_serializer, testapp):
+    def reqchangelogs(self, auth_serializer, testapp):
         def reqchangelogs(serial):
             token = auth_serializer.dumps(self.replica_uuid)
             req_headers = {H_REPLICA_UUID: self.replica_uuid,
@@ -130,7 +131,8 @@ class TestMultiChangelog:
         r = testapp.get("/+api", expect_errors=False)
         return int(r.headers["X-DEVPI-SERIAL"])
 
-    def test_multiple_changes(self, mapp, noiter, reqchangelogs, testapp):
+    @pytest.mark.usefixtures("noiter")
+    def test_multiple_changes(self, mapp, reqchangelogs, testapp):
         mapp.create_user("this", password="p")
         mapp.create_user("that", password="p")
         latest_serial = self.get_latest_serial(testapp)
@@ -144,7 +146,8 @@ class TestMultiChangelog:
         assert "this/.config" in str(data[-2])
         assert "that/.config" in str(data[-1])
 
-    def test_size_limit(self, mapp, monkeypatch, noiter, reqchangelogs, testapp):
+    @pytest.mark.usefixtures("noiter")
+    def test_size_limit(self, mapp, monkeypatch, reqchangelogs, testapp):
         monkeypatch.setattr(MasterChangelogRequest, "MAX_REPLICA_CHANGES_SIZE", 1024)
         mapp.create_and_login_user("this", password="p")
         for i in range(10):
@@ -237,7 +240,7 @@ class TestReplicaThread:
             rt.thread_run()
         assert caplog.getrecords("committed")
 
-    def test_thread_run_no_uuid(self, rt, mockchangelog, caplog, xom):
+    def test_thread_run_no_uuid(self, rt, mockchangelog, caplog):
         rt.thread.sleep = lambda x: 0/0
         mockchangelog(0, code=200, data=b'123', uuid=None)
         with pytest.raises(ZeroDivisionError):
@@ -460,7 +463,7 @@ class TestUseExistingFiles:
                 '--replica-file-search-path', existing_base.strpath])
 
     @pytest.mark.parametrize('additional_path', [None, '+files'])
-    def test_use_existing_files(self, additional_path, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+    def test_use_existing_files(self, additional_path, caplog, make_replica_xom, mapp, tmpdir, xom):
         # this will be the folder to find existing files in the replica
         existing_base = tmpdir.join('existing').ensure_dir()
         # prepare data on master
@@ -486,7 +489,7 @@ class TestUseExistingFiles:
         replica_xom.replica_thread.wait()
         assert len(caplog.getrecords('checking existing file')) == 1
 
-    def test_use_existing_files_export_layout(self, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+    def test_use_existing_files_export_layout(self, caplog, make_replica_xom, mapp, tmpdir, xom):
         # this will be the folder to find existing files in the replica
         existing_base = tmpdir.join('existing').ensure_dir()
         # prepare data on master
@@ -512,7 +515,7 @@ class TestUseExistingFiles:
     @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
                         reason="OS doesn't support hard links")
-    def test_hardlink(self, caplog, make_replica_xom, mapp, monkeypatch, tmpdir, xom):
+    def test_hardlink(self, caplog, make_replica_xom, mapp, tmpdir, xom):
         # this will be the folder to find existing files in the replica
         existing_base = tmpdir.join('existing').ensure_dir()
         # prepare data on master
@@ -538,7 +541,7 @@ class TestUseExistingFiles:
         # check the number of links of the file
         assert existing_path.stat().nlink == 2
 
-    def test_use_existing_files_bad_data(self, caplog, make_replica_xom, mapp, monkeypatch, patch_reqsessionmock, tmpdir, xom):
+    def test_use_existing_files_bad_data(self, caplog, make_replica_xom, mapp, patch_reqsessionmock, tmpdir, xom):
         # this will be the folder to find existing files in the replica
         existing_base = tmpdir.join('existing').ensure_dir()
         # prepare data on master
@@ -571,7 +574,7 @@ class TestUseExistingFiles:
     @pytest.mark.storage_with_filesystem
     @pytest.mark.skipif(not hasattr(os, 'link'),
                         reason="OS doesn't support hard links")
-    def test_hardlink_bad_data(self, caplog, make_replica_xom, mapp, monkeypatch, patch_reqsessionmock, tmpdir, xom):
+    def test_hardlink_bad_data(self, caplog, make_replica_xom, mapp, patch_reqsessionmock, tmpdir, xom):
         # this will be the folder to find existing files in the replica
         existing_base = tmpdir.join('existing').ensure_dir()
         # prepare data on master
@@ -685,7 +688,8 @@ class TestFileReplication:
         with replica_xom.keyfs.read_transaction():
             assert not r_entry.file_exists()
 
-    def test_fetch_later_deleted(self, gen, reqmock, xom, replica_xom):
+    @pytest.mark.usefixtures("reqmock")
+    def test_fetch_later_deleted(self, gen, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'
         md5 = hashlib.md5(content1).hexdigest()
@@ -717,7 +721,8 @@ class TestFileReplication:
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
             assert not r_entry.file_exists()
 
-    def test_fetch_pypi_nomd5(self, gen, patch_reqsessionmock, reqmock, xom, replica_xom):
+    @pytest.mark.usefixtures("reqmock")
+    def test_fetch_pypi_nomd5(self, gen, patch_reqsessionmock, xom, replica_xom):
         (frthread,) = replica_xom.replica_thread.file_replication_threads
         frt_reqmock = patch_reqsessionmock(frthread.session)
         replay(xom, replica_xom)
@@ -771,8 +776,9 @@ class TestFileReplication:
         # event handling has continued
         assert replica_xom.keyfs.notifier.read_event_serial() == replica_xom.keyfs.get_current_serial()
 
+    @pytest.mark.usefixtures("reqmock")
     def test_cache_remote_file_fails(self, xom, replica_xom, gen,
-                                     pypistage, monkeypatch, reqmock):
+                                     pypistage, monkeypatch):
         from devpi_server.filestore import BadGateway
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
@@ -792,8 +798,9 @@ class TestFileReplication:
             e.match('received 500 from master')
             e.match('pypi.org/package/some/pytest-1.8.zip: received 404')
 
+    @pytest.mark.usefixtures("reqmock")
     def test_cache_remote_file_fetch_original(self, xom, replica_xom, gen,
-                                              pypistage, monkeypatch, reqmock):
+                                              pypistage, monkeypatch):
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -828,7 +835,7 @@ class TestFileReplication:
             assert headers['content-length'] == '3'
             assert b''.join(result) == b'123'
 
-    def test_checksum_mismatch(self, xom, replica_xom, gen, maketestapp,
+    def test_checksum_mismatch(self, xom, replica_xom, maketestapp,
                                makemapp, patch_reqsessionmock):
         # this test might seem to be doing the same as test_fetch above, but
         # test_fetch creates a new transaction for the same file, which doesn't
@@ -1015,11 +1022,11 @@ def test_replica_user_auth_before_other_plugins(makexom):
 
     class Plugin:
         @hookimpl
-        def devpiserver_auth_request(self, request, userdict, username, password):
+        def devpiserver_auth_request(self, request, userdict, username, password):  # noqa: ARG002
             raise RuntimeError("Shouldn't be called")
 
         @hookimpl
-        def devpiserver_auth_user(self, userdict, username, password):
+        def devpiserver_auth_user(self, userdict, username, password):  # noqa: ARG002
             raise RuntimeError("Shouldn't be called")
 
     plugin = Plugin()
@@ -1086,8 +1093,7 @@ class TestFileReplicationSharedData:
             assert result == [stage_file, mirror_file, deleted_file]
             result.clear()
 
-    @pytest.mark.parametrize("index_type", ["mirror", "stage"])
-    def test_serial_priority(self, index_type, shared_data):
+    def test_serial_priority(self, shared_data):
         relpath = 'root/dev/+f/274/e88b0b3d028fe/pytest-2.1.0.zip'
         key = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath)
         # set the index_types cache to prevent db access
@@ -1189,7 +1195,7 @@ class TestFileReplicationSharedData:
         class Transaction:
             model = None
 
-            def get_model(self, xom):
+            def get_model(self, xom):  # noqa: ARG002
                 if self.model is None:
                     self.model = RootModel()
                 return self.model

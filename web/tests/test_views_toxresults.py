@@ -122,7 +122,7 @@ def test_toxresults_state():
     from io import BytesIO
 
     class LinkStore(list):
-        def get_links(self, rel, for_entrypath):
+        def get_links(self, rel, for_entrypath):  # noqa: ARG002
             return self[for_entrypath]
 
     class Link(object):

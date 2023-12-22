@@ -33,7 +33,7 @@ def permissionrequest(model):
 def plugin():
     class Plugin:
         @hookimpl
-        def devpiserver_auth_request(self, request, userdict, username, password):
+        def devpiserver_auth_request(self, request, userdict, username, password):  # noqa: ARG002
             if username == 'external':
                 return dict(
                     status='ok',
@@ -66,8 +66,9 @@ def with_user(request, user):
 
 class TestStage:
     # test both pypi_submit and upload for BBB
+    @pytest.mark.usefixtures("plugin")
     @pytest.mark.parametrize("permission", ('pypi_submit', 'upload'))
-    def test_set_and_get_acl_upload(self, xom, model, plugin, stage, permission, permissionrequest):
+    def test_set_and_get_acl_upload(self, model, stage, permission, permissionrequest):
         indexconfig = stage.ixconfig
         # check that "hello" was included in acl_upload by default
         assert indexconfig["acl_upload"] == ["hello"]
@@ -104,7 +105,8 @@ class TestStage:
         # except external can upload
         assert with_user(permissionrequest, 'external').has_permission(permission, stage)
 
-    def test_set_and_get_acl_toxresult_upload(self, xom, model, plugin, stage, permissionrequest):
+    @pytest.mark.usefixtures("plugin")
+    def test_set_and_get_acl_toxresult_upload(self, model, stage, permissionrequest):
         indexconfig = stage.ixconfig
         # check that "hello" was included in acl_upload by default
         assert indexconfig["acl_toxresult_upload"] == [":ANONYMOUS:"]
@@ -151,7 +153,7 @@ class TestAuthDenialPlugin:
     def plugin(self):
         class Plugin:
             @hookimpl
-            def devpiserver_auth_denials(self, request, acl, user, stage):
+            def devpiserver_auth_denials(self, request, acl, user, stage):  # noqa: ARG002
                 return self.results.pop()
         return Plugin()
 
@@ -172,7 +174,7 @@ class TestAuthDenialPlugin:
         assert not request.has_permission('user_create', context)
 
     @pytest.mark.notransaction
-    def test_deny_login(self, plugin, xom, mapp):
+    def test_deny_login(self, plugin, mapp):
         plugin.results = [None]
         mapp.login("root", "")
         assert plugin.results == []
@@ -191,7 +193,7 @@ class TestAuthDenialPlugin:
             called = 0
 
             @hookimpl
-            def devpiserver_auth_denials(self, request, acl, user, stage):
+            def devpiserver_auth_denials(self, request, acl, user, stage):  # noqa: ARG002
                 if self.allowed is None:
                     return None
                 identity = request.identity

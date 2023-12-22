@@ -398,7 +398,7 @@ class TestUploadFunctional:
     def projname_version(self, projname_version_project):
         return projname_version_project[0]
 
-    def test_plain_dry_run(self, devpi, out_devpi, projname_version):
+    def test_plain_dry_run(self, out_devpi, projname_version):
         assert Path("setup.py").is_file()
         out = out_devpi("upload", "--no-isolation", "--dry-run")
         assert out.ret == 0
@@ -407,7 +407,7 @@ class TestUploadFunctional:
             skipped: file_upload of {projname_version}.*
             """.format(projname_version=projname_version))
 
-    def test_with_docs_dry_run(self, devpi, out_devpi, projname_version):
+    def test_with_docs_dry_run(self, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--dry-run", "--with-docs")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
@@ -416,7 +416,7 @@ class TestUploadFunctional:
             skipped: doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
 
-    def test_only_docs_dry_run(self, devpi, out_devpi, projname_version):
+    def test_only_docs_dry_run(self, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--dry-run", "--only-docs")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
@@ -427,7 +427,7 @@ class TestUploadFunctional:
     @pytest.mark.parametrize("path", [
         "foo.doc.zip",
         "foo.docs.zip"])
-    def test_only_docs_with_path_no_version(self, devpi, out_devpi, path, tmpdir):
+    def test_only_docs_with_path_no_version(self, out_devpi, path, tmpdir):
         archive_path = tmpdir.join(path)
         archive_path.ensure()
         tmpdir.chdir()
@@ -439,7 +439,7 @@ class TestUploadFunctional:
     @pytest.mark.parametrize("path", [
         "foo.doc.tar.gz",
         "foo.docs.tgz"])
-    def test_only_docs_with_path_no_version_gz(self, devpi, out_devpi, path, tmpdir):
+    def test_only_docs_with_path_no_version_gz(self, out_devpi, path, tmpdir):
         archive_path = tmpdir.join(path)
         with tarfile.TarFile(archive_path.strpath, "w") as tgz:
             tgz.addfile(tarfile.TarInfo("index.html"), BytesIO(b""))
@@ -454,7 +454,7 @@ class TestUploadFunctional:
     @pytest.mark.parametrize("path", [
         "foo-1.0.doc.zip",
         "foo-1.0.docs.zip"])
-    def test_only_docs_with_path(self, devpi, out_devpi, path, tmpdir):
+    def test_only_docs_with_path(self, out_devpi, path, tmpdir):
         archive_path = tmpdir.join(path)
         archive_path.ensure()
         tmpdir.chdir()
@@ -467,7 +467,7 @@ class TestUploadFunctional:
     @pytest.mark.parametrize("path", [
         "foo-1.0.doc.tar.gz",
         "foo-1.0.docs.tgz"])
-    def test_only_docs_with_path_gz(self, devpi, out_devpi, path, tmpdir):
+    def test_only_docs_with_path_gz(self, out_devpi, path, tmpdir):
         archive_path = tmpdir.join(path)
         with tarfile.TarFile(archive_path.strpath, "w") as tgz:
             tgz.addfile(tarfile.TarInfo("index.html"), BytesIO(b""))
@@ -479,7 +479,7 @@ class TestUploadFunctional:
             doc_upload of foo-1.0.doc.zip*
             """.format(path=path))
 
-    def test_plain_with_docs(self, devpi, out_devpi, projname_version):
+    def test_plain_with_docs(self, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--with-docs", code=[200, 200, 200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
@@ -508,7 +508,7 @@ class TestUploadFunctional:
                 if x.startswith(('lib/', 'bdist'))]
             assert artifacts == []
 
-    def test_sdist_zip_with_docs(self, devpi, out_devpi, projname_version):
+    def test_sdist_zip_with_docs(self, out_devpi, projname_version):
         out = out_devpi(
             "upload", "--formats", "sdist.zip", "--with-docs", code=[200, 200])
         assert out.ret == 0
@@ -518,7 +518,7 @@ class TestUploadFunctional:
             doc_upload of {projname_version}\.doc\.zip
             """.format(projname_version=projname_version))
 
-    def test_sdist_zip(self, devpi, out_devpi, projname_version):
+    def test_sdist_zip(self, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--formats", "sdist.zip", code=[200])
         assert out.ret == 0
         out.stdout.re_match_lines(r"""
@@ -526,7 +526,7 @@ class TestUploadFunctional:
             file_upload of {projname_version}\.(tar\.gz|zip)
             """.format(projname_version=projname_version))
 
-    def test_sdist(self, devpi, out_devpi, projname_version):
+    def test_sdist(self, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--sdist", code=[200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
@@ -534,7 +534,7 @@ class TestUploadFunctional:
             file_upload of {projname_version}*
             """.format(projname_version=projname_version))
 
-    def test_bdist_wheel(self, devpi, out_devpi, projname_version):
+    def test_bdist_wheel(self, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--formats", "bdist_wheel", code=[200])
         assert out.ret == 0
         projname_version_norm = projname_version.replace("-", "*")
@@ -544,7 +544,7 @@ class TestUploadFunctional:
             file_upload of {projname_version_norm}*.whl*
             """.format(projname_version_norm=projname_version_norm))
 
-    def test_wheel_setup_cfg(self, devpi, initproj, out_devpi):
+    def test_wheel_setup_cfg(self, initproj, out_devpi):
         initproj("pkg-1.0", kind="setup.cfg")
         out = out_devpi("upload", "--no-isolation", "--wheel", code=[200])
         assert out.ret == 0
@@ -553,7 +553,7 @@ class TestUploadFunctional:
             file_upload of pkg-1.0-*.whl*
             """)
 
-    def test_wheel_pyproject_toml(self, devpi, initproj, out_devpi):
+    def test_wheel_pyproject_toml(self, initproj, out_devpi):
         initproj("pkg-1.0", kind="pyproject.toml")
         out = out_devpi("upload", "--wheel", code=[200])
         assert out.ret == 0
@@ -562,7 +562,7 @@ class TestUploadFunctional:
             file_upload of pkg-1.0-*.whl*
             """)
 
-    def test_default_formats(self, devpi, out_devpi, projname_version):
+    def test_default_formats(self, out_devpi, projname_version):
         out = out_devpi(
             "upload", "--formats", "sdist,bdist_wheel", code=[200, 200])
         assert out.ret == 0
@@ -576,7 +576,7 @@ class TestUploadFunctional:
             projname_version=projname_version,
             projname_version_norm=projname_version_norm))
 
-    def test_deprecated_formats(self, devpi, out_devpi, projname_version):
+    def test_deprecated_formats(self, out_devpi, projname_version):
         out = out_devpi(
             "upload", "--formats", "bdist_dumb,bdist_egg", code=[200, 200])
         assert out.ret == 0
@@ -592,7 +592,7 @@ class TestUploadFunctional:
             projname_version=projname_version,
             projname_version_norm=projname_version_norm))
 
-    def test_plain(self, devpi, out_devpi, projname_version):
+    def test_plain(self, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", code=[200, 200])
         out.stdout.fnmatch_lines_random("""
             file_upload of {projname_version}.*
@@ -602,7 +602,7 @@ class TestUploadFunctional:
                        ))
 
     def test_upload_to_mirror(
-            self, devpi, initproj, out_devpi, projname_version):
+            self, initproj, out_devpi, projname_version):
         initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
             "contents.rst": "",
@@ -618,7 +618,7 @@ class TestUploadFunctional:
 
     @pytest.mark.parametrize("other_index", ["root/pypi", "/"])
     def test_index_option(
-            self, devpi, initproj, out_devpi, other_index, projname_version):
+            self, initproj, out_devpi, other_index, projname_version):
         initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
             "contents.rst": "",
@@ -637,7 +637,7 @@ class TestUploadFunctional:
 
     @pytest.mark.parametrize("other_index", ["root/pypi", "/"])
     def test_index_option_with_environment_relative(
-            self, devpi, initproj, monkeypatch, out_devpi,
+            self, initproj, monkeypatch, out_devpi,
             other_index, projname_version):
         initproj(projname_version.rsplit("-", 1), {"doc": {
             "conf.py": "#nothing",
@@ -656,7 +656,7 @@ class TestUploadFunctional:
         out = out_devpi("upload", "--no-isolation", "--index", "%s/dev" % user, "--dry-run")
         out.stdout.fnmatch_lines_random("skipped: file_upload*to*/%s/dev*" % user)
 
-    def test_logout(self, capfd, devpi, out_devpi, projname_version):
+    def test_logout(self, capfd, devpi, out_devpi):
         # logoff then upload
         out = out_devpi("logoff")
         out.stdout.fnmatch_lines_random("login information deleted")

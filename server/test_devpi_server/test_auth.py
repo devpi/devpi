@@ -113,7 +113,7 @@ class TestAuthPlugin:
     def plugin(self):
         class Plugin:
             @hookimpl
-            def devpiserver_auth_request(self, request, userdict, username, password):
+            def devpiserver_auth_request(self, request, userdict, username, password):  # noqa: ARG002
                 return self.results.pop()
         return Plugin()
 
@@ -179,7 +179,7 @@ class TestAuthPlugins:
     def plugin1(self):
         class Plugin:
             @hookimpl
-            def devpiserver_auth_user(self, userdict, username, password):
+            def devpiserver_auth_user(self, userdict, username, password):  # noqa: ARG002
                 return self.results.pop()
         return Plugin()
 
@@ -187,7 +187,7 @@ class TestAuthPlugins:
     def plugin2(self):
         class Plugin:
             @hookimpl
-            def devpiserver_auth_user(self, userdict, username, password):
+            def devpiserver_auth_user(self, userdict, username, password):  # noqa: ARG002
                 return self.results.pop()
         return Plugin()
 

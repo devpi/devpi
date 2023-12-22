@@ -1,6 +1,7 @@
 from io import BytesIO
 import json
 import pytest
+import re
 import requests
 import tarfile
 import time
@@ -180,7 +181,7 @@ class Mapp(MappMixin):
             self.devpi("index", indexname,
                        "%s=%s" % (key, value), code=200)
 
-    def set_uploadtrigger_jenkins(self, *args, **kwargs):
+    def set_uploadtrigger_jenkins(self, *args, **kwargs):  # noqa: ARG002
         # called when we run client tests against server-2.1
         pytest.skip("jenkins functionality moved out to pytest-jenkins")
 
@@ -218,6 +219,12 @@ class Mapp(MappMixin):
 
     def upload_file_pypi(self, basename, content,
                          name=None, version=None):
+        check = ""
+        if name is not None:
+            check += f"^{name}"
+        if version is not None:
+            check += f"-{version}"
+        assert re.match(check, basename)
         pkg = self.tmpdir.join(basename)
         pkg.write_binary(content)
         self.devpi('upload', pkg.strpath)
@@ -228,9 +235,10 @@ class Mapp(MappMixin):
         return r.json()
 
     def push(self, name, version, index, indexname=None, code=200):
+        assert indexname is None
         self.devpi('push', '%s==%s' % (name, version), index, code=code)
 
-    def create_project(self, projectname, code=201, indexname=None):
+    def create_project(self, projectname, code=201, indexname=None):  # noqa: ARG002
         pytest.xfail(reason="no way to create project via command line yet")
 
 

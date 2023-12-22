@@ -210,7 +210,7 @@ class TestStage:
         stagename = "hello/world"
         assert model.getstage(stagename) is None
 
-    def test_indexconfig_set_throws_on_unknown_base_index(self, stage, user):
+    def test_indexconfig_set_throws_on_unknown_base_index(self, user):
         with pytest.raises(InvalidIndexconfig) as excinfo:
             user.create_stage(index="something",
                               bases=("root/notexists", "root/notexists2"))
@@ -219,7 +219,7 @@ class TestStage:
         assert "root/notexists" in messages[0]
         assert "root/notexists2" in messages[1]
 
-    def test_indexconfig_set_throws_on_invalid_base_index(self, stage, user):
+    def test_indexconfig_set_throws_on_invalid_base_index(self, user):
         with pytest.raises(InvalidIndexconfig) as excinfo:
             user.create_stage(index="world3", bases=("root/dev/123",))
         messages = excinfo.value.messages
@@ -230,7 +230,8 @@ class TestStage:
         stage = user.create_stage(index="world", bases=("/root/pypi/",))
         assert stage.ixconfig["bases"] == ("root/pypi",)
 
-    def test_empty(self, stage, bases):
+    @pytest.mark.usefixtures("bases")
+    def test_empty(self, stage):
         assert not stage.has_project("someproject")
         assert not stage.list_projects_perstage()
 
@@ -379,7 +380,8 @@ class TestStage:
             "<a href='someproject-1.0.zip' /a>")
         assert not stage.get_versiondata("someproject", "2.0")
 
-    def test_store_and_get_releasefile(self, stage, bases):
+    @pytest.mark.usefixtures("bases")
+    def test_store_and_get_releasefile(self, stage):
         content = b"123"
         link = register_and_store(stage, "some-1.0.zip", content)
         entry = link.entry
@@ -544,7 +546,7 @@ class TestStage:
         ('he_llo,Django', ['he-llo', 'django']),
         ('foo,bar', ['foo', 'bar']),
         ('*', ['*'])])
-    def test_whitelist_setting(self, pypistage, stage, setting, expected):
+    def test_whitelist_setting(self, stage, setting, expected):
         stage.modify(mirror_whitelist=setting)
         ixconfig = stage.get()
         # BBB old devpi versions had pypi_whitelist, here we check that it's gone
@@ -801,7 +803,8 @@ class TestStage:
         assert not stage.has_project_perstage("SOME-xyz")
         assert not stage.has_project_perstage("some-xyz")
 
-    def test_delete_not_existing(self, stage, bases):
+    @pytest.mark.usefixtures("bases")
+    def test_delete_not_existing(self, stage):
         with pytest.raises(stage.NotFound, match="^project.*not found"):
             stage.del_versiondata("hello", "1.0")
         register_and_store(stage, "hello-1.0.zip")
@@ -809,21 +812,24 @@ class TestStage:
         with pytest.raises(stage.NotFound, match="^version.*not found"):
             stage.del_versiondata("hello", "1.0")
 
-    def test_releasefile_sorting(self, stage, bases):
+    @pytest.mark.usefixtures("bases")
+    def test_releasefile_sorting(self, stage):
         register_and_store(stage, "some-1.1.zip")
         register_and_store(stage, "some-1.0.zip")
         entries = stage.get_releaselinks("some")
         assert len(entries) == 2
         assert entries[0].basename == "some-1.1.zip"
 
-    def test_set_versiondata_twice(self, stage, bases, caplog):
+    @pytest.mark.usefixtures("bases")
+    def test_set_versiondata_twice(self, stage, caplog):
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         stage.xom.keyfs.commit_transaction_in_thread()
         with stage.xom.keyfs.write_transaction():
             stage.set_versiondata(udict(name="pkg1", version="1.0"))
         assert caplog.getrecords("nothing to commit")
 
-    def test_getdoczip(self, stage, bases, tmpdir):
+    @pytest.mark.usefixtures("bases")
+    def test_getdoczip(self, stage, tmpdir):
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         assert not stage.get_doczip("pkg1", "1.0")
         content = zip_dict({"index.html": "<html/>",
@@ -837,7 +843,8 @@ class TestStage:
         assert tmpdir.join("_static").check(dir=1)
         assert tmpdir.join("_templ", "x.css").check(file=1)
 
-    def test_multiple_store_doczip_uses_project(self, stage, bases, tmpdir):
+    @pytest.mark.usefixtures("bases")
+    def test_multiple_store_doczip_uses_project(self, stage, tmpdir):
         # check that two store_doczip calls with slightly
         # different names will not lead to two doczip entries
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
@@ -856,7 +863,8 @@ class TestStage:
             archive.extract(tmpdir)
         assert tmpdir.join("index.html").read() == "<html/>"
 
-    def test_simulate_multiple_doczip_entries(self, stage, bases, tmpdir):
+    @pytest.mark.usefixtures("bases")
+    def test_simulate_multiple_doczip_entries(self, stage):
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         stage.store_doczip("pkg1", "1.0", zip_dict({}))
 
@@ -883,7 +891,8 @@ class TestStage:
         doczip = stage.get_doczip("pkg1", "1.0")
         assert doczip == content
 
-    def test_storedoczipfile(self, stage, bases):
+    @pytest.mark.usefixtures("bases")
+    def test_storedoczipfile(self, stage):
         from devpi_common.archive import Archive
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         content = zip_dict({"index.html": "<html/>",
@@ -901,7 +910,8 @@ class TestStage:
         assert '_static' not in namelist
         assert '_templ' not in namelist
 
-    def test_storetoxresult(self, stage, bases):
+    @pytest.mark.usefixtures("bases")
+    def test_storetoxresult(self, stage):
         content = b'123'
         link = register_and_store(stage, "pkg1-1.0.tar.gz", content=content)
         entry = link.entry
@@ -1005,8 +1015,8 @@ class TestStage:
     def test_set_versiondata_hook(self, stage, queue):
         class Plugin:
             @hookimpl
-            def devpiserver_on_changed_versiondata(self,
-                    stage, project, version, metadata):
+            def devpiserver_on_changed_versiondata(
+                    self, stage, project, version, metadata):  # noqa: ARG002
                 queue.put((stage, metadata))
         stage.xom.config.pluginmanager.register(Plugin())
         orig_metadata = udict(name="hello", version="1.0")
@@ -1338,7 +1348,7 @@ class TestStage:
             # and this time we can know when it was deleted
             assert stage.get_last_project_change_serial_perstage('pkg') == (first_serial + 12)
 
-    def test_multi_path_to_mirror_sro(self, model, user):
+    def test_multi_path_to_mirror_sro(self, user):
         stage1 = user.create_stage("stage1", bases=["root/pypi"])
         stage2 = user.create_stage("stage2", bases=["root/pypi"])
         stage3 = user.create_stage("stage3", bases=[stage1.name, stage2.name])

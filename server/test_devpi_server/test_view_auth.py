@@ -13,7 +13,7 @@ class TestCredentialPlugin:
     def plugin(self):
         class Plugin:
             @hookimpl
-            def devpiserver_get_credentials(self, request):
+            def devpiserver_get_credentials(self, request):  # noqa: ARG002
                 return self.results.pop()
         return Plugin()
 
@@ -38,7 +38,7 @@ class TestCredentialPlugins:
     def plugin1(self):
         class Plugin:
             @hookimpl
-            def devpiserver_get_credentials(self, request):
+            def devpiserver_get_credentials(self, request):  # noqa: ARG002
                 return self.results.pop()
         return Plugin()
 
@@ -46,7 +46,7 @@ class TestCredentialPlugins:
     def plugin2(self):
         class Plugin:
             @hookimpl
-            def devpiserver_get_credentials(self, request):
+            def devpiserver_get_credentials(self, request):  # noqa: ARG002
                 return self.results.pop()
         return Plugin()
 
@@ -98,11 +98,13 @@ class TestHeaderCredentialPlugin:
     def xom(self, makexom, plugin):
         return makexom(plugins=[plugin])
 
-    def test_credential_plugin_no_credentials(self, blank_request, dsp, plugin):
+    @pytest.mark.usefixtures("plugin")
+    def test_credential_plugin_no_credentials(self, blank_request, dsp):
         request = blank_request()
         assert dsp._get_credentials(request) is None
 
-    def test_credential_plugin_got_credentials(self, blank_request, dsp, plugin):
+    @pytest.mark.usefixtures("plugin")
+    def test_credential_plugin_got_credentials(self, blank_request, dsp):
         request = blank_request()
         request.headers['X-Devpi-User'] = 'foo'
         assert dsp._get_credentials(request) == ('foo', '')
@@ -115,7 +117,7 @@ class TestDevpiSecurityPolicy:
         return DevpiSecurityPolicy(xom)
 
     @pytest.fixture
-    def blank_request(self, blank_request, policy, pyramidconfig, xom):
+    def blank_request(self, blank_request, policy, pyramidconfig, xom):  # noqa: ARG002
         from pyramid.interfaces import ISecurityPolicy
         from pyramid.threadlocal import get_current_registry
         request = blank_request()
@@ -125,12 +127,12 @@ class TestDevpiSecurityPolicy:
         request.route_url = lambda x: x
         return request
 
-    def test_nouser_basic(self, blank_request, policy, xom):
+    def test_nouser_basic(self, blank_request, policy):
         from pyramid.authentication import b64encode
         blank_request.headers['Authorization'] = 'BASIC ' + b64encode('foo:bar').decode("ascii")
         assert policy.identity(blank_request) is None
 
-    def test_expired(self, blank_request, mock, policy, xom):
+    def test_expired(self, blank_request, mock, policy):
         from pyramid.authentication import b64encode
         with mock.patch('time.time') as timemock:
             timemock.return_code = 0.0

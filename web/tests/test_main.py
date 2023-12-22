@@ -91,7 +91,7 @@ def test_clear_index_cmd(monkeypatch, tmpdir):
             xom_container.append(self)
             XOM.__init__(self, config)
 
-        def httpget(self, url, allow_redirects=True, extra_headers=None):
+        def httpget(self, url, allow_redirects=True, extra_headers=None):  # noqa: ARG002
             class Response:
                 def __init__(self):
                     self.status_code = 200
@@ -147,7 +147,7 @@ class TestConfig:
         hookimpl = HookimplMarker("devpiweb")
 
         class Index(object):
-            def __init__(self, config, settings):
+            def __init__(self, config, settings):  # noqa: ARG002
                 self.settings = settings
 
         class Plugin:
@@ -173,7 +173,7 @@ class TestConfig:
         hookimpl = HookimplMarker("devpiweb")
 
         class Index(object):
-            def __init__(self, config, settings):
+            def __init__(self, config, settings):  # noqa: ARG002
                 self.settings = settings
 
         class Plugin:

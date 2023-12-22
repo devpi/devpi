@@ -75,7 +75,7 @@ class TestIndexParsing:
         link, = result.releaselinks
         assert link == "http://pylib2.org/py-1.0.zip"
 
-    def test_parse_index_invalid_link(self, pypistage):
+    def test_parse_index_invalid_link(self):
         result = parse_index(self.simplepy, '''
                 <a rel="download" href="https:/host.com/123" />
         ''')
@@ -778,7 +778,7 @@ class TestMirrorStageprojects:
             assert pypistage.list_projects_perstage() == {
                 "proj1": "proj1", "proj2": "proj2", "django": "Django"}
 
-    def test_name_cache_expiration_updated_when_no_names_changed(self, httpget, pypistage):
+    def test_name_cache_expiration_updated_when_no_names_changed(self, pypistage):
         pypistage.xom.httpget.mockresponse(
             pypistage.mirror_url, code=200, text="""
             <body>

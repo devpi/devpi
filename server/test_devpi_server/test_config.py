@@ -88,7 +88,7 @@ class TestConfig:
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 1
 
-    def test_bbb_default_secretfile_location(self, caplog, recwarn, tmpdir):
+    def test_bbb_default_secretfile_location(self, caplog, tmpdir):
         # setup secret file in old default location
         configdir = tmpdir.ensure_dir('config')
         configdir.chmod(0o700)

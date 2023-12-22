@@ -256,7 +256,7 @@ class TestStatusView:
     def plugin(self):
         class Plugin:
             @hookimpl
-            def devpiweb_get_status_info(self, request):
+            def devpiweb_get_status_info(self, request):  # noqa: ARG002
                 result = self.results.pop()
                 if isinstance(result, Exception):
                     raise result
@@ -370,7 +370,7 @@ class TestStatusView:
     def test_status_macros_mixed(self, dummyrequest, plugin, statusview, msgs):
         from bs4 import BeautifulSoup
         from devpi_web.main import status_info
-        plugin.results = [[dict(status="fatal", msg="Foo")]]
+        plugin.results = [msgs]
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')

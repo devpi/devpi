@@ -67,7 +67,7 @@ def test_login_plugin(args, hub, login, mock_http_api):
 
     class Plugin:
         @hookimpl
-        def devpiclient_get_password(self, url, username):
+        def devpiclient_get_password(self, url, username):  # noqa: ARG002
             return passwords.pop()
 
     hub.pm.register(Plugin())
