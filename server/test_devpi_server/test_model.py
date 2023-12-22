@@ -355,8 +355,6 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.0.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
-        stage.store_releasefile("someproject", "1.0",
-                                "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         assert len(links) == 1
         assert links[0].entrypath.endswith("someproject-1.0.zip")
@@ -425,8 +423,6 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.1.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
-        stage.store_releasefile("someproject", "1.0",
-                                "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
@@ -469,8 +465,6 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.1.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
-        stage.store_releasefile("someproject", "1.0",
-                                "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
@@ -489,8 +483,6 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.1.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
-        stage.store_releasefile("someproject", "1.0",
-                                "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
@@ -513,8 +505,6 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.1.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
-        stage.store_releasefile("someproject", "1.0",
-                                "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
@@ -535,8 +525,6 @@ class TestStage:
         pypistage.mock_simple("someproject",
             "<a href='someproject-1.1.zip' /a>")
         register_and_store(stage, "someproject-1.0.zip", b"123")
-        stage.store_releasefile("someproject", "1.0",
-                                "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
