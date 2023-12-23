@@ -13,6 +13,10 @@ from devpi_server.log import threadlog
 from urllib.parse import unquote
 
 
+class ChecksumError(ValueError):
+    pass
+
+
 _nodefault = object()
 
 
@@ -306,12 +310,12 @@ def get_checksum_error(content_or_hash, relpath, hash_spec):
     if callable(hexdigest):
         hexdigest = hexdigest()
         if content_or_hash.name != hash_type:
-            return ValueError(
+            return ChecksumError(
                 f"{relpath}: hash type mismatch, "
                 f"got {content_or_hash.name}, expected {hash_type}")
     else:
         hexdigest = hash_algo(content_or_hash).hexdigest()
     if hexdigest != hash_value:
-        return ValueError(
+        return ChecksumError(
             f"{relpath}: {hash_type} mismatch, "
             f"got {hexdigest}, expected {hash_value}")
