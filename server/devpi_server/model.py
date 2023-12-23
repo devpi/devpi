@@ -833,25 +833,21 @@ class BaseStage(object):
         assert len(links) < 2
         return links[0] if links else None
 
-    def store_toxresult(self, link, toxresultdata,
-                        *, filename=None, hashes=None, last_modified=None):
+    def store_toxresult(
+        self, link, content_or_file, *, filename=None, hashes=None, last_modified=None
+    ):
         if self.customizer.readonly:
             raise ReadonlyIndex("index is marked read only")
+        assert not isinstance(content_or_file, dict)
         linkstore = self.get_mutable_linkstore_perstage(link.project, link.version)
-        if isinstance(toxresultdata, dict):
-            warnings.warn(
-                "The 'store_toxresult' method will only accept binary "
-                "content or files in the future, no dictionaries.",
-                DeprecationWarning,
-                stacklevel=2)
-            toxresultdata = json.dumps(toxresultdata).encode("utf-8")
         return linkstore.new_reflink(
             rel="toxresult",
-            content_or_file=toxresultdata,
+            content_or_file=content_or_file,
             for_entrypath=link,
             filename=filename,
             hashes=hashes,
-            last_modified=last_modified)
+            last_modified=last_modified,
+        )
 
     def get_toxresults(self, link):
         l = []
