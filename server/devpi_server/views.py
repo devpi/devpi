@@ -31,7 +31,6 @@ from pyramid.traversal import DefaultRootFactory
 from pyramid.view import exception_view_config
 from pyramid.view import view_config
 from urllib.parse import urlparse
-from urllib3.exceptions import IncompleteRead
 import itertools
 import json
 from devpi_common.request import new_requests_session
@@ -1610,12 +1609,7 @@ class FileStreamer:
         yield _headers_from_response(self.response)
 
         while 1:
-            try:
-                data = self.response.raw.read(10240)
-            except IncompleteRead as e:
-                self.error = BadGateway(str(e))
-                self.error.__cause__ = e  # like raise ... from e
-                return
+            data = self.response.raw.read(10240)
             if not data:
                 break
             filesize += len(data)
@@ -1624,11 +1618,12 @@ class FileStreamer:
             yield data
 
         if content_size and int(content_size) != filesize:
-            self.error = ValueError(
+            raise ValueError(
                 "%s: got %s bytes of %r from remote, expected %s" % (
                     self.relpath, filesize, self.response.url, content_size))
-        if not self.error:
-            self.error = get_checksum_error(running_hash, self.relpath, self.hash_spec)
+        err = get_checksum_error(running_hash, self.relpath, self.hash_spec)
+        if err is not None:
+            raise err
 
 
 def iter_cache_remote_file(xom, entry, url):
@@ -1655,11 +1650,11 @@ def iter_cache_remote_file(xom, entry, url):
         file_streamer = FileStreamer(f, entry, r)
         threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
 
-        yield from file_streamer
-
-        if file_streamer.error:
-            threadlog.error(str(file_streamer.error))
-            raise file_streamer.error
+        try:
+            yield from file_streamer
+        except Exception as err:
+            threadlog.error(str(err))
+            raise
 
         try:
             # when pushing from a mirror to an index, we are still in a
@@ -1752,11 +1747,11 @@ def iter_remote_file_replica(xom, entry, url):
             entry.tx.conn.io_file_new_open(entry._storepath))
         file_streamer = FileStreamer(f, entry, r)
 
-        yield from file_streamer
-
-        if file_streamer.error:
+        try:
+            yield from file_streamer
+        except Exception as err:  # noqa: BLE001 - we have to convert all exceptions
             # the file we got is different, so we fail
-            raise BadGateway(str(file_streamer.error))
+            raise BadGateway(str(err)) from err
 
         try:
             # there is no code path that still has a transaction at this point,
