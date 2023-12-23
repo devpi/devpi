@@ -7,7 +7,6 @@ from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
-from functools import partial
 from html import escape
 from lazy import lazy
 from operator import attrgetter
@@ -1595,50 +1594,39 @@ def _headers_from_response(r):
 
 
 class FileStreamer:
-    def __init__(self, entry, response):
-        self.file_new_open = partial(entry.tx.conn.io_file_new_open, entry._storepath)
+    def __init__(self, f, entry, response):
         self.hash_algo = entry.hash_algo
         self.hash_spec = entry.hash_spec
         self.relpath = entry.relpath
         self.response = response
         self.error = None
-        self.f = None
-
-    def close(self):
-        if self.f:
-            self.f.close()
-
-    def __enter__(self):
-        self.f = self.file_new_open()
-        return self
-
-    def __exit__(self, cls, val, tb):
-        self.close()
+        self.f = f
 
     def __iter__(self):
         filesize = 0
         running_hash = self.hash_algo()
-        with contextlib.closing(self.response) as r:
-            content_size = r.headers.get("content-length")
+        content_size = self.response.headers.get("content-length")
 
-            yield _headers_from_response(r)
+        yield _headers_from_response(self.response)
 
-            while 1:
-                try:
-                    data = r.raw.read(10240)
-                except IncompleteRead as e:
-                    raise BadGateway(str(e)) from e
-                if not data:
-                    break
-                filesize += len(data)
-                running_hash.update(data)
-                self.f.write(data)
-                yield data
+        while 1:
+            try:
+                data = self.response.raw.read(10240)
+            except IncompleteRead as e:
+                self.error = BadGateway(str(e))
+                self.error.__cause__ = e  # like raise ... from e
+                return
+            if not data:
+                break
+            filesize += len(data)
+            running_hash.update(data)
+            self.f.write(data)
+            yield data
 
         if content_size and int(content_size) != filesize:
             self.error = ValueError(
                 "%s: got %s bytes of %r from remote, expected %s" % (
-                    self.relpath, filesize, r.url, content_size))
+                    self.relpath, filesize, self.response.url, content_size))
         if not self.error:
             self.error = get_checksum_error(running_hash, self.relpath, self.hash_spec)
 
@@ -1660,7 +1648,11 @@ def iter_cache_remote_file(xom, entry, url):
         threadlog.error(msg)
         raise BadGateway(msg, code=r.status_code, url=url)
 
-    with FileStreamer(entry, r) as file_streamer:
+    with contextlib.ExitStack() as cstack:
+        cstack.callback(r.close)
+        f = cstack.enter_context(
+            entry.tx.conn.io_file_new_open(entry._storepath))
+        file_streamer = FileStreamer(f, entry, r)
         threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
 
         yield from file_streamer
@@ -1684,7 +1676,7 @@ def iter_cache_remote_file(xom, entry, url):
                     entry = xom.filestore.get_file_entry(
                         entry.relpath, readonly=False)
                 entry.file_set_content(
-                    file_streamer.f, r.headers.get("last-modified", None),
+                    f, r.headers.get("last-modified", None),
                     hash_spec=entry.hash_spec)
                 if entry.project:
                     stage = xom.model.getstage(entry.user, entry.index)
@@ -1693,7 +1685,7 @@ def iter_cache_remote_file(xom, entry, url):
                     stage.add_project_name(entry.project)
                 # on Windows we need to close the file
                 # before the transaction closes
-                file_streamer.close()
+                f.close()
         else:  # noqa: PLR5501
             # the file was downloaded before but locally removed, so put
             # it back in place without creating a new serial
@@ -1701,15 +1693,15 @@ def iter_cache_remote_file(xom, entry, url):
             if tx is not None:
                 if not tx.write:
                     xom.keyfs.restart_as_write_transaction()
-                tx.conn.io_file_set(entry._storepath, file_streamer.f)
+                tx.conn.io_file_set(entry._storepath, f)
                 threadlog.debug(
                     "put missing file back into place: %s", entry._storepath)
             else:
                 with xom.keyfs.get_connection(write=True, timeout=300) as conn:
-                    conn.io_file_set(entry._storepath, file_streamer.f)
+                    conn.io_file_set(entry._storepath, f)
                     # on Windows we need to close the file
                     # before the transaction closes
-                    file_streamer.close()
+                    f.close()
                     threadlog.debug(
                         "put missing file back into place: %s", entry._storepath)
                     conn.commit_files_without_increasing_serial()
@@ -1754,7 +1746,12 @@ def iter_remote_file_replica(xom, entry, url):
             threadlog.error(msg)
             raise BadGateway(msg)
 
-    with FileStreamer(entry, r) as file_streamer:
+    with contextlib.ExitStack() as cstack:
+        cstack.callback(r.close)
+        f = cstack.enter_context(
+            entry.tx.conn.io_file_new_open(entry._storepath))
+        file_streamer = FileStreamer(f, entry, r)
+
         yield from file_streamer
 
         if file_streamer.error:
@@ -1770,14 +1767,14 @@ def iter_remote_file_replica(xom, entry, url):
             # to open a new one below
             tx = None
         if tx is not None and tx.write:
-            entry.tx.conn.io_file_set(entry._storepath, file_streamer.f)
+            entry.tx.conn.io_file_set(entry._storepath, f)
         else:
             # we need a direct write connection to use the io_file_* methods
             with xom.keyfs.get_connection(write=True, timeout=300) as conn:
-                conn.io_file_set(entry._storepath, file_streamer.f)
+                conn.io_file_set(entry._storepath, f)
                 # on Windows we need to close the file
                 # before the transaction closes
-                file_streamer.close()
+                f.close()
                 threadlog.debug(
                     "put missing file back into place: %s", entry._storepath)
                 conn.commit_files_without_increasing_serial()
