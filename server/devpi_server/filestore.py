@@ -255,7 +255,7 @@ class FileEntry(object):
     def file_os_path(self):
         return self.tx.conn.io_file_os_path(self._storepath)
 
-    def file_set_content(self, content_or_file, last_modified=None, hash_spec=None):
+    def file_set_content(self, content_or_file, *, last_modified=None, hash_spec=None):
         if last_modified != -1:
             if last_modified is None:
                 last_modified = unicode_if_bytes(format_date_time(None))

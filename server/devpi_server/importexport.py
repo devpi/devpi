@@ -561,7 +561,7 @@ class Importer:
                 url = URL(mapping['url']).replace(fragment=mapping['hash_spec'])
                 entry = self.xom.filestore.maplink(
                     url, stage.username, stage.index, project)
-                entry.file_set_content(f, mapping["last_modified"])
+                entry.file_set_content(f, last_modified=mapping["last_modified"])
                 (_, links_with_data, serial) = stage._load_cache_links(project)
                 if links_with_data is None:
                     links_with_data = []

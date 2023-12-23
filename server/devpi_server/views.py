@@ -1667,7 +1667,8 @@ def iter_cache_remote_file(stage, entry, url):
                     entry = xom.filestore.get_file_entry(
                         entry.relpath, readonly=False)
                 entry.file_set_content(
-                    f, r.headers.get("last-modified", None),
+                    f,
+                    last_modified=r.headers.get("last-modified", None),
                     hash_spec=entry.hash_spec)
                 if entry.project:
                     stage = xom.model.getstage(entry.user, entry.index)
