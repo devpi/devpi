@@ -165,7 +165,6 @@ class Mapp(MappMixin):
         self.devpi("patchjson", "/" + index, jsonfile, code=code)
 
     def set_acl(self, acls, code=200, indexname=None):
-        #user, password = self.auth
         indexname = self._getindexname(indexname)
         if isinstance(acls, list):
             acls = ",".join(acls)

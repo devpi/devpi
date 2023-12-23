@@ -1203,7 +1203,6 @@ class TestSubmitValidation:
                     "description": "hello world"}
         submit.metadata(metadata, code=200)
         mapp.getjson("/%s/pkg1" % submit.stagename, code=200)
-        #assert location.endswith("/Pkg1")
 
 
 def test_submit_authorization(mapp, testapp):
@@ -1640,7 +1639,6 @@ def test_upload_and_delete_project_version(mapp):
     mapp.delete_project("pkg1/2.6", code=200)
     assert mapp.getjson(api.index + "/pkg1")["result"]
     mapp.delete_project("pkg1/2.7", code=200)
-    #assert mapp.getjson("/user/name/pkg1/")["status"] == 404
     mapp.getjson(api.index + "pkg1", code=404)
 
 

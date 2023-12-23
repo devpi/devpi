@@ -964,10 +964,6 @@ class TestStage:
         stage.set_versiondata(udict(name="hello", version="1.0", author="xy"))
         d = stage.get_versiondata("hello", "1.0")
         assert d["author"] == "xy"
-        #stage.ixconfig["volatile"] = False
-        #with pytest.raises(stage.MetadataExists):
-        #    stage.set_versiondata(udict(name="hello", version="1.0"))
-        #
 
     def test_filename_version_mangling_issue68(self, stage):
         assert not stage.get_versiondata("hello", "1.0")
@@ -977,10 +973,6 @@ class TestStage:
                             "hello-1.0_test.whl", b"")
         ver = stage.get_latest_version_perstage("hello")
         assert ver == "1.0-test"
-        #stage.ixconfig["volatile"] = False
-        #with pytest.raises(stage.MetadataExists):
-        #    stage.set_versiondata(udict(name="hello", version="1.0"))
-        #
 
     def test_get_versiondata_latest(self, stage):
         stage.set_versiondata(udict(name="hello", version="1.0"))

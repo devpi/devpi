@@ -833,11 +833,6 @@ class Mapp(MappMixin):
                          set_whitelist=True):
         assert isinstance(content, bytes)
         indexname = self._getindexname(indexname)
-        #name_version = splitbasename(basename, checkarch=False)
-        #if not name:
-        #    name = name_version[0]
-        #if not version:
-        #    version = name_version[1]
         if register and code == 200:
             self.set_versiondata(
                 dict(name=name, version=version), set_whitelist=set_whitelist)
@@ -935,7 +930,6 @@ class MyTestApp(TApp):
             if not headers:
                 headers = kw["headers"] = {}
             headers["X-Devpi-Auth"] = b64encode("%s:%s" % self.auth)
-            #print ("setting auth header %r %s %s" % (auth, method, url))
 
         # fill headers with defaults
         for name, val in self.headers.items():

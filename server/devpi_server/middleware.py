@@ -11,8 +11,6 @@ class OutsideURLMiddleware(object):
         if not outside_url:
             outside_url = self.xom.config.args.outside_url
         if outside_url:
-            # XXX memoize it for later access from replica thread
-            # self.xom.current_outside_url = outside_url
             outside_url = urlparse(outside_url)
             environ['wsgi.url_scheme'] = outside_url.scheme
             environ['HTTP_HOST'] = outside_url.netloc

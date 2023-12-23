@@ -777,7 +777,6 @@ def devpiserver_metrics(request):
 
 
 def includeme(config):
-    # config.add_request_method(devpi_token_utility, reify=True)
     config.add_route("/+changelog/{serial}", r"/+changelog/{serial:\d+}")
     config.add_route("/+changelog/{serial}-", r"/+changelog/{serial:\d+}-")
     config.scan("devpi_server.replica")

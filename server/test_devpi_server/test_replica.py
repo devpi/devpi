@@ -1241,7 +1241,7 @@ class TestFileReplicationSharedData:
 
         # simulate index creation
         shared_data.on_import(0, changes[0])
-        # import file
+        # import the file
         shared_data.on_import(1, changes[1])
         assert shared_data.queue.qsize() == 1
         shared_data.process_next(handler)
@@ -1250,7 +1250,7 @@ class TestFileReplicationSharedData:
         result.clear()
         # simulate index deletion
         shared_data.on_import(2, changes[2])
-        # import file
+        # import the file
         shared_data.on_import(3, changes[3])
         assert shared_data.queue.qsize() == 1
         shared_data.process_next(handler)
@@ -1259,7 +1259,7 @@ class TestFileReplicationSharedData:
         result.clear()
         # simulate index recreation
         shared_data.on_import(4, changes[4])
-        # import file
+        # import the file
         shared_data.on_import(5, changes[5])
         assert shared_data.queue.qsize() == 1
         shared_data.process_next(handler)
@@ -1268,7 +1268,7 @@ class TestFileReplicationSharedData:
         result.clear()
         # simulate user deletion
         shared_data.on_import(6, changes[6])
-        # import file
+        # import the file
         shared_data.on_import(7, changes[7])
         assert shared_data.queue.qsize() == 1
         shared_data.process_next(handler)
