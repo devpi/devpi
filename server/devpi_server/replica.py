@@ -21,13 +21,14 @@ from webob.headers import EnvironHeaders, ResponseHeaders
 from . import mythread
 from .config import hookimpl
 from .exceptions import lazy_format_exception
+from .filestore import ChecksumError
 from .filestore import FileEntry
-from .filestore import get_checksum_error
 from .filestore import get_file_hash
 from .fileutil import buffered_iterator
 from .fileutil import dumps, load, loads
 from .log import thread_push_log, threadlog
 from .main import fatal
+from .views import FileStreamer
 from .views import H_MASTER_UUID, make_uuid_headers
 from .model import UpstreamError
 
@@ -907,6 +908,7 @@ class FileReplicationThread:
                 conn.commit_files_without_increasing_serial()
             self.shared_data.errors.remove(entry)
             return
+        del f
 
         threadlog.info(
             "retrieving file from master for serial %s: %s", serial, relpath)
@@ -922,93 +924,82 @@ class FileReplicationThread:
                 'Authorization': 'Bearer %s' % token},
             stream=True,
             timeout=self.xom.config.args.request_timeout)
-        with contextlib.closing(r):
-            if r.status_code == 302:
-                # mirrors might redirect to external file when
-                # mirror_use_external_urls is set
-                threadlog.info(
-                    "ignoring because of redirection to external URL: %s",
-                    relpath)
+        if r.status_code == 302:
+            r.close()
+            # mirrors might redirect to external file when
+            # mirror_use_external_urls is set
+            threadlog.info(
+                "ignoring because of redirection to external URL: %s",
+                relpath)
+            self.shared_data.errors.remove(entry)
+            return
+        if r.status_code == 410:
+            r.close()
+            # master indicates Gone for files which were later deleted
+            threadlog.info(
+                "ignoring because of later deletion: %s",
+                relpath)
+            self.shared_data.errors.remove(entry)
+            return
+
+        if r.status_code in (404, 502):
+            r.close()
+            stagename = '/'.join(relpath.split('/')[:2])
+            with self.xom.keyfs.read_transaction(at_serial=serial):
+                stage = self.xom.model.getstage(stagename)
+            if stage.ixconfig['type'] == 'mirror':
+                threadlog.warn(
+                    "ignoring file which couldn't be retrieved from mirror index '%s': %s",
+                    stagename, relpath)
                 self.shared_data.errors.remove(entry)
                 return
-            if r.status_code == 410:
-                # master indicates Gone for files which were later deleted
-                threadlog.info(
-                    "ignoring because of later deletion: %s",
-                    relpath)
-                self.shared_data.errors.remove(entry)
-                return
 
-            if r.status_code in (404, 502):
-                stagename = '/'.join(relpath.split('/')[:2])
-                with self.xom.keyfs.read_transaction(at_serial=serial):
-                    stage = self.xom.model.getstage(stagename)
-                if stage.ixconfig['type'] == 'mirror':
-                    threadlog.warn(
-                        "ignoring file which couldn't be retrieved from mirror index '%s': %s",
-                        stagename, relpath)
-                    self.shared_data.errors.remove(entry)
-                    return
+        if r.status_code != 200:
+            r.close()
+            threadlog.error(
+                "error downloading '%s' from master, will be retried later: %s",
+                relpath, r.reason)
+            # add the error for the UI
+            self.shared_data.errors.add(dict(
+                url=r.url,
+                message=r.reason,
+                relpath=entry.relpath))
+            # and raise for retrying later
+            raise FileReplicationError(r, relpath)
 
-            if r.status_code != 200:
-                threadlog.error(
-                    "error downloading '%s' from master, will be retried later: %s",
-                    relpath, r.reason)
-                # add the error for the UI
-                self.shared_data.errors.add(dict(
-                    url=r.url,
-                    message=r.reason,
-                    relpath=entry.relpath))
-                # and raise for retrying later
-                raise FileReplicationError(r, relpath)
-
-            running_hash = entry.hash_algo()
-            hash_spec = entry.hash_spec
+        with contextlib.ExitStack() as cstack:
+            cstack.callback(r.close)
 
             with keyfs.get_connection(write=False) as conn:
                 # get a new file, but close the transaction again
-                f = conn.io_file_new_open(entry._storepath)
+                f = cstack.enter_context(
+                    conn.io_file_new_open(entry._storepath))
 
-            with contextlib.closing(f):
-                filesize = 0
-                content_size = r.headers.get("content-length")
-                err = None
+            file_streamer = FileStreamer(f, entry, r)
 
-                while 1:
-                    data = r.raw.read(10240)
-                    if not data:
-                        break
-                    filesize += len(data)
-                    running_hash.update(data)
-                    f.write(data)
+            try:
+                for _chunk in file_streamer:
+                    # we only need the data to be written to the file
+                    pass
+            except Exception as err:
+                if isinstance(err, ChecksumError):
+                    threadlog.error(
+                        "checksum mismatch for '%s', will be retried later: %s",
+                        relpath, r.reason)
+                self.shared_data.errors.add(dict(
+                    url=r.url,
+                    message=str(err),
+                    relpath=entry.relpath))
+                return
 
-                if content_size and int(content_size) != filesize:
-                    err = ValueError(
-                        "%s: got %s bytes of %r from remote, expected %s" % (
-                            entry.relpath, filesize, r.url, content_size))
-
-                if not err:
-                    err = get_checksum_error(running_hash, entry.relpath, hash_spec)
-                    if err:
-                        threadlog.error(
-                            "checksum mismatch for '%s', will be retried later: %s",
-                            relpath, r.reason)
-
-                if err is not None:
-                    self.shared_data.errors.add(dict(
-                        url=r.url,
-                        message=str(err),
-                        relpath=entry.relpath))
-                    return
-
-                # in case there were errors before, we can now remove them
-                self.shared_data.errors.remove(entry)
-                with keyfs.get_connection(write=True) as conn:
-                    conn.io_file_set(entry._storepath, f)
-                    # on Windows we need to close the file
-                    # before the transaction closes
-                    f.close()
-                    conn.commit_files_without_increasing_serial()
+            # in case there were errors before, we can now remove them
+            self.shared_data.errors.remove(entry)
+            with keyfs.get_connection(write=True) as conn:
+                conn.io_file_set(entry._storepath, f)
+                # on Windows we need to close the file
+                # before the transaction closes
+                f.close()
+                conn.commit_files_without_increasing_serial()
 
     def handler(self, index_type, serial, key, keyname, value, back_serial):
         keyfs = self.xom.keyfs
