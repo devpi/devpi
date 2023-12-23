@@ -110,6 +110,50 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
+def find_python3():
+    if sys.version_info >= (3, 7):
+        return sys.executable
+    locations = [
+        "C:\\Python37-x64\\python.exe",
+        "C:\\Python37\\python.exe",
+        "C:\\Python38-x64\\python.exe",
+        "C:\\Python38\\python.exe",
+        "C:\\Python39-x64\\python.exe",
+        "C:\\Python39\\python.exe",
+        "C:\\Python310-x64\\python.exe",
+        "C:\\Python310\\python.exe",
+        "C:\\Python311-x64\\python.exe",
+        "C:\\Python311\\python.exe"]
+    for location in locations:
+        if not os.path.exists(location):
+            continue
+        try:
+            output = subprocess.check_output([location, '--version'])
+            if output.strip().startswith(b'Python 3'):
+                return location
+        except subprocess.CalledProcessError:
+            continue
+    names = [
+        'python3.7',
+        'python3.8',
+        'python3.9',
+        'python3.10',
+        'python3.11',
+        'python3']
+    for name in names:
+        path = shutil.which(name)
+        if path is None:
+            continue
+        try:
+            print("Checking %s at %s" % (name, path))
+            output = subprocess.check_output([path, '--version'])
+            if output.strip().startswith(b'Python 3'):
+                return path
+        except subprocess.CalledProcessError:
+            continue
+    raise RuntimeError("Can't find a Python 3 executable.")
+
+
 def get_venv_script(venv_path, script_names):
     for bindir in ('Scripts', 'bin'):
         for script_name in script_names:
@@ -136,11 +180,12 @@ def server_executable(request, tmpdir_factory):
                 f"server_executable: Using existing devpi-server at {path}")
             return path
     # there is no devpi-server installed
+    python3 = find_python3()
     # create a virtualenv
     venv_path = tmpdir_factory.mktemp("server_venv")
     check_call(
         request,
-        [sys.executable, '-m', 'virtualenv', str(venv_path)])
+        [sys.executable, '-m', 'virtualenv', '-p', python3, str(venv_path)])
     # install devpi-server
     venv_python = get_venv_script(venv_path, ('python', 'python.exe'))
     print(  # noqa: T201 only used for tests
