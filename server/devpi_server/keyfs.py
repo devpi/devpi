@@ -182,9 +182,10 @@ class TxNotificationThread:
                     elif ixconfig.get('type') == 'mirror' and ixconfig.get('mirror_use_external_urls', False):
                         # the index uses external URLs now
                         continue
-                    if conn.io_file_exists(entry._storepath):
-                        # all good
-                        continue
+                    with self.keyfs.filestore_transaction():
+                        if entry.file_exists():
+                            # all good
+                            continue
                     # the file is missing, check whether we can ignore it
                     serial = self.keyfs.get_current_serial()
                     if event_serial < serial:
@@ -377,9 +378,11 @@ class KeyFS(object):
             key = key(**key.extract_params(relpath))
         return key
 
-    def _tx_prefix(self):
+    def _tx_prefix(self, *, filestore=False):
         tx = self._threadlocal.tx
-        return "[%stx%s]" % ("W" if tx.write else "R", tx.at_serial)
+        mode = "F" if filestore else ("W" if tx.write else "R")
+        at_serial = getattr(tx, "at_serial", "")
+        return "[%stx%s]" % (mode, at_serial)
 
     def begin_transaction_in_thread(self, write=False, at_serial=None):
         if write and self._readonly:
@@ -428,6 +431,40 @@ class KeyFS(object):
             self._threadlocal.tx.commit()
         finally:
             self.clear_transaction()
+
+    @contextlib.contextmanager
+    def _filestore_transaction(self):
+        tx = FileStoreTransaction(self)
+        self._threadlocal.tx = tx
+        prefix = self._tx_prefix(filestore=True)
+        thread_push_log(prefix)
+        try:
+            yield tx
+        except BaseException:
+            try:
+                tx.rollback()
+            finally:
+                del self._threadlocal.tx
+                thread_pop_log(prefix)
+            raise
+        try:
+            tx.commit()
+        finally:
+            del self._threadlocal.tx
+            thread_pop_log(prefix)
+
+    @contextlib.contextmanager
+    def filestore_transaction(self):
+        """Guarantees a transaction able to directly write files.
+
+        An existing transaction is reused.
+        """
+        tx = getattr(self._threadlocal, "tx", None)
+        if tx is not None:
+            yield tx
+        else:
+            with self._filestore_transaction() as tx:
+                yield tx
 
     @contextlib.contextmanager
     def _transaction(self, *, write=False, at_serial=None):
@@ -573,6 +610,38 @@ class TransactionRootModel(RootModel):
         if key not in self.model_cache:
             self.model_cache[key] = super().getstage(user, index)
         return self.model_cache[key]
+
+
+class FileStoreTransaction:
+    def __init__(self, keyfs):
+        self.keyfs = keyfs
+        self.closed = False
+        self.write = True
+
+    @cached_property
+    def conn(self):
+        return self.keyfs.get_connection(write=True, closing=False)
+
+    def _close(self):
+        if self.closed:
+            # We can reach this when the transaction is restarted and there
+            # is an exception after the commit and before the assignment of
+            # the __dict__. The ``transaction`` context manager will call
+            # ``rollback``, which then arrives here.
+            return
+        threadlog.debug("closing filestore transaction")
+        self.conn.close()
+        self.closed = True
+
+    def commit(self):
+        self.conn.commit_files_without_increasing_serial()
+        self._close()
+
+    def rollback(self):
+        if hasattr(self.conn, "rollback"):
+            self.conn.rollback()
+        threadlog.debug("filestore transaction rollback")
+        self._close()
 
 
 class Transaction(object):

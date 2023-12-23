@@ -931,7 +931,7 @@ class FileReplicationThread:
 
     def find_pre_existing_file(self, entry):
         if self.file_search_path is None:
-            return
+            return (None, None)
         path = os.path.join(self.file_search_path, entry.relpath)
         if not os.path.exists(path):
             # look for file in export layout
@@ -943,9 +943,9 @@ class FileReplicationThread:
                 path = os.path.join(self.file_search_path, *parts)
         if not os.path.exists(path):
             threadlog.debug("path for existing file not found: %s", path)
-            return
+            return (None, None)
         threadlog.debug("checking existing file: %s", path)
-        f = open(path, "rb")
+        f = open(path, "rb")  # noqa: SIM115 - file is returned
         errors = entry.hashes.errors_for(f)
         if errors:
             f.close()
@@ -954,12 +954,12 @@ class FileReplicationThread:
                 entry.best_available_hash_type, next(iter(errors)))['msg']
             threadlog.info(
                 "%s: %s", error_msg, path)
-            return None
+            return (None, None)
         threadlog.info("using matching existing file: %s", path)
         f.seek(0)
         if self.use_hard_links:
             f.devpi_srcpath = path
-        return f
+        return (f, entry.hashes)
 
     def importer(self, serial, key, val, back_serial, session):
         threadlog.debug("FileReplicationThread.importer for %s, %s", key, val)
@@ -968,36 +968,34 @@ class FileReplicationThread:
         entry = self.xom.filestore.get_file_entry_from_key(key, meta=val)
         if val is None:
             if back_serial >= 0:
-                with keyfs.get_connection(write=True) as conn:
+                with keyfs.filestore_transaction():
                     # file was deleted, still might never have been replicated
-                    if conn.io_file_exists(entry._storepath):
+                    if entry.file_exists():
                         threadlog.info("mark for deletion: %s", relpath)
-                        conn.io_file_delete(entry._storepath)
-                        conn.commit_files_without_increasing_serial()
+                        entry.file_delete()
                 self.shared_data.errors.remove(entry)
                 return
         if entry.last_modified is None:
             # there is no remote file
             self.shared_data.errors.remove(entry)
             return
-        with keyfs.get_connection(write=False) as conn:
-            if conn.io_file_exists(entry._storepath):
+        with keyfs.filestore_transaction():
+            if entry.file_exists():
                 # we already have a file
                 self.shared_data.errors.remove(entry)
                 return
 
-        f = self.find_pre_existing_file(entry)
+        (f, hashes) = self.find_pre_existing_file(entry)
         if f is not None:
             # we found a matching existing file
-            with keyfs.get_connection(write=True) as conn:
-                conn.io_file_set(entry._storepath, f)
+            with keyfs.filestore_transaction():
+                entry.file_set_content_no_meta(f, hashes=hashes)
                 # on Windows we need to close the file
                 # before the transaction closes
                 f.close()
-                conn.commit_files_without_increasing_serial()
             self.shared_data.errors.remove(entry)
             return
-        del f
+        del f, hashes
 
         threadlog.info(
             "retrieving file from primary for serial %s: %s", serial, relpath)
@@ -1059,10 +1057,9 @@ class FileReplicationThread:
         with contextlib.ExitStack() as cstack:
             cstack.callback(r.close)
 
-            with keyfs.get_connection(write=False) as conn:
+            with keyfs.filestore_transaction():
                 # get a new file, but close the transaction again
-                f = cstack.enter_context(
-                    conn.io_file_new_open(entry._storepath))
+                f = cstack.enter_context(entry.file_new_open())
 
             file_streamer = FileStreamer(f, entry, r)
 
@@ -1083,12 +1080,11 @@ class FileReplicationThread:
 
             # in case there were errors before, we can now remove them
             self.shared_data.errors.remove(entry)
-            with keyfs.get_connection(write=True) as conn:
-                conn.io_file_set(entry._storepath, f)
+            with keyfs.filestore_transaction():
+                entry.file_set_content_no_meta(f, hashes=file_streamer.hashes)
                 # on Windows we need to close the file
                 # before the transaction closes
                 f.close()
-                conn.commit_files_without_increasing_serial()
 
     def handler(self, index_type, serial, key, keyname, value, back_serial):
         keyfs = self.xom.keyfs

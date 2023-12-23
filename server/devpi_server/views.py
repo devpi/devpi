@@ -1745,8 +1745,7 @@ def iter_cache_remote_file(stage, entry, url):
 
     with contextlib.ExitStack() as cstack:
         cstack.callback(r.close)
-        f = cstack.enter_context(
-            entry.tx.conn.io_file_new_open(entry._storepath))
+        f = cstack.enter_context(entry.file_new_open())
         file_streamer = FileStreamer(f, entry, r)
         threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
 
@@ -1755,15 +1754,6 @@ def iter_cache_remote_file(stage, entry, url):
         except Exception as err:
             threadlog.error(str(err))
             raise
-
-        try:
-            # when pushing from a mirror to an index, we are still in a
-            # transaction
-            tx = entry.tx
-        except AttributeError:
-            # when streaming we won't be in a transaction anymore, so we need
-            # to open a new one below
-            tx = None
 
         if not entry.has_existing_metadata():
             with xom.keyfs.write_transaction(allow_restart=True):
@@ -1783,25 +1773,16 @@ def iter_cache_remote_file(stage, entry, url):
                 # on Windows we need to close the file
                 # before the transaction closes
                 f.close()
-        else:  # noqa: PLR5501
+        else:
             # the file was downloaded before but locally removed, so put
             # it back in place without creating a new serial
-            # we need a direct write connection to use the io_file_* methods
-            if tx is not None:
-                if not tx.write:
-                    xom.keyfs.restart_as_write_transaction()
-                tx.conn.io_file_set(entry._storepath, f)
+            with xom.keyfs.filestore_transaction():
+                entry.file_set_content_no_meta(f, hashes=file_streamer.hashes)
                 threadlog.debug(
                     "put missing file back into place: %s", entry._storepath)
-            else:
-                with xom.keyfs.get_connection(write=True, timeout=300) as conn:
-                    conn.io_file_set(entry._storepath, f)
-                    # on Windows we need to close the file
-                    # before the transaction closes
-                    f.close()
-                    threadlog.debug(
-                        "put missing file back into place: %s", entry._storepath)
-                    conn.commit_files_without_increasing_serial()
+                # on Windows we need to close the file
+                # before the transaction closes
+                f.close()
 
 
 def iter_remote_file_replica(stage, entry, url):
@@ -1840,8 +1821,7 @@ def iter_remote_file_replica(stage, entry, url):
 
     with contextlib.ExitStack() as cstack:
         cstack.callback(r.close)
-        f = cstack.enter_context(
-            entry.tx.conn.io_file_new_open(entry._storepath))
+        f = cstack.enter_context(entry.file_new_open())
         file_streamer = FileStreamer(f, entry, r)
 
         try:
@@ -1850,26 +1830,12 @@ def iter_remote_file_replica(stage, entry, url):
             # the file we got is different, so we fail
             raise BadGateway(str(err)) from err
 
-        try:
-            # there is no code path that still has a transaction at this point,
-            # but we handle that case just to be safe
-            tx = entry.tx
-        except AttributeError:
-            # when streaming we won't be in a transaction anymore, so we need
-            # to open a new one below
-            tx = None
-        if tx is not None and tx.write:
-            entry.tx.conn.io_file_set(entry._storepath, f)
-        else:
-            # we need a direct write connection to use the io_file_* methods
-            with xom.keyfs.get_connection(write=True, timeout=300) as conn:
-                conn.io_file_set(entry._storepath, f)
-                # on Windows we need to close the file
-                # before the transaction closes
-                f.close()
-                threadlog.debug(
-                    "put missing file back into place: %s", entry._storepath)
-                conn.commit_files_without_increasing_serial()
+        with xom.keyfs.filestore_transaction():
+            entry.file_set_content_no_meta(f, hashes=file_streamer.hashes)
+            # on Windows we need to close the file
+            # before the transaction closes
+            f.close()
+            threadlog.debug("put missing file back into place: %s", entry._storepath)
         # in case there were errors before, we can now remove them
         replication_errors.remove(entry)
 

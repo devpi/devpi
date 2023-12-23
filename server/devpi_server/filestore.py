@@ -533,6 +533,9 @@ class FileEntry(object):
     def __repr__(self):
         return f"<FileEntry {self.key!r}>"
 
+    def file_new_open(self):
+        return self.tx.conn.io_file_new_open(self._storepath)
+
     def file_open_read(self):
         return self.tx.conn.io_file_open(self._storepath)
 
@@ -562,6 +565,9 @@ class FileEntry(object):
         # end up only committing file content without any keys
         # changed which will not replay correctly at a replica.
         self.key.set(self.meta)
+
+    def file_set_content_no_meta(self, content_or_file, *, hashes=None):  # noqa: ARG002
+        self.tx.conn.io_file_set(self._storepath, content_or_file)
 
     def gethttpheaders(self):
         assert self.file_exists()
