@@ -20,13 +20,7 @@ from io import BytesIO
 pytestmark = [pytest.mark.writetransaction]
 
 
-def udict(**kw):
-    """ return a dict where the keys are normalized to unicode. """
-    d = {}
-    for name, val in kw.items():
-        name = str(name)
-        d[name] = val
-    return d
+udict = dict
 
 
 @pytest.fixture(params=[(), ("root/pypi",)])
