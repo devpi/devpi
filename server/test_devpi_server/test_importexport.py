@@ -548,6 +548,7 @@ class TestImportExport:
             userconfig = mapp.xom.model.get_user('user').get()
             assert userconfig['indexes'] == {}
 
+    @pytest.mark.slow
     def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
         import hashlib
         from time import sleep
@@ -865,6 +866,7 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         mapp2.login("exp", "pass")
 
+    @pytest.mark.slow
     def test_docs_are_preserved(self, impexp):
         from time import sleep
         mapp1 = impexp.mapp1

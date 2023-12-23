@@ -55,6 +55,7 @@ def files_directory(server_directory):
 
 
 class TestStreaming(object):
+    @pytest.mark.slow
     @pytest.mark.parametrize("length,pkg_version,pkg_name", [
         (None, '1.0', 'pkg1'), (False, '1.1', 'pkg2')])
     def test_streaming_download(self, content_digest, files_directory, length, pkg_version, pkg_name, server_url_session, simpypi, storage_info):

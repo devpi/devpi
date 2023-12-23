@@ -29,6 +29,7 @@ def fetch(url, headers=None):
         return e
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("headers, path, expected", [
     (
         {"Host": "outside3.com"}, "",
@@ -56,6 +57,7 @@ class TestWithOutsideURLHeader:
                 flags=re.I | re.M)
         return adjust_nginx_conf_content
 
+    @pytest.mark.slow
     def test_outside_url_nginx(self, nginx_host_port):
         (host, port) = nginx_host_port
         r = fetch(f'http://{host}:{port}/+api')
@@ -77,6 +79,7 @@ class TestWithOutsideURLSubPathHeader:
                 flags=re.I | re.M)
         return adjust_nginx_conf_content
 
+    @pytest.mark.slow
     def test_outside_url_nginx(self, nginx_host_port):
         (host, port) = nginx_host_port
         r = fetch(f'http://{host}:{port}/+api')

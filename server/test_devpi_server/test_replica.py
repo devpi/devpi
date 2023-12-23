@@ -301,6 +301,7 @@ class TestReplicaThread:
             rt.thread_run()
         assert caplog.getrecords("error fetching.*x-devpi-serial")
 
+    @pytest.mark.slow
     def test_thread_run_try_again(self, rt, mockchangelog, caplog):
         l = [1]
 
@@ -721,6 +722,7 @@ class TestFileReplication:
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
             assert not r_entry.file_exists()
 
+    @pytest.mark.slow
     @pytest.mark.usefixtures("reqmock")
     def test_fetch_pypi_nomd5(self, gen, patch_reqsessionmock, xom, replica_xom):
         (frthread,) = replica_xom.replica_thread.file_replication_threads
@@ -1114,6 +1116,7 @@ class TestFileReplicationSharedData:
         assert shared_data.queue.qsize() == 0
         assert result == [100, 10, 1]
 
+    @pytest.mark.slow
     def test_error_queued(self, shared_data):
         relpath = 'root/dev/+f/274/e88b0b3d028fe/pytest-2.1.0.zip'
         key = shared_data.xom.keyfs.get_key_instance('STAGEFILE', relpath)
