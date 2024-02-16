@@ -3,6 +3,7 @@ set -xe -o nounset
 yes yes | devpi index --delete "${DEVPI_INDEXNAME}" || true
 devpi index -c "${DEVPI_INDEXNAME}" bases=root/pypi
 devpi use "${DEVPI_INDEXNAME}"
+devpi push --index root/pypi devpi-common==3.7.2 "${DEVPI_INDEXNAME}"
 devpi push --index root/pypi devpi-server==5.2.0 "${DEVPI_INDEXNAME}"
 devpi push --index root/pypi devpi-server==6.8.0 "${DEVPI_INDEXNAME}"
 pushd common

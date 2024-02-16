@@ -2,6 +2,9 @@ from devpi_web.indexing import ProjectIndexingInfo
 import pytest
 
 
+pytestmark = [pytest.mark.notransaction]
+
+
 @pytest.mark.parametrize("input, expected", [
     ("Foo", [(0, 0, 3, "Foo")]),
     ("Foo Bar", [(0, 0, 3, "Foo"), (1, 4, 7, "Bar")]),

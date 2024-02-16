@@ -11,7 +11,7 @@ Reporting Bugs
 Pull Requests
 -------------
 
-- Submit Pull Requests against the ``master`` branch.
+- Submit Pull Requests against the ``main`` branch.
 - Provide a good description of what you're doing and why.
 - Provide tests that cover your changes and try to run the tests locally first.
 - If you are unsure on how to write a test, please ask and we will point you to
@@ -64,3 +64,11 @@ $ pip install sphinx
 $ make html
 
 To get started contributing, you’ll want to read the `reStructuredText reference <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html#rst-index>`_.
+
+To regenerate the command line examples run the following::
+
+$ PIP_INDEX_URL=https://pypi.org/simple/ make regen
+
+That uses the official releases.
+If you want to use unreleased versions,
+use a custom index on a devpi server.

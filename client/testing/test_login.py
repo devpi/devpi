@@ -1,9 +1,8 @@
 from devpi.main import Hub, hookimpl
 from devpi.login import main
 from functools import partial
-from io import BytesIO, StringIO
+from io import StringIO
 import pytest
-import sys
 
 
 class GetPassException(Exception):
@@ -25,11 +24,7 @@ def args(tmpdir):
 
 @pytest.fixture
 def hub(args):
-    # BBB for Python 2.7
-    if sys.version_info < (3,):
-        out = BytesIO()
-    else:
-        out = StringIO()
+    out = StringIO()
     hub = Hub(args, file=out)
     hub._out = out
     return hub
@@ -129,3 +124,20 @@ def test_login_with_relative_index_environment(capfd, devpi, devpi_username, mon
         url,
         devpi_username)
     assert msg in out
+
+
+@pytest.mark.skipif("config.option.fast")
+def test_login_with_old_client_data(capfd, devpi, devpi_username, tmp_path, url_of_liveserver):
+    from shutil import rmtree
+    client_path = tmp_path / "client"
+    rmtree(client_path)
+    client_path.mkdir()
+    # starting with 6.0.4 there was an error if there was old authentication data
+    with client_path.joinpath('current.json').open('w') as f:
+        f.write("""{"auth": {}}""")
+    devpi("use", url_of_liveserver.url)
+    (out, err) = capfd.readouterr()
+    assert "using server: %s/ (not logged in)" % url_of_liveserver.url in out
+    devpi("login", devpi_username, "--password", "123")
+    (out, err) = capfd.readouterr()
+    assert 'credentials valid for' in out

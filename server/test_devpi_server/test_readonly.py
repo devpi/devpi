@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from collections.abc import Sequence
-from collections.abc import Set
+from collections.abc import Set  # noqa: PYI025
 from devpi_server.readonly import ensure_deeply_readonly
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_server.readonly import is_deeply_readonly
@@ -10,7 +10,7 @@ import pytest
 
 class TestEnsureDeeplyReadonly:
     def test_bool(self) -> None:
-        result = ensure_deeply_readonly(True)
+        result = ensure_deeply_readonly(True)  # noqa: FBT003
         assert isinstance(result, bool)
         assert result is True
 

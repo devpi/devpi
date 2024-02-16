@@ -5,6 +5,9 @@ import pytest
 import re
 
 
+pytestmark = [pytest.mark.notransaction]
+
+
 @pytest.fixture
 def makexom(request, makexom):
     orig_makexom = makexom
@@ -283,6 +286,7 @@ def test_pip_search(mapp, pypistage, testapp):
     mapp.set_versiondata({"name": "pkg2", "version": "2.7"}, waithooks=True)
     # now we can access the indexer directly without causing locking issues
     indexer = get_indexer(mapp.xom)
+    indexer.indexer_thread.wait()
     with mapp.xom.keyfs.transaction(write=False):
         stage = mapp.xom.model.getstage(pypistage.name)
         indexer.update_projects([

@@ -5,6 +5,7 @@ import textwrap
 
 
 devpi_server_version = parse_version(_devpi_server_version)
+pytestmark = [pytest.mark.notransaction]
 
 
 def test_importable():
@@ -100,7 +101,7 @@ def test_clear_index_cmd(monkeypatch, tmpdir):
 
         def create_app(self):
             # if the webserver is started, we fail
-            0 / 0
+            0 / 0  # noqa: B018
 
     calls = []
 

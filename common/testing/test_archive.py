@@ -4,12 +4,9 @@ from devpi_common.archive import zip_dict
 from devpi_common.archive import zip_dir
 from io import BytesIO
 from subprocess import Popen, PIPE
-import py
 import pytest
+import shutil
 import sys
-
-
-datadir = py.path.local(__file__).dirpath("data")
 
 
 def check_files(tmpdir):
@@ -30,7 +27,7 @@ def _writedir(tmpdir, contentdict, prefixes=()):
 
 
 def create_tarfile_fromdict(tmpdir, contentdict):
-    tar = py.path.local.sysfind("tar")
+    tar = shutil.which("tar")
     if not tar:
         pytest.skip("tar command not found")
     if sys.platform.startswith('win'):
@@ -103,9 +100,10 @@ class TestArchive:
 
 
 def test_tarfile_outofbound(tmpdir):
-    with Archive(datadir.join("slash.tar.gz")) as archive:
-        with pytest.raises(ValueError):
-            archive.extract(tmpdir)
+    from pathlib import Path
+    path = Path(__file__).parent / "data" / "slash.tar.gz"
+    with Archive(path) as archive, pytest.raises(ValueError, match="archive name '.*' out of bound"):
+        archive.extract(tmpdir)
 
 
 def test_zip_dict(tmpdir):
@@ -122,14 +120,17 @@ def test_zip_dir(tmpdir):
     dest = tmpdir.join("dest.zip")
     source.ensure("file")
     source.ensure("sub", "subfile")
+    source.ensure("empty", dir=True)
     zip_dir(source, dest)
     with Archive(dest) as archive:
         archive.extract(newdest)
     assert newdest.join("file").isfile()
     assert newdest.join("sub", "subfile").isfile()
+    assert newdest.join("empty").isdir()
 
     newdest.remove()
     with Archive(BytesIO(zip_dir(source))) as archive:
         archive.extract(newdest)
     assert newdest.join("file").isfile()
     assert newdest.join("sub", "subfile").isfile()
+    assert newdest.join("empty").isdir()

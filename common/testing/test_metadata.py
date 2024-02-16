@@ -4,7 +4,6 @@ from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_latest_version
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.metadata import parse_requirement
-from devpi_common.metadata import sorted_sameproject_links
 from devpi_common.metadata import splitbasename
 from devpi_common.metadata import splitext_archive
 import pytest
@@ -18,8 +17,8 @@ import pytest
         ("devpi", "0.9.5.dev1", "-cp26-none-linux_x86_64.whl")),
     ("wheel-0.21.0-py2.py3-none-any.whl", ("wheel", "0.21.0", "-py2.py3-none-any.whl")),
     ("green-0.4.0-py2.5-win32.egg", ("green", "0.4.0", "-py2.5-win32.egg")),
-    ("Candela-0.2.1.macosx-10.4-x86_64.exe", ("Candela", "0.2.1",
-                                             ".macosx-10.4-x86_64.exe")),
+    ("Candela-0.2.1.macosx-10.4-x86_64.exe",
+        ("Candela", "0.2.1", ".macosx-10.4-x86_64.exe")),
     ("Cambiatuscromos-0.1.1alpha.linux-x86_64.exe",
         ("Cambiatuscromos", "0.1.1alpha", ".linux-x86_64.exe")),
     ("Aesthete-0.4.2.win32.exe", ("Aesthete", "0.4.2", ".win32.exe")),
@@ -68,8 +67,6 @@ def test_get_pyversion_filetype(releasename, expected):
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("pytest-2.3.4.zip", ("pytest-2.3.4", ".zip")),
     ("green-0.4.0-py2.5-win32.egg", ("green-0.4.0-py2.5-win32", ".egg")),
-    ("green-0.4.0-py2.5-win32.egg", ("green-0.4.0-py2.5-win32", ".egg")),
-    ("green-1.0.tar.gz", ("green-1.0", ".tar.gz")),
     ("green-1.0.tar.gz", ("green-1.0", ".tar.gz")),
     ("green-1.0.doc.zip", ("green-1.0", ".doc.zip")),
 ])
@@ -111,8 +108,8 @@ def test_get_latest_stable_version(expected, versions):
         ["2004d", "2005i", "2022.7", "2022.7.1"]
     ),
     (
-        ["1.0alpha1", "1.0beta5prerelease2"],
-        ["1.0beta5prerelease2", "1.0alpha1"],
+        ["1.0alpha1", "1.0beta5prerelease2", "3.1.4-ec6"],
+        ["1.0beta5prerelease2", "3.1.4-ec6", "1.0alpha1"],
     ),
     (
         ["1.0", "2.0", "2005i", "2004d"],
@@ -121,6 +118,24 @@ def test_get_latest_stable_version(expected, versions):
 ])
 def test_get_sorted_versions_legacy(versions, expected):
     assert get_sorted_versions(versions, reverse=False) == expected
+
+
+@pytest.mark.parametrize(("versions", "expected"), [
+    (
+        ["2022.7.1", "2022.7", "2005i", "2004d"],
+        ["2004d", "2005i", "2022.7", "2022.7.1"],
+    ),
+    (
+        ["1.0alpha1", "1.0beta5prerelease2", "3.1.4-ec6"],
+        ["1.0beta5prerelease2", "3.1.4-ec6"],
+    ),
+    (
+        ["1.0", "2.0", "2005i", "2004d"],
+        ["2004d", "2005i", "1.0", "2.0"],
+    ),
+])
+def test_get_sorted_versions_legacy_stable(versions, expected):
+    assert get_sorted_versions(versions, stable=True, reverse=False) == expected
 
 
 def test_version():
@@ -175,11 +190,6 @@ class TestBasenameMeta:
         meta3 = BasenameMeta("zbc-1.0.zip")
         assert meta1 > meta2
         assert meta1 < meta3
-
-    def test_sort_sameproject_links(self):
-        links = ["master", "py-1.0.zip", "trunk.zip", "py-1.1.tgz"]
-        newlinks = sorted_sameproject_links(links)
-        assert newlinks == ["py-1.1.tgz", "py-1.0.zip", "trunk.zip", "master"]
 
 
 def test_parse_requirement():

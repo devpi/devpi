@@ -1,10 +1,9 @@
-
-from __future__ import with_statement
 import re
 import shlex
 import hashlib
-import py
+import shutil
 from devpi_common.archive import Archive
+from devpi_common.contextlib import chdir
 from devpi_common.metadata import parse_requirement
 import json
 import sys
@@ -12,14 +11,15 @@ import sys
 from devpi_common.url import URL
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.viewhelp import ViewLinkStore
+from pathlib import Path
 
 
 class DevIndex:
     def __init__(self, hub, rootdir, current):
-        self.rootdir = rootdir
+        self.rootdir = Path(rootdir)
         self.current = current
         self.hub = hub
-        self.dir_download = self.rootdir.mkdir("downloads")
+        self.dir_download = self.rootdir / "downloads"
 
     def download_and_unpack(self, versioninfo, link):
         basic_auth = self.hub.current.get_basic_auth(link.href)
@@ -28,7 +28,7 @@ class DevIndex:
             url = auth_url
         else:
             auth_url = self.hub.current.add_auth_to_url(link.href)
-            url = auth_url.replace(password="****")
+            url = auth_url.replace(password="****")  # noqa: S106
         r = self.hub.http.get(auth_url,
                               auth=basic_auth,
                               cert=self.hub.current.get_client_cert(url))
@@ -39,14 +39,14 @@ class DevIndex:
 
         self.hub.info("received", url)
         if hasattr(link, "md5"):
-            md5 = hashlib.md5()
+            md5 = hashlib.md5()  # noqa: S324
             md5.update(content)
             digest = md5.hexdigest()
             assert digest == link.md5, (digest, link.md5)
-            #self.hub.info("verified md5 ok", link.md5)
         basename = URL(url).basename
 
-        path_archive = self.dir_download.join(basename)
+        self.dir_download.mkdir(exist_ok=True)
+        path_archive = self.dir_download / basename
         with path_archive.open("wb") as f:
             f.write(content)
         pkg = UnpackedPackage(
@@ -67,14 +67,14 @@ class DevIndex:
             return ViewLinkStore(projurl, r.result[version])
 
     def runtox(self, link, pkg, sdist_pkg=None, upload_tox_results=True):
-        jsonreport = pkg.rootdir.join("toxreport.json")
+        jsonreport = pkg.rootdir / "toxreport.json"
         path_archive = pkg.path_archive
         tox_path = self.hub.current.getvenvbin(
             "tox", venvdir=self.hub.venv, glob=True)
         if not tox_path:
             # try outside of venv
-            tox_path = py.path.local.sysfind("tox")
-        if not tox_path:
+            tox_path = shutil.which("tox")
+        if tox_path is None:
             self.hub.fatal("no tox binary found")
         toxcmd = [
             str(tox_path),
@@ -97,7 +97,7 @@ class DevIndex:
         toxcmd.extend(self.get_tox_args(unpack_path=sdist_pkg.path_unpacked))
 
         ret = 0
-        with sdist_pkg.path_unpacked.as_cwd():
+        with chdir(sdist_pkg.path_unpacked):
             try:
                 self.hub.popen_check(
                     toxcmd,
@@ -118,6 +118,7 @@ class DevIndex:
         return 0
 
     def get_tox_args(self, unpack_path):
+        assert isinstance(unpack_path, Path)
         hub = self.hub
         args = self.hub.args
         toxargs = []
@@ -125,8 +126,8 @@ class DevIndex:
             toxargs.append("-e" + args.toxenv)
         if args.toxini:
             ini = hub.get_existing_file(args.toxini)
-        elif unpack_path.join("tox.ini").exists():
-            ini = hub.get_existing_file(unpack_path.join("tox.ini"))
+        elif unpack_path.joinpath("tox.ini").is_file():
+            ini = hub.get_existing_file(unpack_path / "tox.ini")
         elif args.fallback_ini:
             ini = hub.get_existing_file(args.fallback_ini)
         else:
@@ -151,12 +152,12 @@ class UnpackedPackage:
         self.hub = hub
         basename = link.basename
         if basename.endswith(".whl"):
-            rootdir = rootdir.join(basename)
-        elif basename.endswith(".tar.gz") or basename.endswith(".tgz"):
-            rootdir = rootdir.join("targz")
+            rootdir = rootdir / basename
+        elif basename.endswith((".tar.gz", ".tgz")):
+            rootdir = rootdir / "targz"
         elif basename.endswith(".zip"):
-            rootdir = rootdir.join("zip")
-        assert not rootdir.check(), rootdir
+            rootdir = rootdir / "zip"
+        assert not rootdir.exists(), rootdir
         self.rootdir = rootdir
         self.path_archive = path_archive
         self.versioninfo = versioninfo
@@ -171,13 +172,13 @@ class UnpackedPackage:
         if self.link.basename.endswith(".whl"):
             inpkgdir = self.rootdir
         else:
-            inpkgdir = self.rootdir.join("%s-%s" %(pkgname, version))
-            if not inpkgdir.check():
+            inpkgdir = self.rootdir / f"{pkgname}-{version}"
+            if not inpkgdir.exists():
                 # sometimes dashes are replaced by underscores,
                 # for example the source releases of argon2_cffi
-                inpkgdir = self.rootdir.join(
-                    "%s-%s" % (pkgname.replace('-', '_'), version))
-        if not inpkgdir.check():
+                inpkgdir = self.rootdir.joinpath(
+                    f"{pkgname.replace('-', '_')}-{version}")
+        if not inpkgdir.exists():
             self.hub.fatal("Couldn't find unpacked package in", inpkgdir)
         self.path_unpacked = inpkgdir
 

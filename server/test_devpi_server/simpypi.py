@@ -1,20 +1,13 @@
 # this file is shared via symlink with devpi-client,
-# so for the time being it must continue to work with Python 2
-from __future__ import print_function
-try:
-    from html import escape
-except ImportError:
-    from cgi import escape  # type: ignore
+# so it must continue to work with the lowest supported Python 3.x version
+from html import escape
 import hashlib
-try:
-    import http.server as httpserver
-except ImportError:
-    import BaseHTTPServer as httpserver  # type: ignore
+import http.server as httpserver
 import sys
 
 
 def getmd5(s):
-    return hashlib.md5(s.encode("utf8")).hexdigest()
+    return hashlib.md5(s.encode("utf8")).hexdigest()  # noqa: S324
 
 
 def getsha256(s):
@@ -70,7 +63,7 @@ class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
                 start_response(200, headers)
                 self.wfile.write(b'\n'.join(releases))
                 return
-        elif p == ['', 'simple', ''] or p == ['', 'simple']:
+        elif p in (['', 'simple', ''], ['', 'simple']):
             # root listing
             projects = [
                 '<a href="/simple/%s/">%s</a>' % (k, v['title'])
@@ -130,7 +123,7 @@ class SimPyPI:
 
     def add_log(self, *args):
         msg = ' '.join(str(x) for x in args)
-        print(msg, file=sys.stderr)
+        print(msg, file=sys.stderr)  # noqa: T201
         self.log.append(msg)
 
     def add_project(self, name, title=None):

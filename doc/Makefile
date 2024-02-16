@@ -20,10 +20,10 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
 # This variable is not auto generated as the order is important.
-USER_MAN_CHAPTERS = commands\
-                    user\
-                    indices\
-                    packages\
+USER_MAN_CHAPTERS = devpi_commands\
+                    devpi_user\
+                    devpi_indices\
+                    devpi_packages\
 #                 userman/index.rst\
 #                 userman/devpi_misc.rst\
 #                 userman/devpi_concepts.rst\
@@ -31,6 +31,7 @@ USER_MAN_CHAPTERS = commands\
                                  
 #export DEVPI_CLIENTDIR=$(CURDIR)/.tmp_devpi_user_man/client
 #export DEVPISERVER_SERVERDIR=$(CURDIR)/.tmp_devpi_user_man/server
+export PIP_PROGRESS_BAR=off
 
 chapter = commands
 
@@ -209,15 +210,15 @@ quickstart-server:
 
 $(USER_MAN_CHAPTERS):
 	@echo Regenerating $@
-	USER=testuser sh regen.sh --update userman/devpi_$@.rst
+	USER=testuser sh regen.sh --update userman/$@.rst
 
 regen.sample_undo:
 	-git checkout userman/pysober
 
 regen.server-fresh: regen.server-clean
-	rm -rf $(TESTHOME)/.devpi/server
+	rm -rf $(TESTHOME)
 	devpi-init --serverdir=$(TESTHOME)/.devpi/server
-	devpi-gen-config --serverdir=$(TESTHOME)/.devpi/server
+	devpi-gen-config --serverdir=$(TESTHOME)/.devpi/server --argon2-memory-cost 8 --argon2-parallelism 1 --argon2-time-cost 1
 	supervisord -c gen-config/supervisord.conf
 
 regen.server-stop:
@@ -227,8 +228,8 @@ regen.server-stop:
 regen.server-clean: regen.sample_undo
 	@echo stopping supervisord
 	-supervisorctl -c gen-config/supervisord.conf shutdown
-	@echo deleting $(TESTHOME)/.devpi state
-	-rm -rf $(TESTHOME)/.devpi
+	@echo deleting $(TESTHOME) state
+	-rm -rf $(TESTHOME)
 	@echo deleting pysober/dist
 	-rm -rf userman/pysober/dist
 	git checkout userman/pysober

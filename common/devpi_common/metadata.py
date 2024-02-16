@@ -1,7 +1,7 @@
 import posixpath
 import re
-from packaging.version import parse as parse_version
 from packaging.requirements import Requirement as BaseRequirement
+from packaging_legacy.version import parse as parse_version
 from .types import CompareMixin
 from .types import cached_property
 from .validation import normalize_name
@@ -27,7 +27,7 @@ _releasefile_suffix_rx = re.compile(
 
 # see also PEP425 for supported "python tags"
 _pyversion_type_rex = re.compile(
-        r"(py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
+    r"(py|cp|ip|pp|jy)([\d\.py]+).*\.(exe|egg|msi|whl)", re.IGNORECASE)
 _ext2type = dict(exe="bdist_wininst", egg="bdist_egg", msi="bdist_msi",
                  whl="bdist_wheel")
 
@@ -141,7 +141,7 @@ class Version(CompareMixin):
         return self.string
 
     def __repr__(self):
-        return "Version(%r)" % self.string
+        return f"{self.__class__.__name__}({self.string!r})"
 
     def is_prerelease(self):
         if hasattr(self.cmpval, 'is_prerelease'):
@@ -153,20 +153,13 @@ class Version(CompareMixin):
         return False
 
 
-# BBB for Python 2.7
-try:
-    basestring
-except NameError:
-    basestring = str
-
-
 class BasenameMeta(CompareMixin):
     def __init__(self, obj, sameproject=False):
         self.obj = obj
         # none of the below should be done lazily, as devpi_server.mirror
         # essentially uses this to validate parsed links
         basename = getattr(obj, "basename", obj)
-        if not isinstance(basename, basestring):
+        if not isinstance(basename, str):
             raise ValueError("need object with basename attribute")
         assert "/" not in basename, (obj, basename)
         name, version, ext = splitbasename(basename, checkarch=False)
@@ -179,14 +172,7 @@ class BasenameMeta(CompareMixin):
             self.cmpval = (normalize_name(name), parse_version(version), ext)
 
     def __repr__(self):
-        return "<BasenameMeta name=%r version=%r>" %(self.name, self.version)
-
-
-def sorted_sameproject_links(links):
-    # XXX does not seem to be used anywhere
-    s = sorted((BasenameMeta(link, sameproject=True)
-                     for link in links), reverse=True)
-    return [x.obj for x in s]
+        return "<BasenameMeta name=%r version=%r>" % (self.name, self.version)
 
 
 def get_latest_version(seq, stable=False):

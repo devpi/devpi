@@ -1,18 +1,17 @@
 from copy import deepcopy
 from operator import attrgetter
-try:
-    from urllib.parse import quote as url_quote
-except ImportError:
-    from urllib import quote as url_quote  # noqa: F401
+from urllib.parse import quote as url_quote
 import itertools
 import os
 import sys
-import py
 import re
 import json
+import shutil
 
 from devpi_common.types import cached_property
 from devpi_common.url import URL
+from pathlib import Path
+
 
 if sys.platform == "win32":
     vbin = "Scripts"
@@ -130,7 +129,7 @@ class Current(object):
         if user not in auth_users:
             return False
         del auth_users[user]
-        auth[rooturl] = list(sorted(auth_users.items()))
+        auth[rooturl] = sorted(auth_users.items())
         self.reconfigure(data=dict(_auth=auth))
         return True
 
@@ -266,8 +265,10 @@ class Current(object):
         try:
             # if the server is on http and not localhost, pip will show verbose warning
             # every time you use devpi. set-trusted instead and inform user now just the once
-            if hub.args.settrusted == 'auto' and url.scheme == 'http' and \
-                            url.hostname not in ('localhost', '127.0.0.0'):
+            if (
+                    hub.args.settrusted == 'auto'
+                    and url.scheme == 'http'
+                    and url.hostname not in ('localhost', '127.0.0.0')):
                 hub.line("Warning: insecure http host, trusted-host will be set for pip")
                 hub.args.settrusted = 'yes'
         except AttributeError:
@@ -357,10 +358,10 @@ class Current(object):
         if venvdir is None:
             venvdir = self.venvdir
         if venvdir:
-            bindir = py.path.local(venvdir).join(vbin)
-            return py.path.local.sysfind(name, paths=[bindir])
+            bindir = Path(venvdir) / vbin
+            return shutil.which(name, path=str(bindir))
         if glob:
-            return py.path.local.sysfind(name)
+            return shutil.which(name)
 
     @property
     def root_url(self):
@@ -403,9 +404,10 @@ class Current(object):
 def _load_json(path, dest):
     if path is None:
         return
-    if not path.check():
+    path = Path(path)
+    if not path.is_file():
         return
-    raw = path.read().strip()
+    raw = path.read_text().strip()
     if not raw:
         return
     data = json.loads(raw)
@@ -425,19 +427,20 @@ class PersistentCurrent(Current):
         _load_json(self.current_path, self._currentdict)
 
     def exists(self):
-        return self.current_path and self.current_path.check()
+        return self.current_path and self.current_path.is_file()
 
     def _persist(self, data, path, force_write=False):
         if path is None:
             return
+        path = Path(path)
         try:
-            olddata = json.loads(path.read())
+            olddata = json.loads(path.read_text())
         except Exception:
             olddata = {}
         if force_write or data != olddata:
             oldumask = os.umask(7 * 8 + 7)
             try:
-                path.write(
+                path.write_text(
                     json.dumps(data, indent=2, sort_keys=True))
             finally:
                 os.umask(oldumask)
@@ -448,7 +451,7 @@ class PersistentCurrent(Current):
         currentdict = {}
         _load_json(self.current_path, currentdict)
         for key, value in self._currentdict.items():
-            prop = getattr(self.__class__, key)
+            prop = getattr(self.__class__, key, None)
             if isinstance(prop, indexproperty) and not self.persist_index:
                 continue
             currentdict[key] = value
@@ -465,7 +468,6 @@ def out_index_list(hub, data):
             hub.info("%-15s bases=%-15s volatile=%s" %(ixname,
                      ",".join(ixconfig.get("bases", [])),
                      ixconfig["volatile"]))
-    return
 
 
 def main(hub, args=None):
@@ -476,7 +478,7 @@ def main(hub, args=None):
         if not hub.local_current_path.exists():
             current = hub.current
             hub.info("Creating local configuration at %s" % hub.local_current_path)
-            hub.local_current_path.ensure()
+            hub.local_current_path.touch()
             current = current.switch_to_local(
                 hub, current.index, hub.local_current_path)
             # now store existing data in new location
@@ -486,7 +488,7 @@ def main(hub, args=None):
     if args.delete:
         if not hub.current.exists():
             hub.error_and_out("NO configuration found")
-        hub.current.current_path.remove()
+        hub.current.current_path.unlink()
         hub.info("REMOVED configuration at", hub.current.current_path)
         return
     if current.exists():
@@ -568,8 +570,8 @@ def main(hub, args=None):
     settrusted = hub.args.settrusted == 'yes'
     if hub.args.always_setcfg:
         always_setcfg = hub.args.always_setcfg == "yes"
-        current.reconfigure(dict(always_setcfg=always_setcfg,
-                                     settrusted=settrusted))
+        current.reconfigure(dict(
+            always_setcfg=always_setcfg, settrusted=settrusted))
     pipcfg = PipCfg(venv=venvdir)
     if pipcfg.legacy_location == pipcfg.default_location:
         hub.warn(
@@ -613,9 +615,9 @@ def show_one_conf(hub, cfg):
     else:
         url = URL(cfg.indexserver)
         if url.password:
-            url = url.replace(password="****")
+            url = url.replace(password="****")  # noqa: S106
         status = url.url
-    hub.info("%-23s: %s" %(cfg.screen_name, status))
+    hub.info("%s: %s" % (cfg.screen_name, status))
 
 
 class BaseCfg(object):
@@ -626,16 +628,18 @@ class BaseCfg(object):
         if path is None:
             path = self.default_location
         self.screen_name = str(path)
-        self.path = py.path.local(path, expanduser=True)
-        self.backup_path = self.path + "-bak"
+        self.path = Path(path).expanduser()
+        self.backup_path = self.path.with_name(self.path.name + "-bak")
 
     def exists(self):
         return self.path.exists()
 
     @property
     def indexserver(self):
-        if self.path.exists():
-            for line in self.path.readlines(cr=0):
+        if not self.path.exists():
+            return
+        with self.path.open() as f:
+            for line in f:
                 m = self.regex.match(line)
                 if m:
                     return m.group(2)
@@ -645,47 +649,48 @@ class BaseCfg(object):
             raise ValueError("config file already exists")
         content = "\n".join([self.section_name,
                              "%s = %s\n" % (self.config_name, indexserver)])
-        self.path.ensure().write(content)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(content)
 
     def write_indexserver(self, indexserver):
         self.ensure_backup_file()
         if not self.path.exists():
             self.write_default(indexserver)
+            return
+        if self.indexserver:
+            section = None
         else:
-            if self.indexserver:
-                section = None
-            else:
-                section = self.section_name
-            newlines = []
-            found = False
-            for line in self.path.readlines(cr=1):
+            section = self.section_name
+        newlines = []
+        found = False
+        with self.path.open() as f:
+            for line in f:
                 if not section:
                     m = self.regex.match(line)
                     if m:
                         line = "%s = %s\n" % (m.group(1), indexserver)
                         found = True
-                else:
-                    if section in line.lower():
-                        line = line + "%s = %s\n" %(
-                                                self.config_name, indexserver)
-                        found = True
+                elif section in line.lower():
+                    line = line + "%s = %s\n" % (self.config_name, indexserver)
+                    found = True
                 newlines.append(line)
             if not found:
                 newlines.append(self.section_name + "\n")
                 newlines.append("%s = %s\n" %(self.config_name, indexserver))
-            self.path.write("".join(newlines))
+        self.path.write_text("".join(newlines))
 
     def ensure_backup_file(self):
         if self.path.exists() and not self.backup_path.exists():
-            self.path.copy(self.backup_path)
+            self.backup_path.write_text(self.path.read_text())
+            shutil.copyfile(self.path, self.backup_path)
 
 
 class DistutilsCfg(BaseCfg):
     section_name = "[easy_install]"
-    default_location = py.path.local(
+    default_location = Path(
         "~/.pydistutils.cfg"
         if sys.platform != "win32"
-        else "~/pydistutils.cfg", expanduser=True)
+        else "~/pydistutils.cfg").expanduser()
 
 
 class PipCfg(BaseCfg):
@@ -706,20 +711,20 @@ class PipCfg(BaseCfg):
 
     @property
     def legacy_location(self):
-        confdir = py.path.local(
-            "~/.pip" if sys.platform != "win32" else "~/pip",
-            expanduser=True)
-        return confdir.join(self.pip_conf_name)
+        confdir = Path(
+            "~/.pip" if sys.platform != "win32" else "~/pip").expanduser()
+        return confdir / self.pip_conf_name
 
     @property
     def new_location(self):
-        return py.path.local(
-            self.appdirs.user_config_dir("pip")).join(self.pip_conf_name)
+        return Path(
+            self.appdirs.user_config_dir("pip")) / self.pip_conf_name
 
     @property
     def default_location(self):
         if self.venv:
-            default_location = py.path.local(self.venv, expanduser=True).join(self.pip_conf_name)
+            default_location = Path(
+                self.venv).expanduser() / self.pip_conf_name
         elif 'PIP_CONFIG_FILE' in os.environ:
             default_location = os.environ.get('PIP_CONFIG_FILE')
         elif self.legacy_location.exists():
@@ -740,20 +745,21 @@ class PipCfg(BaseCfg):
         newlines = []
         found = False
         insection = False
-        for line in self.path.readlines(cr=1):
-            if insection:
-                if line.strip().startswith('['):
-                    insection = False
-            if section in line.lower() and not insection:
-                insection = True
-            if insection and re.match(r'index\s*=.*', line):
-                line = "index = %s\n" % searchindexserver
-                found = True
-            newlines.append(line)
+        with self.path.open() as f:
+            for line in f:
+                if insection:
+                    if line.strip().startswith('['):
+                        insection = False
+                if section in line.lower() and not insection:
+                    insection = True
+                if insection and re.match(r'index\s*=.*', line):
+                    line = "index = %s\n" % searchindexserver
+                    found = True
+                newlines.append(line)
         if not found:
             newlines.append(section + "\n")
             newlines.append("index = %s\n" % searchindexserver)
-        self.path.write("".join(newlines))
+        self.path.write_text("".join(newlines))
 
     def write_trustedhost(self, indexserver):
         self.ensure_backup_file()
@@ -764,22 +770,23 @@ class PipCfg(BaseCfg):
         insection = False
         indexserver = URL(indexserver)
         trustedhost = "trusted-host = %s\n" % indexserver.hostname
-        for line in self.path.readlines(cr=1):
-            if insection:
-                if line.strip().startswith('['):
-                    if not found:
-                        newlines.append(trustedhost)
-                        found = True
-                    insection = False
-            if not found and self.section_name in line.lower() and not insection:
-                insection = True
-            if not found and insection and re.match(r'trusted-host\s*=\s*%s' % indexserver.hostname, line):
-                found = True
-            newlines.append(line)
+        with self.path.open() as f:
+            for line in f:
+                if insection:
+                    if line.strip().startswith('['):
+                        if not found:
+                            newlines.append(trustedhost)
+                            found = True
+                        insection = False
+                if not found and self.section_name in line.lower() and not insection:
+                    insection = True
+                if not found and insection and re.match(r'trusted-host\s*=\s*%s' % indexserver.hostname, line):
+                    found = True
+                newlines.append(line)
         if not found:
             newlines.append(self.section_name + "\n")
             newlines.append(trustedhost)
-        self.path.write("".join(newlines))
+        self.path.write_text("".join(newlines))
 
     def clear_trustedhost(self, indexserver):
         self.ensure_backup_file()
@@ -787,18 +794,18 @@ class PipCfg(BaseCfg):
             return
         newlines = []
         indexserver = URL(indexserver)
-        for line in self.path.readlines(cr=1):
-            if not re.match(r'trusted-host\s*=\s*%s' % indexserver.hostname, line):
-                newlines.append(line)
-        self.path.write("".join(newlines))
+        with self.path.open() as f:
+            for line in f:
+                if not re.match(r'trusted-host\s*=\s*%s' % indexserver.hostname, line):
+                    newlines.append(line)
+        self.path.write_text("".join(newlines))
 
 
 class BuildoutCfg(BaseCfg):
     section_name = "[buildout]"
     config_name = "index"
     regex = re.compile(r"(index)\s*=\s*(.*)")
-    default_location = py.path.local(
-        "~/.buildout/default.cfg", expanduser=True)
+    default_location = Path("~/.buildout/default.cfg").expanduser()
 
 
 class KeyValues(list):

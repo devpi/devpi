@@ -1,12 +1,13 @@
 from contextlib import closing
 from devpi_postgresql import main
+from pathlib import Path
 from pluggy import HookimplMarker
 from certauth.certauth import CertificateAuthority
+from shutil import rmtree
 from typing import Set
 import sys
 import os
 import getpass
-import py
 import pytest
 import socket
 import subprocess
@@ -45,27 +46,25 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def devpipostgresql_postgresql(request):
-    tmpdir = py.path.local(
+    tmpdir = Path(
         tempfile.mkdtemp(prefix='test-', suffix='-devpi-postgresql'))
+    tmpdir_path = str(tmpdir)
     try:
-        cap = py.io.StdCaptureFD()
-        cap.startall()
-        subprocess.check_call(['initdb', tmpdir.strpath])
-        cap.reset()
+        subprocess.check_call(['initdb', tmpdir_path])
 
         postgresql_conf_lines = [
             "fsync = off",
             "full_page_writes = off",
             "synchronous_commit = off",
-            "unix_socket_directories = '{}'".format(tmpdir.strpath)]
+            "unix_socket_directories = '{}'".format(tmpdir_path)]
 
         pg_ssl = request.config.option.backend_postgresql_ssl
         host = 'localhost'
 
         if pg_ssl:
             # Make certificate authority and server certificate
-            ca = CertificateAuthority('Test CA', tmpdir.join('ca.pem').strpath,
-                                      cert_cache=tmpdir.strpath)
+            ca = CertificateAuthority('Test CA', str(tmpdir / 'ca.pem'),
+                                      cert_cache=tmpdir_path)
             server_cert = ca.cert_for_host(host)
             if not sys.platform.startswith("win"):
                 # Postgres requires restrictive permissions on private key.
@@ -78,7 +77,7 @@ def devpipostgresql_postgresql(request):
                 "ssl_ca_file = 'ca.pem'"])
 
             # Require SSL connections to be authenticated by client certificates.
-            with tmpdir.join('pg_hba.conf').open('w', encoding='ascii') as f:
+            with tmpdir.joinpath('pg_hba.conf').open('w', encoding='ascii') as f:
                 f.write("\n".join([
                     # "local" is for Unix domain socket connections only
                     'local all all trust',
@@ -86,22 +85,16 @@ def devpipostgresql_postgresql(request):
                     'hostssl all all 127.0.0.1/32 cert',
                     'host all all 127.0.0.1/32 trust']))
 
-        with tmpdir.join('postgresql.conf').open('w+', encoding='ascii') as f:
+        with tmpdir.joinpath('postgresql.conf').open('w+', encoding='ascii') as f:
             f.write("\n".join(postgresql_conf_lines))
 
         port = get_open_port(host)
-        cap = py.io.StdCaptureFD()
-        cap.startall()
         p = subprocess.Popen([
-            'postgres', '-D', tmpdir.strpath, '-h', host, '-p', str(port)])
+            'postgres', '-D', tmpdir_path, '-h', host, '-p', str(port)])
         wait_for_port(host, port)
-        cap.reset()
         try:
-            cap = py.io.StdCaptureFD()
-            cap.startall()
             subprocess.check_call([
                 'createdb', '-h', host, '-p', str(port), 'devpi'])
-            cap.reset()
             user = getpass.getuser()
 
             settings = dict(host=host, port=port, user=user)
@@ -110,11 +103,11 @@ def devpipostgresql_postgresql(request):
                 # Make client certificate for user and authenticate with it.
                 client_cert = ca.cert_for_host(user)
                 settings['ssl_check_hostname'] = 'yes'
-                settings['ssl_ca_certs'] = tmpdir.join('ca.pem').strpath
+                settings['ssl_ca_certs'] = str(tmpdir / 'ca.pem')
                 settings['ssl_certfile'] = client_cert
 
             main.Storage(
-                tmpdir, notify_on_commit=False,
+                tmpdir_path, notify_on_commit=False,
                 cache_size=10000, settings=settings)
             yield settings
             for conn, db, ts in Storage._connections:
@@ -133,7 +126,7 @@ def devpipostgresql_postgresql(request):
             p.terminate()
             p.wait()
     finally:
-        tmpdir.remove(ignore_errors=True)
+        rmtree(tmpdir_path)
 
 
 class Storage(main.Storage):
@@ -143,8 +136,8 @@ class Storage(main.Storage):
     @classmethod
     def _get_test_db(cls, basedir):
         import hashlib
-        db = hashlib.md5(
-            basedir.strpath.encode('ascii', errors='ignore')).hexdigest()
+        db = hashlib.md5(  # noqa: S324
+            str(basedir).encode('ascii', errors='ignore')).hexdigest()
         if db not in cls._dbs_created:
             subprocess.call([
                 'createdb', '-h', cls.host, '-p', str(cls.port),

@@ -1,30 +1,55 @@
-from __future__ import print_function
+from _pytest import capture
 from contextlib import closing
+from devpi_common.contextlib import chdir
 from devpi_common.metadata import parse_version
-from io import BytesIO
 from io import StringIO
+from pathlib import Path
 import codecs
+import gc
 import os
+import platform
 import pytest
 import socket
 import textwrap
-import py
+import shutil
 import sys
 import json
 import time
 
-from .reqmock import reqmock  # noqa
+from .reqmock import reqmock  # noqa: F401 (definition of reqmock fixture)
 from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 
 import subprocess
 
 
-# BBB for Python 2.7
-try:
-    basestring
-except NameError:
-    basestring = str
+IS_PYPY = platform.python_implementation() == 'PyPy'
+
+
+def _check_output(request, args, env=None):
+    result = subprocess.run(
+        args,  # noqa: S603 only used for tests
+        check=False,
+        env=env,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if not result.returncode:
+        print(result.stdout.decode())  # noqa: T201 only used for tests
+    else:
+        capman = request.config.pluginmanager.getplugin("capturemanager")
+        capman.suspend()
+        print(result.stdout.decode())  # noqa: T201 only used for tests
+        capman.resume()
+    result.check_returncode()
+    return result
+
+
+def check_call(request, args, env=None):
+    _check_output(request, args, env=env)
+
+
+def check_output(request, args, env=None):
+    result = _check_output(request, args, env=env)
+    return result.stdout
 
 
 def pytest_addoption(parser):
@@ -41,46 +66,6 @@ def pytest_addoption(parser):
 def print_info(*args, **kwargs):
     kwargs.setdefault("file", sys.stderr)
     return print(*args, **kwargs)
-
-
-class PopenFactory:
-    def __init__(self, addfinalizer):
-        self.addfinalizer = addfinalizer
-
-    def __call__(self, args, pipe=False, **kwargs):
-        args = [str(x) for x in args]
-        if pipe:
-            print("$ %s [piped]" %(" ".join(args),))
-            popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        else:
-            showkwargs = " ".join(["%s=%s"] % (x,y) for x,y in kwargs.items())
-            print("$ %s %s" %(" ".join(args), showkwargs))
-            popen = subprocess.Popen(args, **kwargs)
-
-        def fin():
-            try:
-                popen.kill()
-                popen.wait()
-            except OSError:
-                print("could not kill %s" % popen.pid)
-
-        self.addfinalizer(fin)
-        return popen
-
-
-@pytest.fixture(scope="session")
-def Popen_session(request):
-    return PopenFactory(request.addfinalizer)
-
-
-@pytest.fixture(scope="module")
-def Popen_module(request):
-    return PopenFactory(request.addfinalizer)
-
-
-@pytest.fixture(scope="function")
-def Popen(request):
-    return PopenFactory(request.addfinalizer)
 
 
 @pytest.fixture(scope="session")
@@ -125,51 +110,16 @@ def wait_for_port(host, port, timeout=60):
         "The port %s on host %s didn't become accessible" % (port, host))
 
 
-def find_python3():
-    locations = [
-        "C:\\Python37-x64\\python.exe",
-        "C:\\Python37\\python.exe",
-        "C:\\Python38-x64\\python.exe",
-        "C:\\Python38\\python.exe",
-        "C:\\Python39-x64\\python.exe",
-        "C:\\Python39\\python.exe"]
-    for location in locations:
-        if not os.path.exists(location):
-            continue
-        try:
-            output = subprocess.check_output([location, '--version'])
-            if output.strip().startswith(b'Python 3'):
-                return location
-        except subprocess.CalledProcessError:
-            continue
-    names = [
-        'python3.7',
-        'python3.8',
-        'python3.9',
-        'python3']
-    for name in names:
-        path = py.path.local.sysfind(name)
-        if not path:
-            continue
-        path = str(path)
-        try:
-            print("Checking %s at %s" % (name, path))
-            output = subprocess.check_output([path, '--version'])
-            if output.strip().startswith(b'Python 3'):
-                return path
-        except subprocess.CalledProcessError:
-            continue
-    raise RuntimeError("Can't find a Python 3 executable.")
-
-
 def get_venv_script(venv_path, script_names):
     for bindir in ('Scripts', 'bin'):
         for script_name in script_names:
             script = venv_path.join(bindir, script_name)
+            print(venv_path.listdir())
+            if venv_path.join(bindir).exists():
+                print(venv_path.join(bindir).listdir())
             if script.exists():
                 return str(script)
-    else:
-        raise RuntimeError("Can't find %s in %s." % (script_names, venv_path))
+    raise RuntimeError("Can't find %s in %s." % (script_names, venv_path))
 
 
 @pytest.fixture(scope="session")
@@ -180,84 +130,78 @@ def server_executable(request, tmpdir_factory):
     if not requirements:
         requirements = ['devpi-server>=6dev']
         # first try installed devpi-server for quick runs during development
-        path = py.path.local.sysfind("devpi-server")
-        if path:
-            print("server_executable: Using existing devpi-server at %s" % path)
-            return str(path)
+        path = shutil.which("devpi-server")
+        if path is not None:
+            print(  # noqa: T201 only used for tests
+                f"server_executable: Using existing devpi-server at {path}")
+            return path
     # there is no devpi-server installed
-    python3 = find_python3()
-    # prepare environment for subprocess call
-    env = dict(os.environ)
-    env.pop("VIRTUALENV_PYTHON", None)
-    env.pop("VIRTUAL_ENV", None)
-    if sys.platform != "win32":
-        env.pop("PATH", None)
-    # create a virtualenv with Python 3
+    # create a virtualenv
     venv_path = tmpdir_factory.mktemp("server_venv")
-    subprocess.check_call(
-        [sys.executable, '-m', 'virtualenv', '-p', python3, str(venv_path)],
-        env=env)
+    check_call(
+        request,
+        [sys.executable, '-m', 'virtualenv', str(venv_path)])
     # install devpi-server
-    venv_pip = get_venv_script(venv_path, ('pip', 'pip.exe'))
-    print("server_executable: Installing %r with %s" % (requirements, venv_pip))
-    subprocess.check_call(
-        [venv_pip, 'install', '--pre'] + requirements,
-        env=env)
+    venv_python = get_venv_script(venv_path, ('python', 'python.exe'))
+    print(  # noqa: T201 only used for tests
+        f"server_executable: Installing {requirements!r} with {venv_python}")
+    check_call(
+        request,
+        [venv_python, '-m', 'pip', 'install', '--pre', *requirements])
     return get_venv_script(venv_path, ('devpi-server', 'devpi-server.exe'))
 
 
 @pytest.fixture(scope="session")
-def server_version(server_executable):
-    try:
-        output = subprocess.check_output([server_executable, "--version"])
-        return parse_version(output.decode('ascii').strip())
-    except subprocess.CalledProcessError as e:
-        # this won't output anything on Windows
-        print(
-            getattr(e, 'output', "Can't get process output on Windows"),
-            file=sys.stderr)
-        raise
+def server_version(request, server_executable):
+    output = check_output(request, [server_executable, "--version"])
+    return parse_version(output.decode('ascii').strip())
 
 
 @pytest.fixture(scope="session")
-def indexer_backend_option(server_executable):
-    out = subprocess.check_output([server_executable, '-h'])
+def indexer_backend_option(request, server_executable):
+    out = check_output(request, [server_executable, '-h'])
     if b'--indexer-backend' in out:
         return ['--indexer-backend', 'null']
     return []
 
 
-def _liveserver(clientdir, indexer_backend_option, server_executable, server_version):
+def _liveserver(request, clientdir, indexer_backend_option, server_executable):
+    from .functional import LOWER_ARGON2_MEMORY_COST
+    from .functional import LOWER_ARGON2_PARALLELISM
+    from .functional import LOWER_ARGON2_TIME_COST
     host = 'localhost'
     port = get_open_port(host)
-    try:
-        args = [
-            "--serverdir", str(clientdir)]
-        init_executable = server_executable.replace(
-            "devpi-server", "devpi-init")
-        subprocess.check_call([init_executable] + args)
-    except subprocess.CalledProcessError as e:
-        # this won't output anything on Windows
-        print(
-            getattr(e, 'output', "Can't get process output on Windows"),
-            file=sys.stderr)
-        raise
+    args = [
+        "--serverdir", str(clientdir)]
+    init_executable = server_executable.replace(
+        "devpi-server", "devpi-init")
+    check_call(request, [init_executable, *args])
     args.extend(indexer_backend_option)
-    p = subprocess.Popen([server_executable] + args + [
-        "--debug", "--host", host, "--port", str(port)])
+    out = check_output(request, [server_executable, "-h"])
+    if b'--argon2' in out:
+        # add --argon2 arguments if supported for faster test runs
+        args.extend([
+            "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
+            "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
+            "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST)])
+    p = subprocess.Popen([  # noqa: S603 - only for testing
+        server_executable,
+        *args,
+        "--debug",
+        "--host", host, "--port", str(port)])
     wait_for_port(host, port)
     return (p, URL("http://%s:%s" % (host, port)))
 
 
 @pytest.fixture(scope="session")
-def url_of_liveserver(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
+def url_of_liveserver(request, indexer_backend_option, server_executable, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     if request.config.option.live_url:
         yield URL(request.config.option.live_url)
         return
     clientdir = tmpdir_factory.mktemp("liveserver")
-    (p, url) = _liveserver(clientdir, indexer_backend_option, server_executable, server_version)
+    (p, url) = _liveserver(request, clientdir, indexer_backend_option, server_executable)
     try:
         yield url
     finally:
@@ -266,11 +210,11 @@ def url_of_liveserver(request, indexer_backend_option, server_executable, server
 
 
 @pytest.fixture(scope="session")
-def url_of_liveserver2(request, indexer_backend_option, server_executable, server_version, tmpdir_factory):
+def url_of_liveserver2(request, indexer_backend_option, server_executable, tmpdir_factory):
     if request.config.option.fast:
         pytest.skip("not running functional tests in --fast mode")
     clientdir = tmpdir_factory.mktemp("liveserver2")
-    (p, url) = _liveserver(clientdir, indexer_backend_option, server_executable, server_version)
+    (p, url) = _liveserver(request, clientdir, indexer_backend_option, server_executable)
     try:
         yield url
     finally:
@@ -295,7 +239,6 @@ def devpi(cmd_devpi, devpi_username, url_of_liveserver):
 
 
 def _path_parts(path):
-    path = path and str(path)  # py.path.local support
     parts = []
     while path:
         folder, name = os.path.split(path)
@@ -306,13 +249,6 @@ def _path_parts(path):
         path = folder
     parts.reverse()
     return parts
-
-
-def _path_join(base, *args):
-    # workaround for a py.path.local bug on Windows (`path.join('/x', abs=1)`
-    # should be py.path.local('X:\\x') where `X` is the current drive, when in
-    # fact it comes out as py.path.local('\\x'))
-    return py.path.local(base.join(*args, abs=1))
 
 
 def _filedefs_contains(base, filedefs, path):
@@ -326,10 +262,10 @@ def _filedefs_contains(base, filedefs, path):
 
     """
     unknown = object()
-    base = py.path.local(base)
-    path = _path_join(base, path)
+    base = Path(base)
+    path = base / path
 
-    path_rel_parts = _path_parts(path.relto(base))
+    path_rel_parts = _path_parts(path.relative_to(base))
     for part in path_rel_parts:
         if not isinstance(filedefs, dict):
             return False
@@ -343,7 +279,7 @@ def create_files(base, filedefs):
     for key, value in filedefs.items():
         if isinstance(value, dict):
             create_files(base.ensure(key, dir=1), value)
-        elif isinstance(value, basestring):
+        elif isinstance(value, str):
             s = textwrap.dedent(value)
             base.join(key).write(s)
 
@@ -379,15 +315,15 @@ def initproj(tmpdir):
             filedefs = {}
         if not src_root:
             src_root = "."
-        if isinstance(nameversion, basestring):
-            parts = nameversion.split(str("-"))
+        if isinstance(nameversion, str):
+            parts = nameversion.split("-")
             if len(parts) == 1:
                 parts.append("0.1")
             name, version = parts
         else:
             name, version = nameversion
         base = tmpdir.join(name)
-        src_root_path = _path_join(base, src_root)
+        src_root_path = base / src_root
         assert base == src_root_path or src_root_path.relto(
             base
         ), "`src_root` must be the constructed project folder or its direct or indirect subfolder"
@@ -457,7 +393,7 @@ def initproj(tmpdir):
 
 
 @pytest.fixture
-def create_and_upload(request, devpi, initproj, Popen):
+def create_and_upload(request, devpi, initproj):
     def upload(name, filedefs=None, opts=()):
         initproj(name, filedefs)
         devpi("upload", "--no-isolation", *opts)
@@ -472,7 +408,7 @@ def gen():
 class Gen:
     def __init__(self):
         import hashlib
-        self._md5 = hashlib.md5()
+        self._md5 = hashlib.md5()  # noqa: S324
         self._pkgname = 0
         self._version = 0
         self._usernum = 0
@@ -503,11 +439,11 @@ class Gen:
                             **getplatforminfo())
         out = StringIO()
         for i in range(passed):
-            out.write(". test_pass.py::test_pass%s\n" %i)
+            out.write(". test_pass.py::test_pass%s\n" % i)
         for i in range(failed):
-            out.write("F test_fail.py::test_fail%s\n longrepr%s\n" %(i,i))
+            out.write("F test_fail.py::test_fail%s\n longrepr%s\n" % (i, i))
         for i in range(skipped):
-            out.write("s test_skip.py::test_skip%s\n skiprepr%s\n" %(i,i))
+            out.write("s test_skip.py::test_skip%s\n skiprepr%s\n" % (i, i))
         out.seek(0)
         res.parse_resultfile(out)
         res.version = version
@@ -557,8 +493,8 @@ def pytest_runtest_makereport(item, call):
 def ext_devpi(request, tmpdir, devpi):
     def doit(*args, **kwargs):
         tmpdir.chdir()
-        result = runprocess(tmpdir,
-            ["devpi", "--clientdir", devpi.clientdir] + list(args))
+        result = runprocess(
+            tmpdir, ["devpi", "--clientdir", devpi.clientdir, *args])
         ret = kwargs.get("ret", 0)
         if ret != result.ret:
             pytest.fail("expected %s, got %s returnvalue\n%s" % (
@@ -571,8 +507,11 @@ def ext_devpi(request, tmpdir, devpi):
 def out_devpi(devpi):
     def out_devpi_func(*args, **kwargs):
         from _pytest.pytester import RunResult
-        cap = py.io.StdCaptureFD()
-        cap.startall()
+        cap = capture.MultiCapture(
+            in_=capture.FDCapture(0),
+            out=capture.FDCapture(1),
+            err=capture.FDCapture(2))
+        cap.start_capturing()
         now = time.time()
         ret = 0
         try:
@@ -581,9 +520,10 @@ def out_devpi(devpi):
                 if getattr(hub, "sysex", None):
                     ret = hub.sysex.args[0]
             finally:
-                out, err = cap.reset()
+                (out, err) = cap.readouterr()
+                cap.stop_capturing()
                 del cap
-        except:
+        except BaseException:
             print(out)
             print(err)
             raise
@@ -622,6 +562,9 @@ def cmd_devpi(tmpdir, monkeypatch):
                 raise
         finally:
             hub.close()
+            if IS_PYPY:
+                del hub.http
+                gc.collect()
         if expected is not None:
             if expected == -2:  # failed-to-start
                 assert hasattr(hub, "sysex")
@@ -646,13 +589,13 @@ def runproc():
 def runprocess(tmpdir, cmdargs):
     from _pytest.pytester import RunResult
     cmdargs = [str(x) for x in cmdargs]
-    p1 = tmpdir.join("stdout")
-    print_info("running", cmdargs, "curdir=", py.path.local())
+    p1 = Path(tmpdir) / "stdout"
+    print_info("running", cmdargs, "curdir=", Path())
     with codecs.open(str(p1), "w", encoding="utf8") as f1:
         now = time.time()
         popen = subprocess.Popen(
-                    cmdargs, stdout=f1, stderr=subprocess.STDOUT,
-                    close_fds=(sys.platform != "win32"))
+            cmdargs, stdout=f1, stderr=subprocess.STDOUT,
+            close_fds=(sys.platform != "win32"))
         ret = popen.wait()
     with codecs.open(str(p1), "r", encoding="utf8") as f1:
         outerr = f1.read().splitlines()
@@ -684,9 +627,9 @@ def create_venv(request, tmpdir_factory, monkeypatch):
         # we need to change directory, otherwise the path will become
         # too long on windows
         venvinstalldir.ensure_dir()
-        os.chdir(venvinstalldir.strpath)
-        subprocess.check_call([
-            "virtualenv", "--never-download", venvdir.strpath])
+        os.chdir(venvinstalldir)
+        check_call(request, [
+            "virtualenv", "--never-download", str(venvdir)])
         # activate
         if sys.platform == "win32":
             bindir = "Scripts"
@@ -709,11 +652,7 @@ def loghub(tmpdir):
         verbose = False
         settrusted = False
 
-    # BBB for Python 2.7
-    if sys.version_info < (3,):
-        out = BytesIO()
-    else:
-        out = StringIO()
+    out = StringIO()
     hub = Hub(args, file=out)
 
     def _getmatcher():
@@ -721,7 +660,13 @@ def loghub(tmpdir):
         return LineMatcher(lines)
 
     hub._getmatcher = _getmatcher
-    return hub
+    try:
+        yield hub
+    finally:
+        hub.close()
+        if IS_PYPY:
+            del hub.http
+            gc.collect()
 
 
 @pytest.fixture(scope="session")
@@ -736,13 +681,13 @@ def makehub(tmpdir_factory):
             arglist.append("--clientdir=%s" % tmp)
         pm = get_pluginmanager()
         args = parse_args(["devpi_"] + arglist, pm)
-        with tmp.as_cwd():
+        with chdir(tmp):
             return Hub(args)
     return mkhub
 
 
 @pytest.fixture
-def mock_http_api(monkeypatch, reqmock):  # noqa
+def mock_http_api(monkeypatch, reqmock):  # noqa: F811 (reqmock)
     """ mock out all Hub.http_api calls and return an object
     offering 'set' and 'add' to fake replies. """
     from devpi import main

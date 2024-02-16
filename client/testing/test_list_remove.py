@@ -6,7 +6,7 @@ from devpi.list_remove import confirm_delete
 from devpi.list_remove import out_index
 from devpi.list_remove import out_project
 from devpi.list_remove import show_commands
-import py
+from pathlib import Path
 import pytest
 
 
@@ -14,7 +14,7 @@ def linkver(index, basename, d=None, rel="releasefile"):
     if d is None:
         d = {}
     links = d.setdefault("+links", [])
-    href = href="/{index}/+f/{basename}".format(index=index, basename=basename)
+    href = "/{index}/+f/{basename}".format(index=index, basename=basename)
     links.append(dict(href=href, rel=rel))
     return d
 
@@ -31,7 +31,7 @@ def test_out_index(loghub, input, output):
 @pytest.mark.parametrize(["input", "output"], [
     ({"1.0": linkver("root/dev", "p1-1.0.tar.gz"),
       "1.1": linkver("root/dev", "p1-1.1.tar.gz")},
-     ["*p1-1.1.tar.gz*", "*p1-1.0.tar.gz*", ]),
+     ["*p1-1.1.tar.gz*", "*p1-1.0.tar.gz*"]),
     #({"1.0": {"+links": dict(
     #    rel="releasefile", href="root/dev/pkg/1.0/p1-1.0.tar.gz"),
     #          "+shadowing": [{"+files":
@@ -41,10 +41,10 @@ def test_out_index(loghub, input, output):
 def test_out_project(loghub, input, output, monkeypatch):
     from devpi import list_remove
     loghub.current.reconfigure(dict(
-                simpleindex="/index",
-                index="/root/dev/",
-                login="/login/",
-                ))
+        simpleindex="/index",
+        index="/root/dev/",
+        login="/login/",
+    ))
     loghub.args.status = False
     loghub.args.all = True
     loghub.args.failures = None
@@ -67,11 +67,11 @@ def test_out_project(loghub, input, output, monkeypatch):
 
 def test_confirm_delete(loghub, monkeypatch):
     loghub.current.reconfigure(dict(
-                pypisubmit="/post",
-                simpleindex="/index",
-                index="/root/dev/",
-                login="/login",
-                ))
+        pypisubmit="/post",
+        simpleindex="/index",
+        index="/root/dev/",
+        login="/login",
+    ))
     monkeypatch.setattr(loghub, "ask_confirm", lambda msg: True)
 
     class r:
@@ -108,7 +108,7 @@ class TestListRemove:
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         devpi("upload", "--no-isolation", "--formats", "sdist.zip,bdist_dumb")
         initproj("hello-1.1", {"doc": {
@@ -116,16 +116,16 @@ class TestListRemove:
             "index.html": "<html/>"}})
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*
-            */hello-1.0.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)
+            .*/hello-1\.0\..+\.(tar\.gz|whl|zip)
+            .*/hello-1\.0\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 3
         out = out_devpi("remove", "-y", "hello==1.0", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
         out = out_devpi("list", "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 1
         out = out_devpi("remove", "-y", "hello==1.1", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.1 of hello")
@@ -142,7 +142,7 @@ class TestListRemove:
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         devpi("upload", "--no-isolation", "--formats", "sdist.zip,bdist_dumb")
         initproj("hello-1.1", {"doc": {
@@ -150,10 +150,10 @@ class TestListRemove:
             "index.html": "<html/>"}})
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*
-            */hello-1.1.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)
+            .*/hello-1\.0\..+\.(tar\.gz|whl|zip)
+            .*/hello-1\.0\.(tar\.gz|zip)""")
         url = out.stdout.lines[0]
         out = out_devpi("remove", "-y", url, code=200)
         out.stdout.fnmatch_lines_random("""
@@ -168,7 +168,7 @@ class TestListRemove:
         initproj("hello-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         devpi("upload", "--no-isolation", "--formats", "sdist.zip,bdist_dumb")
         initproj("hello-1.1", {"doc": {
@@ -183,16 +183,16 @@ class TestListRemove:
         # go to other index
         devpi("use", other_index)
         out = out_devpi("list", "--index", "%s/dev" % user, "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip
-            */hello-1.0*
-            */hello-1.0.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)
+            .*/hello-1\.0\..+\.(tar\.gz|whl|zip)
+            .*/hello-1\.0\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 3
         out = out_devpi("remove", "--index", "%s/dev" % user, "-y", "hello==1.0", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.0 of hello")
         out = out_devpi("list", "--index", "%s/dev" % user, "hello")
-        out.stdout.fnmatch_lines_random("""
-            */hello-1.1.zip""")
+        out.stdout.re_match_lines_random(r"""
+            .*/hello-1\.1\.(tar\.gz|zip)""")
         assert len([x for x in out.stdout.lines if x.strip()]) == 1
         out = out_devpi("remove", "--index", "%s/dev" % user, "-y", "hello==1.1", code=200)
         out.stdout.fnmatch_lines_random("deleting release 1.1 of hello")
@@ -211,14 +211,14 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt==0.666", code=200)
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
 
     def test_delete_version_range_with_inheritance(self, initproj, devpi, out_devpi):
         import re
@@ -226,7 +226,7 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         # remember username
         out = out_devpi("use")
@@ -237,25 +237,25 @@ class TestListRemove:
         initproj("dddttt-1.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         # upload 2.0 to dev2 index
         initproj("dddttt-2.0", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
 
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
-        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-1.0.zip")
-        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
+        out.stdout.re_match_lines_random(r".*/dev2/.*/dddttt-1\.0\.(tar\.gz|zip)")
+        out.stdout.re_match_lines_random(r".*/dev2/.*/dddttt-2\.0\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt<2.0", code=200)
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-1.0.zip")
-        out.stdout.fnmatch_lines_random("*/dev2/*/dddttt-2.0.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-1\.0\.(tar\.gz|zip)")
+        out.stdout.re_match_lines_random(r".*/dev2/.*/dddttt-2\.0\.(tar\.gz|zip)")
 
     def test_delete_project_with_inheritance(self, initproj, devpi, out_devpi, simpypi):
         api = devpi("index", "-c", "dev2", "volatile=false")
@@ -267,14 +267,14 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt", code=200)
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
 
     def test_delete_file_non_volatile(self, initproj, devpi, out_devpi, server_version):
         if server_version < parse_version("6dev"):
@@ -285,16 +285,16 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         url = out.stdout.lines[0]
         out = out_devpi("remove", url, code=403)
         out = out_devpi("remove", "-f", url)
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
 
     def test_delete_project_non_volatile(self, initproj, devpi, out_devpi, server_version):
         if server_version < parse_version("6dev"):
@@ -305,12 +305,12 @@ class TestListRemove:
         initproj("dddttt-0.666", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         devpi("upload", "--no-isolation", "--formats", "sdist.zip")
         out = out_devpi("list", "dddttt", "--all")
-        out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+        out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")
         out = out_devpi("remove", "dddttt", code=403)
         out = out_devpi("remove", "--force", "dddttt")
         out = out_devpi("list", "dddttt", "--all")
         with pytest.raises((Failed, ValueError)):
-            out.stdout.fnmatch_lines_random("*/dev/*/dddttt-0.666.zip")
+            out.stdout.re_match_lines_random(r".*/dev/.*/dddttt-0\.666\.(tar\.gz|zip)")

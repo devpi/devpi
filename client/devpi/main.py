@@ -3,19 +3,22 @@ import os
 import sys
 import time
 import traceback
-import py
 import argparse
 import shlex
+import shutil
 import subprocess
 import textwrap
 from base64 import b64encode
 from contextlib import closing, contextmanager
+from contextlib import suppress
 from devpi import hookspecs
+from devpi_common.terminal import TerminalWriter
 from devpi_common.types import lazydecorator, cached_property
 from devpi_common.url import URL
 from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
+from pathlib import Path
 from pluggy import HookimplMarker
 from pluggy import PluginManager
 from shutil import rmtree
@@ -31,11 +34,6 @@ devpi-server managed index.  For more information see http://doc.devpi.net
 """
 
 hookimpl = HookimplMarker("devpiclient")
-
-try:
-    PermissionError
-except NameError:
-    PermissionError = OSError
 
 
 def main(argv=None):
@@ -70,17 +68,10 @@ notset = object()
 
 
 class Hub:
-    class Popen(subprocess.Popen):
-        STDOUT = subprocess.STDOUT
-        PIPE = subprocess.PIPE
-        def __init__(self, cmds, *args, **kwargs):
-            cmds = [str(x) for x in cmds]
-            subprocess.Popen.__init__(self, cmds, *args, **kwargs)
-
     def __init__(self, args, file=None, pm=None):
-        self._tw = py.io.TerminalWriter(file=file)
+        self._tw = TerminalWriter(file)
         self.args = args
-        self.cwd = py.path.local()
+        self.cwd = Path()
         self.quiet = False
         self._last_http_stati = []
         self.http = new_requests_session(agent=("client", client_version))
@@ -105,24 +96,24 @@ class Hub:
 
     @property
     def clientdir(self):
-        return py.path.local(self.args.clientdir)
+        return Path(self.args.clientdir)
 
     @property
     def auth_path(self):
-        return self.clientdir.join("auth.json")
+        return self.clientdir / "auth.json"
 
     @property
     def local_current_path(self):
         venv = self.active_venv()
         if venv is not None:
-            return venv.join('devpi.json')
+            return venv / 'devpi.json'
 
     @property
     def current_path(self):
         local_path = self.local_current_path
         if local_path is not None and local_path.exists():
             return local_path
-        return self.clientdir.join("current.json")
+        return self.clientdir / "current.json"
 
     def require_valid_current_with_index(self):
         current = self.current
@@ -197,8 +188,8 @@ class Hub:
             # don't show any extra info on success code
             if type is not None:
                 if reply.type != type:
-                    self.fatal("%s: got result type %r, expected %r" %(
-                                url, reply.type, type))
+                    self.fatal("%s: got result type %r, expected %r" % (
+                        url, reply.type, type))
             return reply
         # feedback reply info to user, possibly bailing out
         if r.status_code >= 400:
@@ -239,25 +230,25 @@ class Hub:
             while count:
                 try:
                     func(path)
-                    return
                 except PermissionError:
                     count = count - 1
                     if count == 0:
                         raise
                     # wait a moment for other processes to finish
                     time.sleep(1)
+                else:
+                    return
 
-        workdir = py.path.local(
-            mkdtemp(prefix=prefix))
+        workdir = Path(mkdtemp(prefix=prefix))
 
         self.info("using workdir", workdir)
         try:
             yield workdir
         finally:
-            rmtree(workdir.strpath, onerror=remove_readonly)
+            rmtree(workdir, onerror=remove_readonly)
 
     def get_current(self, args_url=None):
-        self.clientdir.ensure(dir=1)
+        self.clientdir.mkdir(parents=True, exist_ok=True)
         current = PersistentCurrent(self.auth_path, self.current_path)
         index_url = getattr(self.args, "index", None)
         if "DEVPI_INDEX" in os.environ:
@@ -316,10 +307,10 @@ class Hub:
         return self.get_current()
 
     def get_existing_file(self, arg):
-        p = py.path.local(arg, expanduser=True)
+        p = Path(arg).expanduser()
         if not p.exists():
             self.fatal("file does not exist: %s" % p)
-        elif not p.isfile():
+        elif not p.is_file():
             self.fatal("is not a file: %s" % p)
         return p
 
@@ -342,7 +333,12 @@ class Hub:
                 else:
                     self.warn(
                         "You don't have permission to access this index.")
-            raise SystemExit(1)
+            elif reply.status_code == 404:
+                self.warn("Connected index does not exist.")
+            else:
+                self.fatal("Unhandled status code %s %s%s" % (
+                    reply.status_code, reply.reason,
+                    reply.get_error_message(self.args.debug)))
 
     @property
     def venv(self):
@@ -358,11 +354,11 @@ class Hub:
             else:
                 venvdir = self.current.venvdir or self.active_venv()
             if venvdir:
-                cand = self.cwd.join(venvdir, vbin, abs=True)
-                if not cand.check() and self.venvwrapper_home:
-                    cand = self.venvwrapper_home.join(venvdir, vbin, abs=True)
-                venvdir = cand.dirpath().strpath
-                if not cand.check():
+                cand = self.cwd / venvdir / vbin
+                if not cand.exists() and self.venvwrapper_home:
+                    cand = self.venvwrapper_home / venvdir / vbin
+                venvdir = str(cand.parent)
+                if not cand.exists():
                     if self.current.venvdir:
                         self.fatal(
                             "No virtualenv found at: %r\n"
@@ -385,14 +381,14 @@ class Hub:
         path = os.environ.get("WORKON_HOME", None)
         if path is None:
             return
-        return py.path.local(path)
+        return Path(path)
 
     def active_venv(self):
         """current activated virtualenv"""
         path = os.environ.get("VIRTUAL_ENV", None)
         if path is None:
             return
-        return py.path.local(path)
+        return Path(path)
 
     def popen_output(self, args, cwd=None, report=True):
         if isinstance(args, str):
@@ -401,16 +397,16 @@ class Hub:
         args = [str(x) for x in args]
         if cwd is None:
             cwd = self.cwd
-        cmd = py.path.local.sysfind(args[0])
-        if not cmd:
+        cmd = shutil.which(args[0])
+        if cmd is None:
             self.fatal("command not found: %s" % args[0])
-        args[0] = str(cmd)
+        args[0] = cmd
         if report:
             self.report_popen(args, cwd)
         encoding = sys.getdefaultencoding()
         try:
             return subprocess.check_output(
-                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)
+                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)  # noqa: S603
         except subprocess.CalledProcessError as e:
             self.fatal(e.output.decode(encoding))
 
@@ -426,7 +422,7 @@ class Hub:
             dryrun = self.args.dryrun
         if dryrun:
             return
-        popen = subprocess.Popen(args, cwd=str(cwd), **popen_kwargs)
+        popen = subprocess.Popen(args, cwd=str(cwd), **popen_kwargs)  # noqa: S603
         out, err = popen.communicate()
         ret = popen.wait()
         if ret:
@@ -435,15 +431,15 @@ class Hub:
 
     def report_popen(self, args, cwd=None, extraenv=None):
         base = cwd or self.cwd
-        rel = py.path.local(args[0]).relto(base)
-        if not rel:
-            rel = str(args[0])
+        rel = Path(args[0])
+        with suppress(ValueError):
+            rel = rel.relative_to(base)
         if extraenv is not None:
             envadd = " [%s]" % ",".join(
                 ["%s=%r" % item for item in sorted(extraenv.items())])
         else:
             envadd = ""
-        self.line("--> ", base + "$", rel, " ".join(args[1:]), envadd)
+        self.line(f"--> {base}$ {rel} {' '.join(args[1:])} {envadd}")
 
     def popen_check(self, args, extraenv=None, **kwargs):
         assert args[0], args
@@ -455,7 +451,7 @@ class Hub:
         assert kwargs.get('stderr') != subprocess.PIPE
         assert kwargs.get('stdout') != subprocess.PIPE
         try:
-            subprocess.check_call(args, env=env, **kwargs)
+            subprocess.check_call(args, env=env, **kwargs)  # noqa: S603
         except subprocess.CalledProcessError as e:
             self.fatal_code("command failed", code=e.returncode)
             return e.returncode
@@ -486,10 +482,6 @@ class Hub:
         title = {
             'devpi': 'Devpi',
             'pypi': 'PyPI'}[password.split('-', 1)[0]]
-        if sys.version_info[:2] < (3, 7):
-            # Python below 3.7 not supported by pypitoken
-            # so don't bother checking or mentioning it
-            return password
         try:
             import pypitoken
         except ImportError:
@@ -677,19 +669,20 @@ def parse_args(argv, pm):
     try_argcomplete(parser)
     try:
         args = parser.parse_args(argv[1:])
-        if sys.version_info >= (3,) and args.version:
+        if args.version:
             with closing(Hub(args)) as hub:
                 print_version(hub)
             parser.exit()
         if args.command is None:
             raise parser.ArgumentError(
                 "the following arguments are required: command")
-        return args
     except parser.ArgumentError as e:
         if not argv[1:]:
             return parser.parse_args(["-h"])
         parser.print_usage()
         parser.exit(2, "%s: error: %s\n" % (parser.prog, e.args[0]))
+    else:
+        return args
 
 
 def parse_docstring(txt):
@@ -736,13 +729,9 @@ def add_subparsers(parser, pm):
 
 def getbaseparser(prog):
     parser = MyArgumentParser(prog=prog, description=main_description)
-    if sys.version_info < (3,):
-        # workaround old argparse which doesn't support optional sub commands
-        parser.add_argument("--version", action="version",
-            version="devpi-client %s" % client_version)
-    else:
-        parser.add_argument("--version", action="store_true",
-            help="show program's version number and exit")
+    parser.add_argument(
+        "--version", action="store_true",
+        help="show program's version number and exit")
     add_generic_options(parser, defaults=True)
     return parser
 

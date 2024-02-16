@@ -7,6 +7,7 @@ import re
 
 
 devpi_server_version = parse_version(_devpi_server_version)
+pytestmark = [pytest.mark.notransaction]
 
 
 def compareable_text(text):

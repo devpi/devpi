@@ -245,7 +245,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
-    headers={str('X-outside-url'): str(outside_url)}
+    headers = {'X-outside-url': str(outside_url)}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
@@ -267,7 +267,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     mapp.upload_file_pypi(
         "qpwoei-1.0.tar.gz", b'123', "qpwoei", "1.0", indexname=api.stagename)
     pypistage.mock_simple("qpwoei", text='<a href="/qpwoei-1.0.zip"/>')
-    headers={str('X-devpi-absolute-urls'): str("")}
+    headers = {'X-devpi-absolute-urls': ""}
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
@@ -280,7 +280,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     testapp.xget(200, links[1], headers=headers)
     # we also test in combination with X-outside-url where devpi is "mounted"
     # in a sub path
-    headers.update({str('X-outside-url'): str("http://localhost/devpi")})
+    headers.update({'X-outside-url': "http://localhost/devpi"})
     r = testapp.get("/%s/+simple/qpwoei/" % api.stagename, headers=headers)
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
@@ -314,7 +314,7 @@ user_agent_parameter_ids = [
 def test_projects_simple_results_for_installers(pypistage, testapp, user_agent):
     # installers should get the simple projects info directly without redirect
     pypistage.mock_simple_projects(["hello1", "hello2"])
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
     r = testapp.get("/root/pypi", headers=headers, follow=False)
     assert r.status_code == 200
     assert 'href="hello1/"' in r.text
@@ -416,7 +416,7 @@ def test_project_pep_691_multiple(mapp, testapp):
 def test_projects_redirect(pypistage, testapp):
     # test non installer html requests which should go nowhere,
     # because devpi-server only returns json
-    headers = {"Accept": str("text/html")}
+    headers = {"Accept": "text/html"}
     r = testapp.get("/root/pypi", headers=headers, follow=False)
     assert r.status_code == 404
     r = testapp.get("/root/pypi/", headers=headers, follow=False)
@@ -430,7 +430,7 @@ def test_project_simple_results_for_installers(pypistage, testapp, user_agent):
     pypistage.mock_simple(
         "py",
         """<a href="/py-2.0.zip" /><a href="/py-3.0.zip" /><a href="/py-1.0.zip" />""")
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
 
     r = testapp.get("/root/pypi/py", headers=headers, follow=False)
     assert r.status_code == 200
@@ -450,7 +450,7 @@ def test_project_redirect(pypistage, testapp):
     name = "qpwoei"
     # test non installer html requests which should go nowhere,
     # because devpi-server only returns json
-    headers = {"Accept": str("text/html")}
+    headers = {"Accept": "text/html"}
 
     r = testapp.get("/root/pypi/%s" % name, headers=headers, follow=False)
     assert r.status_code == 404
@@ -465,7 +465,7 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
     pypistage.mock_simple(
         "py",
         """<a href="/py-2.0.zip" /><a href="/py-3.0.zip" /><a href="/py-1.0.zip" />""")
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
     # fail if called
     monkeypatch.setattr(
         BaseStage, "get_mirror_whitelist_info", lambda s, p: 0 / 0)
@@ -493,7 +493,7 @@ def test_simple_project_plain_info_for_installers(monkeypatch, pypistage, testap
 @pytest.mark.parametrize(*user_agent_parameter_args, ids=user_agent_parameter_ids)
 def test_simple_list_all_no_redirect_for_installers(pypistage, testapp, user_agent):
     pypistage.mock_simple_projects(["hello1", "hello2"])
-    headers = {'User-Agent': str(user_agent), "Accept": str("text/html")}
+    headers = {'User-Agent': str(user_agent), "Accept": "text/html"}
     r = testapp.get("/root/pypi/+simple", headers=headers)
     assert r.status_code == 200
     assert 'href="hello1/"' in r.text
@@ -590,7 +590,7 @@ def test_simple_refresh(mapp, xom, pypistage, testapp):
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
     assert input.attrs['value'] == 'Refresh'
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         info = pypistage.key_projsimplelinks("hello").get()
     assert info != {}
     assert info["links"] == []
@@ -599,7 +599,7 @@ def test_simple_refresh(mapp, xom, pypistage, testapp):
     r = testapp.post("/root/pypi/+simple/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/+simple/hello/")
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         info = pypistage.key_projsimplelinks("hello").get()
     assert info["links"] == [
         ('hello-1.0.zip', 'root/pypi/+e/https_pypi.org_hello/hello-1.0.zip')]
@@ -643,7 +643,7 @@ def test_simple_refresh_inherited(mapp, xom, pypistage, testapp, project,
     r = testapp.xget(200, "/%s/+simple/%s/" % (stagename, project))
     input, = r.html.select('form input')
     assert input.attrs['name'] == 'refresh'
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         info = pypistage.key_projsimplelinks(project).get()
     assert info != {}
     pypistage.mock_simple(project, '<a href="/%s-2.0.zip" />' % project,
@@ -651,7 +651,7 @@ def test_simple_refresh_inherited(mapp, xom, pypistage, testapp, project,
     r = testapp.post("/%s/+simple/%s/refresh" % (stagename, project))
     assert r.status_code == 302
     assert r.location.endswith("/%s/+simple/%s/" % (stagename, project))
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         info = pypistage.key_projsimplelinks(project).get()
     elist = info["links"]
     assert len(elist) == 1
@@ -694,7 +694,7 @@ def test_simple_with_removed_base(caplog, mapp, testapp):
 
 
 def test_indexroot(testapp, model, xom):
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         user = model.create_user("user", "123")
         user.create_stage("index", bases=("root/pypi",))
     r = testapp.get("/user/index")
@@ -1032,7 +1032,7 @@ class TestSubmitValidation:
         paths = mapp.get_release_paths("Pkg5")
         for path in paths:
             testapp.xget(200, path)
-            with testapp.xom.keyfs.transaction():
+            with testapp.xom.keyfs.read_transaction():
                 assert getentry(testapp, path).file_exists()
         # try a slightly different path and see if it fails
         testapp.xget(404, path[:-2])
@@ -1040,7 +1040,7 @@ class TestSubmitValidation:
         mapp.delete_index(submit.stagename)
         for path in paths:
             testapp.xget(410, path)
-            with testapp.xom.keyfs.transaction():
+            with testapp.xom.keyfs.read_transaction():
                 assert not getentry(testapp, path).file_exists()
 
     def test_delete_verdata_noacl_issue179(self, submit, testapp, mapp):
@@ -1155,7 +1155,7 @@ class TestSubmitValidation:
         assert log2['dst'] == 'user/prod'
         assert log2['src'] == 'user/dev'
 
-    @pytest.mark.skipif("not config.option.slow")
+    @pytest.mark.slow
     def test_last_modified_preserved_on_push(self, submit, testapp, mapp):
         import time
         metadata = {"name": "Pkg5", "version": "2.6", ":action": "submit"}
@@ -1168,7 +1168,7 @@ class TestSubmitValidation:
         req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
         time.sleep(1.5)  # needed to test last_modified below
         testapp.push("/%s" % old_stagename, json.dumps(req))
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             old_stage = mapp.xom.model.getstage(old_stagename)
             new_stage = mapp.xom.model.getstage(new_stagename)
             old_entry = old_stage.get_releaselinks('Pkg5')[0].entry
@@ -1185,7 +1185,7 @@ class TestSubmitValidation:
         mapp.use(old_stagename)
         req = dict(name="Pkg5", version="2.6", targetindex=new_stagename)
         testapp.push("/%s" % old_stagename, json.dumps(req))
-        with mapp.xom.keyfs.transaction(write=False):
+        with mapp.xom.keyfs.read_transaction():
             new_stage = mapp.xom.model.getstage(new_stagename)
             verdata = new_stage.get_versiondata('Pkg5', '2.6')
             assert ':action' not in list(verdata.keys())
@@ -1329,7 +1329,7 @@ def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypist
     (tag,) = testapp.get(pkg_url).html.select('a')
     r = testapp.get(URL(pkg_url).joinpath(tag['href']).url)
     assert r.body == b"123"
-    with mapp.xom.keyfs.transaction(write=True):
+    with mapp.xom.keyfs.write_transaction():
         # switch to external URLs
         pypistage.modify(mirror_use_external_urls=True)
         # and remove the file to simulate a cleanup
@@ -1424,7 +1424,7 @@ def test_acl_toxresults_upload(mapp, testapp, tox_result_data):
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
-    headers={str('X-outside-url'): str('')}
+    headers = {'X-outside-url': ''}
     r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
     assert r.status_code == 200
     mapp.set_acl(['user2'], acltype="toxresult_upload")
@@ -1433,7 +1433,7 @@ def test_acl_toxresults_upload(mapp, testapp, tox_result_data):
     assert r.status_code == 403
     # check that stage created before introduction of acl_toxresult_upload
     # still allow upload to anonymous
-    with mapp.xom.keyfs.transaction(write=True):
+    with mapp.xom.keyfs.write_transaction():
         stage = mapp.xom.model.getstage('user1/dev')
         with stage.user.key.update() as userconfig:
             del userconfig['indexes']['dev']['acl_toxresult_upload']
@@ -1450,7 +1450,7 @@ def test_upload_and_push_with_toxresults(mapp, testapp, outside_url, tox_result_
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6", code=200)
     path, = mapp.get_release_paths("pkg1")
-    headers={str('X-outside-url'): str(outside_url)}
+    headers = {'X-outside-url': str(outside_url)}
     r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
     # store a second toxresult
     r = testapp.post(path, json.dumps(tox_result_data), headers=headers)
@@ -1694,13 +1694,13 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     path = link[1:]
     assert '2.6' in path
     r = testapp.xget(200, link)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         stage = testapp.xom.model.getstage(api.stagename)
         assert stage.key_projects.get() == set([name])
         assert getentry(testapp, path).file_exists()
     # remove
     mapp.delete_index(api.stagename)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         stage = testapp.xom.model.getstage(api.stagename)
         assert stage is None
         assert not getentry(testapp, path).file_exists()
@@ -1710,7 +1710,7 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     # patch async_httpget to simulate broken PyPI
     async def async_httpget(url, **kwargs):
         class Response:
-            status = 503
+            status_code = 503
             reason = "Service Unavailable"
         return (Response(), None)
     xom.async_httpget = async_httpget
@@ -1724,7 +1724,7 @@ def test_delete_mirror(mapp, simpypi, testapp, xom):
     # the simple page should be empty
     r = testapp.get(newapi.index + '/+simple/%s' % name)
     assert getlinks(r.text) == []
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         stage = testapp.xom.model.getstage(api.stagename)
         assert stage.key_projects.get() == set()
         assert not getentry(testapp, path).file_exists()
@@ -1749,7 +1749,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     path = link[1:]
     assert '2.5' in other_path
     assert '2.6' in path
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert get_pypi_project_names(testapp) == set([name])
         assert not getentry(testapp, path).file_exists()
     assert '/+e/' in link
@@ -1759,7 +1759,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     mapp.modify_index("root/pypi", indexconfig=dict(res, volatile=True))
     mapp.delete_project("pytest", code=200)
     r = testapp.get(link)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert get_pypi_project_names(testapp) == set([name])
         assert getentry(testapp, path).file_exists()
         assert not getentry(testapp, other_path).file_exists()
@@ -1770,7 +1770,7 @@ def test_delete_from_mirror(mapp, pypistage, testapp):
     assert '2.5' in other_link
     assert '2.6' in link
     mapp.delete_project("pytest", code=200)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert get_pypi_project_names(testapp) == set()
         assert not getentry(testapp, path).file_exists()
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
@@ -1799,7 +1799,7 @@ def test_delete_version_from_mirror(mapp, pypistage, testapp):
     assert '2.6' in path26
     # download pytest-2.5
     r = testapp.get(link25)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path26).file_exists()
         assert getentry(testapp, path25).file_exists()
     assert '/+e/' in link26
@@ -1811,12 +1811,12 @@ def test_delete_version_from_mirror(mapp, pypistage, testapp):
     # check that deleting the not yet downloaded 2.6 doesn't cause an error
     # and also doesn't change anything in the db
     mapp.delete_project("pytest/2.6", code=200)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path26).file_exists()
         assert getentry(testapp, path25).file_exists()
     # now download pytest-2.6
     r = testapp.get(link26)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert getentry(testapp, path26).file_exists()
         assert getentry(testapp, path25).file_exists()
     # update links after download by explicitly expiring the cache
@@ -1830,7 +1830,7 @@ def test_delete_version_from_mirror(mapp, pypistage, testapp):
     # delete again, now pytest-2.6 should be removed, but pytest-2.5
     # should still be there
     mapp.delete_project("pytest/2.6", code=200)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path26).file_exists()
         # only the file is deleted, the key for it still exists
         key = testapp.xom.filestore.get_key_from_relpath(path26.strip("/"))
@@ -1838,7 +1838,7 @@ def test_delete_version_from_mirror(mapp, pypistage, testapp):
         assert getentry(testapp, path25).file_exists()
     # make sure download still works after deletion
     r = testapp.xget(200, link26)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert getentry(testapp, path26).file_exists()
         assert getentry(testapp, path25).file_exists()
 
@@ -1884,13 +1884,13 @@ def test_mirror_use_external_urls(mapp, simpypi, testapp, xom):
     # we should get a redirect to the original URL
     r = testapp.xget(302, link, follow=False)
     assert r.location == "%s/pytest/pytest-2.6.zip" % simpypi.baseurl
-    with testapp.xom.keyfs.transaction(write=False):
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path).file_exists()
     # now turn external urls off
     mapp.modify_index(api.stagename, indexconfig=["mirror_use_external_urls=False"])
     # and fetch again
     r = testapp.xget(200, link, follow=False)
-    with testapp.xom.keyfs.transaction(write=False):
+    with testapp.xom.keyfs.read_transaction():
         # now the file was stored locally
         assert getentry(testapp, path).file_exists()
     # turn external urls on again
@@ -1898,7 +1898,7 @@ def test_mirror_use_external_urls(mapp, simpypi, testapp, xom):
     # we still get the locally stored file
     r = testapp.xget(200, link, follow=False)
     # now remove the file, but keep metadata in place
-    with testapp.xom.keyfs.transaction(write=True):
+    with testapp.xom.keyfs.write_transaction():
         getentry(testapp, path).file_delete()
     # we should get a redirect to the original URL again
     r = testapp.xget(302, link, follow=False)
@@ -1953,7 +1953,7 @@ def test_delete_package(mapp, testapp):
     # store the link of the tarball
     (link,) = vv.get_links()
     (path,) = mapp.get_release_paths("pkg5")
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert getentry(testapp, path).file_exists()
     mapp.upload_file_pypi("pkg5-2.6.zip", b"456", "pkg5", "2.6")
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
@@ -1962,7 +1962,7 @@ def test_delete_package(mapp, testapp):
     testapp.delete(link.href)
     testapp.xget(410, link.href)
     testapp.delete(link.href, status=410)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path).file_exists()
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     # the zip file should still be there
@@ -1982,12 +1982,12 @@ def test_delete_package_with_doczip(mapp, testapp):
     # store the link of the package zip
     (link,) = vv.get_links(rel="releasefile")
     (path,) = mapp.get_release_paths("pkg5")
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert getentry(testapp, path).file_exists()
     # now delete the zip link from above
     testapp.delete(link.href)
     testapp.xget(410, link.href)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path).file_exists()
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     # the doczip should still be there
@@ -2008,12 +2008,12 @@ def test_delete_doczip(mapp, testapp):
     # store the link to the doczip
     (link,) = vv.get_links(rel="doczip")
     path = URL(link.href).path
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert getentry(testapp, path).file_exists()
     # delete the doczip
     testapp.delete(link.href)
     testapp.xget(410, link.href)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path).file_exists()
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     # the package zip should still be there
@@ -2043,7 +2043,7 @@ def test_delete_package_where_file_was_deleted(mapp, testapp):
     vv = get_view_version_links(testapp, "/root/test", "pkg5", "2.6")
     (link,) = vv.get_links()
     path = link.href.replace(api.index, '/' + api.stagename)
-    with testapp.xom.keyfs.transaction(write=True):
+    with testapp.xom.keyfs.write_transaction():
         # simulate removal of the file from file system outside of devpi
         getentry(testapp, path).file_delete()
     # delete the whole release
@@ -2078,7 +2078,7 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
         for x in getlinks(r.text))
     path1 = link1[1:]
     path2 = link2[1:]
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert get_pypi_project_names(testapp) == set([name, other_name])
         assert not getentry(testapp, path1).file_exists()
         assert not getentry(testapp, path2).file_exists()
@@ -2091,7 +2091,7 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     testapp.xdel(404, link1)
     testapp.get(link1)
     testapp.get(link2)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert get_pypi_project_names(testapp) == set([name, other_name])
         assert getentry(testapp, path1).file_exists()
         assert getentry(testapp, path2).file_exists()
@@ -2103,13 +2103,13 @@ def test_delete_package_from_mirror(mapp, pypistage, testapp):
     path1 = link1[1:]
     path2 = link2[1:]
     testapp.xdel(200, link1)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert get_pypi_project_names(testapp) == set([name, other_name])
         assert not getentry(testapp, path1).file_exists()
         assert getentry(testapp, path2).file_exists()
         assert getentry(testapp, other_path).file_exists()
     testapp.xdel(200, link2)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert get_pypi_project_names(testapp) == set([other_name])
         assert not getentry(testapp, path1).file_exists()
         assert not getentry(testapp, path2).file_exists()
@@ -2144,10 +2144,10 @@ def test_delete_toxresult(mapp, testapp, tox_result_data):
     mapp.upload_toxresult(link1.href, json.dumps(tox_result_data))
     vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
     (toxlink,) = vv.get_links(rel="toxresult", for_href=link1.href)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert getentry(testapp, URL(toxlink.href).path).file_exists()
     testapp.delete(toxlink.href)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, URL(toxlink.href).path).file_exists()
     vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
     (link2,) = vv.get_links()
@@ -2164,7 +2164,7 @@ def test_delete_removed_toxresult(mapp, testapp, tox_result_data):
     mapp.upload_toxresult(link1.href, json.dumps(tox_result_data))
     vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
     (toxlink1,) = vv.get_links(rel="toxresult", for_href=link1.href)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         entry = getentry(testapp, URL(toxlink1.href).path)
         assert entry.file_exists()
         # remove the file from filesystem
@@ -2175,7 +2175,7 @@ def test_delete_removed_toxresult(mapp, testapp, tox_result_data):
     (toxlink2,) = vv.get_links(rel="toxresult", for_href=link1.href)
     assert toxlink1.href == toxlink2.href
     testapp.delete(toxlink2.href)
-    with testapp.xom.keyfs.transaction():
+    with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, URL(toxlink2.href).path).file_exists()
     vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
     (link2,) = vv.get_links()
@@ -2344,7 +2344,7 @@ class TestOfflineMode:
         monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: False)
         r = testapp.xget(200, "/%s/+simple/package/" % stagename)
         assert getlinks(r.text) == []
-        with xom.keyfs.transaction(write=False):
+        with xom.keyfs.read_transaction():
             is_expired, links, serial = pypistage._load_cache_links("package")
 
         assert len(links) == 0
@@ -2353,7 +2353,7 @@ class TestOfflineMode:
         r = testapp.xget(200, "/%s/+simple/package/" % stagename)
         (link,) = getlinks(r.text)
         assert '/package-1.0.zip' in link.get("href")
-        with xom.keyfs.transaction(write=False):
+        with xom.keyfs.read_transaction():
             is_expired, links, serial = pypistage._load_cache_links("package")
 
         assert links[0][0] == "package-1.0.zip"

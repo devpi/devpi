@@ -1,9 +1,9 @@
 import json
 import os
 import stat
-import py
 import pytest
 import re
+import shutil
 import sys
 import tarfile
 from devpi.upload import Checkout
@@ -12,7 +12,9 @@ from devpi.upload import filter_latest
 from devpi.upload import get_pkginfo
 from devpi.upload import main
 from devpi.upload import read_setupcfg
+from devpi_common.contextlib import chdir
 from io import BytesIO
+from pathlib import Path
 from textwrap import dedent
 from devpi_common.metadata import splitbasename
 from devpi_common.viewhelp import ViewLinkStore
@@ -21,14 +23,14 @@ from subprocess import check_output
 
 @pytest.fixture
 def datadir():
-    return py.path.local(__file__).dirpath("data")
+    return Path(__file__).parent / "data"
 
 
 def runproc(cmd):
     args = cmd.split()
     path0 = args[0]
     if not os.path.isabs(path0):
-        path0 = py.path.local.sysfind(path0)
+        path0 = shutil.which(path0)
         if not path0:
             pytest.skip("%r not found" % args[0])
     return check_output([str(path0)] + args[1:])
@@ -37,9 +39,10 @@ def runproc(cmd):
 @pytest.fixture
 def uploadhub(request, tmpdir):
     from devpi.main import initmain
-    hub, method = initmain(["devpitest",
-                           "--clientdir", tmpdir.join("client").strpath,
-                           "upload"])
+    hub, method = initmain([
+        "devpitest",
+        "--clientdir", tmpdir.join("client").strpath,
+        "upload"])
     return hub
 
 
@@ -71,22 +74,21 @@ class TestCheckout:
         # need to test the vcs-exporting code much since we started
         # relying on the external check-manifest project to do things.
         unicode_fn = b"something-\342\200\223.txt"
-        if sys.version_info >= (3,0):
-            unicode_fn = str(unicode_fn, "utf8")
+        unicode_fn = str(unicode_fn, "utf8")
         setupdir.ensure(unicode_fn)
         if request.param == "hg":
-            if not py.path.local.sysfind("hg"):
+            if not shutil.which("hg"):
                 pytest.skip("'hg' command not found")
-            with repo.as_cwd():
+            with chdir(repo):
                 runproc("hg init")
                 runproc("hg add {0}/file {0}/link {0}/setup.py".format(setupdir_rel))
                 runproc("hg add {0}/file {0}/{1}".format(setupdir_rel,
                                                          unicode_fn))
                 runproc("hg commit --config ui.username=whatever -m message")
             return repo
-        if not py.path.local.sysfind("git"):
+        if not shutil.which("git"):
             pytest.skip("'git' command not found")
-        with repo.as_cwd():
+        with chdir(repo):
             runproc("git init")
             runproc("git config user.email 'you@example.com'")
             runproc("git config user.name 'you'")
@@ -99,59 +101,56 @@ class TestCheckout:
     def test_vcs_export(self, uploadhub, repo, setupdir, tmpdir):
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == repo
-        newrepo = tmpdir.mkdir("newrepo")
+        newrepo = Path(tmpdir.mkdir("newrepo").strpath)
         result = checkout.export(newrepo)
-        assert result.rootpath.join("file").check()
-        assert result.rootpath.join("link").check()
+        assert result.rootpath.joinpath("file").exists()
+        assert result.rootpath.joinpath("link").exists()
         if not sys.platform.startswith("win"):
-            assert result.rootpath.join("link").readlink() == ".."
-        assert result.rootpath == newrepo.join(repo.basename).join(
-            repo.bestrelpath(setupdir))
+            assert os.readlink(result.rootpath / "link") == ".."
+        assert result.rootpath == newrepo / repo.basename / repo.bestrelpath(setupdir)
         # ensure we also copied repo meta info
         if repo.join(".hg").exists():
-            assert newrepo.join(repo.basename).join(".hg").listdir()
+            assert list(newrepo.joinpath(repo.basename, ".hg").iterdir())
         else:
-            assert newrepo.join(repo.basename).join(".git").listdir()
+            assert list(newrepo.joinpath(repo.basename, ".git").iterdir())
         with uploadhub.workdir() as uploadbase:
             checkout.export(uploadbase)
-            readonly = uploadbase.join("readonly")
-            readonly.write("foo")
+            readonly = uploadbase / "readonly"
+            readonly.write_text("foo")
             ro_bits = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
             os.chmod(str(readonly), ro_bits)
-        assert readonly.check() is False
-        assert uploadbase.check() is False
+        assert not readonly.exists()
+        assert not uploadbase.exists()
 
-    def test_vcs_export_setupdironly(self, uploadhub, setupdir,
-                                          tmpdir, monkeypatch):
+    def test_vcs_export_setupdironly(self, uploadhub, setupdir, tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "setupdironly", True)
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert checkout.rootpath == setupdir
-        newrepo = tmpdir.mkdir("newrepo")
+        newrepo = Path(tmpdir.mkdir("newrepo").strpath)
         result = checkout.export(newrepo)
-        assert result.rootpath.join("file").check()
-        assert result.rootpath.join("link").check()
-        p = result.rootpath.join("setup.py")
+        assert result.rootpath.joinpath("file").exists()
+        assert result.rootpath.joinpath("link").exists()
+        p = result.rootpath / "setup.py"
         assert p.exists()
         if not sys.platform.startswith("win"):
-            assert p.stat().mode & int("0777", 8) == int("0777", 8)
-            assert result.rootpath.join("link").readlink() == '..'
-        assert result.rootpath == newrepo.join(setupdir.basename)
+            assert p.stat().st_mode & int("0777", 8) == int("0777", 8)
+            assert os.readlink(result.rootpath / "link") == '..'
+        assert result.rootpath == newrepo / setupdir.basename
 
-    def test_vcs_export_disabled(self, uploadhub, setupdir,
-                                      tmpdir, monkeypatch):
+    def test_vcs_export_disabled(self, uploadhub, setupdir, tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "novcs", True)
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
         assert not checkout.hasvcs
-        exported = checkout.export(tmpdir)
+        exported = checkout.export(Path(tmpdir.strpath))
         assert exported.rootpath == checkout.setupdir
 
     def test_vcs_export_verify_setup(self, uploadhub, setupdir, tmpdir):
         subdir = setupdir.mkdir("subdir")
         subdir.ensure("setup.py")
         checkout = Checkout(uploadhub, uploadhub.args, subdir)
-        wc = tmpdir.mkdir("wc")
+        wc = Path(tmpdir.mkdir("wc").strpath)
         exported = checkout.export(wc)
-        assert not exported.rootpath.join("setup.py").check()
+        assert not exported.rootpath.joinpath("setup.py").exists()
 
     def test_export_attributes(self, uploadhub, setupdir, tmpdir):
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
@@ -161,7 +160,7 @@ class TestCheckout:
             print("* foo, bar")
             setup(name="xyz", version="1.2.3")
         """))
-        exported = checkout.export(tmpdir)
+        exported = checkout.export(Path(tmpdir.strpath))
         name, version = exported.setup_name_and_version()
         assert name == "xyz"
         assert version == "1.2.3"
@@ -172,7 +171,7 @@ class TestCheckout:
             from setuptools import setup
             setup(name="xyz", version="1.2.3")
         """))
-        exported = checkout.export(tmpdir)
+        exported = checkout.export(Path(tmpdir.strpath))
         assert exported.rootpath != exported.origrepo
         # we have to mock a bit unfortunately
         # to find out if the sphinx building popen command
@@ -255,8 +254,8 @@ def test_post_includes_auth_info(initproj, uploadhub):
         withdocs = None
 
     initproj("pkg-1.0")
-    tmpdir = py.path.local()
-    certpath = tmpdir.join("cert.key").strpath
+    tmpdir = Path()
+    certpath = str(tmpdir / "cert.key")
     uploadhub.cwd = tmpdir
     uploadhub.http = Session()
     uploadhub.current.reconfigure(dict(
@@ -278,7 +277,6 @@ def test_post_includes_auth_info(initproj, uploadhub):
     assert "X-Devpi-Auth" in upload2[1]["headers"]
 
 
-@pytest.mark.skipif("sys.version_info < (3,)")
 @pytest.mark.skipif("config.option.fast")
 def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
     import email
@@ -309,8 +307,7 @@ def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
         return Response()
 
     initproj("pkg-1.0")
-    tmpdir = py.path.local()
-    uploadhub.cwd = tmpdir
+    uploadhub.cwd = Path()
     uploadhub.current.reconfigure(dict(
         index="http://devpi/foo/bar",
         login="http://devpi/+login",
@@ -332,7 +329,6 @@ def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
     assert data["version"] == "1.0"
 
 
-@pytest.mark.skipif("sys.version_info < (3, 7)")
 @pytest.mark.skipif("config.option.fast")
 def test_post_derived_devpi_token(initproj, uploadhub):
     from base64 import b64decode
@@ -368,8 +364,7 @@ def test_post_derived_devpi_token(initproj, uploadhub):
     token = pypitoken.token.Token.load(passwd)
     assert pypitoken.ProjectNamesRestriction(
         project_names=["pkg"]) not in token.restrictions
-    tmpdir = py.path.local()
-    uploadhub.cwd = tmpdir
+    uploadhub.cwd = Path()
     uploadhub.http = Session()
     uploadhub.current.reconfigure(dict(
         index="http://devpi/foo/bar",
@@ -390,22 +385,21 @@ def test_post_derived_devpi_token(initproj, uploadhub):
 
 class TestUploadFunctional:
     @pytest.fixture(params=["hello-1.0", "my-pkg-123-1.0"])
-    def projname_version(self, request, initproj):
-        initproj(
-            request.param.rsplit("-", 1),
+    def projname_version_project(self, request, initproj):
+        project = initproj(request.param.rsplit("-", 1), {
+            "doc" if request.param.startswith("hello") else "docs":
             {
-                "doc" if request.param.startswith("hello") else "docs":
-                {
-                    "conf.py": "#nothing",
-                    "contents.rst": "",
-                    "index.html": "<html/>"
-                },
-            }
-        )
-        return request.param
+                "conf.py": "#nothing",
+                "contents.rst": "",
+                "index.html": "<html/>"}})
+        return (request.param, project)
+
+    @pytest.fixture
+    def projname_version(self, projname_version_project):
+        return projname_version_project[0]
 
     def test_plain_dry_run(self, devpi, out_devpi, projname_version):
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         out = out_devpi("upload", "--no-isolation", "--dry-run")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
@@ -494,22 +488,42 @@ class TestUploadFunctional:
             doc_upload of {projname_version}.doc.zip*
             """.format(projname_version=projname_version))
 
+    def test_no_artifacts_in_docs(self, out_devpi, projname_version_project):
+        from devpi_common.archive import Archive
+        out = out_devpi("upload", "--wheel", "--with-docs", code=[200, 200])
+        assert out.ret == 0
+        (projname_version, project) = projname_version_project
+        projname_version_norm = projname_version.replace("-", "*")
+        out.stdout.fnmatch_lines("""
+            built:*
+            file_upload of {projname_version_norm}*.whl*
+            doc_upload of {projname_version}.doc.zip*
+            """.format(
+            projname_version=projname_version,
+            projname_version_norm=projname_version_norm))
+        archive_path = project.join('dist', '%s.doc.zip' % projname_version)
+        with Archive(archive_path) as archive:
+            artifacts = [
+                x for x in archive.namelist()
+                if x.startswith(('lib/', 'bdist'))]
+            assert artifacts == []
+
     def test_sdist_zip_with_docs(self, devpi, out_devpi, projname_version):
         out = out_devpi(
             "upload", "--formats", "sdist.zip", "--with-docs", code=[200, 200])
         assert out.ret == 0
-        out.stdout.fnmatch_lines("""
-            built:*
-            file_upload of {projname_version}.zip*
-            doc_upload of {projname_version}.doc.zip*
+        out.stdout.re_match_lines(r"""
+            built:.*
+            file_upload of {projname_version}\.(tar\.gz|zip)
+            doc_upload of {projname_version}\.doc\.zip
             """.format(projname_version=projname_version))
 
     def test_sdist_zip(self, devpi, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--formats", "sdist.zip", code=[200])
         assert out.ret == 0
-        out.stdout.fnmatch_lines("""
-            built:*
-            file_upload of {projname_version}.zip*
+        out.stdout.re_match_lines(r"""
+            built:
+            file_upload of {projname_version}\.(tar\.gz|zip)
             """.format(projname_version=projname_version))
 
     def test_sdist(self, devpi, out_devpi, projname_version):
@@ -519,21 +533,6 @@ class TestUploadFunctional:
             built:*
             file_upload of {projname_version}*
             """.format(projname_version=projname_version))
-
-    def test_native_sdist(self, devpi, out_devpi, projname_version):
-        if sys.platform == "win32":
-            nativeformat = "zip"
-            nativeext = ".zip"
-        else:
-            nativeformat = "tgz"
-            nativeext = ".tar.gz"
-        out = out_devpi("upload", "--no-isolation", "--formats", "sdist.%s" % nativeformat, code=[200])
-        assert out.ret == 0
-        out.stdout.fnmatch_lines("""
-            The --formats option is deprecated, replace it with --sdist to only*
-            built:*
-            file_upload of {projname_version}{nativeext}*
-            """.format(projname_version=projname_version, nativeext=nativeext))
 
     def test_bdist_wheel(self, devpi, out_devpi, projname_version):
         out = out_devpi("upload", "--no-isolation", "--formats", "bdist_wheel", code=[200])
@@ -554,7 +553,6 @@ class TestUploadFunctional:
             file_upload of pkg-1.0-*.whl*
             """)
 
-    @pytest.mark.skipif("sys.version_info < (3,)")
     def test_wheel_pyproject_toml(self, devpi, initproj, out_devpi):
         initproj("pkg-1.0", kind="pyproject.toml")
         out = out_devpi("upload", "--wheel", code=[200])
@@ -565,36 +563,31 @@ class TestUploadFunctional:
             """)
 
     def test_default_formats(self, devpi, out_devpi, projname_version):
-        if sys.platform == "win32":
-            nativeext = ".zip"
-        else:
-            nativeext = ".tar.gz"
         out = out_devpi(
             "upload", "--formats", "sdist,bdist_wheel", code=[200, 200])
         assert out.ret == 0
-        projname_version_norm = projname_version.replace("-", "*")
-        out.stdout.fnmatch_lines_random("""
-            The --formats option is deprecated, you can remove it to get the*
-            built:*
-            file_upload of {projname_version_norm}*.whl*
-            file_upload of {projname_version}{nativeext}*
+        projname_version_norm = projname_version.replace("-", ".")
+        out.stdout.re_match_lines_random(r"""
+            The --formats option is deprecated, you can remove it to get the
+            built:
+            file_upload of {projname_version_norm}-.+\.whl
+            file_upload of {projname_version}\.(tar\.gz|zip)
             """.format(
             projname_version=projname_version,
-            projname_version_norm=projname_version_norm,
-            nativeext=nativeext))
+            projname_version_norm=projname_version_norm))
 
     def test_deprecated_formats(self, devpi, out_devpi, projname_version):
         out = out_devpi(
             "upload", "--formats", "bdist_dumb,bdist_egg", code=[200, 200])
         assert out.ret == 0
-        projname_version_norm = projname_version.replace("-", "*")
-        out.stdout.fnmatch_lines_random("""
-            The --formats option is deprecated, none of the specified formats 'bdist_dumb,bdist_egg'*
-            *Falling back to 'setup.py bdist_dumb' which*
-            *Falling back to 'setup.py bdist_egg' which*
-            built:*
-            file_upload of {projname_version}*.tar.gz*
-            file_upload of {projname_version_norm}*.egg*
+        projname_version_norm = projname_version.replace("-", ".")
+        out.stdout.re_match_lines_random(r"""
+            The --formats option is deprecated, none of the specified formats 'bdist_dumb,bdist_egg'
+            .*Falling back to 'setup\.py bdist_dumb' which
+            .*Falling back to 'setup\.py bdist_egg' which
+            built:
+            file_upload of {projname_version}.*\.(tar\.gz|zip)
+            file_upload of {projname_version_norm}.*\.egg
             """.format(
             projname_version=projname_version,
             projname_version_norm=projname_version_norm))
@@ -614,7 +607,7 @@ class TestUploadFunctional:
             "conf.py": "#nothing",
             "contents.rst": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
 
         # use mirror
         out = out_devpi("use", "root/pypi")
@@ -630,7 +623,7 @@ class TestUploadFunctional:
             "conf.py": "#nothing",
             "contents.rst": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         # remember username
         out = out_devpi("use")
         user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
@@ -650,7 +643,7 @@ class TestUploadFunctional:
             "conf.py": "#nothing",
             "contents.rst": "",
             "index.html": "<html/>"}})
-        assert py.path.local("setup.py").check()
+        assert Path("setup.py").is_file()
         # remember username
         out = out_devpi("use")
         user = re.search(r'\(logged in as (.+?)\)', out.stdout.str()).group(1)
@@ -681,12 +674,12 @@ class TestUploadFunctional:
         initproj("hello-1.1", {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        tmpdir = py.path.local()
+        tmpdir = Path()
         runproc(tmpdir, "python setup.py sdist --format=zip".split())
         initproj("hello-1.2")
         runproc(tmpdir, "python setup.py sdist --format=zip".split())
-        dist = tmpdir.join("dist")
-        assert len(dist.listdir()) == 2
+        dist = tmpdir / "dist"
+        assert len(list(dist.iterdir())) == 2
         hub = devpi("upload", "--no-isolation", "--from-dir", dist)
         for ver in ("1.1", '1.2'):
             url = hub.current.get_index_url().url + "hello/%s/" % ver
@@ -709,12 +702,12 @@ class TestUploadFunctional:
         initproj(name_version, {"doc": {
             "conf.py": "",
             "index.html": "<html/>"}})
-        tmpdir = py.path.local()
+        tmpdir = Path()
         runproc(tmpdir, "python setup.py sdist --format=zip".split())
-        dist = tmpdir.join("dist")
-        zip_dir(tmpdir.join('doc'), dist.join("%s.doc.zip" % name_version_str))
-        assert len(dist.listdir()) == 2
-        (p, dp) = sorted(dist.listdir(), key=lambda x: '.doc.zip' in x.basename)
+        dist = tmpdir / "dist"
+        zip_dir(tmpdir / 'doc', dist / f"{name_version_str}.doc.zip")
+        assert len(list(dist.iterdir())) == 2
+        (p, dp) = sorted(dist.iterdir(), key=lambda x: '.doc.zip' in x.name)
         hub = devpi("upload", "--no-isolation", p, dp)
         url = hub.current.get_index_url().url + path
         out = out_devpi("getjson", url)
@@ -727,8 +720,8 @@ class TestUploadFunctional:
 
     def test_cli_sdist_precedence(self, initproj, devpi, out_devpi):
         initproj("pkg-1.0")
-        tmpdir = py.path.local()
-        tmpdir.join("setup.cfg").write(dedent("""
+        tmpdir = Path()
+        tmpdir.joinpath("setup.cfg").write_text(dedent("""
             [devpi:upload]
             formats=bdist_wheel,sdist.zip"""))
         hub = devpi("upload", "--sdist", "--no-isolation")
@@ -741,8 +734,8 @@ class TestUploadFunctional:
 
     def test_cli_wheel_precedence(self, initproj, devpi, out_devpi):
         initproj("pkg-1.0")
-        tmpdir = py.path.local()
-        tmpdir.join("setup.cfg").write(dedent("""
+        tmpdir = Path()
+        tmpdir.joinpath("setup.cfg").write_text(dedent("""
             [devpi:upload]
             formats=bdist_wheel,sdist.zip"""))
         hub = devpi("upload", "--wheel", "--no-isolation")
@@ -757,10 +750,10 @@ class TestUploadFunctional:
 
 
 def test_getpkginfo(datadir):
-    info = get_pkginfo(datadir.join("dddttt-0.1.dev45-py27-none-any.whl"))
+    info = get_pkginfo(datadir / "dddttt-0.1.dev45-py27-none-any.whl")
     assert info.name == "dddttt"
     assert info.metadata_version == "2.0"
-    info = get_pkginfo(datadir.join("ddd-1.0.doc.zip"))
+    info = get_pkginfo(datadir / "ddd-1.0.doc.zip")
     assert info.name == "ddd"
     assert info.version == "1.0"
 

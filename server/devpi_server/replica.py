@@ -35,10 +35,10 @@ from .model import UpstreamError
 devpiweb_hookimpl = HookimplMarker("devpiweb")
 
 
-H_REPLICA_UUID = str("X-DEVPI-REPLICA-UUID")
-H_REPLICA_OUTSIDE_URL = str("X-DEVPI-REPLICA-OUTSIDE-URL")
-H_REPLICA_FILEREPL = str("X-DEVPI-REPLICA-FILEREPL")
-H_EXPECTED_MASTER_ID = str("X-DEVPI-EXPECTED-MASTER-ID")
+H_REPLICA_UUID = "X-DEVPI-REPLICA-UUID"
+H_REPLICA_OUTSIDE_URL = "X-DEVPI-REPLICA-OUTSIDE-URL"
+H_REPLICA_FILEREPL = "X-DEVPI-REPLICA-FILEREPL"
+H_EXPECTED_MASTER_ID = "X-DEVPI-EXPECTED-MASTER-ID"
 
 MAX_REPLICA_BLOCK_TIME = 30.0
 REPLICA_USER_NAME = "+replica"
@@ -242,11 +242,9 @@ class MasterChangelogRequest:
             raw_entry = keyfs.tx.conn.get_raw_changelog_entry(serial)
 
             devpi_serial = keyfs.get_current_serial()
-            r = Response(body=raw_entry, status=200, headers={
-                str("Content-Type"): str("application/octet-stream"),
-                str("X-DEVPI-SERIAL"): str(devpi_serial),
-            })
-            return r
+            return Response(body=raw_entry, status=200, headers={
+                "Content-Type": "application/octet-stream",
+                "X-DEVPI-SERIAL": str(devpi_serial)})
 
     @view_config(route_name="/+changelog/{serial}-")
     def get_multiple_changes(self):
@@ -284,11 +282,9 @@ class MasterChangelogRequest:
                     threadlog.debug('Changelog timeout %s', raw_size)
                     break
             raw_entry = dumps(all_changes)
-            r = Response(body=raw_entry, status=200, headers={
-                str("Content-Type"): str("application/octet-stream"),
-                str("X-DEVPI-SERIAL"): str(devpi_serial),
-            })
-            return r
+            return Response(body=raw_entry, status=200, headers={
+                "Content-Type": "application/octet-stream",
+                "X-DEVPI-SERIAL": str(devpi_serial)})
 
     def get_streaming_changes(self):
         self.verify_master()
@@ -311,13 +307,11 @@ class MasterChangelogRequest:
             with self.update_replica_status(devpi_serial + 1, streaming=False):
                 pass
 
-        r = Response(
+        return Response(
             app_iter=buffered_iterator(iter_changelog_entries()),
             status=200, headers={
-                str("Content-Type"): str(REPLICA_CONTENT_TYPE),
-                str("X-DEVPI-SERIAL"): str(devpi_serial),
-            })
-        return r
+                "Content-Type": REPLICA_CONTENT_TYPE,
+                "X-DEVPI-SERIAL": str(devpi_serial)})
 
     def _wait_for_serial(self, serial):
         keyfs = self.xom.keyfs
@@ -333,8 +327,7 @@ class MasterChangelogRequest:
             if not arrived:
                 raise HTTPAccepted(
                     "no new transaction yet",
-                    headers={str("X-DEVPI-SERIAL"):
-                             str(keyfs.get_current_serial())})
+                    headers={"X-DEVPI-SERIAL": str(keyfs.get_current_serial())})
         return serial
 
 
@@ -422,9 +415,9 @@ class ReplicaThread:
                 H_REPLICA_UUID: uuid,
                 H_EXPECTED_MASTER_ID: master_uuid,
                 H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                str('Authorization'): 'Bearer %s' % token}
+                'Authorization': 'Bearer %s' % token}
             if self.use_streaming:
-                headers[str("Accept")] = REPLICA_ACCEPT_STREAMING
+                headers["Accept"] = REPLICA_ACCEPT_STREAMING
             r = self.session.get(
                 url,
                 allow_redirects=False,
@@ -925,9 +918,9 @@ class FileReplicationThread:
         r = session.get(
             url, allow_redirects=False,
             headers={
-                H_REPLICA_FILEREPL: str("YES"),
+                H_REPLICA_FILEREPL: "YES",
                 H_REPLICA_UUID: self.uuid,
-                str('Authorization'): 'Bearer %s' % token},
+                'Authorization': 'Bearer %s' % token},
             stream=True,
             timeout=self.xom.config.args.request_timeout)
         with contextlib.closing(r):
@@ -949,7 +942,7 @@ class FileReplicationThread:
 
             if r.status_code in (404, 502):
                 stagename = '/'.join(relpath.split('/')[:2])
-                with self.xom.keyfs.transaction(write=False, at_serial=serial):
+                with self.xom.keyfs.read_transaction(at_serial=serial):
                     stage = self.xom.model.getstage(stagename)
                 if stage.ixconfig['type'] == 'mirror':
                     threadlog.warn(
@@ -1036,7 +1029,7 @@ class FileReplicationThread:
         if not entry.project or not entry.version:
             return
         # run hook
-        with keyfs.transaction(write=False, at_serial=serial):
+        with keyfs.read_transaction(at_serial=serial):
             stage = self.xom.model.getstage(entry.user, entry.index)
             if stage is None:
                 return
@@ -1087,7 +1080,7 @@ class InitialQueueThread(object):
         # wait until we are in sync for the first time
         with self.shared_data._replica_in_sync_cv:
             self.shared_data._replica_in_sync_cv.wait()
-        with keyfs.transaction(write=False) as tx:
+        with keyfs.read_transaction() as tx:
             for user in self.xom.model.get_userlist():
                 for stage in user.getstages():
                     self.shared_data.set_index_type_for(
@@ -1139,7 +1132,7 @@ class SimpleLinksChanged:
             return
         assert normalize_name(project) == project
 
-        with self.xom.keyfs.transaction(write=False):
+        with self.xom.keyfs.read_transaction():
             mirror_stage = self.xom.model.getstage(username, index)
             if mirror_stage and mirror_stage.ixconfig["type"] == "mirror":
                 cache_projectnames = mirror_stage.cache_projectnames
@@ -1236,12 +1229,12 @@ def proxy_write_to_master(xom, request):
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.wait_tx_serial(commit_serial)
     headers = clean_response_headers(r)
-    headers[str("X-DEVPI-PROXY")] = str("replica")
+    headers["X-DEVPI-PROXY"] = "replica"
     if r.status_code == 302:  # REDIRECT
         # rewrite master-related location to our replica site
         master_location = r.headers["location"]
         outside_url = request.application_url
-        headers[str("location")] = str(
+        headers["location"] = str(
             master_location.replace(xom.config.master_url.url, outside_url))
     return Response(status="%s %s" % (r.status_code, r.reason),
                     app_iter=app_iter(),

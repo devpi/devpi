@@ -23,32 +23,32 @@ def mapp(replica_mapp):
     return replica_mapp
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestProjectThings(BaseTestProjectThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestUserThings(BaseTestUserThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestIndexThings(BaseTestIndexThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestIndexPushThings(BaseTestIndexPushThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 class TestMirrorIndexThings(BaseTestMirrorIndexThings):
     pass
 
 
-@pytest.mark.skipif("not config.option.slow")
+@pytest.mark.slow
 @pytest.mark.nomocking
 @pytest.mark.storage_with_filesystem
 def test_replicating_deleted_pypi_release(

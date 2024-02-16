@@ -6,24 +6,10 @@ import tarfile
 import time
 
 from .functional import TestIndexThings  # noqa: F401
+from .functional import TestIndexPushThings  # noqa: F401
 from .functional import TestProjectThings  # noqa: F401
 from .functional import TestUserThings  # noqa: F401
-try:
-    from .functional import TestMirrorIndexThings  # noqa: F401
-except ImportError:
-    # when testing with older devpi-server
-    class TestMirrorIndexThings:
-        def test_mirror_things(self):
-            pytest.skip(
-                "Couldn't import TestMirrorIndexThings from devpi server tests.")
-try:
-    from .functional import TestIndexPushThings  # noqa: F401
-except ImportError:
-    # when testing with older devpi-server
-    class TestIndexPushThings:
-        def test_mirror_things(self):
-            pytest.skip(
-                "Couldn't import TestIndexPushThings from devpi server tests.")
+from .functional import TestMirrorIndexThings  # noqa: F401
 from .functional import MappMixin
 
 
@@ -127,7 +113,7 @@ class Mapp(MappMixin):
 
     def change_password(self, user, password):
         auth = getattr(self, "auth", None)
-        if auth is None or auth[0] != user and auth[0] != "root":
+        if auth is None or auth[0] not in (user, "root"):
             raise ValueError("need to be logged as %r or root" % user)
         self.devpi("user", "-m", user, "password=%s" % password)
         if user == "root" and password != "":
@@ -147,7 +133,7 @@ class Mapp(MappMixin):
             args.append("email=%s" % email)
         self.devpi("user", flag, user, *args, code=code)
 
-    def create_and_login_user(self, user="someuser", password="123"):
+    def create_and_login_user(self, user="someuser", password="123"):  # noqa: S107
         self.create_user(user, password)
         self.login(user, password)
 
@@ -350,9 +336,9 @@ def new_user_id(gen, mapp):
     """
     user_id = "tmp_%s_%s" % (gen.user(), str(time.time()))
     yield user_id
-    try:
+    try:  # noqa: SIM105
         mapp.delete_user(user=user_id, code=201)
-    except:  # noqa
+    except:  # noqa: E722,S110
         # We need a bare except here, because there are exceptions from
         # pytest and other places which don't derive from Exception and
         # listing them all would be long and not future proof
@@ -417,11 +403,11 @@ class TestUserManagement:
         """ Verify that password change is effective"""
         mapp.logoff()
         mapp.login(user=existing_user_id, password="1234")
-        mapp.modify_user(user = existing_user_id, password = id(self))
+        mapp.modify_user(user=existing_user_id, password=id(self))
         # Verify that the password was indeed changed.
         mapp.logoff()
         mapp.login(user=existing_user_id,
-                   password="1234", code = 401)
+                   password="1234", code=401)
         mapp.login(user=existing_user_id, password=id(self))
 
     def test_mod_email(self, mapp, existing_user_id, url_of_liveserver):

@@ -118,7 +118,7 @@ class TestConfig:
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal, match="at least 32 characters"):
-            config.basesecret
+            config.basesecret  # noqa: B018
         # create a secret file which is too repetitive
         p = configdir.join("secret")
         secret = b"12345" * 7
@@ -127,7 +127,7 @@ class TestConfig:
         # and use it
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal, match="less repetition"):
-            config.basesecret
+            config.basesecret  # noqa: B018
 
     @pytest.mark.skipif("sys.platform == 'win32'")
     def test_secretfile_permissions(self, tmpdir):
@@ -140,16 +140,16 @@ class TestConfig:
         p.chmod(0o677)
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         with pytest.raises(Fatal, match="file is world accessible"):
-            config.basesecret
+            config.basesecret  # noqa: B018
         p.chmod(0o670)
         with pytest.raises(Fatal, match="file is group accessible"):
-            config.basesecret
+            config.basesecret  # noqa: B018
         p.chmod(0o600)
         with pytest.raises(Fatal, match="folder of the given secret file is group writable"):
-            config.basesecret
+            config.basesecret  # noqa: B018
         configdir.chmod(0o707)
         with pytest.raises(Fatal, match="folder of the given secret file is world writable"):
-            config.basesecret
+            config.basesecret  # noqa: B018
 
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)

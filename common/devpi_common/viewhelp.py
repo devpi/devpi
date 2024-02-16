@@ -12,7 +12,7 @@ class ViewLinkStore:
         for linkdict in self.versiondata.get("+links", []):
             viewlink = ViewLink(self.url, linkdict)
             if (not rel or viewlink.rel == rel) and \
-               (not for_href or viewlink.for_href==for_href) and \
+               (not for_href or viewlink.for_href == for_href) and \
                (not basename or viewlink.basename == basename):
                 l.append(viewlink)
         return l
@@ -65,11 +65,11 @@ class ToxResultEnv:
 
     def _get_commands_info(self, commands):
         result = dict(
-            failed=any(try_int(x["retcode"]) != 0 for x in commands),
+            failed=any(try_int(x["retcode"]) not in (None, 0) for x in commands),
             commands=[])
         for command in commands:
             result["commands"].append(dict(
-                failed=try_int(command["retcode"]) != 0,
+                failed=try_int(command["retcode"]) not in (None, 0),
                 command=" ".join(command.get("command", [])),
                 output=command.get("output", [])))
         return result

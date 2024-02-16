@@ -1,0 +1,46 @@
+---
+name: "Documentation"
+
+on: workflow_dispatch
+
+jobs:
+  documentation:
+    name: "Create documentation"
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.8"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel -r dev-requirements.txt
+      - name: "Regen documentation"
+        run: |
+          set -xe -o nounset
+          export DEVPI_INDEXNAME="devpi-github/docs"
+          export PIP_INDEX_URL="https://pypi.org/simple/"
+          devpi use https://m.devpi.net/devpi-github
+          devpi login devpi-github --password ${{ secrets.DEVPI_GITHUB_PASSWORD }}
+          .ci/upload-packages.sh
+          mkdir .temp
+          export TMPDIR=$(pwd)/.temp/
+          pushd doc
+          make regen
+          popd
+      - name: "Build documentation"
+        run: |
+          pushd doc
+          make doczip
+          popd
+      - name: "Upload documentation"
+        run: |
+          pushd doc
+          devpi upload *.doc.zip
+          popd
+      - name: "Diff documentation"
+        run: |
+          git diff --exit-code || echo "::warning::The generated documentation has differences"

@@ -37,15 +37,15 @@ class TestKeyFS:
     def test_keyfs_readonly(self, storage, tmpdir):
         keyfs = KeyFS(tmpdir, storage, readonly=True)
         with pytest.raises(keyfs.ReadOnly):
-            with keyfs.transaction(write=True):
+            with keyfs.write_transaction():
                 pass
         assert not hasattr(keyfs, "tx")
         with pytest.raises(keyfs.ReadOnly):
-            with keyfs.transaction():
+            with keyfs.read_transaction():
                 keyfs.restart_as_write_transaction()
         with pytest.raises(keyfs.ReadOnly):
             keyfs.begin_transaction_in_thread(write=True)
-        with keyfs.transaction():
+        with keyfs.read_transaction():
             pass
 
     @pytest.mark.writetransaction
@@ -61,7 +61,7 @@ class TestKeyFS:
         k.delete()
         assert not k.exists()
         keyfs.commit_transaction_in_thread()
-        with keyfs.transaction():
+        with keyfs.read_transaction():
             assert not k.exists()
 
     def test_no_slashkey(self, keyfs):
@@ -72,42 +72,42 @@ class TestKeyFS:
     @notransaction
     def test_remove_dict_key(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", dict)
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.set(key, {u'foo': u'bar'})
-        with keyfs.transaction(write=False) as tx:
+        with keyfs.read_transaction() as tx:
             assert tx.at_serial == 1
             assert tx.get(key) == {u'foo': u'bar'}
-        with keyfs.transaction(write=False, at_serial=0) as tx:
+        with keyfs.read_transaction(at_serial=0) as tx:
             assert tx.at_serial == 0
             assert tx.get(key) == {u'foo': u'bar', u'ham': u'egg'}
 
     @notransaction
     def test_remove_set_item(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", set)
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.set(key, {'bar', 'egg'})
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.set(key, {'bar'})
-        with keyfs.transaction(write=False) as tx:
+        with keyfs.read_transaction() as tx:
             assert tx.at_serial == 1
             assert tx.get(key) == {'bar'}
-        with keyfs.transaction(write=False, at_serial=0) as tx:
+        with keyfs.read_transaction(at_serial=0) as tx:
             assert tx.at_serial == 0
             assert tx.get(key) == {'bar', 'egg'}
 
     @notransaction
     def test_double_set(self, keyfs):
         key = keyfs.add_key("NAME", "somekey", dict)
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             # set different value
             tx.set(key, {})
             # set to same value again in same transaction
             tx.set(key, {u'foo': u'bar', u'ham': u'egg'})
-        with keyfs.transaction(write=False) as tx:
+        with keyfs.read_transaction() as tx:
             # the serial shouldn't have increased
             assert tx.at_serial == 0
             assert tx.get(key) == {u'foo': u'bar', u'ham': u'egg'}
@@ -119,19 +119,19 @@ class TestKeyFS:
         (5, 6)])
     def test_delete_and_readd(self, keyfs, before, after):
         key = keyfs.add_key("NAME", "somekey", type(before))
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.set(key, before)
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.delete(key)
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             tx.set(key, after)
-        with keyfs.transaction(write=False) as tx:
+        with keyfs.read_transaction() as tx:
             assert tx.get(key) == after
 
     @notransaction
     def test_not_exists_cached(self, keyfs, monkeypatch):
         key = keyfs.add_key("NAME", "somekey", dict)
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             assert key not in tx.cache
             assert not tx.exists(key)
             assert key in tx.cache
@@ -227,7 +227,7 @@ class TestKey:
             d[1] = l = [1,2,3]
         assert key1.get()[1] == l
         keyfs.commit_transaction_in_thread()
-        with keyfs.transaction(write=False):
+        with keyfs.read_transaction():
             assert key1.get()[1] == l
             with pytest.raises(TypeError):
                 key1.get()[13] = "something"
@@ -286,9 +286,9 @@ class TestKey:
          (str, "hello")])
 def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
     attr = keyfs.add_key("NAME", "hello", type)
-    with keyfs.transaction(write=True):
+    with keyfs.write_transaction():
         attr.set(val)
-    with keyfs.transaction():
+    with keyfs.read_transaction():
         assert attr.get() == val
     # make sure keyfs doesn't write during the transaction and its commit
     orig_write = py.path.local.write
@@ -298,7 +298,7 @@ def test_trans_get_not_modify(keyfs, type, val, monkeypatch):
         orig_write(path, content)
 
     monkeypatch.setattr(py.path.local, "write", write_checker)
-    with keyfs.transaction():
+    with keyfs.read_transaction():
         x = attr.get()
     assert x == val
 
@@ -321,13 +321,13 @@ class TestTransactionIsolation:
         q2 = TimeoutQueue()
 
         def trans1():
-            with keyfs.transaction(write=True):
+            with keyfs.write_transaction():
                 q1.put("write1")
                 assert q2.get() == "1"
                 q1.put("write1b")
 
         def trans2():
-            with keyfs.transaction(write=True):
+            with keyfs.write_transaction():
                 q1.put("write2")
 
         t1 = threading.Thread(target=trans1)
@@ -349,13 +349,13 @@ class TestTransactionIsolation:
         q3 = TimeoutQueue()
 
         def trans1():
-            with keyfs.transaction(write=True):
+            with keyfs.write_transaction():
                 q1.put("write1")
                 assert q2.get() == "1"
                 q1.put("write1b")
 
         def trans2():
-            with keyfs.transaction(write=False):
+            with keyfs.read_transaction():
                 q3.put("read")
 
         t1 = threading.Thread(target=trans1)
@@ -387,7 +387,7 @@ class TestTransactionIsolation:
 
     def test_concurrent_tx_sees_original_value_on_delete(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({1:2})
         tx_1 = Transaction(keyfs, write=True)
         tx_2 = Transaction(keyfs)
@@ -397,7 +397,7 @@ class TestTransactionIsolation:
 
     def test_not_exist_yields_readonly(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction():
+        with keyfs.read_transaction():
             x = D.get()
         assert x == {}
         with pytest.raises(TypeError):
@@ -405,20 +405,25 @@ class TestTransactionIsolation:
 
     def test_tx_delete(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({1:1})
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.delete()
             assert not D.exists()
 
     def test_import_changes(self, keyfs, storage, tmpdir):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({1:1})
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.delete()
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({2:2})
+        with keyfs.read_transaction() as tx:
+            assert tx.get_value_at(D, 0) == {1: 1}
+            with pytest.raises(KeyError):
+                assert tx.get_value_at(D, 1)
+            assert tx.get_value_at(D, 2) == {2: 2}
         with keyfs._storage.get_connection() as conn:
             serial = conn.last_changelog_serial
 
@@ -427,10 +432,10 @@ class TestTransactionIsolation:
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         D2 = new_keyfs.add_key("NAME", "hello", dict)
         for serial in range(3):
-            with keyfs.transaction() as tx:
+            with keyfs.read_transaction() as tx:
                 changes = tx.conn.get_changes(serial)
             new_keyfs.import_changes(serial, changes)
-        with new_keyfs.transaction() as tx:
+        with new_keyfs.read_transaction() as tx:
             assert tx.get_value_at(D2, 0) == {1:1}
             with pytest.raises(KeyError):
                 assert tx.get_value_at(D2, 1)
@@ -441,9 +446,9 @@ class TestTransactionIsolation:
         D = keyfs.add_key("NAME", "hello", dict)
         d = {1: set(), 2: dict(), 3: []}
         d_orig = deepcopy(d)
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set(d)
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             assert tx.get_value_at(D, 0) == d_orig
             d2 = tx.get_value_at(D, 0)
             with pytest.raises(AttributeError):
@@ -456,13 +461,13 @@ class TestTransactionIsolation:
 
     def test_is_dirty(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction():
+        with keyfs.read_transaction():
             assert not D.is_dirty()
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             assert not D.is_dirty()
             D.set({1:1})
             assert D.is_dirty()
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             assert not D.is_dirty()
 
     def future_maybe_test_bounded_cache(self, keyfs):  # if we ever introduce it
@@ -470,16 +475,16 @@ class TestTransactionIsolation:
         D = keyfs.add_key("NAME", "hello", dict)
         size = keyfs._storage.CHANGELOG_CACHE_SIZE
         for i in range(size * 3):
-            with keyfs.transaction(write=True):
+            with keyfs.write_transaction():
                 D.set({i:i})
-            with keyfs.transaction():
+            with keyfs.read_transaction():
                 D.get()
             assert len(keyfs._storage._changelog_cache) <= \
                    keyfs._storage.CHANGELOG_CACHE_SIZE + 1
 
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             for i in range(size * 2):
-                j = random.randrange(0, size * 3)
+                j = random.randrange(0, size * 3)  # noqa: S311
                 tx.get_value_at(D, j)
                 assert len(keyfs._storage._changelog_cache) <= \
                        keyfs._storage.CHANGELOG_CACHE_SIZE + 1
@@ -487,7 +492,7 @@ class TestTransactionIsolation:
     def test_import_changes_subscriber(self, keyfs, storage, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
         D = pkey(name="world")
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({1:1})
         assert keyfs.get_current_serial() == 0
         # load entries into new keyfs instance
@@ -495,7 +500,7 @@ class TestTransactionIsolation:
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         l = []
         new_keyfs.subscribe_on_import(lambda *args: l.append(args))
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             changes = tx.conn.get_changes(0)
         new_keyfs.import_changes(0, changes)
         ((serial, changes),) = l
@@ -505,14 +510,14 @@ class TestTransactionIsolation:
     def test_import_changes_subscriber_error(self, keyfs, storage, tmpdir):
         pkey = keyfs.add_key("NAME", "hello/{name}", dict)
         D = pkey(name="world")
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({1: 1})
         keyfs_serial = keyfs.get_current_serial()
         new_keyfs = KeyFS(tmpdir.join("newkeyfs"), storage)
         pkey = new_keyfs.add_key("NAME", "hello/{name}", dict)
         new_keyfs.subscribe_on_import(lambda *args: 0 / 0)
         serial = new_keyfs.get_current_serial()
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             changes = tx.conn.get_changes(0)
         with pytest.raises(ZeroDivisionError):
             new_keyfs.import_changes(0, changes)
@@ -522,7 +527,7 @@ class TestTransactionIsolation:
         assert new_keyfs.get_current_serial() == keyfs_serial
 
     def test_get_raw_changelog_entry_not_exist(self, keyfs):
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             assert tx.conn.get_raw_changelog_entry(10000) is None
 
     def test_cache_interference(self, storage, tmpdir):
@@ -537,27 +542,27 @@ class TestTransactionIsolation:
         D1 = pkey1(name="world1")
         D2 = pkey2(name="world2")
         for i in range(2):
-            with keyfs1.transaction(write=True):
+            with keyfs1.write_transaction():
                 assert D1.get() == {}
                 D1.set({1: 1})
                 assert D1.get() == {1: 1}
-            with keyfs1.transaction(write=True):
+            with keyfs1.write_transaction():
                 assert D2.get() == {}
                 D2.set({1: 1})
                 assert D2.get() == {1: 1}
-            with keyfs1.transaction(write=True):
+            with keyfs1.write_transaction():
                 assert D1.get() == {1: 1}
                 D1.set({1: 1, 2: 2})
                 assert D1.get() == {1: 1, 2: 2}
-            with keyfs1.transaction(write=True):
+            with keyfs1.write_transaction():
                 assert D2.get() == {1: 1}
                 D2.set({1: 1, 2: 2})
                 assert D2.get() == {1: 1, 2: 2}
-            with keyfs1.transaction(write=True):
+            with keyfs1.write_transaction():
                 assert D1.get() == {1: 1, 2: 2}
                 D1.delete()
                 assert D1.get() == {}
-            with keyfs1.transaction(write=True):
+            with keyfs1.write_transaction():
                 assert D2.get() == {1: 1, 2: 2}
                 D2.delete()
                 assert D2.get() == {}
@@ -612,11 +617,11 @@ class TestTransactionIsolation:
 @notransaction
 def test_changelog(keyfs):
     D = keyfs.add_key("NAME", "hello", dict)
-    with keyfs.transaction(write=True):
+    with keyfs.write_transaction():
         D.set({1: 1})
-    with keyfs.transaction(write=True):
+    with keyfs.write_transaction():
         D.set({2: 2})
-    with keyfs.transaction(write=False) as tx:
+    with keyfs.read_transaction() as tx:
         changes = list(
             tx.iter_serial_and_value_backwards(D.relpath, tx.at_serial))
     assert changes == [
@@ -628,9 +633,9 @@ def test_changelog(keyfs):
 class TestDeriveKey:
     def test_direct_from_file(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({1:1})
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             key = tx.derive_key(D.relpath)
         assert key == D
         assert key.params == {}
@@ -639,17 +644,17 @@ class TestDeriveKey:
         pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
         params = dict(name="hello", index="world")
         D = pkey(**params)
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({1:1})
         assert not hasattr(keyfs, "tx")
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             key = tx.derive_key(D.relpath)
         assert key == D
         assert key.params == params
 
     def test_direct_not_committed(self, keyfs):
         D = keyfs.add_key("NAME", "hello", dict)
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             D.set({})
             key = keyfs.tx.derive_key(D.relpath)
             assert key == D
@@ -659,7 +664,7 @@ class TestDeriveKey:
         pkey = keyfs.add_key("NAME", "{name}/{index}", dict)
         params = dict(name="hello", index="world")
         D = pkey(**params)
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             D.set({})
             key = tx.derive_key(D.relpath)
             assert key == D
@@ -677,7 +682,7 @@ class TestSubscriber:
         key1 = keyfs.add_key("NAME1", "hello", int)
         keyfs.notifier.on_key_change(key1, queue.put)
         pool.start()
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             key1.set(1)
             assert queue.empty()
         event = queue.get()
@@ -691,12 +696,12 @@ class TestSubscriber:
 
         def failing(event):
             queue.put("willfail")
-            0/0
+            0/0  # noqa: B018
 
         keyfs.notifier.on_key_change(key1, failing)
         keyfs.notifier.on_key_change(key1, queue.put)
         pool.start()
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             key1.set(1)
             assert queue.empty()
         msg = queue.get()
@@ -724,7 +729,7 @@ class TestSubscriber:
                                 lambda x: 0/0)
             # we prevent the hooks from getting called
             with pytest.raises(ZeroDivisionError):
-                with key1.keyfs.transaction(write=True):
+                with key1.keyfs.write_transaction():
                     key1.set(1)
             assert key1.keyfs.get_next_serial() == 1
             assert key1.keyfs.notifier.read_event_serial() == -1
@@ -743,7 +748,7 @@ class TestSubscriber:
         keyfs.notifier.on_key_change(pkey, queue.put)
         key = pkey(name="hello")
         pool.start()
-        with keyfs.transaction(write=True):
+        with keyfs.write_transaction():
             key.set(1)
         ev = queue.get()
         assert ev.typedkey == key
@@ -770,7 +775,7 @@ class TestSubscriber:
             pool.register(T(i))
         pool.start()
         for i in range(10):
-            with keyfs.transaction(write=True):
+            with keyfs.write_transaction():
                 key.set(i)
 
         l = [queue.get() for i in range(10)]
@@ -782,6 +787,7 @@ class TestSubscriber:
 
     def test_wait_tx_async(self, keyfs, pool, queue):
         # start a thread which waits for the next serial
+        key = keyfs.add_key("NAME", "hello", int)
         wait_serial = keyfs.get_next_serial()
 
         class T:
@@ -792,10 +798,10 @@ class TestSubscriber:
         pool.register(T())
         pool.start()
 
-        # directly  modify the database without keyfs-transaction machinery
+        # directly modify the database without keyfs-transaction machinery
         with keyfs._storage.get_connection(write=True) as conn:
-            with conn.write_transaction():
-                pass
+            with conn.write_transaction() as wtx:
+                wtx.record_set(key, 1, -1)
 
         # check wait_tx_serial() call from the thread returned True
         assert queue.get() is True
@@ -805,23 +811,23 @@ class TestSubscriber:
         assert not keyfs.wait_tx_serial(wait_serial, timeout=0.001, recheck=0.0001)
 
     def test_commit_serial(self, keyfs):
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             pass
         assert tx.commit_serial is None
 
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             assert tx.commit_serial is None
         assert tx.commit_serial is None
 
         key = keyfs.add_key("hello", "hello", dict)
-        with keyfs.transaction(write=True) as tx:
+        with keyfs.write_transaction() as tx:
             assert tx.at_serial == -1
             tx.set(key, {})
         assert tx.commit_serial == 0
 
     def test_commit_serial_restart(self, keyfs):
         key = keyfs.add_key("hello", "hello", dict)
-        with keyfs.transaction() as tx:
+        with keyfs.read_transaction() as tx:
             keyfs.restart_as_write_transaction()
             tx.set(key, {})
         assert tx.commit_serial == 0
@@ -829,7 +835,7 @@ class TestSubscriber:
 
     def test_at_serial_restart(self, keyfs):
         key = keyfs.add_key("hello", "hello", dict)
-        with keyfs.transaction() as txr:
+        with keyfs.read_transaction() as txr:
             tx = Transaction(keyfs, write=True)
             tx.set(key, {1:1})
             tx.commit()
@@ -838,7 +844,7 @@ class TestSubscriber:
         assert txr.at_serial == 0
 
     def test_at_serial(self, keyfs):
-        with keyfs.transaction(at_serial=-1) as tx:
+        with keyfs.read_transaction(at_serial=-1) as tx:
             assert tx.at_serial == -1
 
 
@@ -852,11 +858,11 @@ def test_keyfs_sqlite(gentmp):
     from devpi_server import keyfs_sqlite
     tmp = gentmp()
     keyfs = KeyFS(tmp, keyfs_sqlite.Storage)
-    with keyfs.transaction(write=True) as tx:
+    with keyfs.write_transaction() as tx:
         assert tx.conn.io_file_os_path('foo') is None
         tx.conn.io_file_set('foo', b'bar')
         tx.conn._sqlconn.commit()
-    with keyfs.transaction(write=False) as tx:
+    with keyfs.read_transaction() as tx:
         assert tx.conn.io_file_os_path('foo') is None
         assert tx.conn.io_file_get('foo') == b'bar'
     assert [x.basename for x in tmp.listdir()] == ['.sqlite_db']
@@ -866,11 +872,11 @@ def test_keyfs_sqlite_fs(gentmp):
     from devpi_server import keyfs_sqlite_fs
     tmp = gentmp()
     keyfs = KeyFS(tmp, keyfs_sqlite_fs.Storage)
-    with keyfs.transaction(write=True) as tx:
+    with keyfs.write_transaction() as tx:
         assert tx.conn.io_file_os_path('foo') == tmp.join('foo').strpath
         tx.conn.io_file_set('foo', b'bar')
         tx.conn._sqlconn.commit()
-    with keyfs.transaction(write=False) as tx:
+    with keyfs.read_transaction() as tx:
         assert tx.conn.io_file_get('foo') == b'bar'
         with open(tx.conn.io_file_os_path('foo'), 'rb') as f:
             assert f.read() == b'bar'
@@ -881,11 +887,11 @@ def test_keyfs_sqlite_fs(gentmp):
 def test_iter_relpaths_at(keyfs):
     pkey = keyfs.add_key("NAME1", "{name}", int)
     key = pkey(name="hello")
-    with keyfs.transaction(write=False) as tx:
+    with keyfs.read_transaction() as tx:
         assert list(tx.iter_relpaths_at([key], tx.at_serial)) == []
-    with keyfs.transaction(write=True):
+    with keyfs.write_transaction():
         key.set(1)
-    with keyfs.transaction(write=False) as tx:
+    with keyfs.read_transaction() as tx:
         (relpath_info,) = list(tx.iter_relpaths_at([key], tx.at_serial))
     assert relpath_info.keyname == "NAME1"
     assert relpath_info.value == 1

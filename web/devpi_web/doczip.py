@@ -8,7 +8,7 @@ from devpi_server.log import threadlog
 try:
     import fcntl
 except ImportError:
-    fcntl = None  # type: ignore
+    fcntl = None  # type: ignore[assignment]
 import json
 import py
 

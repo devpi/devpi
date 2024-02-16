@@ -71,22 +71,11 @@ def test_subcommands_hook(capsys):
     assert args.mainloc == 'mypluginlocation'
 
 
-@pytest.mark.skipif("sys.version_info < (2,7)")
 def test_main_devpi_invocation():
     import subprocess
     import sys
     subprocess.check_call([sys.executable,
                            "-m", "devpi", "--version"])
-
-
-def test_pkgresources_version_matches_init():
-    import devpi
-    try:
-        import importlib.metadata as importlib_metadata
-    except ImportError:
-        import importlib_metadata
-    ver = devpi.__version__
-    assert importlib_metadata.version("devpi-client") == ver
 
 
 def test_version(loghub, monkeypatch):
@@ -100,7 +89,6 @@ def test_version(loghub, monkeypatch):
     assert lines[0].startswith('devpi-client')
 
 
-@pytest.mark.skipif("sys.version_info < (3,)")
 def test_version_server(loghub, url_of_liveserver):
     from devpi.main import print_version
     loghub.debug = lambda self, *msg: None

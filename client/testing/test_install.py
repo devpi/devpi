@@ -14,8 +14,8 @@ def test_simple_install_venv_workflow(create_and_upload,
     assert "example" in out and "1.2.3" in out
 
 
-def test_simple_install_activated_venv_workflow(create_and_upload,
-                                      create_venv, out_devpi, monkeypatch):
+def test_simple_install_activated_venv_workflow(
+        create_and_upload, create_venv, out_devpi, monkeypatch):
     create_and_upload("example-1.2.3")
     venvdir = create_venv()
     monkeypatch.setenv("VIRTUAL_ENV", venvdir.strpath)
@@ -80,9 +80,8 @@ def test_simple_install_venv_workflow_index_option(
     assert "example" in out and "1.2.3" in out
 
 
-def test_requirement_install_venv_workflow_index_option(create_and_upload,
-                                                   create_venv,
-                                                   devpi, out_devpi):
+def test_requirement_install_venv_workflow_index_option(
+        create_and_upload, create_venv, devpi, out_devpi):
     create_and_upload("example-1.2.3")
     venvdir = create_venv()
 
@@ -105,7 +104,7 @@ def test_requirement_install_venv_workflow_index_option(create_and_upload,
     assert "example" in out and "1.2.3" in out
 
 
-def test_install_hides_auth_in_url(capsys, devpi_username, monkeypatch, devpi):
+def test_install_hides_auth_in_url(capsys, monkeypatch, devpi):
     calls = []
 
     def subprocess_call(*args, **kwargs):
@@ -116,6 +115,6 @@ def test_install_hides_auth_in_url(capsys, devpi_username, monkeypatch, devpi):
     assert len(calls) == 1
     (out, err) = capsys.readouterr()
     (line,) = [x for x in out.splitlines() if 'PIP_INDEX_URL' in x]
-    expected = 'http://%s:****@localhost' % devpi_username
+    expected = 'http://****:****@localhost'
     # either the password is hidden, or not included at all (older pip versions)
     assert (expected in line or 'http://localhost' in line)

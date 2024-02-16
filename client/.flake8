@@ -1,0 +1,6 @@
+[flake8]
+ignore = E501,E741,W503
+per-file-ignores =
+    *.py:E225,E226
+    devpi/main.py:E128,E225,E226
+    testing/*.py:E225,E226,E265

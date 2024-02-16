@@ -1,11 +1,13 @@
 from devpi_common.types import cached_property
 from .config import hookimpl
+from .filestore_fs import LazyChangesFormatter
 from .fileutil import dumps, loads
 from .interfaces import IStorageConnection2
 from .keyfs import KeyfsTimeoutError
-from .keyfs import RelpathInfo
 from .keyfs import get_relpath_at
+from .keyfs_types import RelpathInfo
 from .log import threadlog, thread_push_log, thread_pop_log
+from .markers import absent
 from .mythread import current_thread
 from .readonly import ReadonlyView
 from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
@@ -19,9 +21,6 @@ import os
 import shutil
 import sqlite3
 import time
-
-
-absent = object()
 
 
 class SpooledTemporaryFile(SpooledTemporaryFileBase):
@@ -69,7 +68,17 @@ class BaseConnection:
     def _print_rows(self, rows):
         # for debugging
         for row in rows:
-            print(row)
+            print(row)  # noqa: T201
+
+    def execute(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
+        r = c.execute(query, *args)
+        result = r.fetchall()
+        c.close()
+        return result
 
     def executemany(self, query, *args):
         c = self._sqlconn.cursor()
@@ -109,6 +118,16 @@ class BaseConnection:
         yield from c.execute(query, *args)
         c.close()
 
+    def lastrowid(self, query, *args):
+        c = self._sqlconn.cursor()
+        # print(query)
+        # self._print_rows(self._explain(query, *args))
+        # self._print_rows(self._explain_query_plan(query, *args))
+        c.execute(query, *args)
+        result = c.lastrowid
+        c.close()
+        return result
+
     def close(self):
         self._sqlconn.close()
 
@@ -145,7 +164,7 @@ class BaseConnection:
     def write_changelog_entry(self, serial, entry):
         threadlog.debug("writing changelog for serial %s", serial)
         data = dumps(entry)
-        self.fetchone(
+        self.execute(
             "INSERT INTO changelog (serial, data) VALUES (?, ?)",
             (serial, sqlite3.Binary(data)))
 
@@ -578,25 +597,6 @@ def devpiserver_metrics(request):
             ('devpi_server_relpath_cache_size', 'gauge', relpath_cache.size),
             ('devpi_server_relpath_cache_items', 'gauge', len(relpath_cache.data) if relpath_cache.data else 0)])
     return result
-
-
-class LazyChangesFormatter:
-    __slots__ = ('files_commit', 'files_del', 'keys')
-
-    def __init__(self, changes, files_commit, files_del):
-        self.files_commit = files_commit
-        self.files_del = files_del
-        self.keys = changes.keys()
-
-    def __str__(self):
-        msg = []
-        if self.keys:
-            msg.append(f"keys: {','.join(repr(c) for c in self.keys)}")
-        if self.files_commit:
-            msg.append(f"files_commit: {','.join(self.files_commit)}")
-        if self.files_del:
-            msg.append(f"files_del: {','.join(self.files_del)}")
-        return ", ".join(msg)
 
 
 class Writer:

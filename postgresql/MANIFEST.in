@@ -1,1 +1,1 @@
-include CHANGELOG *.ini *.rst *.py
+include .flake8 CHANGELOG *.ini *.rst *.py

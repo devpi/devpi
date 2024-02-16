@@ -1,18 +1,13 @@
-import sys
+
 import posixpath
 from devpi_common.types import cached_property, ensure_unicode, parse_hash_spec
 from requests.models import parse_url
 
-if sys.version_info >= (3, 0):
-    from urllib.parse import parse_qs, parse_qsl
-    from urllib.parse import urlencode, urlparse, urlunsplit, urljoin, unquote
-else:
-    from urlparse import parse_qs, parse_qsl
-    from urlparse import urlparse, urlunsplit, urljoin
-    from urllib import urlencode, unquote
+from urllib.parse import parse_qs, parse_qsl
+from urllib.parse import urlencode, urlparse, urlunsplit, urljoin, unquote
 
 
-def _joinpath(url, args, asdir=False):
+def _joinpath(url, args, *, asdir=False):
     url = URL(url)
     query = url.query
     url = url.replace(query="").url
@@ -45,11 +40,12 @@ class URL:
 
     def __repr__(self):
         cloaked = self
+        if self.username:
+            cloaked = cloaked.replace(username="****")
         if self.password:
-            cloaked = self.replace(password="****")
-        cloaked = repr(cloaked.url.encode("utf8"))
-        if sys.version_info >= (3,0):
-            cloaked = cloaked.lstrip("b")
+            cloaked = cloaked.replace(password="****")  # noqa: S106
+        cloaked = repr(cloaked.url.encode())
+        cloaked = cloaked.lstrip("b")
         return "%s(%s)" % (self.__class__.__name__, cloaked)
 
     def __eq__(self, other):
@@ -108,9 +104,8 @@ class URL:
                 if not kwargs["hostname"]:
                     raise ValueError("Can't use empty 'hostname'.")
                 netloc += kwargs["hostname"]
-            else:
-                if self.hostname:
-                    netloc += self.hostname
+            elif self.hostname:
+                netloc += self.hostname
             if "port" in kwargs:
                 if kwargs["port"]:
                     netloc += ":%s" % kwargs["port"]
@@ -201,12 +196,6 @@ class URL:
         return self._parsed.fragment
 
     @cached_property
-    def eggfragment(self):
-        frag = self.fragment
-        if frag.startswith("egg="):
-            return frag[4:]
-
-    @cached_property
     def md5(self):
         val = self.fragment
         if val.startswith("md5="):
@@ -234,7 +223,7 @@ class URL:
         for i, part in enumerate(parts1):
             if parts2[i] == part:
                 continue
-            prefix = "../" * (len(parts1)-i-1)
+            prefix = "../" * (len(parts1) - i - 1)
             return prefix + "/".join(parts2[i:])
         rest = parts2[len(parts1):]
         if parts1[-1]:  # ends not in slash

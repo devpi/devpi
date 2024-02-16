@@ -126,7 +126,8 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         class r:
             status_code = 201
             reason = "created"
-            content = json.dumps(dict(type="actionlog", status=201,
+            content = json.dumps(dict(
+                type="actionlog", status=201,
                 result=[("200", "register", "pkg", "1.0"),
                         ("200", "upload", "pkg-1.3.tar.gz")]
             ))
@@ -194,7 +195,8 @@ def test_fail_push(monkeypatch, tmpdir):
         class r:
             status_code = 500
             reason = "Internal Server Error"
-            content = json.dumps(dict(type="actionlog", status=201,
+            content = json.dumps(dict(
+                type="actionlog", status=201,
                 result=[("500", "Internal Server Error", "Internal Server Error")]
             ))
             headers = {"content-type": "application/json"}
@@ -246,17 +248,6 @@ def test_derive_token_non_token():
     assert hub.derive_token("foo", None) == "foo"
 
 
-@pytest.mark.skipif("sys.version_info >= (3, 6)")
-@pytest.mark.parametrize("prefix", ["devpi", "pypi"])
-def test_derive_token_old_python(prefix):
-    class MockHub:
-        pass
-    hub = MockHub()
-    hub.derive_token = Hub.derive_token.__get__(hub)
-    assert hub.derive_token("%s-foo" % prefix, None) == "%s-foo" % prefix
-
-
-@pytest.mark.skipif("sys.version_info < (3, 6)")
 @pytest.mark.parametrize("prefix", ["devpi", "pypi"])
 def test_derive_token_invalid_token(prefix):
     msgs = []
@@ -274,7 +265,6 @@ def test_derive_token_invalid_token(prefix):
     assert "can not parse it" in msg
 
 
-@pytest.mark.skipif("sys.version_info < (3, 7)")
 def test_derive_token():
     import pypitoken
     token = pypitoken.Token.create(
@@ -302,7 +292,6 @@ def test_derive_token():
         pypitoken.ProjectNamesRestriction(project_names=["pkg"])]
 
 
-@pytest.mark.skipif("sys.version_info < (3, 7)")
 def test_derive_legacy_token():
     import pypitoken
     token = pypitoken.Token.create(
@@ -332,7 +321,6 @@ def test_derive_legacy_token():
         pypitoken.LegacyProjectNamesRestriction(project_names=["pkg"])]
 
 
-@pytest.mark.skipif("sys.version_info < (3, 7)")
 def test_derive_devpi_token():
     import pypitoken
     passwd = "devpi-AgEAAhFmc2NodWx6ZS1yTlk5a0RuYQAABiBcjsOFkn7_3fn6mFoeJve_cOv-thDRL-4fQzbf_sOGjQ"

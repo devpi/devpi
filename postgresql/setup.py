@@ -53,12 +53,10 @@ setup(
         "Programming Language :: Python :: Implementation :: PyPy",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"] + [
             "Programming Language :: Python :: %s" % x
-            for x in "3.7 3.8 3.9 3.10 3.11".split()],
+            for x in "3.7 3.8 3.9 3.10 3.11 3.12".split()],
     entry_points={
         'devpi_server': [
-            "devpi-postgresql = devpi_postgresql.main"],
-        'pytest11': [
-            "pytest_devpi_postgresql = pytest_devpi_postgresql"]},
+            "devpi-postgresql = devpi_postgresql.main"]},
     install_requires=[
         'devpi-server>=6.8.0',
         'pg8000>=1.17.0'],

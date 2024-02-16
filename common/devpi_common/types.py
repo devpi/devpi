@@ -1,5 +1,4 @@
-from __future__ import absolute_import, unicode_literals
-from lazy import lazy as cached_property  # noqa
+from lazy import lazy as cached_property  # noqa: F401 must be importable
 from types import FunctionType
 import hashlib
 import operator
@@ -33,14 +32,19 @@ class CompareMixin(object):
 
     def __lt__(self, other):
         return self._cmp(other, operator.lt)
+
     def __le__(self, other):
         return self._cmp(other, operator.le)
+
     def __eq__(self, other):
         return self._cmp(other, operator.eq)
+
     def __ne__(self, other):
         return self._cmp(other, operator.ne)
+
     def __ge__(self, other):
         return self._cmp(other, operator.ge)
+
     def __gt__(self, other):
         return self._cmp(other, operator.gt)
 
@@ -133,23 +137,10 @@ class lazydecorator:
             assert newfunc == func
 
 
-# BBB for Python 2.7
-try:
-    basestring
-except NameError:
-    basestring = str
-try:
-    unicode
-except NameError:
-    unicode = str
-
-
 def ensure_unicode(x):
-    if isinstance(x, unicode):
-        return x
-    if not isinstance(x, basestring):
-        return unicode(x)
-    return x.decode("utf8")
+    if isinstance(x, bytes):
+        return x.decode("utf8")
+    return str(x)
 
 
 def parse_hash_spec(fragment):

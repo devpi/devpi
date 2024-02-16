@@ -3,6 +3,7 @@
 basic mechanics for turning a mutable dict/list/seq/tuple
 into a readonly view.
 """
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from functools import singledispatch
 from functools import total_ordering
@@ -31,12 +32,12 @@ class ReadonlyView(ABC):
     def __init__(self) -> None:
         raise NotImplementedError
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, ReadonlyView):
             other = other._data
         return self._data == other
 
-    def __lt__(self, other: Any) -> bool:
+    def __lt__(self, other: object) -> bool:
         if isinstance(other, ReadonlyView):
             other = other._data
         return self._data < other
@@ -174,7 +175,7 @@ def _(val: None) -> None:
 
 
 @ensure_deeply_readonly.register
-def _(val: bool) -> bool:
+def _(val: bool) -> bool:  # noqa: FBT001
     return val
 
 
@@ -241,7 +242,7 @@ def _(val: None) -> None:
 
 
 @get_mutable_deepcopy.register
-def _(val: bool) -> bool:
+def _(val: bool) -> bool:  # noqa: FBT001
     return val
 
 

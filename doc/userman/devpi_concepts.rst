@@ -50,7 +50,7 @@ will be automatically downloaded into the server cache.
 
 The diagram depicts the topology of a master server as well as their index structures:
 
-.. image:: ../images/devpi-topology.png
+.. image:: ../images/devpi-topology.svg
          
          
 The Devpi Server

@@ -87,7 +87,7 @@ class TestStatusInfoPlugin:
 
     def test_events_lagging(self, plugin, xom, monkeypatch):
         # write transaction so event processing can lag behind
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             xom.model.create_user("hello", "pass")
 
         import time

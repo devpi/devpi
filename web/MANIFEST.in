@@ -1,4 +1,4 @@
-include CHANGELOG *.ini *.rst LICENSE
+include .flake8 CHANGELOG *.ini *.rst LICENSE
 recursive-include devpi_web/static *
 recursive-include devpi_web/templates *
 recursive-include tests *.py

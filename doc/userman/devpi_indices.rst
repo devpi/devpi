@@ -22,7 +22,7 @@ Overview
 In this chapter, we explore how we can create and modify indexes based according 
 to the following structure:
 
-.. image:: ../images/devpi-topology.png
+.. image:: ../images/devpi-topology.svg
 
 with the two users already created.
 
@@ -67,10 +67,11 @@ set the index::
 and then issue::
 
    $ devpi use --urls
-              index: http://localhost:3141/root/pypi
-        simpleindex: http://localhost:3141/root/pypi/+simple/
-         pypisubmit: None
-              login: http://localhost:3141/+login
+   current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
+           simpleindex: http://localhost:3141/root/pypi/+simple/
+            pypisubmit: None
+                 login: http://localhost:3141/+login
+   supported features: server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -130,7 +131,7 @@ which leads to the following::
                    "volatile": false
                }
            },
-           "modified": "2021-05-10T14:44:18Z",
+           "created": "2021-05-10T14:44:18Z",
            "title": "CTO",
            "username": "emilie"
        },
@@ -220,10 +221,11 @@ or (long endpoint)::
 And from there, the urls should be set to:: 
 
    $ devpi use --urls
-              index: http://localhost:3141/emilie/prod
-        simpleindex: http://localhost:3141/emilie/prod/+simple/
-         pypisubmit: http://localhost:3141/emilie/prod/
-              login: http://localhost:3141/+login
+   current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
+           simpleindex: http://localhost:3141/emilie/prod/+simple/
+            pypisubmit: http://localhost:3141/emilie/prod/
+                 login: http://localhost:3141/+login
+   supported features: server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -410,9 +412,15 @@ By default anyone is allowed to do that.
 Modifying the mirror whitelist
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The mirror whitelist prevents malicious uploads from PyPI to be mixed in with your private packages.
+The mirror whitelist prevents malicious uploads from untrusted mirrors (e.g. PyPI) to be mixed in with your private packages.
 
-To allow uploads on PyPI or another mirror to be visible on your index, you have to add the project to the whitelist.
+By default, packages from mirrors (bases of type ``mirror``, possibly through inheritance) are only visible on your index if
+the index itself does not host this package. This ensures that you will always get the latest version from this index, even if
+one of the mirrors contains a later (potentially untrusted) version. This measure prevents dependency confusion attacks, where
+an attacker would upload a malicious package to a public index with the same name as a private package on your index.
+
+If you want allow a package to be included from the mirrors even if it is also hosted on the index, you can add it to the
+whitelist. This should only be done for packages that you own or trust on all mirrors that are not fully under your control.
 
 .. code-block:: console
 
@@ -428,6 +436,9 @@ To allow uploads on PyPI or another mirror to be visible on your index, you have
 
 You can also whitelist all packages on an index by setting mirror_whitelist to an asterisk.
 
+Note that this also whitelists packages from mirrors configured by one of this index' bases, even that base has an empty
+whitelist itself.
+
 .. code-block:: console
 
    $ devpi index -c wheelindex mirror_whitelist="*"
@@ -439,7 +450,6 @@ You can also whitelist all packages on an index by setting mirror_whitelist to a
      acl_toxresult_upload=:ANONYMOUS:
      mirror_whitelist=*
      mirror_whitelist_inheritance=intersection
-     
 If you've modifyied the mirror whitelist to add a package you might need to run 
 `devpi refresh mypkg` to make the package versions from pypi visible. Multiple 
 packages can be added by comma separating them. 

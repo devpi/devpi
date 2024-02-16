@@ -30,7 +30,6 @@ def main(hub, args=None):
             hub.line("%s: %s" %(name.upper(), r.headers[name]))
         hub.line()
     hub.out_json(r._json)
-    return
 
 
 def main_patchjson(hub, args=None):
@@ -50,4 +49,3 @@ def main_patchjson(hub, args=None):
     r = hub.http_api("patch", url, kvdict=data, quiet=True, check_version=False)
     hub.line("PATCH REQUEST sent to %s" % url.url)
     hub.out_json(r._json)
-    return

@@ -26,7 +26,7 @@ jobs:
           set -xe -o nounset
           python -VV
           python -m site
-          python -m pip install --upgrade pip setuptools wheel -r dev-requirements.txt
+          python -m pip install --upgrade pip setuptools wheel devpi-client setuptools_changelog_shortener towncrier
       - name: "Create packages"
         run: |
           set -xe -o nounset
@@ -36,6 +36,48 @@ jobs:
           python .ci/cleanup_devpi_indices.py
           .ci/upload-packages.sh
 
+  documentation:
+    name: "Create documentation"
+    needs: "packages"
+    runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.8"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel -r dev-requirements.txt
+      - name: "Regen documentation"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          devpi use "https://m.devpi.net/${DEVPI_INDEXNAME}"
+          devpi login devpi-github --password ${{ secrets.DEVPI_GITHUB_PASSWORD }}
+          mkdir .temp
+          export TMPDIR=$(pwd)/.temp/
+          pushd doc
+          make regen
+          popd
+      - name: "Build documentation"
+        run: |
+          pushd doc
+          make doczip
+          popd
+      - name: "Upload documentation"
+        run: |
+          pushd doc
+          devpi upload *.doc.zip
+          popd
+      - name: "Diff documentation"
+        run: |
+          git diff --exit-code || echo "::warning::The generated documentation has differences"
+
   common-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
@@ -43,17 +85,13 @@ jobs:
       matrix:
         include:
           - project: "common"
-            python-version: "pypy-2.7"
+            python-version: "3.7"
             os: "ubuntu-latest"
-            tox-envs: "pypy"
+            tox-envs: "py37"
           - project: "common"
-            python-version: "3.5"
-            os: "ubuntu-20.04"
-            tox-envs: "py35"
-          - project: "common"
-            python-version: "3.11"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "py311"
+            tox-envs: "py312"
           - project: "common"
             python-version: "pypy-3.8"
             os: "ubuntu-latest"
@@ -132,13 +170,13 @@ jobs:
       matrix:
         include:
           - project: "client"
-            python-version: "3.5"
-            os: "ubuntu-20.04"
-            tox-envs: "py35"
-          - project: "client"
-            python-version: "3.11"
+            python-version: "3.7"
             os: "ubuntu-latest"
-            tox-envs: "py311"
+            tox-envs: "py37,py37-version"
+          - project: "client"
+            python-version: "3.12"
+            os: "ubuntu-latest"
+            tox-envs: "py312"
 
     env:
       PY_COLORS: 1
@@ -181,9 +219,9 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py37-keyfs_sqlite"
           - project: "server"
-            python-version: "3.11"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "py311"
+            tox-envs: "py312"
 
     env:
       PY_COLORS: 1
@@ -226,9 +264,9 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py37-keyfs"
           - project: "web"
-            python-version: "3.11"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "py311"
+            tox-envs: "py312"
 
     env:
       PY_COLORS: 1
@@ -260,24 +298,25 @@ jobs:
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["client-tests", "server-tests", "web-tests"]
     strategy:
+      fail-fast: false
       matrix:
         include:
           - project: "common"
-            python-version: "3.12.0-alpha - 3.12.99"
+            python-version: "3.13.0-alpha - 3.13.99"
             os: "ubuntu-latest"
-            tox-envs: "py312"
+            tox-envs: "py313"
           - project: "client"
-            python-version: "3.12.0-alpha - 3.12.99"
+            python-version: "3.13.0-alpha - 3.13.99"
             os: "ubuntu-latest"
-            tox-envs: "py312"
+            tox-envs: "py313"
           - project: "server"
-            python-version: "3.12.0-alpha - 3.12.99"
+            python-version: "3.13.0-alpha - 3.13.99"
             os: "ubuntu-latest"
-            tox-envs: "py312"
+            tox-envs: "py313"
           - project: "web"
-            python-version: "3.12.0-alpha - 3.12.99"
+            python-version: "3.13.0-alpha - 3.13.99"
             os: "ubuntu-latest"
-            tox-envs: "py312"
+            tox-envs: "py313"
 
     env:
       PY_COLORS: 1
@@ -297,13 +336,12 @@ jobs:
           python -m site
           python -m pip install --upgrade pip setuptools wheel tox
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
-        continue-on-error: true
         run: |
           set -xe -o nounset
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes || echo "::warning::tox failed"
 
   postgresql-bbb-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -352,10 +390,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - project: "postgresql"
-            python-version: "3.7"
-            os: "ubuntu-latest"
-            tox-envs: "py37-postgresql"
+          # - project: "postgresql"
+          #   python-version: "3.7"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py37-postgresql"
           - project: "postgresql"
             python-version: "3.7"
             os: "ubuntu-latest"
@@ -368,22 +406,22 @@ jobs:
             python-version: "3.7"
             os: "ubuntu-latest"
             tox-envs: "py37-dont_use_copy-server"
-          - project: "postgresql"
-            python-version: "3.11"
-            os: "ubuntu-latest"
-            tox-envs: "py311-postgresql"
-          - project: "postgresql"
-            python-version: "3.11"
-            os: "ubuntu-latest"
-            tox-envs: "py311-server"
           # - project: "postgresql"
-          #   python-version: "3.11"
+          #   python-version: "3.12"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py311-server_postgresql_ssl"
+          #   tox-envs: "py312-postgresql"
           - project: "postgresql"
-            python-version: "pypy-3.8"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "pypy3-postgresql"
+            tox-envs: "py312-server"
+          # - project: "postgresql"
+          #   python-version: "3.12"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py312-server_postgresql_ssl"
+          # - project: "postgresql"
+          #   python-version: "pypy-3.8"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "pypy3-postgresql"
           - project: "postgresql"
             python-version: "pypy-3.8"
             os: "ubuntu-latest"
@@ -433,9 +471,9 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py37-web"
           - project: "postgresql"
-            python-version: "3.11"
+            python-version: "3.12"
             os: "ubuntu-latest"
-            tox-envs: "py311-web"
+            tox-envs: "py312-web"
           - project: "postgresql"
             python-version: "pypy-3.8"
             os: "ubuntu-latest"
@@ -481,10 +519,6 @@ jobs:
       matrix:
         include:
           - project: "client"
-            python-version: "pypy-2.7"
-            os: "ubuntu-latest"
-            tox-envs: "pypy"
-          - project: "client"
             python-version: "pypy-3.8"
             os: "ubuntu-latest"
             tox-envs: "pypy3"
@@ -520,31 +554,32 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes --durations=10 --durations-min=5
 
   postgresql-nightly-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
     needs: ["nightly-tests", "postgresql-tests", "postgresql-web-tests"]
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - project: "postgresql"
-            python-version: "3.12.0-alpha - 3.12.99"
-            os: "ubuntu-latest"
-            tox-envs: "py312-postgresql"
-          - project: "postgresql"
-            python-version: "3.12.0-alpha - 3.12.99"
-            os: "ubuntu-latest"
-            tox-envs: "py312-server"
-          - project: "postgresql"
-            python-version: "3.12.0-alpha - 3.12.99"
-            os: "ubuntu-latest"
-            tox-envs: "py312-web"
           # - project: "postgresql"
-          #   python-version: "3.12.0-alpha - 3.12.99"
+          #   python-version: "3.13.0-alpha - 3.13.99"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py312-server_postgresql_ssl"
+          #   tox-envs: "py313-postgresql"
+          - project: "postgresql"
+            python-version: "3.13.0-alpha - 3.13.99"
+            os: "ubuntu-latest"
+            tox-envs: "py313-server"
+          - project: "postgresql"
+            python-version: "3.13.0-alpha - 3.13.99"
+            os: "ubuntu-latest"
+            tox-envs: "py313-web"
+          # - project: "postgresql"
+          #   python-version: "3.13.0-alpha - 3.13.99"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py313-server_postgresql_ssl"
 
     env:
       PY_COLORS: 1
@@ -564,7 +599,6 @@ jobs:
           python -m site
           python -m pip install --upgrade pip setuptools wheel tox
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
-        continue-on-error: true
         run: |
           set -xe -o nounset
           source .ci/set-index-env.sh
@@ -573,7 +607,7 @@ jobs:
           export PATH=$PATH:$POSTGRESQL_BIN_DIR
           cd $PROJECT
           python -m tox -a -vv
-          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes || echo "::warning::tox failed"
 
   windows-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -586,18 +620,22 @@ jobs:
             python-version: "3.7"
             os: "windows-latest"
             tox-envs: "py37"
+            pytest-options: ""
           - project: "client"
             python-version: "3.7"
             os: "windows-latest"
             tox-envs: "py37"
+            pytest-options: "--timeout 300"
           - project: "server"
             python-version: "3.7"
             os: "windows-latest"
             tox-envs: "py37"
+            pytest-options: ""
           - project: "web"
             python-version: "3.7"
             os: "windows-latest"
             tox-envs: "py37"
+            pytest-options: ""
 
     env:
       PY_COLORS: 1
@@ -618,14 +656,13 @@ jobs:
           python -m site
           python -m pip install --upgrade pip setuptools wheel tox
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
-        continue-on-error: true
         shell: "bash"
         run: |
           set -xe -o nounset
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes ${{ matrix.pytest-options }}
 
   mypy-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
@@ -635,6 +672,8 @@ jobs:
       PY_COLORS: 1
 
     runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
 
     steps:
       - uses: "actions/checkout@v3"
@@ -650,13 +689,12 @@ jobs:
           python -m site
           python -m pip install --upgrade pip setuptools wheel -r dev-requirements.txt
       - name: "Run mypy"
-        continue-on-error: true
         shell: "bash"
         run: |
           set -xe -o nounset
           python -m mypy
 
-  ruff-tests:
+  flake8-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
 
     env:
@@ -675,9 +713,187 @@ jobs:
           set -xe -o nounset
           python -VV
           python -m site
+          python -m pip install --upgrade pip flake8 setuptools wheel
+      - name: "Run flake8"
+        shell: "bash"
+        run: |
+          set -x -o nounset
+          export FAILED="0"
+          pushd client; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd common; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd postgresql; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd server; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd web; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          test "$FAILED" = "0"
+  ruff-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+
+    env:
+      PY_COLORS: 1
+
+    runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.x"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
           python -m pip install --upgrade pip ruff setuptools wheel
       - name: "Run ruff"
         shell: "bash"
         run: |
           set -xe -o nounset
-          ruff --format=github .
+          ruff --output-format=github .
+
+  plugins-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    name: "${{ matrix.plugin }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["client-tests", "server-tests", "web-tests"]
+
+    env:
+      PY_COLORS: 1
+      PLUGIN: "${{ matrix.plugin }}"
+
+    runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plugin: "devpi-constrained"
+            python-version: "3.11"
+            repository: "devpi/devpi-constrained"
+            tox-envs: "py311"
+          - plugin: "devpi-findlinks"
+            python-version: "3.11"
+            repository: "devpi/devpi-findlinks"
+            tox-envs: "py311"
+          - plugin: "devpi-jenkins"
+            python-version: "3.11"
+            repository: "devpi/devpi-jenkins"
+            tox-envs: "py311"
+          - plugin: "devpi-ldap"
+            python-version: "3.11"
+            repository: "devpi/devpi-ldap"
+            tox-envs: "py311"
+          - plugin: "devpi-lockdown"
+            python-version: "3.11"
+            repository: "devpi/devpi-lockdown"
+            tox-envs: "py311"
+          - plugin: "devpi-passwd-reset"
+            python-version: "3.11"
+            repository: "devpi/devpi-passwd-reset"
+            tox-envs: "py311"
+          - plugin: "devpi-pr"
+            python-version: "3.11"
+            repository: "devpi/devpi-pr"
+            tox-envs: "py311"
+          - plugin: "devpi-tokens"
+            python-version: "3.11"
+            repository: "devpi/devpi-tokens"
+            tox-envs: "py311"
+
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/checkout@v3"
+        with:
+          repository: "${{ matrix.repository }}"
+          path: "${{ matrix.plugin }}"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox -r dev-requirements.txt
+      - name: "Run tox targets for ${{ matrix.plugin }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PLUGIN
+          python -m tox -a -vv
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes ${{ matrix.pytest-options }}
+
+  released-plugins-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    name: "${{ matrix.plugin }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["client-tests", "server-tests", "web-tests"]
+
+    env:
+      PY_COLORS: 1
+      PLUGIN: "${{ matrix.plugin }}"
+
+    runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plugin: "devpi-constrained"
+            python-version: "3.11"
+            repository: "devpi/devpi-constrained"
+            tox-envs: "py311"
+          - plugin: "devpi-findlinks"
+            python-version: "3.11"
+            repository: "devpi/devpi-findlinks"
+            tox-envs: "py311"
+          - plugin: "devpi-jenkins"
+            python-version: "3.11"
+            repository: "devpi/devpi-jenkins"
+            tox-envs: "py311"
+          - plugin: "devpi-ldap"
+            python-version: "3.11"
+            repository: "devpi/devpi-ldap"
+            tox-envs: "py311"
+          - plugin: "devpi-lockdown"
+            python-version: "3.11"
+            repository: "devpi/devpi-lockdown"
+            tox-envs: "py311"
+          - plugin: "devpi-passwd-reset"
+            python-version: "3.11"
+            repository: "devpi/devpi-passwd-reset"
+            tox-envs: "py311"
+          - plugin: "devpi-pr"
+            python-version: "3.11"
+            repository: "devpi/devpi-pr"
+            tox-envs: "py311"
+          - plugin: "devpi-tokens"
+            python-version: "3.11"
+            repository: "devpi/devpi-tokens"
+            tox-envs: "py311"
+
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/checkout@v3"
+        with:
+          repository: "${{ matrix.repository }}"
+          path: "${{ matrix.plugin }}"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox -r dev-requirements.txt
+      - name: "Run tox targets for ${{ matrix.plugin }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        shell: "bash"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PLUGIN
+          pip download --no-deps --dest=dist ${{ matrix.plugin }}
+          python -m tox -a -vv
+          PIP_PRE=1 python -m tox -v --installpkg $(ls dist/*) -e ${{ matrix.tox-envs }} -- -v --color=yes ${{ matrix.pytest-options }}

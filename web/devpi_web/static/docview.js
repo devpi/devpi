@@ -12,6 +12,7 @@ function onIFrameLoad(event) {
         $iframe = $(iframe),
         $doc = $(iframe.contentWindow.document),
         $docHtml = $doc.find('html'),
+        $docBody = $docHtml.find('body'),
         scrolled_to_anchor = false,
         iframeResizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
@@ -28,6 +29,10 @@ function onIFrameLoad(event) {
             }
         });
 
+    $docHtml.css('height', 'auto');
+    $docHtml.css('overflow-y', 'hidden');
+    $docBody.css('height', 'auto');
+    $docBody.css('overflow-y', 'hidden');
     // make keyboard actions affect the actual documentation
     // in the iframe by default
     iframe.contentWindow.focus();

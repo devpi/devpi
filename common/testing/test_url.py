@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import hashlib
 import posixpath
 import pytest
@@ -24,8 +23,12 @@ class TestURL:
         d = URL("http://host.com/path?foo=bar")
         assert repr(d) == "URL('http://host.com/path?foo=bar')"
         assert d.query == "foo=bar"
+        d = URL("http://foo@host.com/path")
+        assert repr(d) == "URL('http://****@host.com/path')"
+        d = URL("http://:bar@host.com/path")
+        assert repr(d) == "URL('http://:****@host.com/path')"
         d = URL("http://foo:bar@host.com/path")
-        assert repr(d) == "URL('http://foo:****@host.com/path')"
+        assert repr(d) == "URL('http://****:****@host.com/path')"
 
     def test_str(self):
         d = URL("http://foo:bar@host.com/path")
@@ -45,13 +48,6 @@ class TestURL:
         assert URL("http://a") == URL("http://a")
         assert hash(URL("http://a?foo=bar")) == hash(URL("http://a?foo=bar"))
         assert URL("http://a?foo=bar") == URL("http://a?foo=bar")
-
-    def test_eggfragment(self):
-        url = URL("http://a/py.tar.gz#egg=py-dev")
-        assert url.eggfragment == "py-dev"
-        url = URL("http://a/py.tar.gz?foo=bar#egg=py-dev")
-        assert url.eggfragment == "py-dev"
-        assert url.query == "foo=bar"
 
     def test_md5(self):
         url = URL("http://a/py.tar.gz#md5=123123")
@@ -214,7 +210,6 @@ class TestURL:
         ("/something/this", "/", "../"),
         ("/", "/this/that/", "this/that/"),
         ("/something/this/", "/something/that", "../that"),
-        ("/something/this/", "/other/that", "../../other/that"),
         ("/something/this/", "/other/that", "../../other/that"),
         ("/something/this/", "/something/this/that", "that"),
         ("/something/this/", "/something/this/that/there", "that/there"),

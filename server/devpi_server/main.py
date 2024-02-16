@@ -3,7 +3,7 @@
 a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
-import aiohttp
+import httpx
 import inspect
 import os
 import os.path
@@ -13,11 +13,13 @@ import ssl
 import sys
 import threading
 import time
+import warnings
 
 from requests import Response, exceptions
 from requests.utils import DEFAULT_CA_BUNDLE_PATH
 from devpi_common.types import cached_property
 from devpi_common.request import new_requests_session
+from .config import MyArgumentParser
 from .config import parseoptions, get_pluginmanager
 from .exceptions import lazy_format_exception_only
 from .log import configure_logging, threadlog
@@ -33,8 +35,50 @@ class Fatal(Exception):
     pass
 
 
-def fatal(msg):
-    raise Fatal(msg)
+def fatal(msg, *, exc=None):
+    warnings.warn(
+        "The 'fatal' function is deprecated, raise 'Fatal' exception directly.",
+        DeprecationWarning,
+        stacklevel=2)
+    raise Fatal(msg) from exc
+
+
+class CommandRunner:
+    def __init__(self, *, pluginmanager=None):
+        self._pluginmanager = pluginmanager
+        self.return_code = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, cls, val, tb):
+        if isinstance(val, Fatal):
+            self.tw_err.line(f"fatal: {val.args[0]}", red=True)
+            self.return_code = 1
+            return True
+        return False
+
+    def create_parser(self, *, add_help, description):
+        return MyArgumentParser(
+            add_help=add_help,
+            description=description,
+            pluginmanager=self.pluginmanager)
+
+    def get_config(self, argv, parser):
+        return parseoptions(self.pluginmanager, argv=argv, parser=parser)
+
+    @cached_property
+    def pluginmanager(self):
+        pm = self._pluginmanager
+        return pm if pm is not None else get_pluginmanager()
+
+    @cached_property
+    def tw(self):
+        return py.io.TerminalWriter()
+
+    @cached_property
+    def tw_err(self):
+        return py.io.TerminalWriter(sys.stderr)
 
 
 DATABASE_VERSION = "4"
@@ -47,20 +91,23 @@ def check_compatible_version(config):
     if server_version != state_version:
         state_ver = tuple(state_version.split("."))
         if state_ver[0] != DATABASE_VERSION:
-            fatal("Incompatible state: server %s cannot run serverdir "
-                  "%s created at database version %s.\n"
-                  "Use devpi-export from older version, then "
-                  "devpi-import with newer version."
-                  % (server_version, config.serverdir, state_ver[0]))
+            msg = (
+                f"Incompatible state: server {server_version} cannot run "
+                f"serverdir {config.serverdir} created at database "
+                f"version {state_ver[0]}.\n"
+                f"Use devpi-export from older version, then "
+                f"devpi-import with newer version.")
+            raise Fatal(msg)
 
 
 def get_state_version(config):
     versionfile = config.serverdir.join(".serverversion")
     if not versionfile.exists():
-        fatal(
+        msg = (
             "serverdir %s is non-empty and misses devpi-server meta information. "
             "You need to specify an empty directory or a directory that was "
             "previously managed by devpi-server>=1.2" % config.serverdir)
+        raise Fatal(msg)
     return versionfile.read()
 
 
@@ -72,13 +119,9 @@ def set_state_version(config, version=DATABASE_VERSION):
 
 def main(argv=None):
     """ devpi-server command line entry point. """
-    pluginmanager = get_pluginmanager()
-    try:
-        return _main(pluginmanager, argv=argv)
-    except Fatal as e:
-        tw = py.io.TerminalWriter(sys.stderr)
-        tw.line("fatal: %s" % e.args[0], red=True)
-        return 1
+    with CommandRunner() as runner:
+        return _main(runner.pluginmanager, argv=argv)
+    return runner.return_code
 
 
 def xom_from_config(config, init=False):
@@ -88,12 +131,13 @@ def xom_from_config(config, init=False):
     config.init_nodeinfo()
 
     if not init and config.sqlite_file_needed_but_missing():
-        fatal(
+        msg = (
             "No sqlite storage found in %s."
             " Or you need to run with --storage to specify the storage type,"
             " or you first need to run devpi-init or devpi-import"
             " in order to create the sqlite database." % config.serverdir
         )
+        raise Fatal(msg)
 
     return XOM(config)
 
@@ -102,7 +146,7 @@ def init_default_indexes(xom):
     # we deliberately call get_current_serial first to establish a connection
     # to the backend and in case of sqlite create the database
     if xom.keyfs.get_current_serial() == -1 and not xom.is_replica():
-        with xom.keyfs.transaction(write=True):
+        with xom.keyfs.write_transaction():
             set_default_indexes(xom.model)
 
 
@@ -118,14 +162,17 @@ def _main(pluginmanager, argv=None):
 
     # meta commands
     if args.version:
-        print(server_version)
+        print(server_version)  # noqa: T201
         return 0
 
     # now we can configure logging
     configure_logging(config.args)
 
     if not config.path_nodeinfo.exists():
-        fatal("The path '%s' contains no devpi-server data, use devpi-init to initialize." % config.serverdir)
+        msg = (
+            f"The path '{config.serverdir}' contains no devpi-server data, "
+            f"use devpi-init to initialize.")
+        raise Fatal(msg)
 
     xom = xom_from_config(config)
 
@@ -184,7 +231,7 @@ class AsyncioLoopThread(object):
     def loop(self):
         if self._started.wait(2):
             return self._loop
-        fatal("Couldn't get async loop, was the thread not started?")
+        raise Fatal("Couldn't get async loop, was the thread not started?")
 
     def thread_run(self):
         thread_push_log("[ASYN]")
@@ -234,9 +281,10 @@ class XOM:
             from devpi_server.replica import register_key_subscribers
             search_path = self.config.replica_file_search_path
             if search_path and not os.path.exists(search_path):
-                fatal(
-                    "search path for existing replica files doesn't "
-                    "exist: %s" % search_path)
+                msg = (
+                    f"search path for existing replica files doesn't "
+                    f"exist: {search_path}")
+                raise Fatal(msg)
             register_key_subscribers(self)
             # the replica thread replays keyfs changes
             # and project-specific changes are discovered
@@ -325,7 +373,7 @@ class XOM:
 
         # creation of app will register handlers of key change events
         # which cannot happen anymore after the tx notifier has started
-        with xom.keyfs.transaction():
+        with xom.keyfs.read_transaction():
             res = xom.config.hook.devpiserver_cmdline_run(xom=xom)
             if res is not None:
                 return res
@@ -339,7 +387,7 @@ class XOM:
     def fatal(self, msg):
         self.keyfs.release_all_wait_tx()
         self.thread_pool.shutdown()
-        fatal(msg)
+        raise Fatal(msg)
 
     @cached_property
     def filestore(self):
@@ -358,9 +406,9 @@ class XOM:
         add_keys(self, keyfs)
         try:
             keyfs.finalize_init()
-        except Exception:
+        except Exception as e:
             threadlog.exception("Error while trying to initialize storage")
-            fatal("Couldn't initialize storage")
+            raise Fatal("Couldn't initialize storage") from e
         if not self.config.requests_only:
             self.thread_pool.register(keyfs.notifier)
         return keyfs
@@ -396,25 +444,25 @@ class XOM:
         self._httpsession.close()
 
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
-        timeout = aiohttp.ClientTimeout(total=timeout)
-        connector = aiohttp.TCPConnector(ssl=self._ssl_context)
         try:
-            async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True) as session:
-                async with session.get(
-                    url, allow_redirects=allow_redirects, headers=extra_headers
-                ) as response:
-                    if response.status < 300:
-                        text = await response.text()
-                    else:
-                        text = None
-                    return (response, text)
+            async with httpx.AsyncClient(
+                    timeout=timeout,
+                    verify=self._ssl_context,
+                    follow_redirects=allow_redirects,
+            ) as client:
+                response = await client.get(url, headers=extra_headers)
+                if response.status_code < 300:
+                    text = response.text
+                else:
+                    text = None
+                return response, text
         except OSError as e:
             location = get_caller_location()
             threadlog.warn(
                 "OS error during async_httpget of %s at %s: %s",
                 url, location, lazy_format_exception_only(e))
             return FatalResponse(url, repr(sys.exc_info()[1]))
-        except aiohttp.ClientError as e:
+        except httpx.RequestError as e:
             location = get_caller_location()
             threadlog.warn(
                 "OS error during async_httpget of %s at %s: %s",
@@ -474,7 +522,7 @@ class XOM:
                         # replication protocol
                         return proxy_view_to_master
         return view
-    view_deriver.options = ('is_mutating',)  # type: ignore
+    view_deriver.options = ('is_mutating',)  # type: ignore[attr-defined]
 
     def create_app(self):
         from devpi_server.middleware import OutsideURLMiddleware
@@ -506,7 +554,7 @@ class XOM:
             index_classes.setdefault(ixtype, []).append(ixclass)
         for ixtype, ixclasses in index_classes.items():
             if len(ixclasses) > 1:
-                fatal(
+                raise Fatal(
                     "multiple implementation classes for index type '%s':\n%s"
                     % (
                         ixtype,

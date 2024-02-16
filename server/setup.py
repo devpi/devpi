@@ -27,7 +27,7 @@ if __name__ == "__main__":
     CHANGELOG = get_changelog()
 
     install_requires = ["py>=1.4.23",
-                        "aiohttp!=4.0.0a0,!=4.0.0a1",
+                        "httpx",
                         "argon2-cffi",
                         "attrs>=21.3.0",
                         "defusedxml",
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         'Documentation': 'https://doc.devpi.net',
         'Source Code': 'https://github.com/devpi/devpi'
       },
-      version='6.9.1',
+      version='6.10.0',
       maintainer="Florian Schulze",
       maintainer_email="mail@pyfidelity.com",
       packages=[
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         "Programming Language :: Python :: Implementation :: PyPy",
       ] + [
             ("Programming Language :: Python :: %s" % x)
-            for x in "3.7 3.8 3.9 3.10 3.11".split()],
+            for x in "3.7 3.8 3.9 3.10 3.11 3.12".split()],
       install_requires=install_requires,
       extras_require=extras_require,
       python_requires='>=3.7',

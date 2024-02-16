@@ -29,6 +29,7 @@ from .log import threadlog
 from .vendor._pip import HTMLPage
 from .views import SIMPLE_API_V1_JSON
 from .views import make_uuid_headers
+from pyramid.authentication import b64encode
 import json
 import threading
 import weakref
@@ -54,7 +55,7 @@ class ProjectHTMLParser(HTMLParser):
         HTMLParser.__init__(self)
         self.projects = set()
         self.baseurl = URL(url)
-        self.basehost = self.baseurl.replace(path='')
+        self.basehost = self.baseurl.hostname
         self.project = None
 
     def handle_data(self, data):
@@ -78,7 +79,7 @@ class ProjectHTMLParser(HTMLParser):
                     return
                 if not newurl.path.startswith(self.baseurl.path):
                     return
-                if self.basehost != newurl.replace(path=''):
+                if self.basehost != newurl.hostname:
                     return
                 project = newurl.basename
             self.project = project
@@ -174,7 +175,7 @@ def parse_index_v1_json(disturl, text):
         if 'sha256' in hashes:
             url = url.replace(fragment=f"sha256={hashes['sha256']}")
         elif hashes:
-            url = url.replace(fragment="=".join(next(hashes.items())))
+            url = url.replace(fragment="=".join(next(iter(hashes.items()))))
         # the BasenameMeta wrapping essentially does link validation
         result.append(BasenameMeta(Link(
             url,
@@ -203,7 +204,7 @@ class MirrorStage(BaseStage):
             rt = self.xom.replica_thread
             token = rt.auth_serializer.dumps(uuid)
             extra_headers[rt.H_REPLICA_UUID] = uuid
-            extra_headers[str('Authorization')] = 'Bearer %s' % token
+            extra_headers['Authorization'] = 'Bearer %s' % token
         return extra_headers
 
     async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
@@ -234,6 +235,10 @@ class MirrorStage(BaseStage):
         return url.asdir()
 
     @property
+    def mirror_url_without_auth(self):
+        return self.mirror_url.replace(username=None, password=None)
+
+    @property
     def mirror_url_auth(self):
         url = self.mirror_url
         pm = get_pluginmanager()
@@ -241,6 +246,14 @@ class MirrorStage(BaseStage):
         if auth:
             return auth[0]
         return dict(username=url.username, password=url.password)
+
+    @property
+    def mirror_url_authorization_header(self):
+        url = self.mirror_url
+        if url.username or url.password:
+            auth = f"{url.username or ''}:{url.password or ''}".encode()
+            return f"Basic {b64encode(auth).decode()}"
+        return None
 
     @property
     def no_project_list(self):
@@ -384,9 +397,12 @@ class MirrorStage(BaseStage):
             timeout = max(self.timeout, 60)
         else:
             timeout = max(self.timeout, 30)
+        auth = self.mirror_url_authorization_header
+        if auth:
+            headers["Authorization"] = auth
         response = self.httpget(
-            self.mirror_url, allow_redirects=True, extra_headers=headers,
-            timeout=timeout)
+            self.mirror_url_without_auth, allow_redirects=True,
+            extra_headers=headers, timeout=timeout)
         if response.status_code == 304:
             return (self.cache_projectnames.get(), etag)
         elif response.status_code != 200:
@@ -428,9 +444,8 @@ class MirrorStage(BaseStage):
                 # when 0 it is new, when 1 it is pre 6.6.0 with
                 # only normalized names
                 if k.get() in (0, 1):
-                    if not self.keyfs.tx.write:
-                        self.keyfs.restart_as_write_transaction()
-                    k.set(2)
+                    with self.keyfs.write_transaction(allow_restart=True):
+                        k.set(2)
         else:
             # mark current without updating contents
             self.cache_projectnames.mark_current(etag)
@@ -533,19 +548,23 @@ class MirrorStage(BaseStage):
     async def _async_fetch_releaselinks(self, newlinks_future, project, cache_serial, _key_from_link):
         # get the simple page for the project
         url = self.mirror_url.joinpath(project).asdir()
+        get_url = self.mirror_url_without_auth.joinpath(project).asdir()
         threadlog.debug("reading index %r", url)
         headers = {"Accept": SIMPLE_API_ACCEPT}
+        auth = self.mirror_url_authorization_header
+        if auth:
+            headers["Authorization"] = auth
         etag = self.cache_retrieve_times.get_etag(project)
         if etag is not None:
             headers["If-None-Match"] = etag
         (response, text) = await self.async_httpget(
-            url, allow_redirects=True, extra_headers=headers)
-        if response.status == 304:
+            get_url, allow_redirects=True, extra_headers=headers)
+        if response.status_code == 304:
             raise self.UpstreamNotModified(
-                "%s status on GET %r" % (response.status, url),
+                "%s status on GET %r" % (response.status_code, url),
                 etag=etag)
-        elif response.status != 200:
-            if response.status == 404:
+        elif response.status_code != 200:
+            if response.status_code == 404:
                 # immediately cache the not found with no ETag
                 self.cache_retrieve_times.refresh(project, None)
                 raise self.UpstreamNotFoundError(
@@ -553,7 +572,7 @@ class MirrorStage(BaseStage):
 
             # we don't have an old result and got a non-404 code.
             raise self.UpstreamError("%s status on GET %r" % (
-                response.status, url))
+                response.status_code, url))
 
         # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
         # devpi-master may provide a 200 but not supply the header
@@ -564,7 +583,7 @@ class MirrorStage(BaseStage):
         # provide earlier versions of easy_install/pip to request the full
         # simple page.
         try:
-            serial = int(response.headers.get(str("X-PYPI-LAST-SERIAL")))
+            serial = int(response.headers.get("X-PYPI-LAST-SERIAL"))
         except (TypeError, ValueError):
             # handle missing or invalid X-PYPI-LAST-SERIAL header
             serial = -1
@@ -630,13 +649,9 @@ class MirrorStage(BaseStage):
                 return self.SimpleLinks(links)
             raise self.UpstreamError("no cache links from master for %s" %
                                      project)
-        else:
-            # on the master we need to write the updated links.
-            if not self.keyfs.tx.write:
-                # we are in a read-only transaction so we need to start a
-                # write transaction.
-                self.keyfs.restart_as_write_transaction()
 
+        with self.keyfs.write_transaction(allow_restart=True):
+            # on the master we need to write the updated links.
             maplink = partial(
                 self.filestore.maplink,
                 user=self.user.name, index=self.index, project=project)
@@ -661,7 +676,7 @@ class MirrorStage(BaseStage):
 
         newlinks = join_links_data(
             info["key_hrefs"], info["requires_python"], info["yanked"])
-        with self.keyfs.transaction(write=True):
+        with self.keyfs.write_transaction():
             self.keyfs.tx.on_finished(lock.release)
             # fetch current links
             (is_expired, links, cache_serial) = self._load_cache_links(project)

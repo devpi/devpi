@@ -9,23 +9,34 @@ independent from any future changes.
 import contextlib
 import py
 from . import mythread
-from .fileutil import loads
 from .interfaces import IStorageConnection3
-from .keyfs_types import PTypedKey, RelpathInfo, TypedKey
+from .keyfs_types import PTypedKey
+from .keyfs_types import TypedKey
 from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
+from .markers import absent
 from .model import RootModel
 from .readonly import ensure_deeply_readonly
 from .readonly import get_mutable_deepcopy
 from .readonly import is_deeply_readonly
 from .filestore import FileEntry
 from .fileutil import read_int_from_file, write_int_to_file
-import time
-
 from devpi_common.types import cached_property
+import time
+import warnings
 
 
-absent = object()
+def __getattr__(name):
+    if name == 'RelpathInfo':
+        from .keyfs_types import RelpathInfo
+        warnings.warn(
+            'Importing RelpathInfo from devpi_server.keyfs is deprecated. '
+            'Import from devpi_server.keyfs_types instead.',
+            DeprecationWarning,
+            stacklevel=2)
+        return RelpathInfo
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 class KeyfsTimeoutError(TimeoutError):
@@ -113,8 +124,9 @@ class TxNotificationThread:
             except mythread.Shutdown:
                 raise
             except MissingFileException as e:
-                self.log.warn("Waiting for file %s in event serial %s" % (
-                    e.relpath, e.serial))
+                self.log.warning(
+                    "Waiting for file %s in event serial %s",
+                    e.relpath, e.serial)
                 self.thread.sleep(5)
             except Exception:
                 self.log.exception(
@@ -130,7 +142,7 @@ class TxNotificationThread:
         cache_key = (user, index)
         if cache_key in self._get_ixconfig_cache:
             return self._get_ixconfig_cache[cache_key]
-        with self.keyfs.transaction(write=False):
+        with self.keyfs.read_transaction():
             key = self.keyfs.get_key('USER')(user=user)
             value = key.get()
         if value is None:
@@ -171,7 +183,7 @@ class TxNotificationThread:
                     serial = self.keyfs.get_current_serial()
                     if event_serial < serial:
                         # there are newer serials existing
-                        with self.keyfs.transaction(write=False) as tx:
+                        with self.keyfs.read_transaction() as tx:
                             current_val = tx.get(key)
                         if current_val is None:
                             # entry was deleted
@@ -266,7 +278,7 @@ class KeyFS(object):
                         typedkey, get_mutable_deepcopy(val),
                         back_serial=back_serial)
         if callable(self._import_subscriber):
-            with self.transaction(write=False, at_serial=serial):
+            with self.read_transaction(at_serial=serial):
                 self._import_subscriber(serial, changes)
 
     def subscribe_on_import(self, subscriber):
@@ -400,7 +412,7 @@ class KeyFS(object):
             self.clear_transaction()
 
     @contextlib.contextmanager
-    def transaction(self, write=False, at_serial=None):
+    def _transaction(self, *, write=False, at_serial=None):
         tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
             yield tx
@@ -408,6 +420,55 @@ class KeyFS(object):
             self.rollback_transaction_in_thread()
             raise
         self.commit_transaction_in_thread()
+
+    @contextlib.contextmanager
+    def read_transaction(self, *, at_serial=None, allow_reuse=False):
+        tx = getattr(self._threadlocal, 'tx', None)
+        if tx is not None:
+            if not allow_reuse:
+                raise RuntimeError(
+                    "Can't open a read transaction "
+                    "within a running transaction.")
+            if at_serial is not None and tx.at_serial != at_serial:
+                msg = (
+                    f"Can't open a read transaction at "
+                    f"serial {at_serial!r} from within a running "
+                    f"transaction at serial {tx.at_serial!r}.")
+                raise RuntimeError(msg)
+            yield tx
+        else:
+            with self._transaction(write=False, at_serial=at_serial) as tx:
+                yield tx
+
+    @contextlib.contextmanager
+    def transaction(self, write=False, at_serial=None):
+        warnings.warn(
+            "The 'transaction' method is deprecated, "
+            "use 'read_transaction' or 'write_transaction' instead.",
+            DeprecationWarning,
+            stacklevel=3)
+        with self._transaction(write=write, at_serial=at_serial) as tx:
+            yield tx
+
+    @contextlib.contextmanager
+    def write_transaction(self, *, allow_restart=False):
+        """ Get a write transaction.
+
+        If ``allow_restart`` is ``True`` then an existing read-only transaction is restarted as a write transaction.
+        """
+        tx = getattr(self._threadlocal, 'tx', None)
+        if tx is not None:
+            if not tx.write:
+                if allow_restart:
+                    self.restart_as_write_transaction()
+                else:
+                    raise self.ReadOnly(
+                        "Expected an existing write transaction, "
+                        "but there is an existing read transaction.")
+            yield tx
+        else:
+            with self._transaction(write=True) as tx:
+                yield tx
 
 
 class KeyChangeEvent:
@@ -435,25 +496,6 @@ def get_relpath_at(self, relpath, serial):
     raise KeyError(relpath)
 
 
-def io_file_new_open(self, path):
-    """ Fallback method for legacy storage connections. """
-    from tempfile import TemporaryFile
-    return TemporaryFile()
-
-
-def io_file_set(self, path, content_or_file, _io_file_set):
-    """ Fallback method wrapper for legacy storage connections. """
-    # _io_file_set is from the original class
-    if not isinstance(content_or_file, bytes):
-        content_or_file.seek(0)
-        content_or_file = content_or_file.read()
-    if len(content_or_file) > 1048576:
-        threadlog.warn(
-            "Got content with %.1f megabytes in memory while setting content for %s",
-            len(content_or_file) / 1048576, path)
-    return _io_file_set(self, path, content_or_file)
-
-
 def iter_serial_and_value_backwards(conn, relpath, last_serial):
     while last_serial >= 0:
         tup = conn.get_changes(last_serial).get(relpath)
@@ -465,23 +507,6 @@ def iter_serial_and_value_backwards(conn, relpath, last_serial):
 
     # we could not find any change below at_serial which means
     # the key didn't exist at that point in time
-
-
-def iter_relpaths_at(self, typedkeys, at_serial):
-    keynames = frozenset(k.name for k in typedkeys)
-    seen = set()
-    for serial in range(at_serial, -1, -1):
-        raw_entry = self.get_raw_changelog_entry(serial)
-        changes = loads(raw_entry)[0]
-        for relpath, (keyname, back_serial, val) in changes.items():
-            if keyname not in keynames:
-                continue
-            if relpath not in seen:
-                seen.add(relpath)
-                yield RelpathInfo(
-                    relpath=relpath, keyname=keyname,
-                    serial=serial, back_serial=back_serial,
-                    value=val)
 
 
 class TransactionRootModel(RootModel):
@@ -534,12 +559,15 @@ class TransactionRootModel(RootModel):
 
 class Transaction(object):
     def __init__(self, keyfs, at_serial=None, write=False):
+        if write and at_serial:
+            raise RuntimeError(
+                "Can't open write transaction with 'at_serial'.")
         self.keyfs = keyfs
         self.commit_serial = None
         self.write = write
         if self.write:
             # open connection immediately
-            self.conn
+            self.conn  # noqa: B018
         if at_serial is None:
             at_serial = self.conn.last_changelog_serial
         self.at_serial = at_serial
@@ -760,6 +788,8 @@ class Transaction(object):
         return result
 
     def restart(self, write=False):
+        if self.write:
+            raise RuntimeError("Can't restart a write transaction.")
         self.commit()
         threadlog.debug(
             "restarting %s transaction afresh as %s transaction",

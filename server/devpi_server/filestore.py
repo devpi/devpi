@@ -173,10 +173,6 @@ class FileEntry(object):
     __slots__ = ('_meta', '_storepath', 'basename', 'key', 'readonly', 'relpath')
     BadGateway = BadGateway
     hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
-    # BBB keep this until devpi-server 6.0.0,
-    # it was required for devpi-web <= 3.5.1
-    # it was used for the old scraping/crawling code
-    eggfragment = metaprop("eggfragment")
     last_modified = metaprop("last_modified")
     url = metaprop("url")
     project = metaprop("project")
@@ -273,11 +269,11 @@ class FileEntry(object):
     def gethttpheaders(self):
         assert self.file_exists()
         headers = {}
-        headers[str("last-modified")] = str(self.last_modified)
+        headers["last-modified"] = str(self.last_modified)
         m = mimetypes.guess_type(self.basename)[0]
-        headers[str("content-type")] = str(m)
-        headers[str("content-length")] = str(self.file_size())
-        headers[str("cache-control")] = str("max-age=365000000, immutable, public")
+        headers["content-type"] = str(m)
+        headers["content-length"] = str(self.file_size())
+        headers["cache-control"] = "max-age=365000000, immutable, public"
         return headers
 
     def __eq__(self, other):

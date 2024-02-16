@@ -23,11 +23,11 @@ def test_permissions_for_unknown_index(mapp, xom):
     assert mapp.getjson(api.index)['result']['type'] == 'stage'
     assert mapp.getjson(api.index)['result']['projects'] == ['hello']
     # change index type to unknown
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         stage = xom.model.getstage(api.stagename)
         with stage.user.key.update() as userconfig:
             userconfig["indexes"][stage.index]['type'] = 'unknown'
-    with xom.keyfs.transaction(write=True):
+    with xom.keyfs.write_transaction():
         stage = xom.model.getstage(api.stagename)
         # first check direct stage access
         # modifying the stage directly is ok, as the view is protected by
@@ -156,7 +156,7 @@ def test_on_modified(makemapp, maketestapp, makexom):
     api = mapp.create_index('user/dev', indexconfig=dict(type='mystage'))
     r = testapp.patch_json(
         api.index, ['bases+=user/dev'],
-        headers={'X-Fail': str('foo')}, expect_errors=True)
+        headers={'X-Fail': 'foo'}, expect_errors=True)
     assert r.status_code == 400
     assert r.json['message'] == "foo"
     result = mapp.getjson(api.index)
@@ -214,7 +214,7 @@ def test_package_filters(makemapp, maketestapp, makexom):
     mapp.upload_file_pypi("pkg-1.2.tar.gz", b'pkg12', "pkg", "1.2")
     assert len(mapp.getreleaseslist('hello')) == 2
     assert len(mapp.getreleaseslist('pkg')) == 2
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage('user/foo')
         assert stage.get_latest_version_perstage('hello') == '1.1'
         assert stage.get_latest_version_perstage('pkg') == '1.2'
@@ -235,7 +235,7 @@ def test_package_filters(makemapp, maketestapp, makexom):
         type='mystage', bases='user/foo'))
     assert len(mapp.getreleaseslist('hello')) == 1
     assert mapp.getreleaseslist('pkg', code=404) is None
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage('user/dev')
         assert stage.get_latest_version_perstage('hello') is None
         assert stage.get_latest_version_perstage('pkg') is None
@@ -300,7 +300,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     # cleanup
     mapp.delete_project('hello', indexname="otheruser/dev")
     # check get_principals_for_pkg_read directly
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage(api1.stagename)
         assert stage.customizer.get_principals_for_pkg_read() == {
             ':ANONYMOUS:', 'root'}
@@ -326,7 +326,7 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 403
-    with xom.keyfs.transaction(write=False):
+    with xom.keyfs.read_transaction():
         stage = xom.model.getstage(api1.stagename)
         # by default get_principals_for_pkg_read returns just the set principals
         assert stage.customizer.get_principals_for_pkg_read() == {

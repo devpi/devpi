@@ -7,7 +7,8 @@ from devpi_server.log import thread_pop_log, thread_push_log
 from devpi_server.log import threadlog
 from .test_config import make_config
 
-pytestmark = pytest.mark.notransaction
+
+pytestmark = [pytest.mark.notransaction]
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ def test_taglogger_prefix(caplog):
 
 def test_taglogger_exception(taglogger, caplog):
     try:
-        0/0
+        0 / 0  # noqa: B018
     except Exception:
         taglogger.exception("this")
     assert caplog.getrecords()[0].exc_info

@@ -1,6 +1,6 @@
-import py
 from devpi_common.metadata import parse_requirement, splitbasename
 from . import pypirc
+from pathlib import Path
 import traceback
 
 
@@ -34,11 +34,11 @@ def parse_target(hub, args):
         posturl = args.target[5:]
         pypirc_path = args.pypirc
         if pypirc_path is None:
-            pypirc_path = py.path.local._gethomedir().join(".pypirc")
+            pypirc_path = Path().home() / ".pypirc"
         else:
-            pypirc_path = py.path.local().join(args.pypirc, abs=True)
-        if not pypirc_path.check():
-            hub.fatal("no pypirc file found at: %s" %(pypirc_path))
+            pypirc_path = Path() / args.pypirc
+        if not pypirc_path.is_file():
+            hub.fatal(f"no pypirc file found at: {pypirc_path}")
         hub.info("using pypirc", pypirc_path)
         auth = pypirc.Auth(pypirc_path)
         try:
