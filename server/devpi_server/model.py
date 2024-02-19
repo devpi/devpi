@@ -1211,6 +1211,8 @@ class PrivateStage(BaseStage):
         super(PrivateStage, self).__init__(
             xom, username, index, ixconfig, customizer_cls)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
+        self.httpget = xom.httpget
+        self.async_httpget = xom.async_httpget
 
     def get_possible_indexconfig_keys(self):
         return tuple(dict(self.get_default_config_items())) + (

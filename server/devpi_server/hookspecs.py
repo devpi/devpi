@@ -201,6 +201,18 @@ def devpiserver_auth_denials(request, acl, user, stage):
 
 
 @hookspec
+def devpiserver_get_mirror_auth(mirror_url, www_authenticate_header):
+    """Provide an http "Authorization" header to access a mirror.
+
+    Return a string which will be set as the authorization header for all http
+    requests to this mirror.
+
+    Return None or an empty string if no credentials can be determined for the
+    supplied url.
+    """
+
+
+@hookspec
 def devpiserver_get_stage_customizer_classes():
     """EXPERIMENTAL!
 

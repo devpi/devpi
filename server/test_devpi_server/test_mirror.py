@@ -842,7 +842,8 @@ class TestMirrorStageprojects:
     @pytest.mark.notransaction
     def test_auth_mirror_url_no_hash(self, caplog, mapp, simpypi, testapp):
         import base64
-        url = URL(simpypi.simpleurl).replace(username="foo", password="bar").asdir()
+        url = URL(simpypi.simpleurl).replace(
+            username="foo", password="bar").asdir()  # noqa: S106
         mapp.login('root')
         mapp.modify_index(
             "root/pypi",
@@ -882,7 +883,8 @@ class TestMirrorStageprojects:
     @pytest.mark.notransaction
     def test_auth_mirror_url_with_hash(self, caplog, mapp, simpypi, testapp):
         import base64
-        url = URL(simpypi.simpleurl).replace(username="foo", password="bar").asdir()
+        url = URL(simpypi.simpleurl).replace(
+            username="foo", password="bar").asdir()  # noqa: S106
         mapp.login('root')
         mapp.modify_index(
             "root/pypi",
@@ -937,6 +939,32 @@ class TestMirrorStageprojects:
         msgs = [x.getMessage() for x in caplog.getrecords()]
         assert not [x for x in msgs if "/:bar" in x and "mockresponse" not in x]
         assert [x for x in msgs if "/:***" in x]
+
+    def test_auth_mirror_plugin(self, httpget, makemapp, maketestapp, makexom):
+        from devpi_server.config import hookimpl
+        plugin_calls = []
+
+        class Plugin:
+            @hookimpl
+            def devpiserver_get_mirror_auth(self, mirror_url, www_authenticate_header):
+                plugin_calls.append((mirror_url, www_authenticate_header))
+                return "Bearer token"
+
+        plugin = Plugin()
+        xom = makexom(plugins=[plugin])
+        testapp = maketestapp(xom)
+        mapp = makemapp(testapp)
+        httpget.add('https://pypi.org/simple/', status_code=401, headers={
+            'WWW-Authenticate': 'Basic realm=pypi'})
+        httpget.add('https://pypi.org/simple/', text='')
+        mapp.getpkglist(indexname="root/pypi")
+        ((call_url, call_header),) = plugin_calls
+        assert call_header == 'Basic realm=pypi'
+        assert call_url.hostname == 'pypi.org'
+        assert len(plugin_calls) == 1
+        (call1, call2) = httpget.call_log
+        assert 'Authorization' not in call1['extra_headers']
+        assert call2['extra_headers']['Authorization'] == 'Bearer token'
 
     @pytest.mark.notransaction
     def test_del_singletons(self, pypistage):

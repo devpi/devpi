@@ -788,15 +788,16 @@ class TestFileReplication:
         with xom.keyfs.write_transaction():
             link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
-            assert entry.hash_spec and not entry.file_exists()
+            assert entry.hash_spec
+            assert not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.read_transaction():
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.master_url.joinpath(entry.relpath).url
             pypistage.xom.httpget.mockresponse(url, status_code=500)
+            stage = replica_xom.model.getstage('root/pypi')
             with pytest.raises(BadGateway) as e:
-                for part in iter_remote_file_replica(replica_xom, entry, entry.url):
-                    pass
+                list(iter_remote_file_replica(stage, entry, entry.url))
             e.match('received 500 from master')
             e.match('pypi.org/package/some/pytest-1.8.zip: received 404')
 
@@ -807,12 +808,13 @@ class TestFileReplication:
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
         with xom.keyfs.write_transaction():
-            md5 = hashlib.md5()
+            md5 = hashlib.md5()  # noqa: S324 - testing
             md5.update(b'123')
             link = gen.pypi_package_link(
                 "pytest-1.8.zip", md5=md5.hexdigest())
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
-            assert entry.hash_spec and not entry.file_exists()
+            assert entry.hash_spec
+            assert not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.read_transaction():
             headers = {
@@ -824,7 +826,8 @@ class TestFileReplication:
             pypistage.xom.httpget.mockresponse(url, status_code=500)
             pypistage.xom.httpget.mockresponse(
                 entry.url, headers=headers, content=b'123')
-            result = iter_remote_file_replica(replica_xom, entry, entry.url)
+            stage = replica_xom.model.getstage('root/pypi')
+            result = iter_remote_file_replica(stage, entry, entry.url)
             headers = next(result)
             # there should be one get
             (call_log_entry,) = [
