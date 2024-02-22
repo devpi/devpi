@@ -195,7 +195,6 @@ class MirrorStage(BaseStage):
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         # used to log about stale projects only once
         self._offline_logging = set()
-        self.auth_candidates = []
 
     def _get_extra_headers(self, extra_headers):
         if self.xom.is_replica():
@@ -220,10 +219,9 @@ class MirrorStage(BaseStage):
         # if we get an auth problem, see if we can try an alternative credential
         # to access the resource
         if response.status_code in (401, 403):
-            self._update_auth_candidates(
+            if self._update_auth_candidates(
                 response.headers.get("WWW-Authenticate", "")
-            )
-            if self.auth_candidates:
+            ):
                 return await self.async_httpget(
                     url, allow_redirects, timeout, extra_headers
                 )
@@ -237,10 +235,9 @@ class MirrorStage(BaseStage):
         # if we get an auth problem, see if we can try an alternative credential
         # to access the resource
         if response.status_code in (401, 403):
-            self._update_auth_candidates(
+            if self._update_auth_candidates(
                 response.headers.get("WWW-Authenticate", "")
-            )
-            if self.auth_candidates:
+            ):
                 return self.httpget(
                     url, allow_redirects, timeout, extra_headers
                 )
@@ -263,6 +260,8 @@ class MirrorStage(BaseStage):
                     www_authenticate_header=auth_header
                 )
             )
+        # return True if we have any new credentials to try
+        return len(auth_candidates) > 0
 
 
     @property
