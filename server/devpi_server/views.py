@@ -1062,9 +1062,10 @@ class PyPIView:
                     apireturn(502, result=results, type="actionlog")
 
     def _push_links(self, links, target_stage, name, version):
+        stage = self.context.stage
         for link in links["releasefile"]:
             if should_fetch_remote_file(link.entry, self.request.headers):
-                for part in iter_fetch_remote_file(self.xom, link.entry, link.entry.url):
+                for part in iter_fetch_remote_file(stage, link.entry, link.entry.url):
                     pass
             with link.entry.file_open_read() as f:
                 new_link = target_stage.store_releasefile(
@@ -1386,7 +1387,7 @@ class PyPIView:
 
         try:
             if should_fetch_remote_file(entry, request.headers):
-                app_iter = iter_fetch_remote_file(self.xom, entry, url)
+                app_iter = iter_fetch_remote_file(stage, entry, url)
                 headers = next(app_iter)
                 return Response(app_iter=app_iter, headers=headers)
         except BadGateway as e:
@@ -1644,17 +1645,11 @@ class FileStreamer:
             self.error = get_checksum_error(running_hash, self.relpath, self.hash_spec)
 
 
-def iter_cache_remote_file(xom, entry, url):
+def iter_cache_remote_file(stage, entry, url):
     # we get and cache the file and some http headers from remote
-    headers = {}
+    xom = stage.xom
     url = URL(url)
-    username = url.username or ''
-    password = url.password or ''
-    if username or password:
-        url = url.replace(username=None, password=None)
-        auth = f"{username}:{password}".encode()
-        headers["Authorization"] = f"Basic {b64encode(auth).decode()}"
-    r = xom.httpget(url, allow_redirects=True, extra_headers=headers)
+    r = stage.httpget(url, allow_redirects=True)
     if r.status_code != 200:
         r.close()
         msg = "error %s getting %r" % (r.status_code, url)
@@ -1716,7 +1711,8 @@ def iter_cache_remote_file(xom, entry, url):
                     conn.commit_files_without_increasing_serial()
 
 
-def iter_remote_file_replica(xom, entry, url):
+def iter_remote_file_replica(stage, entry, url):
+    xom = stage.xom
     replication_errors = xom.replica_thread.shared_data.errors
     # construct master URL with param
     master_url = xom.config.master_url.joinpath(entry.relpath).url
@@ -1724,15 +1720,10 @@ def iter_remote_file_replica(xom, entry, url):
         threadlog.warn("missing private file: %s" % entry.relpath)
     else:
         threadlog.info("replica doesn't have file: %s", entry.relpath)
-    (uuid, master_uuid) = make_uuid_headers(xom.config.nodeinfo)
-    rt = xom.replica_thread
-    token = rt.auth_serializer.dumps(uuid)
-    r = xom.httpget(
+    r = stage.httpget(
         master_url, allow_redirects=True,
-        extra_headers={
-            rt.H_REPLICA_FILEREPL: "YES",
-            rt.H_REPLICA_UUID: uuid,
-            'Authorization': 'Bearer %s' % token})
+        extra_headers={xom.replica_thread.H_REPLICA_FILEREPL: "YES"}
+    )
     if r.status_code != 200:
         r.close()
         msg = "%s: received %s from master" % (master_url, r.status_code)
@@ -1786,11 +1777,11 @@ def iter_remote_file_replica(xom, entry, url):
         replication_errors.remove(entry)
 
 
-def iter_fetch_remote_file(xom, entry, url):
-    if not xom.is_replica():
-        yield from iter_cache_remote_file(xom, entry, url)
+def iter_fetch_remote_file(stage, entry, url):
+    if not stage.xom.is_replica():
+        yield from iter_cache_remote_file(stage, entry, url)
     else:
-        yield from iter_remote_file_replica(xom, entry, url)
+        yield from iter_remote_file_replica(stage, entry, url)
 
 
 def url_for_entrypath(request, entrypath):
