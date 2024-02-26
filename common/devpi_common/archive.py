@@ -95,7 +95,10 @@ class TarArchive(BaseArchive):
             except ValueError as e:
                 raise ValueError(
                     f"archive name {member.name!r} out of bound") from e
-        self._archive.extractall(str(to_path))
+        if hasattr(tarfile, 'data_filter'):
+            self._archive.extractall(str(to_path), members=members, filter='data')
+        else:
+            self._archive.extractall(str(to_path), members=members)  # noqa: S202
 
 
 class ZipArchive(BaseArchive):
