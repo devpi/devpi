@@ -111,7 +111,7 @@ def wait_for_port(host, port, timeout=60):
 
 
 def find_python3():
-    if sys.version_info >= (3, 7):
+    if sys.version_info >= (3, 7):  # noqa: UP036
         return sys.executable
     locations = [
         "C:\\Python37-x64\\python.exe",

@@ -1,4 +1,12 @@
 [tool.ruff]
+exclude = [
+    "doc/",
+]
+
+target-version = "py37"
+
+
+[tool.ruff.lint]
 select = ["ALL"]
 ignore = [
     "A001", # cleanup later - variable name shadows builtin
@@ -90,7 +98,6 @@ ignore = [
     "TD", # ignore - todos
     "TRY003", # ignore - raise vanilla args
     "TRY004", # maybe cleanup later
-    "TRY200", # cleanup later
     "TRY301", # maybe cleanup later
     "UP004", # cleanup later - inherit from 'object'
     "UP008", # cleanup later - super
@@ -105,18 +112,11 @@ ignore = [
     "UP032", # cleanup later - f-string instead of format
 ]
 
-exclude = [
-    "doc/",
-]
+isort.case-sensitive = true
 pyupgrade.keep-runtime-typing = true
-target-version = "py37"
 
 
-[tool.ruff.isort]
-case-sensitive = true
-
-
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 ".ci/cleanup_devpi_indices.py" = [
     "INP001", # ignore - implicit namespace package
     "S603", # ignore - subprocess untrusted input

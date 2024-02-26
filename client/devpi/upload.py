@@ -257,6 +257,7 @@ def get_name_version_doczip(basename):
         d = m.groupdict()
         needs_repackage = 'zip' not in d['ext']
         return (d['name'], d['version'], needs_repackage)
+    return None
 
 
 class DocZipMeta(CompareMixin):
@@ -288,13 +289,14 @@ def get_pkginfo(archivepath):
     return cls(str(archivepath))
 
 
-def find_parent_subpath(startpath, relpath, raising=True):
+def find_parent_subpath(startpath, relpath, *, raising=True):
     for x in startpath.parts(reversed):
         cand = x.join(relpath)
         if cand.check():
             return cand
     if raising:
-        raise ValueError("no subpath %r from %s" %(relpath, startpath))
+        raise ValueError("no subpath %r from %s" % (relpath, startpath))
+    return None
 
 
 class Checkout:
@@ -387,8 +389,7 @@ class Exported:
         return python
 
     def _virtualenv_python(self):
-        if 'VIRTUAL_ENV' in os.environ:
-            return shutil.which("python")
+        return shutil.which("python") if 'VIRTUAL_ENV' in os.environ else None
 
     def __str__(self):
         return "<Exported %s>" % self.rootpath
@@ -418,16 +419,13 @@ class Exported:
         self.target_distdir.mkdir()
 
     @staticmethod
-    def is_default_sdist(format):
-        if format == "sdist":
+    def is_default_sdist(sdist_format):
+        if sdist_format == "sdist":
             return True
-        parts = format.split(".", 1)
+        parts = sdist_format.split(".", 1)
         if len(parts) == 2 and parts[0] == "sdist":
-            setup_format = sdistformat(parts[1])
-            if sys.platform == "win32":
-                return setup_format == "zip"
-            else:
-                return setup_format == "gztar"
+            option = sdistformat(parts[1])
+            return option == "zip" if sys.platform == "win32" else option == "gztar"
         return False
 
     def setup_build(self, default_formats=None):
@@ -440,16 +438,15 @@ class Exported:
         if formats and not sdist and not wheel:
             sdist = None
             wheel = None
-            for format in formats.split(","):
-                format = format.strip()
-                if not format:
+            for sdist_format in (x.strip() for x in formats.split(",")):
+                if not sdist_format:
                     continue
-                if self.is_default_sdist(format):
+                if self.is_default_sdist(sdist_format):
                     sdist = True
-                elif format == "bdist_wheel":
+                elif sdist_format == "bdist_wheel":
                     wheel = True
                 else:
-                    deprecated_formats.append(format)
+                    deprecated_formats.append(sdist_format)
             if sdist and wheel:
                 # if both formats are wanted, we do not pass the arguments
                 # to python -m build below, so the default behaviour is used
@@ -488,30 +485,29 @@ class Exported:
                 cmd.append("--no-isolation")
             cmds.append(cmd)
 
-        for format in sorted(deprecated_formats):
+        for sdist_format in sorted(deprecated_formats):
             cmd = [self.python, "setup.py"]
-            if format.startswith("sdist."):
+            if sdist_format.startswith("sdist."):
                 cmd.append("sdist")
-                parts = format.split(".", 1)
+                parts = sdist_format.split(".", 1)
                 if len(parts) == 2:
                     cmd.append("--formats")
                     cmd.append(sdistformat(parts[1]))
                 else:
                     self.hub.fatal("Invalid sdist format '%s'.")
             else:
-                cmd.append(format)
+                cmd.append(sdist_format)
             self.hub.warn(
                 "The '%s' format is invalid for python -m build. "
                 "Falling back to '%s' which is deprecated." % (
-                    format, ' '.join(cmd[1:])))
+                    sdist_format, ' '.join(cmd[1:])))
             cmds.append(cmd)
 
         archives = []
         for cmd in cmds:
             distdir = self.rootpath / "dist"
-            if self.rootpath != self.origrepo:
-                if distdir.exists():
-                    shutil.rmtree(distdir)
+            if self.rootpath != self.origrepo and distdir.exists():
+                shutil.rmtree(distdir)
 
             if self.args.verbose:
                 ret = self.hub.popen_check(cmd, cwd=self.rootpath)
@@ -550,7 +546,7 @@ class Exported:
         else:
             ret = self.hub.popen_output(cmd, cwd=self.rootpath)
         if ret is None:
-            return
+            return None
         p = self.target_distdir / f"{name}-{version}.doc.zip"
         zip_dir(build, p)
         self.log_build(p, "[sphinx docs]")
@@ -573,13 +569,13 @@ sdistformat2option = {
 }
 
 
-def sdistformat(format):
+def sdistformat(sdist_format):
     """ return sdist format option. """
-    res = sdistformat2option.get(format, None)
+    res = sdistformat2option.get(sdist_format)
     if res is None:
         if res not in sdistformat2option.values():
             raise ValueError("unknown sdist format option: %r" % res)
-        res = format
+        res = sdist_format
     return res
 
 
