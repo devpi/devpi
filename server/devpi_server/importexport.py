@@ -1,3 +1,4 @@
+import itertools
 import sys
 import json
 import os
@@ -634,7 +635,7 @@ class IndexTree:
                 children.append(name)
 
     def validate(self):
-        all_bases = set(sum(self.name2bases.values(), []))
+        all_bases = set(itertools.chain.from_iterable(self.name2bases.values()))
         all_indexes = set(self.name2bases)
         missing = all_bases - all_indexes
         if missing:

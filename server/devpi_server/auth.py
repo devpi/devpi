@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import itertools
 import itsdangerous
 import secrets
 from .log import threadlog
@@ -53,7 +54,8 @@ class Auth:
             # one of the plugins returned valid userinfo
             # return union of all groups which may be contained in that info
             groups = (ui.get('groups', []) for ui in userinfo_list)
-            return dict(status="ok", groups=sorted(set(sum(groups, []))))
+            return dict(status="ok", groups=sorted(
+                set(itertools.chain.from_iterable(groups))))
 
     def _validate(self, authuser, authpassword, request=None):
         """ Validates user credentials.

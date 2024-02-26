@@ -3,6 +3,7 @@
 a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
+import functools
 import httpx
 import inspect
 import os
@@ -29,6 +30,7 @@ from .model import RootModel
 from .views import apireturn
 from . import mythread
 from . import __version__ as server_version
+from operator import iconcat
 
 
 class Fatal(Exception):
@@ -547,7 +549,8 @@ class XOM:
         pyramid_config.registry['devpi_version_info'] = version_info
         pyramid_config.registry['xom'] = self
         index_classes = {}
-        customizer_classes = sum(
+        customizer_classes = functools.reduce(
+            iconcat,
             self.config.hook.devpiserver_get_stage_customizer_classes(),
             [])
         for ixtype, ixclass in customizer_classes:

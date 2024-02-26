@@ -1,4 +1,5 @@
 # PYTHON_ARGCOMPLETE_OK
+import functools
 import os
 import sys
 import time
@@ -18,6 +19,7 @@ from devpi_common.url import URL
 from devpi.use import PersistentCurrent
 from devpi_common.request import new_requests_session
 from devpi import __version__ as client_version
+from operator import iconcat
 from pathlib import Path
 from pluggy import HookimplMarker
 from pluggy import PluginManager
@@ -715,7 +717,8 @@ def add_subparsers(parser, pm):
     subparsers.required = False
     subparsers.dest = "command"
 
-    subcommands = sum(pm.hook.devpiclient_subcommands(), [])
+    subcommands = functools.reduce(
+        iconcat, pm.hook.devpiclient_subcommands(), [])
     for (add_arguments, name, mainloc) in subcommands:
         doc, description = parse_docstring(add_arguments.__doc__)
         subparser = subparsers.add_parser(name,

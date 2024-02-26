@@ -1,4 +1,4 @@
-
+import functools
 import getpass
 import posixpath
 import re
@@ -19,6 +19,7 @@ from .filestore import FileEntry
 from .filestore import get_hash_spec
 from .log import threadlog
 from .readonly import get_mutable_deepcopy
+from operator import iconcat
 
 
 notset = object()
@@ -261,7 +262,8 @@ def normalize_whitelist_name(name):
 
 
 def get_stage_customizer_classes(xom):
-    customizer_classes = sum(
+    customizer_classes = functools.reduce(
+        iconcat,
         xom.config.hook.devpiserver_get_stage_customizer_classes(),
         [])
     return dict(customizer_classes)
