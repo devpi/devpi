@@ -619,22 +619,18 @@ class Mapp(MappMixin):
             result["%s/%s" % (name, index)] = data
         return result
 
-    def getpkglist(self, user=None, indexname=None):
+    def getpkglist(self, indexname=None):
         indexname = self._getindexname(indexname)
-        if user is None:
-            user = self.testapp.auth[0]
         r = self.testapp.get_json("/%s" % indexname)
         assert r.status_code == 200
         return r.json["result"]["projects"]
 
-    def getreleaseslist(self, name, code=200, user=None, indexname=None):
+    def getreleaseslist(self, name, *, code=200, indexname=None):
         indexname = self._getindexname(indexname)
-        if user is None:
-            user = self.testapp.auth[0]
         r = self.testapp.get_json("/%s/%s" % (indexname, name))
         assert r.status_code == code
         if r.status_code >= 300:
-            return
+            return None
         result = r.json["result"]
         links = set()
         for version in result.values():

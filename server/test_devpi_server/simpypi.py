@@ -14,7 +14,7 @@ def getsha256(s):
     return hashlib.sha256(s.encode("utf8")).hexdigest()
 
 
-def make_simple_pkg_info(name, text="", pkgver=None, hash_type=None,
+def make_simple_pkg_info(name, *, text="", pkgver=None, hash_type=None,
                          pypiserial=None, requires_python=None, yanked=False):
     class ret:
         hash_spec = ""
@@ -139,17 +139,17 @@ class SimPyPI:
     def remove_project(self, name):
         self.projects.pop(name)
 
-    def add_release(self, name, title=None, text="", pkgver=None, hash_type=None,
+    def add_release(self, name, *, title=None, text="", pkgver=None, hash_type=None,
                     pypiserial=None, requires_python=None, yanked=False, **kw):
         project = self.add_project(name, title=title)
         ret, text = make_simple_pkg_info(
             name, text=text, pkgver=pkgver, hash_type=hash_type,
             pypiserial=pypiserial, requires_python=requires_python,
-            yanked=yanked)
+            yanked=yanked, **kw)
         assert text
         project['releases'].add(text.encode('utf-8'))
 
-    def add_file(self, relpath, content, stream=False, chunksize=1024,
+    def add_file(self, relpath, content, *, stream=False, chunksize=1024,
                  length=None, callback=None):
         if length is None:
             length = len(content)
