@@ -317,6 +317,11 @@ class Current(object):
             # re-run http_api call ignoring the failed verification
             r = call_http_api(verify=False)
             hub.line("Warning: https certificate validation failed (self signed?), trusted-host will be set for pip")
+        if r.status_code >= 400:
+            message = r.get_error_message(hub.args.debug)
+            hub.fatal(
+                f"{r.request.method} {r.url}\n"
+                f"{r.status_code} {r.reason}{message}")
         self._configure_from_server_api(r.result, url)
         # at this point we know the root url to store the following data
         if basic_auth is not None:

@@ -270,10 +270,19 @@ class TestUnit:
         current.del_auth()
         assert not current.get_auth(login2)
 
+    def test_invalid_reply(self, loghub, mock_http_api):
+        current = Current()
+        mock_http_api.add(
+            'http://example.com/qwe/+api', reason="Not found", status=404)
+        with pytest.raises(SystemExit):
+            current.configure_fromurl(loghub, "http://example.com/qwe")
+        loghub._getmatcher().fnmatch_lines("*404 Not found*")
+
     def test_invalid_url(self, loghub):
         current = Current()
         with pytest.raises(SystemExit):
             current.configure_fromurl(loghub, "http://heise.de:1802:31/qwe")
+        loghub._getmatcher().fnmatch_lines("*invalid URL*")
 
     def test_auth_handling(self):
         current = Current()
