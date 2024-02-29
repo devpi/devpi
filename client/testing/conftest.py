@@ -648,21 +648,6 @@ def runprocess(tmpdir, cmdargs):
 
 
 @pytest.fixture
-def mockhtml(monkeypatch):
-    def mockhtml(cache, mockurl, content):
-        mockurl = cache._getsimpleurl(mockurl)
-        old = cache.http.gethtml
-
-        def newgethtml(url):
-            if url == mockurl:
-                return content
-            return old(url)
-
-        monkeypatch.setattr(cache.http, "gethtml", newgethtml)
-    return mockhtml
-
-
-@pytest.fixture
 def create_venv(request, tmpdir_factory, monkeypatch):
     monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
     venvdir = tmpdir_factory.mktemp("venv")
