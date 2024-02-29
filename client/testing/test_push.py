@@ -66,12 +66,12 @@ def test_parse_target_pypi_default_repository(tmpdir, loghub):
     assert res.posturl == "https://upload.pypi.org/legacy/"
 
 
-def test_push_devpi(loghub, monkeypatch, mock_http_api):
+def test_push_devpi(loghub, mock_http_api):
     class args:
         target = "user/name"
         index = None
     pusher = parse_target(loghub, args)
-    mock_http_api.set(loghub.current.index, 200, result={})
+    mock_http_api.set(loghub.current.index, result={})
     pusher.execute(loghub, "pytest", "2.3.5")
     dict(name="pytest", version="2.3.5", targetindex="user/name")
     assert len(mock_http_api.called) == 1
@@ -79,12 +79,12 @@ def test_push_devpi(loghub, monkeypatch, mock_http_api):
     #            "push", loghub.current.index, kvdict=req)
 
 
-def test_push_devpi_index_option(loghub, monkeypatch, mock_http_api):
+def test_push_devpi_index_option(loghub, mock_http_api):
     class args:
         target = "user/name"
         index = "src/dev"
     pusher = parse_target(loghub, args)
-    mock_http_api.set("src/dev", 200, result={})
+    mock_http_api.set("src/dev", result={})
     pusher.execute(loghub, "pytest", "2.3.5")
     dict(name="pytest", version="2.3.5", targetindex="user/name")
     assert len(mock_http_api.called) == 1
@@ -95,21 +95,21 @@ def test_push_devpi_index_option_with_environment(loghub, monkeypatch, mock_http
     loghub.args.index = "src/dev"
     monkeypatch.setenv("DEVPI_INDEX", "http://devpi/user/dev")
     mock_http_api.set(
-        "http://devpi/user/dev/+api", 200, result=dict(
+        "http://devpi/user/dev/+api", result=dict(
             pypisubmit="http://devpi/user/dev/",
             simpleindex="http://devpi/user/dev/+simple/",
             index="http://devpi/user/dev",
             login="http://devpi/+login",
             authstatus=["noauth", "", []]))
     mock_http_api.set(
-        "http://devpi/src/dev/+api", 200, result=dict(
+        "http://devpi/src/dev/+api", result=dict(
             pypisubmit="http://devpi/src/dev/",
             simpleindex="http://devpi/src/dev/+simple/",
             index="http://devpi/src/dev",
             login="http://devpi/+login",
             authstatus=["noauth", "", []]))
     pusher = parse_target(loghub, loghub.args)
-    mock_http_api.set("http://devpi/src/dev", 200, result={})
+    mock_http_api.set("http://devpi/src/dev", result={})
     pusher.execute(loghub, "pytest", "2.3.5")
     dict(name="pytest", version="2.3.5", targetindex="user/name")
     assert len(mock_http_api.called) == 3

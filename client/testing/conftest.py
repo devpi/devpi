@@ -16,11 +16,13 @@ import sys
 import json
 import time
 
-from .reqmock import reqmock  # noqa: F401 (definition of reqmock fixture)
 from devpi.main import Hub, get_pluginmanager, initmain, parse_args
 from devpi_common.url import URL
 
 import subprocess
+
+
+pytest_plugins = ["testing.reqmock"]
 
 
 IS_PYPY = platform.python_implementation() == 'PyPy'
@@ -717,7 +719,7 @@ def makehub(tmpdir_factory):
 
 
 @pytest.fixture
-def mock_http_api(monkeypatch, reqmock):  # noqa: F811 (reqmock)
+def mock_http_api(monkeypatch, reqmock):  # noqa: ARG001 (reqmock)
     """ mock out all Hub.http_api calls and return an object
     offering 'set' and 'add' to fake replies. """
     from devpi import main
@@ -743,25 +745,39 @@ def mock_http_api(monkeypatch, reqmock):  # noqa: F811 (reqmock)
             if reply_data is None:
                 pytest.fail("http_api call to %r is not mocked" % (url,))
 
-            class R:
+            class MockRequest:
+                pass
+
+            class MockResponse:
+                content = reply_data["content"]
                 status_code = reply_data["status"]
                 reason = reply_data.get("reason", "OK")
 
                 def json(self):
                     return reply_data["json"]
 
-            return main.HTTPReply(R())
+            response = MockResponse()
+            response.headers = {"content-type": "application/json"}
+            response.url = url
+            response.request = MockRequest()
+            response.request.method = method
+            return main.HTTPReply(response)
 
-        def set(self, url, status=200, **kw):
+        def set(self, url, *, reason="OK", status=200, **kw):
             """ Set a reply for all future uses. """
-            data = json.loads(json.dumps(kw))
-            self._json_responses[url] = {"status": status, "json": data}
+            content = json.dumps(kw)
+            data = json.loads(content)
+            self._json_responses[url] = {
+                "reason": reason, "status": status,
+                "content": content, "json": data}
 
-        def add(self, url, status=200, **kw):
+        def add(self, url, *, reason="OK", status=200, **kw):
             """ Add a one time use reply to the url. """
-            data = json.loads(json.dumps(kw))
-            self._json_responses.setdefault(url, []).append(
-                {"status": status, "json": data})
+            content = json.dumps(kw)
+            data = json.loads(content)
+            self._json_responses.setdefault(url, []).append({
+                "reason": reason, "status": status,
+                "content": content, "json": data})
 
     mockapi = MockHTTPAPI()
     monkeypatch.setattr(main.Hub, "http_api", mockapi)

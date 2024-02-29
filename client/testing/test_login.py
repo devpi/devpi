@@ -44,9 +44,9 @@ def test_login_asks_for_passwd(args, hub, login):
 
 
 def test_login(args, hub, login, mock_http_api):
-    args.password = "foo"
+    args.password = "foo"  # noqa: S105 - testing
     hub.current._currentdict["login"] = "http://localhost/"
-    mock_http_api.set(hub.current.login, 200, result={
+    mock_http_api.set(hub.current.login, result={
         "expiration": 36000,
         "password": "token"})
     login()
@@ -73,7 +73,7 @@ def test_login_plugin(args, hub, login, mock_http_api):
     hub.pm.register(Plugin())
     args.password = None
     hub.current._currentdict["login"] = "http://localhost/"
-    mock_http_api.set(hub.current.login, 200, result={
+    mock_http_api.set(hub.current.login, result={
         "expiration": 36000,
         "password": "token"})
     assert len(passwords) == 1

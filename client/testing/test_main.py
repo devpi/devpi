@@ -107,14 +107,14 @@ def test_index_option_with_environment_relative_root_current(
         capfd, cmd_devpi, devpi_index, initproj,
         mock_http_api, monkeypatch, reqmock):
     mock_http_api.set(
-        "http://devpi/+api", 200, result=dict(
+        "http://devpi/+api", result=dict(
             login="http://devpi/+login",
             authstatus=["noauth", "", []]))
     cmd_devpi("use", "http://devpi")
     monkeypatch.setenv("DEVPI_INDEX", "foo/bar")
     initproj("hello1.1")
     mock_http_api.set(
-        "http://devpi/user/dev/+api", 200, result=dict(
+        "http://devpi/user/dev/+api", result=dict(
             pypisubmit="http://devpi/user/dev/",
             simpleindex="http://devpi/user/dev/+simple/",
             index="http://devpi/user/dev",
@@ -134,14 +134,14 @@ def test_index_option_with_environment_relative_user_current(
         capfd, cmd_devpi, devpi_index, initproj,
         mock_http_api, monkeypatch, reqmock):
     mock_http_api.set(
-        "http://devpi/user/+api", 200, result=dict(
+        "http://devpi/user/+api", result=dict(
             login="http://devpi/+login",
             authstatus=["noauth", "", []]))
     cmd_devpi("use", "http://devpi/user")
     monkeypatch.setenv("DEVPI_INDEX", "foo/bar")
     initproj("hello1.1")
     mock_http_api.set(
-        "http://devpi/user/dev/+api", 200, result=dict(
+        "http://devpi/user/dev/+api", result=dict(
             pypisubmit="http://devpi/user/dev/",
             simpleindex="http://devpi/user/dev/+simple/",
             index="http://devpi/user/dev",
@@ -161,18 +161,18 @@ def test_index_option_with_environment_relative(
         capfd, cmd_devpi, devpi_index, initproj,
         mock_http_api, monkeypatch, reqmock):
     mock_http_api.set(
-        "http://devpi/user/foo/+api", 200, result=dict(
+        "http://devpi/user/foo/+api", result=dict(
             pypisubmit="http://devpi/user/foo/",
             simpleindex="http://devpi/user/foo/+simple/",
             index="http://devpi/user/foo",
             login="http://devpi/+login",
             authstatus=["noauth", "", []]))
-    mock_http_api.set("http://devpi/user/foo?no_projects=", 200, result=dict())
+    mock_http_api.set("http://devpi/user/foo?no_projects=", result=dict())
     cmd_devpi("use", "http://devpi/user/foo")
     monkeypatch.setenv("DEVPI_INDEX", "foo/bar")
     initproj("hello1.1")
     mock_http_api.set(
-        "http://devpi/user/dev/+api", 200, result=dict(
+        "http://devpi/user/dev/+api", result=dict(
             pypisubmit="http://devpi/user/dev/",
             simpleindex="http://devpi/user/dev/+simple/",
             index="http://devpi/user/dev",

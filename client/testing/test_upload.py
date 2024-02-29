@@ -278,7 +278,8 @@ def test_post_includes_auth_info(initproj, uploadhub):
 
 
 @pytest.mark.skipif("config.option.fast")
-def test_post_data(initproj, monkeypatch, reqmock, uploadhub):
+@pytest.mark.usefixtures("reqmock")
+def test_post_data(initproj, monkeypatch, uploadhub):
     import email
 
     class args:
