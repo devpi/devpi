@@ -367,6 +367,29 @@ class TestProjectThings:
         r = mapp.downloadrelease(200, toxresult_url)
         assert json.loads(r.decode('utf-8')) == tox_result_data
 
+    def test_toxresult_forbidden(self, mapp, server_version):
+        import json
+        mapp.create_and_use('pruser2/dev')
+        mapp.modify_index("pruser2/dev", ['acl_toxresult_upload='])
+        info = mapp.getjson(f"/{mapp.api.stagename}")
+        assert info['result']['acl_toxresult_upload'] == []
+        content = mapp.makepkg("hello-1.0.tar.gz", b"content", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        (pkg_url,) = mapp.getreleaseslist("hello")
+        tox_result_data = dict(foo="bar")
+        result = mapp.upload_toxresult(pkg_url, json.dumps(tox_result_data), code=403)
+        if server_version >= parse_version("6.11dev"):
+            # in devpi-client tests we don't have the result.content_type helper
+            assert result.headers.get('content-type', '').lower().startswith('application/json')
+            data = result.json
+            if callable(data):
+                # in devpi-client .json is a method
+                data = data()
+            assert data['message'] == 'no permission to upload tox results'
+        info = mapp.getjson(f"/{mapp.api.stagename}/hello")
+        (href,) = (x['href'] for x in info["result"]["1.0"]["+links"])
+        assert 'toxresult' not in href
+
 
 @pytest.mark.nomocking
 class TestMirrorIndexThings:

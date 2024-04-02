@@ -231,7 +231,7 @@ class Mapp(MappMixin):
     def upload_toxresult(self, url, content, code=200):
         r = requests.post(url, content)
         assert r.status_code == code
-        return r.json()
+        return r
 
     def push(self, name, version, index, indexname=None, code=200):
         assert indexname is None

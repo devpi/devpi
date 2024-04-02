@@ -530,9 +530,10 @@ class PyPIView:
 
     @view_config(
         route_name="/{user}/{index}/+f/{relpath:.*}",
-        request_method="POST",
-        permission="toxresult_upload")
+        request_method="POST")
     def post_toxresult(self):
+        if not self.request.has_permission("toxresult_upload"):
+            apireturn(403, "no permission to upload tox results")
         stage = self.context.stage
         relpath = self.request.path_info.strip("/")
         link = stage.get_link_from_entrypath(relpath)
