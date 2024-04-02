@@ -21,11 +21,26 @@ def test_post_tox_json_report(loghub, mock_http_api):
 
 
 def test_post_tox_json_report_error(loghub, mock_http_api):
-    mock_http_api.set("http://devpi.net/+tests", status=404)
-    post_tox_json_report(loghub, "http://devpi.net/+tests", {"hello": "123"})
+    mock_http_api.set("http://devpi.net/+tests", reason="Not Found", status=404)
+    with pytest.raises(SystemExit) as excinfo:
+        post_tox_json_report(loghub, "http://devpi.net/+tests", {"hello": "123"})
+    assert excinfo.value.code == 1
     assert len(mock_http_api.called) == 1
     loghub._getmatcher().fnmatch_lines("""
-        *could not post*http://devpi.net/+tests*
+        *posting*
+        *404 Not Found*
+    """)
+
+
+def test_post_tox_json_report_forbidden(loghub, mock_http_api):
+    mock_http_api.set("http://devpi.net/foo/bar/", reason="Forbidden", status=403)
+    with pytest.raises(SystemExit) as excinfo:
+        post_tox_json_report(loghub, "http://devpi.net/foo/bar/", {"hello": "123"})
+    assert excinfo.value.code == 1
+    assert len(mock_http_api.called) == 1
+    loghub._getmatcher().fnmatch_lines("""
+        *posting*
+        *403 Forbidden*
     """)
 
 

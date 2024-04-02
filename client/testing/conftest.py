@@ -729,7 +729,7 @@ def mock_http_api(monkeypatch, reqmock):  # noqa: ARG001 (reqmock)
             self.called = []
             self._json_responses = {}
 
-        def __call__(self, method, url, kvdict=None, quiet=False,
+        def __call__(self, hub, method, url, kvdict=None, *, quiet=False,
                      auth=None, basic_auth=None, cert=None,
                      check_version=True, fatal=True, type=None, verify=None):
             kwargs = dict(
@@ -757,6 +757,10 @@ def mock_http_api(monkeypatch, reqmock):  # noqa: ARG001 (reqmock)
                     return reply_data["json"]
 
             response = MockResponse()
+            if response.status_code >= 400 and fatal:
+                hub.fatal(
+                    f"{method} {url}\n"
+                    f"{response.status_code} {response.reason}")
             response.headers = {"content-type": "application/json"}
             response.url = url
             response.request = MockRequest()
@@ -780,5 +784,9 @@ def mock_http_api(monkeypatch, reqmock):  # noqa: ARG001 (reqmock)
                 "content": content, "json": data})
 
     mockapi = MockHTTPAPI()
-    monkeypatch.setattr(main.Hub, "http_api", mockapi)
+
+    def http_api(hub, *args, **kw):
+        return mockapi(hub, *args, **kw)
+
+    monkeypatch.setattr(main.Hub, "http_api", http_api)
     return mockapi
