@@ -46,7 +46,7 @@ def test_permissions_for_unknown_index(mapp, xom):
         link_store = stage.get_linkstore_perstage("hello", "1.0")
         (link,) = link_store.get_links()
         with pytest.raises(ReadonlyIndex):
-            stage.store_toxresult(link, {})
+            stage.store_toxresult(link, b"{}")
     assert mapp.getjson(api.index)['result']['type'] == 'unknown'
     # now check via views, which are protected by permissions most of the time
     mapp.modify_index(api.stagename, indexconfig=dict(bases=["root/pypi"]), code=403)

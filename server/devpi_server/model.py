@@ -821,6 +821,11 @@ class BaseStage(object):
             raise ReadonlyIndex("index is marked read only")
         linkstore = self.get_linkstore_perstage(link.project, link.version, readonly=False)
         if isinstance(toxresultdata, dict):
+            warnings.warn(
+                "The 'store_toxresult' method will only accept binary "
+                "content or files in the future, no dictionaries.",
+                DeprecationWarning,
+                stacklevel=2)
             toxresultdata = json.dumps(toxresultdata).encode("utf-8")
         return linkstore.new_reflink(
             rel="toxresult",

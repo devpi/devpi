@@ -912,7 +912,7 @@ class TestStage:
         assert entry.project == "pkg1"
         assert entry.version == "1.0"
         toxresultdata = {'hello': 'world'}
-        tlink = stage.store_toxresult(link, toxresultdata)
+        tlink = stage.store_toxresult(link, json.dumps(toxresultdata).encode())
         assert tlink.entry.file_exists()
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
         tox_links = list(linkstore.get_links(rel="toxresult"))
@@ -1147,7 +1147,7 @@ class TestStage:
         # create a toxresult
         with xom.keyfs.write_transaction():
             (link,) = stage.get_releaselinks_perstage('hello')
-            stage.store_toxresult(link, {})
+            stage.store_toxresult(link, b"{}")
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.read_transaction():

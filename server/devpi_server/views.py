@@ -537,8 +537,10 @@ class PyPIView:
         link = stage.get_link_from_entrypath(relpath)
         if link is None or link.rel != "releasefile":
             apireturn(404, message="no release file found at %s" % relpath)
-        toxresultdata = getjson(self.request)
-        tox_link = stage.store_toxresult(link, toxresultdata)
+        # the getjson call validates that we got valid json
+        getjson(self.request)
+        # but we store the original body
+        tox_link = stage.store_toxresult(link, self.request.body)
         tox_link.add_log(
             'upload', self.request.authenticated_userid, dst=stage.name)
         apireturn(200, type="toxresultpath",
