@@ -11,7 +11,7 @@ from devpi_common.validation import validate_metadata, normalize_name
 from devpi_common.types import ensure_unicode, cached_property, parse_hash_spec
 from functools import total_ordering
 from itertools import zip_longest
-from pyramid.security import Allow, Authenticated, Everyone
+from pyramid.authorization import Allow, Authenticated, Everyone
 from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl
