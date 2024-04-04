@@ -179,7 +179,7 @@ def add_web_options(parser, pluginmanager):
 
 def add_mirror_options(parser, pluginmanager):
     parser.addoption(
-        "--mirror-cache-expiry", type=float, metavar="SECS",
+        "--mirror-cache-expiry", type=int, metavar="SECS",
         default=DEFAULT_MIRROR_CACHE_EXPIRY,
         help="(experimental) time after which projects in mirror indexes "
              "are checked for new releases.")

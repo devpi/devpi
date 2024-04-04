@@ -34,3 +34,17 @@ def test_gen_config_caching(tmpdir):
     config = b.join("nginx-devpi.conf").read()
     assert 'proxy_cache_path' not in config
     assert config.count('$bypass_caching') == 0
+
+
+@pytest.mark.slow
+@pytest.mark.skipif("sys.platform == 'win32'")
+def test_gen_config_mirror_cache_expiry(tmpdir):
+    tmpdir.chdir()
+    proc = subprocess.Popen([  # noqa: S603,S607
+        "devpi-gen-config",
+        "--mirror-cache-expiry=33"])
+    res = proc.wait()
+    assert res == 0
+    b = tmpdir.join("gen-config")
+    config = b.join("nginx-devpi-caching.conf").read()
+    assert 'proxy_cache_valid 200 33s;' in config

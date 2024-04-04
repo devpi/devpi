@@ -1,0 +1,1 @@
+Fix #1033: Use ``int`` for ``--mirror-cache-expiry`` to fix value of ``proxy_cache_valid`` in nginx caching config.
