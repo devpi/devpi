@@ -40,6 +40,7 @@ from .config import hookimpl
 from .exceptions import lazy_format_exception_only
 from .filestore import BadGateway
 from .filestore import get_checksum_error
+from .filestore import get_seekable_content_or_file
 from .fileutil import buffered_iterator
 from .keyfs import KeyfsTimeoutError
 from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
@@ -1134,9 +1135,11 @@ class PyPIView:
         if action not in ("doc_upload", "file_upload"):
             abort_submit(request, 400, "action %r not supported" % action)
         try:
-            content = request.POST["content"]
+            _content = request.POST["content"]
         except KeyError:
             abort_submit(request, 400, "content file field not found")
+        content_filename = _content.filename
+        content_file = get_seekable_content_or_file(_content.file)
         name = ensure_unicode(request.POST["name"])
         # version may be empty on plain doczip uploads
         version = ensure_unicode(request.POST.get("version") or "")
@@ -1146,20 +1149,20 @@ class PyPIView:
             # we only check for release files if version is
             # contained in the filename because for doczip files
             # we construct the filename ourselves anyway.
-            if not version_in_filename(version, content.filename):
+            if not version_in_filename(version, content_filename):
                 abort_submit(
                     request, 400,
                     "filename %r does not contain version %r" % (
-                        content.filename, version))
+                        content_filename, version))
 
-            abort_if_invalid_filename(request, name, content.filename)
+            abort_if_invalid_filename(request, name, content_filename)
             self._update_versiondata_form(stage, request.POST)
             try:
                 link = stage.store_releasefile(
                     project, version,
-                    content.filename, content.file)
+                    content_filename, content_file)
             except stage.NonVolatile as e:
-                if e.link.matches_checksum(content.file):
+                if e.link.matches_checksum(content_file):
                     abort_submit(
                         request, 200,
                         "Upload of identical file to non volatile index.",
@@ -1167,7 +1170,7 @@ class PyPIView:
                 abort_submit(
                     request, 409,
                     "%s already exists in non-volatile index" % (
-                        content.filename,))
+                        content_filename,))
             try:
                 self.xom.config.hook.devpiserver_on_upload_sync(
                     log=request.log, application_url=request.application_url,
@@ -1180,13 +1183,13 @@ class PyPIView:
             if "version" in request.POST:
                 self._update_versiondata_form(stage, request.POST)
             try:
-                link = stage.store_doczip(project, version, content.file)
+                link = stage.store_doczip(project, version, content_file)
             except stage.MissesVersion as e:
                 abort_submit(
                     request, 400,
                     "%s" % e)
             except stage.NonVolatile as e:
-                if e.link.matches_checksum(content.file):
+                if e.link.matches_checksum(content_file):
                     abort_submit(
                         request, 200,
                         "Upload of identical file to non volatile index.",
@@ -1194,7 +1197,7 @@ class PyPIView:
                 abort_submit(
                     request, 409,
                     "%s already exists in non-volatile index" % (
-                        content.filename,))
+                        content_filename,))
         link.add_log(
             'upload', request.authenticated_userid, dst=stage.name)
         return Response("")

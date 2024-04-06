@@ -254,16 +254,11 @@ class Connection(BaseConnection):
         f = self.dirty_files.get(path, None)
         if f is None:
             f = SpooledTemporaryFile(max_size=1048576)
-        if not isinstance(content_or_file, bytes) and not callable(getattr(content_or_file, "seekable", None)):
-            content_or_file = content_or_file.read()
-            if len(content_or_file) > 1048576:
-                threadlog.warn(
-                    "Read %.1f megabytes into memory in postgresql io_file_set for %s, because of unseekable file",
-                    len(content_or_file) / 1048576, path)
         if isinstance(content_or_file, bytes):
             f.write(content_or_file)
             f.seek(0)
         else:
+            assert content_or_file.seekable()
             content_or_file.seek(0)
             shutil.copyfileobj(content_or_file, f)
         self.dirty_files[path] = f

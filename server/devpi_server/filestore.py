@@ -10,6 +10,7 @@ import re
 from devpi_common.metadata import splitbasename
 from devpi_common.types import parse_hash_spec
 from devpi_server.log import threadlog
+from inspect import currentframe
 from urllib.parse import unquote
 
 
@@ -42,23 +43,37 @@ def get_file_hash(fp, hash_type):
     return running_hash.hexdigest()
 
 
+def get_seekable_content_or_file(content_or_file):
+    if isinstance(content_or_file, bytes):
+        return content_or_file
+    seekable_method = getattr(content_or_file, "seekable", None)
+    seekable = seekable_method() if callable(seekable_method) else False
+    if not seekable:
+        content_or_file = content_or_file.read()
+        if len(content_or_file) > 1048576:
+            frame = currentframe()
+            if frame is not None and frame.f_back is not None:
+                frame = frame.f_back
+            if frame is None:
+                f_name = "get_seekable_content_or_file"
+            else:
+                f_name = frame.f_code.co_name
+            threadlog.warn(
+                "Read %.1f megabytes into memory in %s",
+                len(content_or_file) / 1048576, f_name)
+    return content_or_file
+
+
 def get_hash_spec(content_or_file, hash_type):
     if not isinstance(content_or_file, bytes):
-        if content_or_file.seekable():
-            content_or_file.seek(0)
-            hexdigest = get_file_hash(
-                content_or_file, hash_type)
-            content_or_file.seek(0)
-            return f"{hash_type}={hexdigest}"
-        else:
-            content_or_file = content_or_file.read()
-            if len(content_or_file) > 1048576:
-                threadlog.warn(
-                    "Read %.1f megabytes into memory in get_default_hash_spec",
-                    len(content_or_file) / 1048576)
-    if isinstance(content_or_file, bytes):
-        running_hash = getattr(hashlib, hash_type)(content_or_file)
-        return f"{running_hash.name}={running_hash.hexdigest()}"
+        assert content_or_file.seekable()
+        content_or_file.seek(0)
+        hexdigest = get_file_hash(
+            content_or_file, hash_type)
+        content_or_file.seek(0)
+        return f"{hash_type}={hexdigest}"
+    running_hash = getattr(hashlib, hash_type)(content_or_file)
+    return f"{running_hash.name}={running_hash.hexdigest()}"
 
 
 def make_splitdir(hash_spec):

@@ -52,15 +52,10 @@ class DirtyFile(object):
             os.link(content_or_file.devpi_srcpath, self.tmppath)
         else:
             with get_write_file_ensure_dir(self.tmppath) as f:
-                if not isinstance(content_or_file, bytes) and not callable(getattr(content_or_file, "seekable", None)):
-                    content_or_file = content_or_file.read()
-                    if len(content_or_file) > 1048576:
-                        threadlog.warn(
-                            "Read %.1f megabytes into memory in keyfs_sqlite_fs from_content for %s, because of unseekable file",
-                            len(content_or_file) / 1048576, path)
                 if isinstance(content_or_file, bytes):
                     f.write(content_or_file)
                 else:
+                    assert content_or_file.seekable()
                     content_or_file.seek(0)
                     shutil.copyfileobj(content_or_file, f)
         return self
