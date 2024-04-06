@@ -506,10 +506,9 @@ class TestImportExport:
         mapp = impexp.import_testdata('normalization')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/dev')
-            links = stage.get_releaselinks("hello.pkg")
-            assert len(links) == 1
-            assert links[0].project == "hello-pkg"
-            link = stage.get_link_from_entrypath(links[0].entrypath)
+            (link,) = stage.get_releaselinks("hello.pkg")
+            assert link.project == "hello-pkg"
+            link = stage.get_link_from_entrypath(link.entrypath)
             assert link.entry.file_get_content() == b"content"
 
     def test_normalization_merge(self, impexp):
@@ -570,28 +569,24 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage(api.stagename)
-            links = stage.get_releaselinks("hello")
-            assert len(links) == 1
-            assert links[0].entry.file_get_content() == b"content"
-            link = stage.get_link_from_entrypath(links[0].entrypath)
-            history_log = link.get_logs()
-            assert len(history_log) == 1
-            assert history_log[0]['what'] == 'upload'
-            assert history_log[0]['who'] == 'user1'
-            assert history_log[0]['dst'] == 'user1/dev'
-            results = stage.get_toxresults(link)
-            assert len(results) == 1
-            assert results[0] == tox_result_data
+            (link,) = stage.get_releaselinks("hello")
+            assert link.entry.file_get_content() == b"content"
+            link = stage.get_link_from_entrypath(link.entrypath)
+            (history_log,) = link.get_logs()
+            assert history_log['what'] == 'upload'
+            assert history_log['who'] == 'user1'
+            assert history_log['dst'] == 'user1/dev'
+            (result,) = stage.get_toxresults(link)
+            assert result == tox_result_data
             linkstore = stage.get_linkstore_perstage(
                 link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
             assert tox_link.hash_value == toxresult_hash
             assert tox_link.entry.last_modified == last_modified
-            history_log = tox_link.get_logs()
-            assert len(history_log) == 1
-            assert history_log[0]['what'] == 'upload'
-            assert history_log[0]['who'] == 'user1'
-            assert history_log[0]['dst'] == 'user1/dev'
+            (history_log,) = tox_link.get_logs()
+            assert history_log['what'] == 'upload'
+            assert history_log['who'] == 'user1'
+            assert history_log['dst'] == 'user1/dev'
 
     def test_import_with_old_toxresult_naming_scheme(self, impexp):
         mapp = impexp.import_testdata('toxresult_naming_scheme')
@@ -667,26 +662,22 @@ class TestImportExport:
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.read_transaction():
             stage = mapp2.xom.model.getstage('user1/dev')
-            links = stage.get_releaselinks("hello")
-            assert len(links) == 1
-            assert links[0].entry.file_get_content() == b"content"
-            link = stage.get_link_from_entrypath(links[0].entrypath)
-            history_log = link.get_logs()
-            assert len(history_log) == 1
-            assert history_log[0]['what'] == 'upload'
-            assert history_log[0]['who'] == '<import>'
-            assert history_log[0]['dst'] == 'user1/dev'
-            results = stage.get_toxresults(link)
-            assert len(results) == 1
-            assert results[0] == tox_result_data
+            (link,) = stage.get_releaselinks("hello")
+            assert link.entry.file_get_content() == b"content"
+            link = stage.get_link_from_entrypath(link.entrypath)
+            (history_log,) = link.get_logs()
+            assert history_log['what'] == 'upload'
+            assert history_log['who'] == '<import>'
+            assert history_log['dst'] == 'user1/dev'
+            (result,) = stage.get_toxresults(link)
+            assert result == tox_result_data
             linkstore = stage.get_linkstore_perstage(
                 link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
-            history_log = tox_link.get_logs()
-            assert len(history_log) == 1
-            assert history_log[0]['what'] == 'upload'
-            assert history_log[0]['who'] == '<import>'
-            assert history_log[0]['dst'] == 'user1/dev'
+            (history_log,) = tox_link.get_logs()
+            assert history_log['what'] == 'upload'
+            assert history_log['who'] == '<import>'
+            assert history_log['dst'] == 'user1/dev'
 
     def test_version_not_set_in_imported_versiondata(self, impexp):
         mapp1 = impexp.mapp1
@@ -710,9 +701,8 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("hello", "1.0")
             assert verdata["version"] == "1.0"
-            links = stage.get_releaselinks("hello")
-            assert len(links) == 1
-            assert links[0].entry.file_get_content() == b"content"
+            (link,) = stage.get_releaselinks("hello")
+            assert link.entry.file_get_content() == b"content"
 
     def test_same_filename_in_different_versions(self, impexp):
         # for some unknown reason, the same filename can be uploaded in two
@@ -732,15 +722,13 @@ class TestImportExport:
             # first
             verdata = stage.get_versiondata_perstage("hello", "1.0")
             assert verdata["version"] == "1.0"
-            links = stage.get_linkstore_perstage("hello", "1.0").get_links()
-            assert len(links) == 1
-            assert links[0].entry.file_get_content() == b"content1"
+            (link,) = stage.get_linkstore_perstage("hello", "1.0").get_links()
+            assert link.entry.file_get_content() == b"content1"
             # second
             verdata = stage.get_versiondata_perstage("hello", "1.0.foo")
             assert verdata["version"] == "1.0.foo"
-            links = stage.get_linkstore_perstage("hello", "1.0.foo").get_links()
-            assert len(links) == 1
-            assert links[0].entry.file_get_content() == b"content2"
+            (link,) = stage.get_linkstore_perstage("hello", "1.0.foo").get_links()
+            assert link.entry.file_get_content() == b"content2"
 
     def test_dashes_in_name_issue199(self, impexp):
         mapp1 = impexp.mapp1
@@ -944,9 +932,8 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("he_llo", "1.0")
             assert verdata["version"] == "1.0"
-            links = stage.get_releaselinks("he_llo")
-            assert len(links) == 1
-            assert links[0].entry.file_get_content() == b'content'
+            (link,) = stage.get_releaselinks("he_llo")
+            assert link.entry.file_get_content() == b'content'
             doczip = stage.get_doczip("he_llo", "1.0")
             archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()
@@ -983,10 +970,9 @@ class TestImportExport:
             stage = mapp2.xom.model.getstage(api.stagename)
             verdata = stage.get_versiondata_perstage("he_llo", "1.0")
             assert verdata["version"] == "1.0"
-            links = stage.get_releaselinks("he_llo")
-            assert len(links) == 1
-            assert links[0].entry.file_get_content() == b'content'
-            # assert os.stat(links[0].entry.file_os_path()).st_nlink == 2
+            (link,) = stage.get_releaselinks("he_llo")
+            assert link.entry.file_get_content() == b'content'
+            # assert os.stat(link.entry.file_os_path()).st_nlink == 2
             doczip = stage.get_doczip("he_llo", "1.0")
             archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()
