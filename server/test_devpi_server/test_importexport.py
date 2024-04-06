@@ -489,8 +489,8 @@ class TestImportExport:
             link = stage.get_link_from_entrypath(link.href)
             assert link.project == "dddttt"
             assert link.version == "0.1.dev1"
-            assert link.relpath == 'root/pypi/+f/100/7f0cd10aaa290/dddttt-0.1.dev1.tar.gz'
-            assert link.entry.hash_spec == 'sha256=1007f0cd10aaa290eb84f092e786639bbe930b7f2169f51f755a0f50a6aba489'
+            assert link.relpath == 'root/pypi/+f/ed7/002b439e9ac84/dddttt-0.1.dev1.tar.gz'
+            assert link.entry.hash_spec == 'sha256=ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73'
 
     def test_modifiedpypi(self, impexp):
         mapp = impexp.import_testdata('modifiedpypi')

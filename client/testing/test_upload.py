@@ -21,11 +21,6 @@ from devpi_common.viewhelp import ViewLinkStore
 from subprocess import check_output
 
 
-@pytest.fixture
-def datadir():
-    return Path(__file__).parent / "data"
-
-
 def runproc(cmd):
     args = cmd.split()
     path0 = args[0]
@@ -750,11 +745,51 @@ class TestUploadFunctional:
             'pkg-1.0-py3-none-any.whl')
 
 
-def test_getpkginfo(datadir):
-    info = get_pkginfo(datadir / "dddttt-0.1.dev45-py27-none-any.whl")
+def test_getpkginfo(tmp_path):
+    from devpi_common.archive import zip_dir
+    dddttt_path = tmp_path / "dddttt"
+    dddttt_path.mkdir()
+    dddttt_path.joinpath("dddttt.py").write_text("\n#\n\n")
+    dist_info_path = dddttt_path / "dddttt-0.1.dev45.dist-info"
+    dist_info_path.mkdir()
+    dist_info_path.joinpath("DESCRIPTION.rst").write_text("UNKNOWN\n\n\n")
+    dist_info_path.joinpath("METADATA").write_text(
+        "Metadata-Version: 2.0\n"
+        "Name: dddttt\n"
+        "Version: 0.1.dev45\n"
+        "Summary: test project (please ignore)\n"
+        "Home-page: UNKNOWN\n"
+        "Author: Holger Krekel\n"
+        "Author-email: holger at merlinux.eu\n"
+        "License: UNKNOWN\n"
+        "Platform: UNKNOWN\n"
+        "\n"
+        "UNKNOWN\n"
+        "\n"
+        "\n")
+    dist_info_path.joinpath("pydist.json").write_text("""{"document_names": {"description": "DESCRIPTION.rst"}, "name": "dddttt", "metadata_version": "2.0", "contacts": [{"role": "author", "email": "holger at merlinux.eu", "name": "Holger Krekel"}], "generator": "bdist_wheel (0.21.0)", "summary": "test project (please ignore)", "version": "0.1.dev45"}""")
+    dist_info_path.joinpath("RECORD").write_text(
+        "dddttt.py,sha256=7G8SiJm1C_tZp4hfobVnsGkxwq9sJMG5GMBsM1ZNofg,3\n"
+        "dddttt-0.1.dev45.dist-info/METADATA,sha256=XOI_XBidbx2TCBjx9KhRDFv_5atGw83p9ZEvxkIDE0Y,215\n"
+        "dddttt-0.1.dev45.dist-info/WHEEL,sha256=R-CKVPEN1iNlnBxdOKJYb7uA38SQxXK-l7sQVcM8O74,93\n"
+        "dddttt-0.1.dev45.dist-info/top_level.txt,sha256=kbpWu61e5jP1G81FV381JsGaoI0hrA4N2g1tWhgYuXA,7\n"
+        "dddttt-0.1.dev45.dist-info/RECORD,,\n"
+        "dddttt-0.1.dev45.dist-info/pydist.json,sha256=i4hmeERiSWsoBsxYwPbVaz9Jmk7NtmAGBT6eAz1C03k,296\n"
+        "dddttt-0.1.dev45.dist-info/DESCRIPTION.rst,sha256=OCTuuN6LcWulhHS3d5rfjdsQtW22n7HENFRh6jC6ego,10\n")
+    dist_info_path.joinpath("top_level.txt").write_text("dddttt\n")
+    dist_info_path.joinpath("WHEEL").write_text(
+        "Wheel-Version: 1.0\n"
+        "Generator: bdist_wheel (0.21.0)\n"
+        "Root-Is-Purelib: true\n"
+        "Tag: py27-none-any\n"
+        "\n")
+    whl_path = tmp_path / "dddttt-0.1.dev45-py27-none-any.whl"
+    zip_dir(dddttt_path, whl_path)
+    info = get_pkginfo(whl_path)
     assert info.name == "dddttt"
     assert info.metadata_version == "2.0"
-    info = get_pkginfo(datadir / "ddd-1.0.doc.zip")
+    # for docs only the filename is used
+    info = get_pkginfo(Path("ddd-1.0.doc.zip"))
     assert info.name == "ddd"
     assert info.version == "1.0"
 
