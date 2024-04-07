@@ -66,12 +66,14 @@ def test_doc_unpack_cleanup(mapp, testapp):
 
 
 @pytest.mark.with_notifier
-def test_empty_doczip(mapp, testapp):
+def test_empty_doczip(mapp):
+    from devpi_web.compat import get_default_hash_spec
     from devpi_web.doczip import Docs
     from devpi_web.doczip import remove_docs
     from devpi_web.doczip import unpack_docs
     api = mapp.create_and_use()
     empty_doczip = b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+    empty_doczip_hash_spec = get_default_hash_spec(empty_doczip)
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", empty_doczip, "pkg1", "2.6", code=200,
                     waithooks=True)
@@ -83,7 +85,7 @@ def test_empty_doczip(mapp, testapp):
         path = unpack_docs(stage, name, version, link.entry)
     assert not path.exists()
     assert path.new(ext="hash").exists()
-    assert path.new(ext="hash").read() == 'sha256=8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85'
+    assert path.new(ext="hash").read() == empty_doczip_hash_spec
     with mapp.xom.keyfs.transaction(write=False):
         stage = mapp.xom.model.getstage(api.stagename)
         assert list(Docs(stage, name, version).items()) == []

@@ -1,7 +1,8 @@
 from devpi_common.metadata import parse_version
 from devpi_server import __version__ as _devpi_server_version
+from devpi_web.compat import make_file_url
 from devpi_web.main import hookimpl
-from test_devpi_server.conftest import make_file_url
+from functools import partial
 import pytest
 import re
 
@@ -156,25 +157,25 @@ def test_refresh_button(mapp, pypistage, testapp):
         "http://localhost:80/{stage}/pkg1/2.6",
         {},
         '.files td:nth-of-type(1) a',
-        [('pkg1-2.6.tgz', make_file_url('pkg1-2.6.tgz', b'123'))]),
+        [('pkg1-2.6.tgz', partial(make_file_url, 'pkg1-2.6.tgz', b'123'))]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'x-outside-url': 'http://example.com/foo'},
         '.files td:nth-of-type(1) a',
         [('pkg1-2.6.tgz',
-          make_file_url('pkg1-2.6.tgz', b'123', baseurl='http://example.com/foo/'))]),
+          partial(make_file_url, 'pkg1-2.6.tgz', b'123', baseurl='http://example.com/foo/'))]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'host': 'example.com'},
         '.files td:nth-of-type(1) a',
         [('pkg1-2.6.tgz',
-         make_file_url('pkg1-2.6.tgz', b'123', baseurl='http://example.com/'))]),
+         partial(make_file_url, 'pkg1-2.6.tgz', b'123', baseurl='http://example.com/'))]),
     (
         "http://localhost:80/{stage}/pkg1/2.6",
         {'host': 'example.com:3141'},
         '.files td:nth-of-type(1) a',
         [('pkg1-2.6.tgz',
-         make_file_url('pkg1-2.6.tgz', b'123', baseurl='http://example.com:3141/'))]),
+         partial(make_file_url, 'pkg1-2.6.tgz', b'123', baseurl='http://example.com:3141/'))]),
 ])
 def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
     api = mapp.create_and_use()
@@ -184,7 +185,9 @@ def test_url_rewriting(url, headers, selector, expected, mapp, testapp):
     links = [
         (compareable_text(x.text), x.attrs.get('href'))
         for x in r.html.select(selector)]
-    expected = [(t, u.format(stage=api.stagename)) for t, u in expected]
+    expected = [
+        (t, (u() if callable(u) else u).format(stage=api.stagename))
+        for t, u in expected]
     assert links == expected
 
 

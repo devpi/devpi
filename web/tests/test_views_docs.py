@@ -1,5 +1,4 @@
 from devpi_common.archive import zip_dict
-from hashlib import sha256
 import pytest
 import re
 import sys
@@ -23,10 +22,11 @@ def keep_docs_packed(keep_docs_packed):
 
 
 @pytest.mark.with_notifier
-def test_docs_raw_view(keep_docs_packed, mapp, testapp):
+def test_docs_raw_view(mapp, testapp):
+    from devpi_web.compat import get_default_hash_spec
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    etag = sha256(content).hexdigest()
+    etag = get_default_hash_spec(content).split('=')[1]
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)
