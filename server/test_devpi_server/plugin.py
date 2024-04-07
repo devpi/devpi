@@ -402,7 +402,6 @@ def httpget(pypiurls):
     class MockHTTPGet:
         def __init__(self):
             self.url2response = {}
-            self._md5 = hashlib.md5()  # noqa: S324
             self.call_log = []
 
         async def async_httpget(self, url, *, allow_redirects, timeout=None, extra_headers=None):
@@ -504,10 +503,6 @@ def httpget(pypiurls):
             kw.setdefault("url", URL(remoteurl).joinpath(name).asdir().url)
             self.mockresponse(text=text, **kw)
             return ret
-
-        def _getmd5digest(self, s):
-            self._md5.update(s.encode("utf8"))
-            return self._md5.hexdigest()
 
     return MockHTTPGet()
 
@@ -1398,15 +1393,11 @@ def gen():
 
 
 class Gen:
-    def __init__(self):
-        self._md5 = hashlib.md5()  # noqa: S324
-
-    def pypi_package_link(self, pkgname, md5=True):
+    def pypi_package_link(self, pkgname, *, md5=True):
         link = "https://pypi.org/package/some/%s" % pkgname
         if md5 is True:
-            self._md5.update(link.encode("utf8"))  # basically random
-            link += "#md5=%s" % self._md5.hexdigest()
-        elif md5:
+            md5 = hashlib.md5(link.encode()).hexdigest()  # noqa: S324
+        if md5:
             link += "#md5=%s" % md5
         return URL(link)
 

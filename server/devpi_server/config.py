@@ -1125,10 +1125,6 @@ class Config(object):
         return self.get_derived_key(b'devpi-server-replica')
 
 
-def getpath(path):
-    return py.path.local(os.path.expanduser(str(path)))
-
-
 def gensecret():
     from .log import threadlog as log
     from .main import CommandRunner

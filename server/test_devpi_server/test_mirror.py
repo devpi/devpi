@@ -1024,10 +1024,6 @@ class TestMirrorStageprojects:
             assert pypistage.name not in pypistage.xom._stagecache
 
 
-def raise_ValueError():
-    raise ValueError(42)
-
-
 @pytest.mark.nomocking
 def test_requests_httpget_negative_status_code(xom, monkeypatch):
     l = []
