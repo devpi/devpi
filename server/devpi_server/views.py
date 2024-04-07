@@ -1065,27 +1065,30 @@ class PyPIView:
     def _push_links(self, links, target_stage, name, version):
         stage = self.context.stage
         for link in links["releasefile"]:
-            if should_fetch_remote_file(link.entry, self.request.headers):
-                list(iter_fetch_remote_file(stage, link.entry, link.entry.url))
-            with link.entry.file_open_read() as f:
+            entry = link.entry
+            logs = link.get_logs()
+            del link
+            if should_fetch_remote_file(entry, self.request.headers):
+                list(iter_fetch_remote_file(stage, entry, entry.url))
+            with entry.file_open_read() as f:
                 new_link = target_stage.store_releasefile(
-                    name, version, link.basename, f,
-                    last_modified=link.entry.last_modified)
+                    name, version, entry.basename, f,
+                    last_modified=entry.last_modified)
             new_link.add_logs(
-                x for x in link.get_logs()
+                x for x in logs
                 if x.get('what') != 'overwrite')
             new_link.add_log(
                 'push',
                 self.request.authenticated_userid,
                 src=self.context.stage.name,
                 dst=target_stage.name)
-            entry = new_link.entry
-            yield (200, "store_releasefile", entry.relpath)
+            new_entry = new_link.entry
+            yield (200, "store_releasefile", new_entry.relpath)
             # also store all dependent tox results
             tstore = target_stage.get_linkstore_perstage(name, version)
             for toxlink in links["toxresult"]:
-                if toxlink.for_entrypath == link.entry.relpath:
-                    ref_link = tstore.get_links(entrypath=entry.relpath)[0]
+                if toxlink.for_entrypath == entry.relpath:
+                    ref_link = tstore.get_links(entrypath=new_entry.relpath)[0]
                     with toxlink.entry.file_open_read() as f:
                         tlink = target_stage.store_toxresult(ref_link, f)
                     tlink.add_logs(
