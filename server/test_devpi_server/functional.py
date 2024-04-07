@@ -516,9 +516,11 @@ class TestMirrorIndexThings:
         assert len(result) == 1
 
     def test_whitelisted_package_not_in_mirror(self, mapp, simpypi):
+        import re
         if not hasattr(mapp, "get_simple"):
             # happens in the devpi-client tests
             pytest.skip("Mapp implementation doesn't have 'get_simple' method.")
+        from devpi_server.filestore import relpath_prefix
         mapp.create_and_login_user('mirror8')
         indexconfig = dict(
             type="mirror",
@@ -533,7 +535,9 @@ class TestMirrorIndexThings:
         content = mapp.makepkg("pkg-1.0.tar.gz", b"content", "pkg", "1.0")
         mapp.upload_file_pypi("pkg-1.0.tar.gz", content, "pkg", "1.0")
         r = mapp.get_simple("pkg")
-        assert b'ed7/002b439e9ac84/pkg-1.0.tar.gz' in r.body
+        ((hash_type, hash_value),) = re.findall('pkg-1.0.tar.gz#(.*?)=(.*?)"', r.text)
+        hashdir = relpath_prefix(content, hash_type)
+        assert f'{hashdir}/pkg-1.0.tar.gz#{hash_type}={hash_value}' in r.text
 
     def test_releases_urlquoting(self, mapp, server_version, simpypi):
         quoting_devpi_version = parse_version("4.3.1dev")

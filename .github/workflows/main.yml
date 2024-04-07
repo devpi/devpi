@@ -439,6 +439,54 @@ jobs:
           python -m tox -a -vv
           PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
+  hashes-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: ["server-tests", "web-tests"]
+    strategy:
+      matrix:
+        include:
+          - project: "server"
+            python-version: "3.7"
+            os: "ubuntu-latest"
+            tox-envs: "py37"
+          - project: "web"
+            python-version: "3.7"
+            os: "ubuntu-latest"
+            tox-envs: "py37"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v4"
+      - uses: "actions/setup-python@v5"
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        env:
+          DEVPI_SERVER_TEST_ADDITIONAL_HASH_TYPES: md5,blake2b
+          DEVPI_SERVER_TEST_DEFAULT_HASH_TYPE: sha1
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          export POSTGRESQL_BIN_DIR=$(ls -d /usr/lib/postgresql/*/bin)
+          ls $POSTGRESQL_BIN_DIR
+          export PATH=$PATH:$POSTGRESQL_BIN_DIR
+          cd $PROJECT
+          python -m tox -a -vv
+          env | grep DEVPI_SERVER
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+
   postgresql-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"

@@ -7,6 +7,7 @@ import json
 from devpi_common.metadata import splitbasename
 from devpi_common.archive import Archive, zip_dict
 from devpi_server.config import hookimpl
+from devpi_server.filestore import get_default_hash_spec
 from devpi_server.model import InvalidIndexconfig
 from devpi_server.model import PrivateStage
 from devpi_server.model import Unknown
@@ -1363,7 +1364,6 @@ class TestLinkStore:
         assert link.entrypath.endswith("proj1-1.0.zip")
 
     def test_toxresult_create_remove(self, linkstore):
-        import hashlib
         linkstore.create_linked_entry(
             rel="releasefile", basename="proj1-1.0.zip",
             content_or_file=b'123')
@@ -1374,14 +1374,16 @@ class TestLinkStore:
         assert link1.entrypath.endswith("proj1-1.0.zip")
 
         tox_content1 = b'tox123'
+        hash_spec1 = get_default_hash_spec(tox_content1)
         linkstore.new_reflink(rel="toxresult", content_or_file=tox_content1, for_entrypath=link1)
         tox_content2 = b'tox456'
+        hash_spec2 = get_default_hash_spec(tox_content2)
         linkstore.new_reflink(rel="toxresult", content_or_file=tox_content2, for_entrypath=link2)
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link1)
-        assert rlink.hash_value == hashlib.sha256(tox_content1).hexdigest()
+        assert rlink.hash_spec == hash_spec1
         assert rlink.for_entrypath == link1.entrypath
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link2)
-        assert rlink.hash_value == hashlib.sha256(tox_content2).hexdigest()
+        assert rlink.hash_spec == hash_spec2
         assert rlink.for_entrypath == link2.entrypath
 
         link1_entry = link1.entry  # queried below

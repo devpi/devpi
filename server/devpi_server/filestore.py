@@ -10,13 +10,19 @@ import re
 from devpi_common.metadata import splitbasename
 from devpi_common.types import parse_hash_spec
 from devpi_server.log import threadlog
+from devpi_server.markers import absent
 from inspect import currentframe
 from urllib.parse import unquote
 
 
+def _get_default_hash_types():  # this is a function for testing
+    return tuple(frozenset((DEFAULT_HASH_TYPE,)))
+
+
 _nodefault = object()
+# do not import the following, as they are changed for testing
 DEFAULT_HASH_TYPE = "sha256"
-DEFAULT_HASH_TYPES = tuple(frozenset((DEFAULT_HASH_TYPE,)))
+DEFAULT_HASH_TYPES = _get_default_hash_types()
 
 
 class ChecksumError(ValueError):
@@ -201,7 +207,10 @@ def get_file_hash(fp, hash_type):
     return get_hashes(fp, hash_types=(hash_type,))[hash_type]
 
 
-def get_hashes(content_or_file, *, hash_types=DEFAULT_HASH_TYPES, additional_hash_types=None):
+def get_hashes(content_or_file, *, hash_types=absent, additional_hash_types=None):
+    if hash_types is absent:
+        # in tests this is overwritten and fails if used as default in kwarg
+        hash_types = DEFAULT_HASH_TYPES
     if not hash_types:
         return {}
     if additional_hash_types:
@@ -251,6 +260,14 @@ def make_splitdir(hash_spec):
     assert len(parts) == 2
     hash_value = parts[1]
     return hash_value[:3], hash_value[3:16]
+
+
+def relpath_prefix(content_or_file, hash_type=absent):
+    if hash_type is absent:
+        # in tests this is overwritten and fails if used as default in kwarg
+        hash_type = DEFAULT_HASH_TYPE
+    hash_spec = get_hash_spec(content_or_file, hash_type)
+    return "/".join(make_splitdir(hash_spec))
 
 
 def key_from_link(keyfs, link, user, index):
@@ -384,7 +401,10 @@ class FileEntry(object):
     def user(self):
         return self.key.params['user']
 
-    default_hash_types = DEFAULT_HASH_TYPES
+    @property
+    def default_hash_types(self):
+        # in tests this is overwritten and fails if set on the class
+        return DEFAULT_HASH_TYPES
 
     @property
     def hashes(self):

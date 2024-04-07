@@ -3,6 +3,9 @@ import sys
 import pytest
 import json
 from devpi_server.config import hookimpl
+from devpi_server.filestore import get_default_hash_spec
+from devpi_server.filestore import make_splitdir
+from devpi_server.filestore import relpath_prefix
 from devpi_server.importexport import Exporter
 from devpi_server.importexport import IndexTree
 from devpi_server.importexport import do_export, do_import
@@ -317,22 +320,26 @@ class TestImportExport:
     def test_importing_multiple_indexes_with_releases(self, impexp):
         mapp1 = impexp.mapp1
         api1 = mapp1.create_and_use()
-        content = b'content1'
-        mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        content1 = b'content1'
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", content1, "hello", "1.0")
+        hash_spec1 = get_default_hash_spec(content1)
+        hashdir1 = "/".join(make_splitdir(hash_spec1))
         path, = mapp1.get_release_paths("hello")
         path = path.strip("/")
         stagename2 = api1.user + "/" + "dev6"
         api2 = mapp1.create_index(stagename2)
-        content = b'content2'
-        mapp1.upload_file_pypi("pkg1-1.0.tar.gz", content, "pkg1", "1.0")
+        content2 = b'content2'
+        mapp1.upload_file_pypi("pkg1-1.0.tar.gz", content2, "pkg1", "1.0")
+        hash_spec2 = get_default_hash_spec(content2)
+        hashdir2 = "/".join(make_splitdir(hash_spec2))
         impexp.export()
         mapp2 = impexp.new_import()
         mapp2.use(api1.stagename)
         assert mapp2.get_release_paths('hello') == [
-            '/user1/dev/+f/d0b/425e00e15a0d3/hello-1.0.tar.gz']
+            f'/user1/dev/+f/{hashdir1}/hello-1.0.tar.gz']
         mapp2.use(api2.stagename)
         assert mapp2.get_release_paths('pkg1') == [
-            '/user1/dev6/+f/dab/741b6289e7dcc/pkg1-1.0.tar.gz']
+            f'/user1/dev6/+f/{hashdir2}/pkg1-1.0.tar.gz']
 
     def test_uuid(self, impexp):
         nodeinfo1 = impexp.mapp1.xom.config.nodeinfo
@@ -469,9 +476,15 @@ class TestImportExport:
             '<a href="/package-1.1.zip#sha256=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3" />\n'
             '<a href="/package-1.2.zip#sha256=b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0eee8ebb4a5d0" data-yanked="" />\n'
             '<a href="/package-2.0.zip#sha256=35a9e381b1a27567549b5f8a6f783c167ebf809f1c4d6a9e367240484d8ce281" data-requires-python="&gt;=3.5" />')
-        pypistage.mock_extfile("/package-1.1.zip", b"123")
-        pypistage.mock_extfile("/package-1.2.zip", b"456")
-        pypistage.mock_extfile("/package-2.0.zip", b"789")
+        content1 = b"123"
+        hashdir1 = relpath_prefix(content1)
+        pypistage.mock_extfile("/package-1.1.zip", content1)
+        content2 = b"456"
+        hashdir2 = relpath_prefix(content2)
+        pypistage.mock_extfile("/package-1.2.zip", content2)
+        content3 = b"789"
+        hashdir3 = relpath_prefix(content3)
+        pypistage.mock_extfile("/package-2.0.zip", content3)
         r = testapp.get(api.index + "/+simple/package/")
         assert r.status_code == 200
         # fetch some files, so they are included in the dump
@@ -496,11 +509,13 @@ class TestImportExport:
                 (x.key, x.href, x.require_python, x.yanked)
                 for x in stage.get_simplelinks_perstage("package"))
             assert links == [
-                ('package-1.1.zip', 'root/pypi/+f/a66/5a45920422f9d/package-1.1.zip', None, None),
-                ('package-1.2.zip', 'root/pypi/+f/b3a/8e0e1f9ab1bfe/package-1.2.zip', None, ""),
-                ('package-2.0.zip', 'root/pypi/+f/35a/9e381b1a27567/package-2.0.zip', '>=3.5', None)]
+                ('package-1.1.zip', f'root/pypi/+f/{hashdir1}/package-1.1.zip', None, None),
+                ('package-1.2.zip', f'root/pypi/+f/{hashdir2}/package-1.2.zip', None, ""),
+                ('package-2.0.zip', f'root/pypi/+f/{hashdir3}/package-2.0.zip', '>=3.5', None)]
 
     def test_mirrordata(self, impexp):
+        hash_spec = get_default_hash_spec(b"content")
+        hashdir = "/".join(make_splitdir(hash_spec))
         mapp = impexp.import_testdata('mirrordata')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/pypi')
@@ -509,8 +524,8 @@ class TestImportExport:
             link = stage.get_link_from_entrypath(link.href)
             assert link.project == "dddttt"
             assert link.version == "0.1.dev1"
-            assert link.relpath == 'root/pypi/+f/ed7/002b439e9ac84/dddttt-0.1.dev1.tar.gz'
-            assert link.entry.hash_spec == 'sha256=ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73'
+            assert link.relpath == f'root/pypi/+f/{hashdir}/dddttt-0.1.dev1.tar.gz'
+            assert link.entry.hash_spec == hash_spec
 
     def test_modifiedpypi(self, impexp):
         mapp = impexp.import_testdata('modifiedpypi')
@@ -569,7 +584,7 @@ class TestImportExport:
 
     @pytest.mark.slow
     def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
-        import hashlib
+        from devpi_server.filestore import get_default_hash_value
         from time import sleep
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -578,11 +593,11 @@ class TestImportExport:
         path, = mapp1.get_release_paths("hello")
         path = path.strip("/")
         toxresult_dump = json.dumps(tox_result_data)
-        toxresult_hash = hashlib.sha256(toxresult_dump.encode("utf-8")).hexdigest()
+        toxresult_hash = get_default_hash_value(toxresult_dump.encode())
         r = mapp1.upload_toxresult("/%s" % path, toxresult_dump)
         toxresult_link = mapp1.getjson(f'/{r.json["result"]}')["result"]
         last_modified = toxresult_link["last_modified"]
-        (hash_type, hash_value) = parse_hash_spec(toxresult_link["hash_spec"])
+        (hash_algo, hash_value) = parse_hash_spec(toxresult_link["hash_spec"])
         assert hash_value == toxresult_hash
         sleep(1.5)
         impexp.export()

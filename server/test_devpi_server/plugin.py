@@ -1404,3 +1404,23 @@ def tox_result_data(request):
 @pytest.fixture
 def terminalwriter():
     return py.io.TerminalWriter()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _default_hash_type():
+    from devpi_server import filestore
+    import os
+    import warnings
+    hash_type = os.environ.get("DEVPI_SERVER_TEST_DEFAULT_HASH_TYPE")
+    if hash_type:
+        assert hash_type != filestore.DEFAULT_HASH_TYPE
+        warnings.warn(f"DEFAULT_HASH_TYPE set to {hash_type}", stacklevel=1)
+        filestore.DEFAULT_HASH_TYPE = hash_type
+    filestore.DEFAULT_HASH_TYPES = filestore._get_default_hash_types()
+    hash_types = os.environ.get("DEVPI_SERVER_TEST_ADDITIONAL_HASH_TYPES")
+    if hash_types:
+        hash_types = [ht.strip() for ht in hash_types.split(",")]
+        for ht in hash_types:
+            assert ht not in filestore.DEFAULT_HASH_TYPES
+            filestore.DEFAULT_HASH_TYPES += (ht,)
+        warnings.warn(f"ADDITIONAL_HASH_TYPES {hash_types!r}", stacklevel=1)

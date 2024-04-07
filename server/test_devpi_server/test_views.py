@@ -1,4 +1,3 @@
-import hashlib
 import pytest
 import json
 import posixpath
@@ -12,6 +11,12 @@ from devpi_common.viewhelp import ViewLinkStore
 
 import devpi_server.views
 from devpi_server.config import hookimpl
+from devpi_server.filestore import FileEntry
+from devpi_server.filestore import get_default_hash_spec
+from devpi_server.filestore import get_default_hash_type
+from devpi_server.filestore import get_default_hash_value
+from devpi_server.filestore import get_hash_spec
+from devpi_server.filestore import make_splitdir
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
 from devpi_server.mirror import parse_index
 from io import BytesIO
@@ -20,9 +25,6 @@ from .functional import TestIndexPushThings  # noqa: F401
 from .functional import TestProjectThings  # noqa: F401
 from .functional import TestUserThings  # noqa: F401
 from .functional import TestMirrorIndexThings  # noqa: F401
-
-import devpi_server.filestore
-from devpi_server.filestore import get_default_hash_spec, make_splitdir
 
 proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]
@@ -42,12 +44,6 @@ def getentry(testapp, path):
 
 def get_pypi_project_names(testapp):
     return testapp.xom.model.getstage('root/pypi').key_projects.get()
-
-
-def hash_spec_matches(hash_spec, content):
-    hash_type, hash_value = hash_spec.split("=")
-    digest = getattr(hashlib, hash_type)(content).hexdigest()
-    return digest == hash_value
 
 
 @pytest.mark.parametrize("kind", ["user", "index"])
@@ -363,7 +359,11 @@ def test_projects_pep_691(pypistage, testapp, url):
 
 def test_project_pep_691(mapp, testapp):
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    content = b"123"
+    hash_value = get_default_hash_value(content)
+    hash_spec = get_default_hash_spec(content)
+    hashdir = "/".join(make_splitdir(hash_spec))
+    mapp.upload_file_pypi("pkg1-2.6.tgz", content, "pkg1", "2.6")
     content_types = [
         "application/vnd.pypi.simple.v1+json",
         "application/vnd.pypi.simple.v1+html;q=0.2",
@@ -380,8 +380,8 @@ def test_project_pep_691(mapp, testapp):
     assert r.json['meta']['api-version'] == '1.0'
     (item,) = r.json['files']
     assert item['filename'] == 'pkg1-2.6.tgz'
-    assert item['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
-    assert item['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
+    assert item['url'] == f'../+f/{hashdir}/pkg1-2.6.tgz'
+    assert item['hashes'] == {get_default_hash_type(): hash_value}
     assert item['requires-python'] == ''
     assert 'yanked' not in item
 
@@ -389,8 +389,16 @@ def test_project_pep_691(mapp, testapp):
 def test_project_pep_691_multiple(mapp, testapp):
     from operator import itemgetter
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
-    mapp.upload_file_pypi("pkg1-2.7.tgz", b"456", "pkg1", "2.7")
+    content1 = b"123"
+    hash_value1 = get_default_hash_value(content1)
+    hash_spec1 = get_default_hash_spec(content1)
+    hashdir1 = "/".join(make_splitdir(hash_spec1))
+    mapp.upload_file_pypi("pkg1-2.6.tgz", content1, "pkg1", "2.6")
+    content2 = b"456"
+    hash_value2 = get_default_hash_value(content2)
+    hash_spec2 = get_default_hash_spec(content2)
+    hashdir2 = "/".join(make_splitdir(hash_spec2))
+    mapp.upload_file_pypi("pkg1-2.7.tgz", content2, "pkg1", "2.7")
     content_types = [
         "application/vnd.pypi.simple.v1+json",
         "application/vnd.pypi.simple.v1+html;q=0.2",
@@ -407,13 +415,13 @@ def test_project_pep_691_multiple(mapp, testapp):
     assert r.json['meta']['api-version'] == '1.0'
     (item1, item2) = sorted(r.json['files'], key=itemgetter("filename"))
     assert item1['filename'] == 'pkg1-2.6.tgz'
-    assert item1['url'] == '../+f/a66/5a45920422f9d/pkg1-2.6.tgz'
-    assert item1['hashes'] == dict(sha256='a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3')
+    assert item1['url'] == f'../+f/{hashdir1}/pkg1-2.6.tgz'
+    assert item1['hashes'] == {get_default_hash_type(): hash_value1}
     assert item1['requires-python'] == ''
     assert 'yanked' not in item1
     assert item2['filename'] == 'pkg1-2.7.tgz'
-    assert item2['url'] == '../+f/b3a/8e0e1f9ab1bfe/pkg1-2.7.tgz'
-    assert item2['hashes'] == dict(sha256='b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0eee8ebb4a5d0')
+    assert item2['url'] == f'../+f/{hashdir2}/pkg1-2.7.tgz'
+    assert item2['hashes'] == {get_default_hash_type(): hash_value2}
     assert item2['requires-python'] == ''
     assert 'yanked' not in item2
 
@@ -1238,6 +1246,8 @@ def test_submit_without_trailing_slash(mapp, testapp):
     version = "1.0"
     basename = "%s-%s.tar.gz" % (name, version)
     content = b"a"
+    hash_spec = get_default_hash_spec(content)
+    hashdir = "/".join(make_splitdir(hash_spec))
     mapp.set_versiondata(
         dict(name=name, version=version))
     assert mapp.get_release_paths('pkg') == []
@@ -1246,7 +1256,7 @@ def test_submit_without_trailing_slash(mapp, testapp):
          "content": Upload(basename, content)}, expect_errors=True)
     assert r.status_int == 200
     assert mapp.get_release_paths('pkg') == [
-        '/%s/+f/ca9/78112ca1bbdca/%s' % (api.stagename, basename)]
+        f'/{api.stagename}/+f/{hashdir}/{basename}']
 
 
 def test_push_non_existent(mapp, testapp, monkeypatch):
@@ -1293,7 +1303,10 @@ def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
 
 def test_push_from_pypi(httpget, mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
-    pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123")
+    content = b"123"
+    hash_spec = get_default_hash_spec(content)
+    hashdir = "/".join(make_splitdir(hash_spec))
+    pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", content)
     mapp.create_and_login_user("foo")
     mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
     mapp.use("root/pypi")
@@ -1304,7 +1317,7 @@ def test_push_from_pypi(httpget, mapp, pypistage, testapp):
         'result': [
             [200, 'register', 'hello', '1.0', '->', 'foo/newindex1'],
             [200, 'store_releasefile',
-             'foo/newindex1/+f/a66/5a45920422f9d/hello-1.0.tar.gz']],
+             f'foo/newindex1/+f/{hashdir}/hello-1.0.tar.gz']],
         'type': 'actionlog'}
 
 
@@ -1323,7 +1336,10 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
 
 def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
-    pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123")
+    content = b"123"
+    pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", content)
+    hash_spec = get_default_hash_spec(content)
+    hashdir = "/".join(make_splitdir(hash_spec))
     mapp.create_and_login_user("foo")
     mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))
     api = mapp.use("root/pypi")
@@ -1351,7 +1367,7 @@ def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypist
         'result': [
             [200, 'register', 'hello', '1.0', '->', 'foo/newindex1'],
             [200, 'store_releasefile',
-             'foo/newindex1/+f/a66/5a45920422f9d/hello-1.0.tar.gz']],
+             f'foo/newindex1/+f/{hashdir}/hello-1.0.tar.gz']],
         'type': 'actionlog'}
 
 
@@ -1631,7 +1647,8 @@ def test_upload_and_access_releasefile_meta(mapp, testapp, proj):
     pkgmeta = mapp.getjson(link.href)
     assert pkgmeta["type"] == "releasefilemeta"
     hash_spec = pkgmeta["result"]["hash_spec"]
-    assert hash_spec_matches(hash_spec, content)
+    (hash_type, hash_value) = hash_spec.split("=", 1)
+    assert hash_spec == get_hash_spec(content, hash_type)
 
 
 def test_upload_and_delete_project_version(mapp):
@@ -2402,7 +2419,7 @@ class TestOfflineMode:
         assert link.get("href") == "package/"
 
     def test_file_not_available(self, xom, monkeypatch, testapp, pypistage, stagename):
-        monkeypatch.setattr(devpi_server.filestore.FileEntry, "file_exists", lambda a: False)
+        monkeypatch.setattr(FileEntry, "file_exists", lambda _a: False)
         r = testapp.xget(200, "/%s/+simple/package/" % stagename)
         assert getlinks(r.text) == []
         with xom.keyfs.read_transaction():

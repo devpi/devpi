@@ -16,8 +16,11 @@ def getfirstlink(text):
 
 
 def test_upload_and_push_external(mapp, testapp, reqmock):
+    from devpi_server.filestore import relpath_prefix
     api = mapp.create_and_use()
-    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    content = b"123"
+    hashdir = relpath_prefix(content)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", content, "pkg1", "2.6")
     zipcontent = zip_dict({"index.html": "<html/>"})
     mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
 
@@ -39,7 +42,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     (action_register, action_upload, action_docfile) = r.json["result"]
     assert action_register == [200, 'register', 'pkg1', '2.6']
     assert action_upload == [
-        200, 'upload', 'user1/dev/+f/a66/5a45920422f9d/pkg1-2.6.tgz', '']
+        200, 'upload', f'user1/dev/+f/{hashdir}/pkg1-2.6.tgz', '']
     assert action_docfile == [200, 'docfile', 'pkg1']
     assert len(rec.requests) == 3
     for i in range(3):
@@ -57,7 +60,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     (action_register, action_upload, action_docfile) = r.json["result"]
     assert action_register == [410, 'register', 'pkg1', '2.6']
     assert action_upload == [
-        410, 'upload', 'user1/dev/+f/a66/5a45920422f9d/pkg1-2.6.tgz', 'msg']
+        410, 'upload', f'user1/dev/+f/{hashdir}/pkg1-2.6.tgz', 'msg']
     assert action_docfile == [410, 'docfile', 'pkg1']
 
     # push with internal server error, which should fail register
@@ -178,6 +181,7 @@ def test_upload_and_push_external_metadata21(mapp, reqmock, testapp):
 
 
 def test_upload_and_push_warehouse(mapp, testapp, reqmock):
+    from devpi_server.filestore import get_default_hash_type
     # the new PyPI backend "warehouse" changes some things and they already
     # start to affect current PyPI behaviour
     api = mapp.create_and_use()
@@ -227,7 +231,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
         assert requests[i].url == req["posturl"]
     req = requests[1]
     assert b"metadata_version" in req.body
-    assert b"sha256_digest" in req.body
+    assert (b"%s_digest" % get_default_hash_type().encode()) in req.body
     assert b"pkg1-2.6.tgz" in req.body
     req = requests[2]
     assert b"metadata_version" in req.body

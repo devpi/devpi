@@ -2,6 +2,8 @@ import hashlib
 import os
 import pytest
 from devpi_server.log import thread_pop_log
+from devpi_server.filestore import get_default_hash_type
+from devpi_server.filestore import get_default_hash_value
 from devpi_server.fileutil import loads
 from devpi_server.keyfs import MissingFileException
 from devpi_server.log import threadlog, thread_push_log
@@ -596,7 +598,10 @@ class TestUseExistingFiles:
         # create the file
         existing_path = existing_base.join(path)
         existing_path.dirpath().ensure_dir()
-        existing_path.write_binary(b"bad_data")
+        bad_data = b"bad_data"
+        bad_hash_type = get_default_hash_type()
+        bad_hash_value = get_default_hash_value(bad_data)
+        existing_path.write_binary(bad_data)
         # create the replica with the path to existing files
         replica_xom = make_replica_xom(options=[
             '--replica-file-search-path', existing_base.strpath])
@@ -609,7 +614,8 @@ class TestUseExistingFiles:
         replay(xom, replica_xom, events=False)
         replica_xom.replica_thread.wait()
         assert len(caplog.getrecords('checking existing file')) == 1
-        assert len(caplog.getrecords('sha256 mismatch, got ec7d057f450dc963f15978af98b9cdda64aca6751c677e45d4a358fe103dc05b')) == 1
+        assert len(caplog.getrecords(
+            f'{bad_hash_type} mismatch, got {bad_hash_value}')) == 1
         with replica_xom.keyfs.read_transaction():
             entry = replica_xom.filestore.get_file_entry(path[1:])
             assert entry.file_get_content() == content1
@@ -629,7 +635,10 @@ class TestUseExistingFiles:
         # create the file
         existing_path = existing_base.join(path)
         existing_path.dirpath().ensure_dir()
-        existing_path.write_binary(b"bad_data")
+        bad_data = b"bad_data"
+        bad_hash_type = get_default_hash_type()
+        bad_hash_value = get_default_hash_value(bad_data)
+        existing_path.write_binary(bad_data)
         assert existing_path.stat().nlink == 1
         # create the replica with the path to existing files and using hard links
         replica_xom = make_replica_xom(options=[
@@ -643,7 +652,8 @@ class TestUseExistingFiles:
         caplog.clear()
         replay(xom, replica_xom)
         assert len(caplog.getrecords('checking existing file')) == 1
-        assert len(caplog.getrecords('sha256 mismatch, got ec7d057f450dc963f15978af98b9cdda64aca6751c677e45d4a358fe103dc05b')) == 1
+        assert len(caplog.getrecords(
+            f'{bad_hash_type} mismatch, got {bad_hash_value}')) == 1
         # check the number of links of the file
         assert existing_path.stat().nlink == 1
         with replica_xom.keyfs.read_transaction():
@@ -905,8 +915,9 @@ class TestFileReplication:
         replica_xom.replica_thread.wait()
         assert xom.keyfs.get_current_serial() == replica_xom.keyfs.get_current_serial()
         replication_errors = replica_xom.replica_thread.shared_data.errors
-        assert list(replication_errors.errors.keys()) == [
-            '%s/+f/d0b/425e00e15a0d3/hello-1.0.zip' % api.stagename]
+        (error_key,) = replication_errors.errors.keys()
+        assert error_key.startswith(f"{api.stagename}/+f/")
+        assert error_key.endswith('/hello-1.0.zip')
         # the primary and replica are in sync, so getting the file on the
         # replica needs to fetch it again
         headers = {"content-length": "8",

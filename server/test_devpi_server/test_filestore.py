@@ -154,13 +154,14 @@ class TestFileStore:
         assert not entry1.file_exists()
 
     def test_relpathentry(self, filestore, gen):
+        from devpi_server.filestore import get_default_hash_type
         link = gen.pypi_package_link("pytest-1.7.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry.url == link.url
         assert not entry.file_exists()
-        hash_type = "sha256"
-        hash_value = getattr(hashlib, hash_type)(b"").hexdigest()
-        entry.hash_spec = hash_spec = "%s=%s" %(hash_type, hash_value)
+        hash_type = get_default_hash_type()
+        hash_value = getdigest(b"", hash_type)
+        entry.hash_spec = hash_spec = "%s=%s" % (hash_type, hash_value)
         assert not entry.file_exists()
         entry.file_set_content(b"")
         assert entry.file_exists()

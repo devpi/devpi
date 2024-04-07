@@ -184,6 +184,8 @@ class TestAuthDenialPlugin:
         assert plugin.results == []
 
     def test_deny_acl_upload_push(self, makexom, makemapp, maketestapp):
+        from devpi_server.filestore import get_default_hash_spec
+        from devpi_server.filestore import make_splitdir
         from pyramid.authorization import Everyone
         from pyramid.util import is_nonstr_iter
         import json
@@ -220,7 +222,10 @@ class TestAuthDenialPlugin:
         testapp = maketestapp(xom)
         mapp = makemapp(testapp)
         api1 = mapp.create_and_use()
-        mapp.upload_file_pypi("hello-1.0.tar.gz", b"content", "hello", "1.0")
+        content = b"content"
+        hash_spec = get_default_hash_spec(content)
+        hashdir = "/".join(make_splitdir(hash_spec))
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         api2 = mapp.create_index('dev2')
         plugin.allowed = frozenset(('pkg_read', 'toxresult_upload'))
         plugin.called = 0
@@ -237,4 +242,4 @@ class TestAuthDenialPlugin:
         assert plugin.called
         assert r.status_code == 200
         assert mapp.getreleaseslist('hello', indexname=api2.stagename) == [
-            f"{api2.index}/+f/ed7/002b439e9ac84/hello-1.0.tar.gz"]
+            f"{api2.index}/+f/{hashdir}/hello-1.0.tar.gz"]
