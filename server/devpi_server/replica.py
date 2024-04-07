@@ -942,8 +942,8 @@ class FileReplicationThread:
         if hexdigest != entry.hash_value:
             f.close()
             threadlog.info(
-                "sha256 mismatch, got %s: %s",
-                hexdigest, path)
+                "%s mismatch, got %s: %s",
+                entry.hash_type, hexdigest, path)
             return
         threadlog.info("using matching existing file: %s", path)
         f.seek(0)

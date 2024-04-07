@@ -12,6 +12,8 @@ from devpi_common.url import URL
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
 from devpi_server.model import get_stage_customizer_classes
+from .filestore import Digests
+from .filestore import get_hashes
 from .main import CommandRunner
 from .main import DATABASE_VERSION
 from .main import Fatal
@@ -543,6 +545,16 @@ class Importer:
 
         # docs and toxresults didn't always have entrymapping in export dump
         mapping = filedesc.get("entrymapping", {})
+        hashes = Digests(mapping.get("hashes", {}))
+        # devpi-server-2.1 exported with md5 checksums
+        if "md5" in mapping:
+            hashes["md5"] = mapping["md5"]
+        # docs and toxresults didn't always have hashes stored in export dump
+        if "hash_spec" in mapping:
+            hashes.add_spec(mapping['hash_spec'])
+        # note that the actual hash_type used within devpi-server is not
+        # determined here but in store_releasefile/store_doczip/store_toxresult etc
+        hashes.update(get_hashes(f, hash_types=hashes.get_missing_hash_types()))
 
         if filedesc["type"] == "releasefile":
             if self.dumpversion == "1":
@@ -557,9 +569,9 @@ class Importer:
                     p.basename, f,
                     last_modified=mapping["last_modified"])
                 entry = link.entry
-            else:
+            else:  # mirrors
                 link = None
-                url = URL(mapping['url']).replace(fragment=mapping['hash_spec'])
+                url = URL(mapping['url']).replace(fragment=hashes.best_available_spec)
                 entry = self.xom.filestore.maplink(
                     url, stage.username, stage.index, project)
                 entry.file_set_content(f, last_modified=mapping["last_modified"])
@@ -575,16 +587,11 @@ class Importer:
                     yanked.append(is_yanked)
                 stage._save_cache_links(
                     project, links, requires_python, yanked, serial, None)
-            # devpi-server-2.1 exported with md5 checksums
-            if "md5" in mapping:
-                assert "hash_spec" not in mapping
-                hash_value = mapping["md5"]
+            if "md5" in hashes:
                 digest = entry.file_get_checksum("md5")
-                if digest != hash_value:
-                    msg = f"File {p} has bad checksum {digest}, expected {hash_value}"
+                if digest != hashes["md5"]:
+                    msg = f"File {p} has bad checksum {digest}, expected {hashes['md5']}"
                     raise Fatal(msg)
-            # note that the actual hash_type used within devpi-server is not
-            # determined here but in store_releasefile/store_doczip/store_toxresult etc
         elif filedesc["type"] == "doczip":
             version = filedesc["version"]
             # docs didn't always have entrymapping in export dump

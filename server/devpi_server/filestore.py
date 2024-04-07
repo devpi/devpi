@@ -14,33 +14,207 @@ from inspect import currentframe
 from urllib.parse import unquote
 
 
+_nodefault = object()
+DEFAULT_HASH_TYPE = "sha256"
+DEFAULT_HASH_TYPES = tuple(frozenset((DEFAULT_HASH_TYPE,)))
+
+
 class ChecksumError(ValueError):
     pass
 
 
-_nodefault = object()
+class RunningHashes:
+    def __init__(self, *hash_types):
+        self._algos = []
+        self._digests = {}
+        self._hashes = {}
+        self._running_hashes = []
+        self._types = []
+        for hash_type in hash_types:
+            self.add(hash_type)
+
+    def __iter__(self):
+        if self._digests:
+            msg = f"{self.__class__.__name__} already finished."
+            raise RuntimeError(msg)
+        if not self._running_hashes:
+            self.start()
+        return iter(self._running_hashes)
+
+    def add(self, hash_type):
+        if self._algos:
+            msg = f"Can not add hash type to {self.__class__.__name__} after start."
+            raise RuntimeError(msg)
+        if hash_type and hash_type not in self._types:
+            self._types.append(hash_type)
+
+    @property
+    def digests(self):
+        if not self._digests:
+            if not self._running_hashes:
+                msg = f"{self.__class__.__name__} was not started."
+                raise RuntimeError(msg)
+            self._digests = {x.name: x.hexdigest() for x in self._running_hashes}
+        self.__dict__['digests'] = Digests(self._digests)
+        return self.__dict__['digests']
+
+    def get_running_hash(self, hash_type):
+        return self._hashes[hash_type]
+
+    def start(self):
+        if self._algos:
+            msg = f"{self.__class__.__name__} already started."
+            raise RuntimeError(msg)
+        if not self._types:
+            msg = f"{self.__class__.__name__} has no hash types set."
+            raise RuntimeError(msg)
+        self._algos = [getattr(hashlib, ht) for ht in self._types]
+        self._running_hashes = [ha() for ha in self._algos]
+        self._hashes = {x.name: x for x in self._running_hashes}
+
+    def update(self, data):
+        for rh in self:
+            rh.update(data)
+
+    def update_from_file(self, fp):
+        if self._digests:
+            msg = f"{self.__class__.__name__} already finished."
+            raise RuntimeError(msg)
+        if not self._running_hashes:
+            self.start()
+        while 1:
+            data = fp.read(65536)
+            if not data:
+                break
+            for rh in self._running_hashes:
+                rh.update(data)
+
+
+class Digests(dict):
+    def add_spec(self, hash_spec):
+        (hash_algo, hash_value) = parse_hash_spec(hash_spec)
+        hash_type = hash_algo().name
+        if hash_type in self:
+            assert self[hash_type] == hash_value
+        else:
+            self[hash_type] = hash_value
+
+    @property
+    def best_available_spec(self):
+        return self.get_spec(self.best_available_type, None)
+
+    @property
+    def best_available_type(self):
+        return best_available_hash_type(self)
+
+    @property
+    def best_available_value(self):
+        return self.get(self.best_available_type, None)
+
+    def errors_for(self, content_or_hashes):
+        errors = {}
+        if isinstance(content_or_hashes, Digests):
+            hashes = content_or_hashes
+            if not set(hashes).intersection(self):
+                raise ChecksumError("No common hash types to compare")
+        else:
+            hashes = get_hashes(content_or_hashes, hash_types=self.keys())
+        for hash_type, hash_value in hashes.items():
+            expected_hash_value = self.get(hash_type)
+            if expected_hash_value is None:
+                continue
+            if hash_value != expected_hash_value:
+                errors[hash_type] = dict(
+                    expected=expected_hash_value,
+                    got=hash_value,
+                    msg=f"{hash_type} mismatch, "
+                        f"got {hash_value}, expected {expected_hash_value}")
+        return errors
+
+    def exception_for(self, content_or_hashes, relpath):
+        errors = self.errors_for(content_or_hashes)
+        if errors:
+            error_msg = errors.get(
+                self.best_available_type, next(iter(errors.values())))['msg']
+            return ChecksumError(f"{relpath}: {error_msg}")
+        return None
+
+    @classmethod
+    def from_spec(cls, hash_spec):
+        result = cls()
+        if hash_spec:
+            result.add_spec(hash_spec)
+        return result
+
+    def get_default_spec(self):
+        return self.get_spec(DEFAULT_HASH_TYPE)
+
+    def get_default_type(self):
+        return DEFAULT_HASH_TYPE
+
+    def get_default_value(self, default=_nodefault):
+        result = self.get(DEFAULT_HASH_TYPE, default)
+        if result is _nodefault:
+            raise KeyError(DEFAULT_HASH_TYPE)
+        return result
+
+    def get_missing_hash_types(self):
+        return set(DEFAULT_HASH_TYPES).difference(self)
+
+    def get_spec(self, hash_type, default=_nodefault):
+        result = self.get(hash_type, default)
+        if result is _nodefault:
+            raise KeyError(hash_type)
+        if result is default:
+            return result
+        return f"{hash_type}={result}"
+
+
+def best_available_hash_type(hashes):
+    if not hashes:
+        return None
+    if DEFAULT_HASH_TYPE in hashes:
+        return DEFAULT_HASH_TYPE
+    if "md5" in hashes:
+        return "md5"
+    # return whatever else we got in first position
+    return next(iter(hashes))
 
 
 def get_default_hash_algo():
-    return hashlib.sha256
+    return getattr(hashlib, DEFAULT_HASH_TYPE)
 
 
 def get_default_hash_spec(content_or_file):
-    return get_hash_spec(content_or_file, get_default_hash_type())
+    return get_hashes(content_or_file, hash_types=(DEFAULT_HASH_TYPE,)).get_default_spec()
 
 
 def get_default_hash_type():
-    return "sha256"
+    return DEFAULT_HASH_TYPE
+
+
+def get_default_hash_value(content_or_file):
+    return get_hashes(content_or_file, hash_types=(DEFAULT_HASH_TYPE,)).get_default_value()
 
 
 def get_file_hash(fp, hash_type):
-    running_hash = getattr(hashlib, hash_type)()
-    while 1:
-        data = fp.read(65536)
-        if not data:
-            break
-        running_hash.update(data)
-    return running_hash.hexdigest()
+    return get_hashes(fp, hash_types=(hash_type,))[hash_type]
+
+
+def get_hashes(content_or_file, *, hash_types=DEFAULT_HASH_TYPES, additional_hash_types=None):
+    if not hash_types:
+        return {}
+    if additional_hash_types:
+        hash_types = (*hash_types, *additional_hash_types)
+    running_hashes = RunningHashes(*hash_types)
+    if isinstance(content_or_file, bytes):
+        running_hashes.update(content_or_file)
+    else:
+        assert content_or_file.seekable()
+        content_or_file.seek(0)
+        running_hashes.update_from_file(content_or_file)
+        content_or_file.seek(0)
+    return running_hashes.digests
 
 
 def get_seekable_content_or_file(content_or_file):
@@ -64,16 +238,12 @@ def get_seekable_content_or_file(content_or_file):
     return content_or_file
 
 
+def get_hash_value(content_or_file, hash_type):
+    return get_hashes(content_or_file, hash_types=(hash_type,))[hash_type]
+
+
 def get_hash_spec(content_or_file, hash_type):
-    if not isinstance(content_or_file, bytes):
-        assert content_or_file.seekable()
-        content_or_file.seek(0)
-        hexdigest = get_file_hash(
-            content_or_file, hash_type)
-        content_or_file.seek(0)
-        return f"{hash_type}={hexdigest}"
-    running_hash = getattr(hashlib, hash_type)(content_or_file)
-    return f"{running_hash.name}={running_hash.hexdigest()}"
+    return get_hashes(content_or_file, hash_types=(hash_type,)).get_spec(hash_type)
 
 
 def make_splitdir(hash_spec):
@@ -214,6 +384,12 @@ class FileEntry(object):
     def user(self):
         return self.key.params['user']
 
+    default_hash_types = DEFAULT_HASH_TYPES
+
+    @property
+    def hashes(self):
+        return Digests.from_spec(self.hash_spec)
+
     @property
     def hash_algo(self):
         if self.hash_spec:
@@ -235,6 +411,12 @@ class FileEntry(object):
     def file_get_checksum(self, hash_type):
         with self.file_open_read() as f:
             return get_file_hash(f, hash_type)
+
+    def file_get_hash_errors(self, hashes=None):
+        if hashes is None:
+            hashes = self.hashes
+        with self.file_open_read() as f:
+            return hashes.errors_for(f)
 
     @property
     def tx(self):
@@ -313,6 +495,17 @@ class FileEntry(object):
 
     def has_existing_metadata(self):
         return bool(self.hash_spec and self.last_modified)
+
+    def validate(self, content_or_file=None):
+        if content_or_file is None:
+            errors = self.file_get_hash_errors()
+        else:
+            errors = self.hashes.errors_for(content_or_file)
+        if errors:
+            # return one of the errors
+            return errors.get(
+                self.hash_type, next(iter(errors.values())))['msg']
+        return None
 
 
 def get_checksum_error(content_or_hash, relpath, hash_spec):

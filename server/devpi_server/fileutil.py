@@ -1,6 +1,7 @@
 import errno
 import os.path
 import sys
+from . import filestore
 from . import readonly
 from io import BytesIO
 from struct import error as struct_error
@@ -210,6 +211,7 @@ _dispatch = {
     frozenset: _dump_frozenset,
     int: _dump_int,
     dict: _dump_dict,
+    filestore.Digests: _dump_dict,
     readonly.DictViewReadonly: _dump_dict,
     list: _dump_list,
     readonly.ListViewReadonly: _dump_list,

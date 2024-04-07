@@ -15,6 +15,7 @@ from pyramid.authorization import Allow, Authenticated, Everyone
 from time import gmtime, strftime
 from .auth import hash_password, verify_and_update_password_hash
 from .config import hookimpl
+from .filestore import Digests
 from .filestore import FileEntry
 from .filestore import get_hash_spec
 from .log import threadlog
@@ -1561,6 +1562,10 @@ class ELink(object):
     @property
     def user(self):
         return self.entry.user
+
+    @property
+    def hashes(self):
+        return Digests.from_spec(self.hash_spec)
 
     @property
     def hash_value(self):

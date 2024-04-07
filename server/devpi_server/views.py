@@ -41,6 +41,7 @@ from devpi_common.validation import normalize_name, is_valid_archive_name
 from .config import hookimpl
 from .exceptions import lazy_format_exception_only
 from .filestore import BadGateway
+from .filestore import RunningHashes
 from .filestore import get_checksum_error
 from .filestore import get_seekable_content_or_file
 from .fileutil import buffered_iterator
@@ -1656,8 +1657,9 @@ def _headers_from_response(r):
 
 class FileStreamer:
     def __init__(self, f, entry, response):
-        self.hash_algo = entry.hash_algo
         self.hash_spec = entry.hash_spec
+        self.hash_type = entry.hash_type
+        self.hash_types = entry.default_hash_types
         self.relpath = entry.relpath
         self.response = response
         self.error = None
@@ -1665,7 +1667,8 @@ class FileStreamer:
 
     def __iter__(self):
         filesize = 0
-        running_hash = self.hash_algo()
+        running_hashes = RunningHashes(self.hash_type, *self.hash_types)
+        running_hashes.start()
         content_size = self.response.headers.get("content-length")
 
         yield _headers_from_response(self.response)
@@ -1675,7 +1678,8 @@ class FileStreamer:
             if not data:
                 break
             filesize += len(data)
-            running_hash.update(data)
+            for rh in running_hashes._running_hashes:
+                rh.update(data)
             self.f.write(data)
             yield data
 
@@ -1683,9 +1687,11 @@ class FileStreamer:
             raise ValueError(
                 "%s: got %s bytes of %r from remote, expected %s" % (
                     self.relpath, filesize, self.response.url, content_size))
-        err = get_checksum_error(running_hash, self.relpath, self.hash_spec)
-        if err is not None:
-            raise err
+        if self.hash_type:
+            running_hash = running_hashes.get_running_hash(self.hash_type)
+            err = get_checksum_error(running_hash, self.relpath, self.hash_spec)
+            if err is not None:
+                raise err
 
 
 def iter_cache_remote_file(stage, entry, url):
