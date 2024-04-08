@@ -251,6 +251,20 @@ class TestImportExport:
     def impexp(self, makeimpexp):
         return makeimpexp()
 
+    def test_md5_checksum_mismatch(self, impexp, terminalwriter, xom):
+        mapp1 = impexp.mapp1
+        api1 = mapp1.create_and_use()
+        content = b'content1'
+        mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        impexp.export()
+        data = json.loads(impexp.exportdir.join('dataindex.json').read_binary())
+        (filedata,) = data['indexes'][api1.stagename]['files']
+        filedata['entrymapping'].pop('hash_spec')
+        filedata['entrymapping']['md5'] = 'md5=foo'
+        impexp.exportdir.join('dataindex.json').write_text(json.dumps(data), 'utf8')
+        with pytest.raises(Fatal, match="has bad checksum 7e55db001d319a94b0b713529a756623, expected md5=foo"):
+            do_import(impexp.exportdir, terminalwriter, xom)
+
     def test_created_and_modified_old_data(self, impexp, mock, monkeypatch):
         from time import strftime
         import datetime
