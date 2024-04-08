@@ -260,9 +260,9 @@ class TestImportExport:
         data = json.loads(impexp.exportdir.join('dataindex.json').read_binary())
         (filedata,) = data['indexes'][api1.stagename]['files']
         filedata['entrymapping'].pop('hash_spec')
-        filedata['entrymapping']['md5'] = 'md5=foo'
+        filedata['entrymapping']['md5'] = 'foo'
         impexp.exportdir.join('dataindex.json').write_text(json.dumps(data), 'utf8')
-        with pytest.raises(Fatal, match="has bad checksum 7e55db001d319a94b0b713529a756623, expected md5=foo"):
+        with pytest.raises(Fatal, match="has bad checksum 7e55db001d319a94b0b713529a756623, expected foo"):
             do_import(impexp.exportdir, terminalwriter, xom)
 
     def test_created_and_modified_old_data(self, impexp, mock, monkeypatch):

@@ -1,6 +1,7 @@
 from .filestore import FileEntry
 from .log import configure_cli_logging
 from .main import CommandRunner
+from .main import Fatal
 from .main import xom_from_config
 import sys
 import time
@@ -38,6 +39,7 @@ def fsck():
         last_time = time.time()
         processed = 0
         missing_files = 0
+        got_errors = False
         with xom.keyfs.read_transaction() as tx:
             log.info("Checking at serial %s" % tx.at_serial)
             relpaths = tx.iter_relpaths_at(keys, tx.at_serial)
@@ -57,6 +59,7 @@ def fsck():
                 if not entry.file_exists():
                     missing_files += 1
                     if missing_files < 10:
+                        got_errors = True
                         log.error("Missing file %s" % entry.relpath)
                     elif missing_files == 10:
                         log.error("Further missing files will be omitted.")
@@ -65,6 +68,7 @@ def fsck():
                     continue
                 checksum = entry.file_get_checksum(entry.hash_type)
                 if entry.hash_value != checksum:
+                    got_errors = True
                     log.error(
                         "%s - %s mismatch, got %s, expected %s"
                         % (entry.relpath, entry.hash_type, checksum, entry.hash_value))
@@ -75,4 +79,7 @@ def fsck():
                 log.error(
                     "A total of %s files are missing."
                     % missing_files)
+            if got_errors:
+                msg = "There have been errors during consistency check."
+                raise Fatal(msg)
     return runner.return_code
