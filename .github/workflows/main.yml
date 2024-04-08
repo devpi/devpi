@@ -37,6 +37,7 @@ jobs:
           .ci/upload-packages.sh
 
   documentation:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "Create documentation"
     needs: "packages"
     runs-on: "ubuntu-latest"
