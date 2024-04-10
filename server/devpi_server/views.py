@@ -1074,8 +1074,10 @@ class PyPIView:
                             results.append((-1, "exception on release upload:", exc_msg))
                         else:
                             self.log.debug("send finished, status: %s", r.status_code)
-                            results.append((r.status_code, "upload", entry.relpath,
-                                            r.text))
+                            # ignore response body on success
+                            text = '' if r.status_code in (200, 201) else r.text
+                            results.append((
+                                r.status_code, "upload", entry.relpath, text))
                             r.close()
                     if links["doczip"]:
                         doc_metadata = metadata.copy()

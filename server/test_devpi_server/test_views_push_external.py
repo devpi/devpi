@@ -36,6 +36,11 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
     assert r.status_code == 200
+    (action_register, action_upload, action_docfile) = r.json["result"]
+    assert action_register == [200, 'register', 'pkg1', '2.6']
+    assert action_upload == [
+        200, 'upload', 'user1/dev/+f/a66/5a45920422f9d/pkg1-2.6.tgz', '']
+    assert action_docfile == [200, 'docfile', 'pkg1']
     assert len(rec.requests) == 3
     for i in range(3):
         assert rec.requests[i].url == req["posturl"]
@@ -44,13 +49,25 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     assert b"pkg1.zip" in req.body
     assert zipcontent in req.body
 
-    # push with error
+    # push with 410, which should be ignored by register, but fail upload
+    rec = reqmock.mockresponse(url=None, code=410, method="POST", data="msg")
+    r = testapp.request(api.index, method="POST", body=body,
+                        expect_errors=True)
+    assert r.status_code == 200
+    (action_register, action_upload, action_docfile) = r.json["result"]
+    assert action_register == [410, 'register', 'pkg1', '2.6']
+    assert action_upload == [
+        410, 'upload', 'user1/dev/+f/a66/5a45920422f9d/pkg1-2.6.tgz', 'msg']
+    assert action_docfile == [410, 'docfile', 'pkg1']
+
+    # push with internal server error, which should fail register
     reqmock.mockresponse(url=None, code=500, method="POST")
     r = testapp.request(api.index, method="POST", body=body, expect_errors=True)
     assert r.status_code == 502
     result = r.json["result"]
     assert len(result) == 1
     assert result[0][0] == 500
+    assert result[0][1] == 'register'
 
 
 def test_upload_and_push_external_exception(mapp, testapp, reqmock):
