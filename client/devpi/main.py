@@ -571,6 +571,17 @@ class HTTPReply(object):
         return message
 
     @property
+    def content(self):
+        return self._response.content
+
+    @property
+    def headers(self):
+        return self._response.headers
+
+    def is_json(self):
+        return self.headers.get("content-type") == "application/json"
+
+    @property
     def reason(self):
         return self._response.reason
 
@@ -587,8 +598,7 @@ class HTTPReply(object):
         return self._json.get("result")
 
     def json_get(self, jsonkey, default=None):
-        r = self._response
-        if not r.content or r.headers["content-type"] != "application/json":
+        if not self.content or not self.is_json():
             return default
         try:
             return self._json[jsonkey]

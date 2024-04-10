@@ -753,19 +753,39 @@ def mock_http_api(monkeypatch, reqmock):  # noqa: ARG001 (reqmock)
                 status_code = reply_data["status"]
                 reason = reply_data.get("reason", "OK")
 
+                def __init__(self):
+                    self.headers = {"content-type": "application/json"}
+                    self.url = url
+                    self.request = MockRequest()
+                    self.request.method = method
+
                 def json(self):
                     return reply_data["json"]
 
             response = MockResponse()
-            if response.status_code >= 400 and fatal:
-                hub.fatal(
-                    f"{method} {url}\n"
-                    f"{response.status_code} {response.reason}")
-            response.headers = {"content-type": "application/json"}
-            response.url = url
-            response.request = MockRequest()
-            response.request.method = method
-            return main.HTTPReply(response)
+            reply = main.HTTPReply(response)
+            if response.status_code in (200, 201):
+                # don't show any extra info on success code
+                return reply
+
+            if response.status_code >= 400:
+                if fatal:
+                    out = hub.fatal
+                elif quiet:
+                    return reply
+                else:
+                    out = hub.error
+            elif quiet and not hub.args.debug:
+                return reply
+            else:
+                out = hub.info
+            if response.status_code >= 400 or hub.args.debug:
+                info = f"{method} {url}\n"
+            else:
+                info = ""
+            message = reply.get_error_message(hub.args.debug)
+            out(f"{info}{response.status_code} {response.reason}{message}")
+            return reply
 
         def set(self, url, *, reason="OK", status=200, **kw):
             """ Set a reply for all future uses. """

@@ -18,6 +18,19 @@ def test_post_tox_json_report(loghub, mock_http_api):
         *posting*
         *success*
     """)
+    loghub._getmatcher().no_fnmatch_line('*200 OK*')
+
+
+def test_post_tox_json_report_skip(loghub, mock_http_api):
+    mock_http_api.set("http://devpi.net", message="custom skip")
+    post_tox_json_report(loghub, "http://devpi.net", {"hello": "123"})
+    assert len(mock_http_api.called) == 1
+    loghub._getmatcher().fnmatch_lines("""
+        *posting*
+        *success*
+        custom skip
+    """)
+    loghub._getmatcher().no_fnmatch_line('*200 OK*')
 
 
 def test_post_tox_json_report_error(loghub, mock_http_api):
@@ -40,7 +53,21 @@ def test_post_tox_json_report_forbidden(loghub, mock_http_api):
     assert len(mock_http_api.called) == 1
     loghub._getmatcher().fnmatch_lines("""
         *posting*
-        *403 Forbidden*
+        *403 Forbidden
+    """)
+
+
+def test_post_tox_json_report_forbidden_msg(loghub, mock_http_api):
+    mock_http_api.set(
+        "http://devpi.net/foo/bar/", reason="Forbidden", status=403,
+        message="custom forbidden")
+    with pytest.raises(SystemExit) as excinfo:
+        post_tox_json_report(loghub, "http://devpi.net/foo/bar/", {"hello": "123"})
+    assert excinfo.value.code == 1
+    assert len(mock_http_api.called) == 1
+    loghub._getmatcher().fnmatch_lines("""
+        *posting*
+        *403 Forbidden: custom forbidden
     """)
 
 
