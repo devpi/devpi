@@ -57,15 +57,16 @@ class mocked_request:
                 else:
                     raise Exception("not mocked call to %s" % url)  # noqa: TRY002
         response.add_request(request)
-        r = HTTPAdapter().build_response(request, response)
+        r = HTTPAdapter().build_response(request, response.make())
         return r
 
     def mockresponse(self, url, code, method=None, data=None, headers=None,
                      on_request=None, reason=None):
         if not url:
             url = "*"
-        r = ReqReply(code=code, data=data, headers=headers,
-                     on_request=on_request, reason=reason)
+        r = ReplyMaker(
+            code=code, data=data, headers=headers,
+            on_request=on_request, reason=reason)
         if method is not None:
             method = method.upper()
         self.url2reply[(url, method)] = r
@@ -73,19 +74,25 @@ class mocked_request:
     mock = mockresponse
 
 
-class ReqReply(HTTPResponse):
+class ReplyMaker:
     def __init__(self, code, data, headers, on_request, reason=None):
         if isinstance(data, str):
             data = data.encode("utf-8")
-        super(ReqReply, self).__init__(body=BytesIO(data),
-                                       status=code,
-                                       headers=headers,
-                                       reason=reason,
-                                       preload_content=False)
+        self.data = data
         self.requests = []
         self.on_request = on_request
+        self.kwargs = dict(
+            status=code,
+            headers=headers,
+            reason=reason)
 
     def add_request(self, request):
         if self.on_request:
             self.on_request(request)
         self.requests.append(request)
+
+    def make(self):
+        return HTTPResponse(
+            body=BytesIO(self.data),
+            preload_content=False,
+            **self.kwargs)
