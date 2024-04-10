@@ -1,3 +1,4 @@
+from __future__ import annotations
 import contextlib
 import os
 import re
@@ -50,6 +51,7 @@ from .readonly import get_mutable_deepcopy
 from .log import thread_push_log, thread_pop_log, threadlog
 
 from .auth import Auth
+import attrs
 
 devpiweb_hookimpl = HookimplMarker("devpiweb")
 server_version = devpi_server.__version__
@@ -412,6 +414,34 @@ def devpiserver_authcheck_forbidden(request):
         return True
 
 
+TOXRESULT_UPLOAD_FORBIDDEN = (
+    "No permission to upload tox results. "
+    "You can use the devpi test --no-upload option to skip the upload.")
+
+
+@attrs.define(frozen=True)
+class ToxResultHandling:
+    _block: bool = attrs.field(default=False, alias="_block")
+    _skip: bool = attrs.field(default=False, alias="_skip")
+    msg: None | str = None
+
+    def block(self, msg=TOXRESULT_UPLOAD_FORBIDDEN):
+        return ToxResultHandling(_block=True, msg=msg)
+
+    def skip(self, msg=None):
+        return ToxResultHandling(_skip=True, msg=msg)
+
+
+@hookimpl(trylast=True)
+def devpiserver_on_toxresult_store(request, tox_result_handling):
+    return tox_result_handling
+
+
+@hookimpl(trylast=True)
+def devpiserver_on_toxresult_upload_forbidden(request, tox_result_handling):
+    return tox_result_handling
+
+
 def version_in_filename(version, filename):
     if version is None:
         # no version set, so skip check
@@ -533,12 +563,22 @@ class PyPIView:
         request_method="POST")
     def post_toxresult(self):
         if not self.request.has_permission("toxresult_upload"):
-            apireturn(403, "no permission to upload tox results")
-        stage = self.context.stage
-        relpath = self.request.path_info.strip("/")
-        link = stage.get_link_from_entrypath(relpath)
-        if link is None or link.rel != "releasefile":
-            apireturn(404, message="no release file found at %s" % relpath)
+            default_tox_result_handling = ToxResultHandling().block(TOXRESULT_UPLOAD_FORBIDDEN)
+            tox_result_handling = self.xom.config.hook.devpiserver_on_toxresult_upload_forbidden(
+                request=self.request, tox_result_handling=default_tox_result_handling)
+        else:
+            stage = self.context.stage
+            relpath = self.request.path_info.strip("/")
+            link = stage.get_link_from_entrypath(relpath)
+            if link is None or link.rel != "releasefile":
+                apireturn(404, message="no release file found at %s" % relpath)
+            default_tox_result_handling = ToxResultHandling()
+            tox_result_handling = self.xom.config.hook.devpiserver_on_toxresult_store(
+                request=self.request, tox_result_handling=default_tox_result_handling)
+        if tox_result_handling._block:
+            apireturn(403, tox_result_handling.msg)
+        if tox_result_handling._skip:
+            apireturn(200, tox_result_handling.msg)
         # the getjson call validates that we got valid json
         getjson(self.request)
         # but we store the original body

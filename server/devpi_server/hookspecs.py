@@ -1,5 +1,13 @@
-
+from __future__ import annotations
 from pluggy import HookspecMarker
+from typing import Optional
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from devpi_server.views import ToxResultHandling
+    from pyramid.request import Request
+
 
 hookspec = HookspecMarker("devpiserver")
 
@@ -253,6 +261,28 @@ def devpiserver_on_remove_file(stage, relpath):
 @hookspec
 def devpiserver_on_replicated_file(stage, project, version, link, serial, back_serial, is_from_mirror):
     """Called when a file was downloaded from master on replica."""
+
+
+@hookspec(firstresult=True)
+def devpiserver_on_toxresult_store(request: Request, tox_result_handling: ToxResultHandling) -> Optional[ToxResultHandling]:
+    """Called when a toxresult is about to be stored.
+
+    Stops at first non-None result.
+
+    :returns: A ToxResultHandling object which determines how the upload is processed.
+    """
+
+
+@hookspec(firstresult=True)
+def devpiserver_on_toxresult_upload_forbidden(request: Request, tox_result_handling: ToxResultHandling) -> Optional[str]:
+    """Called when the permission check for toxresult upload failed.
+
+    Stops at first non-None result.
+
+    :returns: A ToxResultHandling object which determines whether an error
+    with message (default using ``block``) or a success with a message
+    (using ``skip``) is returned.
+    """
 
 
 @hookspec

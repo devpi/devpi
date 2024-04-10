@@ -1,0 +1,1 @@
+Added ``devpiserver_on_toxresult_upload_forbidden`` hook to allow returning a custom message and result (403 or 200).

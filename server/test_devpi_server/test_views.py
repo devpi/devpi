@@ -2178,6 +2178,64 @@ def test_delete_removed_toxresult(mapp, testapp, tox_result_data):
     testapp.delete(toxlink2.href, status=410)
 
 
+def test_plugin_toxresult_upload_block(makemapp, maketestapp, makexom, tox_result_data):
+    class Plugin:
+        @hookimpl
+        def devpiserver_on_toxresult_store(self, tox_result_handling):
+            return tox_result_handling.block("custom block")
+    xom = makexom(plugins=[Plugin()])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg6-2.6.tgz", b"123", "pkg6", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (link1,) = vv.get_links()
+    r = mapp.upload_toxresult(link1.href, json.dumps(tox_result_data), code=403)
+    assert r.json['message'] == 'custom block'
+    # make sure the upload was blocked
+    (link2,) = vv.get_links()
+    assert link1.href == link2.href
+
+
+def test_plugin_toxresult_upload_forbidden_skip(makemapp, maketestapp, makexom, tox_result_data):
+    class Plugin:
+        @hookimpl
+        def devpiserver_on_toxresult_upload_forbidden(self, tox_result_handling):
+            return tox_result_handling.skip("custom message")
+    xom = makexom(plugins=[Plugin()])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    api = mapp.create_and_use(indexconfig=dict(acl_toxresult_upload=''))
+    mapp.upload_file_pypi("pkg6-2.6.tgz", b"123", "pkg6", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (link1,) = vv.get_links()
+    r = mapp.upload_toxresult(link1.href, json.dumps(tox_result_data), code=200)
+    assert r.json['message'] == 'custom message'
+    # make sure the upload was blocked
+    (link2,) = vv.get_links()
+    assert link1.href == link2.href
+
+
+def test_plugin_toxresult_upload_skip(makemapp, maketestapp, makexom, tox_result_data):
+    class Plugin:
+        @hookimpl
+        def devpiserver_on_toxresult_store(self, tox_result_handling):
+            return tox_result_handling.skip("custom skip")
+    xom = makexom(plugins=[Plugin()])
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg6-2.6.tgz", b"123", "pkg6", "2.6")
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    (link1,) = vv.get_links()
+    r = mapp.upload_toxresult(link1.href, json.dumps(tox_result_data), code=200)
+    assert r.json['message'] == 'custom skip'
+    vv = get_view_version_links(testapp, api.index, "pkg6", "2.6")
+    # make sure the upload was skipped
+    (link2,) = vv.get_links()
+    assert link1.href == link2.href
+
+
 @proj
 def test_upload_docs_no_version(mapp, testapp, proj):
     api = mapp.create_and_use()

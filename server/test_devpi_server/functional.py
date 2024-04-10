@@ -385,7 +385,7 @@ class TestProjectThings:
             if callable(data):
                 # in devpi-client .json is a method
                 data = data()
-            assert data['message'] == 'no permission to upload tox results'
+            assert 'no permission to upload tox results' in data['message'].lower()
         info = mapp.getjson(f"/{mapp.api.stagename}/hello")
         (href,) = (x['href'] for x in info["result"]["1.0"]["+links"])
         assert 'toxresult' not in href
