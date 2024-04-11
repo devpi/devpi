@@ -205,12 +205,14 @@ class TestConfig:
                                "--role=master"])
         config.init_nodeinfo()
         assert config.role == "master"
-        with pytest.raises(Fatal):
-            make_config(["devpi-server", "--master-url=xyz",
-                          "--serverdir", str(tmpdir)]).init_nodeinfo()
-        with pytest.raises(Fatal):
-            make_config(["devpi-server", "--role=replica",
-                          "--serverdir", str(tmpdir)]).init_nodeinfo()
+        with pytest.raises(Fatal, match="set in nodeinfo, but role isn't set to replica"):
+            make_config([
+                "devpi-server", "--master-url=xyz",
+                "--serverdir", str(tmpdir)]).init_nodeinfo()
+        with pytest.raises(Fatal, match="cannot run as replica, was previously run as"):
+            make_config([
+                "devpi-server", "--role=replica",
+                "--serverdir", str(tmpdir)]).init_nodeinfo()
 
     def test_replica_role_missing_master_url(self, tmpdir):
         config = make_config(["devpi-server", "--role=replica",
