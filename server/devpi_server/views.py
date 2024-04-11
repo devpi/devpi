@@ -3,6 +3,7 @@ import contextlib
 import os
 import re
 import traceback
+import warnings
 from time import time
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
@@ -58,6 +59,7 @@ server_version = devpi_server.__version__
 
 
 H_MASTER_UUID = "X-DEVPI-MASTER-UUID"
+H_PRIMARY_UUID = "X-DEVPI-PRIMARY-UUID"
 SIMPLE_API_V1_JSON = "application/vnd.pypi.simple.v1+json"
 
 
@@ -194,9 +196,10 @@ def tween_request_logging(handler, registry):
             rheaders = response.headers
             serial = rheaders.get("X-DEVPI-SERIAL")
             rheaders.update(meta_headers)
-            uuid, master_uuid = make_uuid_headers(nodeinfo)
+            uuid, primary_uuid = make_uuid_headers(nodeinfo)
             rheaders["X-DEVPI-UUID"] = uuid
-            rheaders[H_MASTER_UUID] = master_uuid
+            rheaders[H_MASTER_UUID] = primary_uuid
+            rheaders[H_PRIMARY_UUID] = primary_uuid
 
             log.debug("%s %.3fs serial=%s length=%s type=%s",
                       response.status,
@@ -211,10 +214,17 @@ def tween_request_logging(handler, registry):
 
 
 def make_uuid_headers(nodeinfo):
-    uuid = master_uuid = nodeinfo.get("uuid")
+    uuid = primary_uuid = nodeinfo.get("uuid")
     if uuid is not None and nodeinfo["role"] == "replica":
-        master_uuid = nodeinfo.get("master-uuid", "")
-    return uuid, master_uuid
+        if "master-uuid" in nodeinfo:
+            warnings.warn(
+                "master-uuid in nodeinfo is deprecated, use primary-uuid instead",
+                DeprecationWarning,
+                stacklevel=2)
+            primary_uuid = nodeinfo.get("master-uuid", "")
+        else:
+            primary_uuid = nodeinfo.get("primary-uuid", "")
+    return uuid, primary_uuid
 
 
 def tween_keyfs_transaction(handler, registry):
@@ -320,13 +330,19 @@ class StatusView:
                 status["metrics"].append(metric)
         if self.xom.is_replica():
             status["role"] = "REPLICA"
-            status["master-url"] = config.master_url.url
-            status["master-uuid"] = config.get_master_uuid()
-            status["master-serial"] = self.xom.replica_thread.get_master_serial()
-            status["master-serial-timestamp"] = self.xom.replica_thread.get_master_serial_timestamp()
+            status["master-url"] = config.primary_url.url
+            status["master-uuid"] = config.get_primary_uuid()
+            status["master-serial"] = self.xom.replica_thread.get_primary_serial()
+            status["master-serial-timestamp"] = self.xom.replica_thread.get_primary_serial_timestamp()
+            status["master-contacted-at"] = self.xom.replica_thread.primary_contacted_at
+            status["update-from-master-at"] = self.xom.replica_thread.update_from_primary_at
+            status["primary-url"] = config.primary_url.url
+            status["primary-uuid"] = config.get_primary_uuid()
+            status["primary-serial"] = self.xom.replica_thread.get_primary_serial()
+            status["primary-serial-timestamp"] = self.xom.replica_thread.get_primary_serial_timestamp()
             status["replica-started-at"] = self.xom.replica_thread.started_at
-            status["master-contacted-at"] = self.xom.replica_thread.master_contacted_at
-            status["update-from-master-at"] = self.xom.replica_thread.update_from_master_at
+            status["primary-contacted-at"] = self.xom.replica_thread.primary_contacted_at
+            status["update-from-primary-at"] = self.xom.replica_thread.update_from_primary_at
             status["replica-in-sync-at"] = self.xom.replica_thread.replica_in_sync_at
             replication_errors = self.xom.replica_thread.shared_data.errors
             status["replication-errors"] = replication_errors.errors
@@ -346,25 +362,25 @@ def devpiweb_get_status_info(request):
     status = StatusView(request)._status()
     now = time()
     if status["role"] == "REPLICA":
-        master_serial = status["master-serial"]
-        if master_serial is not None and master_serial > status["serial"]:
+        primary_serial = status["primary-serial"]
+        if primary_serial is not None and primary_serial > status["serial"]:
             if status["replica-in-sync-at"] is None or (now - status["replica-in-sync-at"]) > 300:
-                msgs.append(dict(status="fatal", msg="Replica is behind master for more than 5 minutes"))
+                msgs.append(dict(status="fatal", msg="Replica is behind primary for more than 5 minutes"))
             elif (now - status["replica-in-sync-at"]) > 60:
-                msgs.append(dict(status="warn", msg="Replica is behind master for more than 1 minute"))
+                msgs.append(dict(status="warn", msg="Replica is behind primary for more than 1 minute"))
         elif len(status["replication-errors"]):
             msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
         if status["replica-started-at"] is not None:
-            last_update = status["update-from-master-at"]
+            last_update = status["update-from-primary-at"]
             if last_update is None:
                 if (now - status["replica-started-at"]) > 300:
-                    msgs.append(dict(status="fatal", msg="No contact to master for more than 5 minutes"))
+                    msgs.append(dict(status="fatal", msg="No contact to primary for more than 5 minutes"))
                 elif (now - status["replica-started-at"]) > 60:
-                    msgs.append(dict(status="warn", msg="No contact to master for more than 1 minute"))
+                    msgs.append(dict(status="warn", msg="No contact to primary for more than 1 minute"))
             elif (now - last_update) > 300:
-                msgs.append(dict(status="fatal", msg="No update from master for more than 5 minutes"))
+                msgs.append(dict(status="fatal", msg="No update from primary for more than 5 minutes"))
             elif (now - last_update) > 60:
-                msgs.append(dict(status="warn", msg="No update from master for more than 1 minute"))
+                msgs.append(dict(status="warn", msg="No update from primary for more than 1 minute"))
     if status["serial"] > status["event-serial"]:
         if status["event-serial-in-sync-at"] is None:
             sync_at = None
@@ -1746,18 +1762,18 @@ def iter_cache_remote_file(stage, entry, url):
 def iter_remote_file_replica(stage, entry, url):
     xom = stage.xom
     replication_errors = xom.replica_thread.shared_data.errors
-    # construct master URL with param
-    master_url = xom.config.master_url.joinpath(entry.relpath).url
+    # construct primary URL with param
+    primary_url = xom.config.primary_url.joinpath(entry.relpath).url
     if not url:
         threadlog.warn("missing private file: %s" % entry.relpath)
     else:
         threadlog.info("replica doesn't have file: %s", entry.relpath)
     r = stage.httpget(
-        master_url, allow_redirects=True,
+        primary_url, allow_redirects=True,
         extra_headers={xom.replica_thread.H_REPLICA_FILEREPL: "YES"})
     if r.status_code != 200:
         r.close()
-        msg = "%s: received %s from master" % (master_url, r.status_code)
+        msg = "%s: received %s from primary" % (primary_url, r.status_code)
         if not url:
             threadlog.error(msg)
             raise BadGateway(msg)

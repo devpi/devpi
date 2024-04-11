@@ -60,8 +60,8 @@ multi-process high-performance setups
 
 .. versionadded: 3.0
 
-You can run multiple processes both on master and replica sites if you want
-to improve throughput.  On the master and each replica site you need to
+You can run multiple processes both on primary and replica sites if you want
+to improve throughput.  On the primary and each replica site you need to
 run a single "main" instance which will care for event and hook processing 
 (needed e.g. for running devpi-web) and you can then start one or more
 workers like this::

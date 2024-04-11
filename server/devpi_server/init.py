@@ -22,7 +22,7 @@ def init(pluginmanager=None, argv=None):
         parser.add_configfile_option()
         parser.add_logging_options()
         parser.add_role_option()
-        parser.add_master_url_option()
+        parser.add_primary_url_option()
         parser.add_storage_options()
         parser.add_init_options()
         config = runner.get_config(argv, parser=parser)

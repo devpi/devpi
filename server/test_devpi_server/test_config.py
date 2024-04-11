@@ -161,6 +161,29 @@ class TestConfig:
         config = make_config(["devpi-server"])
         assert config.serverdir == tmpdir
 
+    def test_role_master(self, tmpdir):
+        config = make_config([
+            "devpi-server", "--role=master",
+            "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.nodeinfo["role"] == "master"
+        with pytest.deprecated_call():
+            assert config.role == "primary"
+        # now switch
+        config = make_config([
+            "devpi-server", "--role=primary",
+            "--serverdir", str(tmpdir)])
+        assert config.nodeinfo["role"] == "master"
+        config.init_nodeinfo()
+        assert config.role == "primary"
+        config = make_config([
+            "devpi-server", "--role=master",
+            "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        assert config.nodeinfo["role"] == "master"
+        with pytest.deprecated_call():
+            assert config.role == "primary"
+
     def test_role_permanence_standalone(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
@@ -176,63 +199,110 @@ class TestConfig:
         config.init_nodeinfo()
         assert config.role == "standalone"
 
-    def test_role_permanence_master(self, tmpdir):
+    def test_role_permanence_primary(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
         assert config.role == "standalone"
-        config = make_config(["devpi-server", "--role=master",
-                               "--serverdir", str(tmpdir)])
+        config = make_config([
+            "devpi-server", "--role=primary",
+            "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
-        assert config.role == "master"
-        with pytest.raises(Fatal):
-            make_config(["devpi-server", "--role=replica",
-                          "--serverdir", str(tmpdir)]).init_nodeinfo()
+        assert config.role == "primary"
+        config = make_config([
+            "devpi-server", "--role=replica",
+            "--serverdir", str(tmpdir)])
+        with pytest.raises(Fatal, match="cannot run as replica, was previously run as primary"):
+            config.init_nodeinfo()
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
         assert config.role == "standalone"
 
     def test_role_permanence_replica(self, tmpdir):
-        config = make_config(["devpi-server", "--master-url", "http://qwe",
+        config = make_config(["devpi-server", "--primary-url", "http://qwe",
                                "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
         assert config.role == "replica"
-        assert not config.get_master_uuid()
+        assert not config.get_primary_uuid()
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
         assert config.role == "replica"
-        assert not config.get_master_uuid()
+        assert not config.get_primary_uuid()
         config = make_config(["devpi-server", "--serverdir", str(tmpdir),
                                "--role=master"])
         config.init_nodeinfo()
-        assert config.role == "master"
+        with pytest.deprecated_call():
+            assert config.role == "primary"
+        config = make_config([
+            "devpi-server", "--serverdir", str(tmpdir),
+            "--role=primary"])
+        config.init_nodeinfo()
+        assert config.role == "primary"
         with pytest.raises(Fatal, match="set in nodeinfo, but role isn't set to replica"):
             make_config([
-                "devpi-server", "--master-url=xyz",
+                "devpi-server", "--primary-url=xyz",
                 "--serverdir", str(tmpdir)]).init_nodeinfo()
         with pytest.raises(Fatal, match="cannot run as replica, was previously run as"):
             make_config([
                 "devpi-server", "--role=replica",
                 "--serverdir", str(tmpdir)]).init_nodeinfo()
 
-    def test_replica_role_missing_master_url(self, tmpdir):
+    def test_replica_role_missing_primary_url(self, tmpdir):
         config = make_config(["devpi-server", "--role=replica",
                              "--serverdir", str(tmpdir)])
-        with pytest.raises(Fatal, match="need to specify --master-url"):
+        with pytest.raises(Fatal, match="need to specify --primary-url"):
             config.init_nodeinfo()
+
+    def test_get_master_uuid(self, tmpdir):
+        config = make_config([
+            "devpi-server", "--primary-url=xyz", "--role=replica",
+            "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        with pytest.deprecated_call():
+            config.get_master_uuid()
+
+    def test_get_primary_uuid_master_uuid(self, tmpdir):
+        config = make_config([
+            "devpi-server", "--primary-url=xyz", "--role=replica",
+            "--serverdir", str(tmpdir)])
+        config.init_nodeinfo()
+        config.nodeinfo['master-uuid'] = 'foo'
+        with pytest.deprecated_call():
+            assert config.get_primary_uuid() == 'foo'
+
+    def test_master_url(self, caplog, tmpdir):
+        import logging
+        config = make_config([
+            "devpi-server", "--master-url=xyz", "--role=replica",
+            "--serverdir", str(tmpdir)])
+        with pytest.deprecated_call():
+            # triggered by the use of --master-url
+            assert config.primary_url.url == "xyz"
+        (record,) = caplog.getrecords('--master-url')
+        assert "--master-url option is deprecated" in record.message
+        assert record.levelno == logging.WARNING
+        caplog.clear()
+        config = make_config([
+            "devpi-server", "--primary-url=http://foo:pass@localhost", "--role=replica",
+            "--serverdir", str(tmpdir)])
+        with pytest.deprecated_call():
+            assert config.master_auth == ('foo', 'pass')
+        with pytest.deprecated_call():
+            assert config.master_url.url == "http://localhost"
+        assert caplog.getrecords('--master-url') == []
 
     def test_uuid(self, tmpdir):
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
         uuid = config.nodeinfo["uuid"]
         assert uuid
-        assert config.get_master_uuid() == uuid
+        assert config.get_primary_uuid() == uuid
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         assert uuid == config.nodeinfo["uuid"]
         tmpdir.remove()
         config = make_config(["devpi-server", "--serverdir", str(tmpdir)])
         config.init_nodeinfo()
         assert config.nodeinfo["uuid"] != uuid
-        assert config.get_master_uuid() != uuid
+        assert config.get_primary_uuid() != uuid
 
     def test_add_parser_options_called(self):
         l = []

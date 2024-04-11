@@ -117,7 +117,7 @@ There are currently two hooks notifying plugins of changes::
 
 - the hook calling thread is managed from the KeyFS instance.
 
-- the hooks are called in the same way from within a master and
+- the hooks are called in the same way from within a primary and
   replica process.
 
 - hook subscribers must honour **idempotency**: they should properly

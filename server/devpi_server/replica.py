@@ -7,6 +7,7 @@ import threading
 import time
 import traceback
 from contextlib import suppress
+import warnings
 from functools import partial
 from pluggy import HookimplMarker
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
@@ -30,7 +31,9 @@ from .fileutil import dumps, load, loads
 from .log import thread_push_log, threadlog
 from .main import fatal
 from .views import FileStreamer
-from .views import H_MASTER_UUID, make_uuid_headers
+from .views import H_MASTER_UUID
+from .views import H_PRIMARY_UUID
+from .views import make_uuid_headers
 from .model import UpstreamError
 
 
@@ -41,6 +44,7 @@ H_REPLICA_UUID = "X-DEVPI-REPLICA-UUID"
 H_REPLICA_OUTSIDE_URL = "X-DEVPI-REPLICA-OUTSIDE-URL"
 H_REPLICA_FILEREPL = "X-DEVPI-REPLICA-FILEREPL"
 H_EXPECTED_MASTER_ID = "X-DEVPI-EXPECTED-MASTER-ID"
+H_EXPECTED_PRIMARY_ID = "X-DEVPI-EXPECTED-PRIMARY-ID"
 
 MAX_REPLICA_BLOCK_TIME = 30.0
 REPLICA_USER_NAME = "+replica"
@@ -113,9 +117,9 @@ def devpiserver_get_identity(request, credentials):
         return None
     if H_REPLICA_UUID not in request.headers:
         return None
-    if not request.registry["xom"].is_master():
+    if not request.registry["xom"].is_primary():
         log_replica_token_error(
-            request, "Replica token detected, but role isn't master.")
+            request, "Replica token detected, but role isn't primary.")
         return None
     auth_serializer = get_auth_serializer(request.registry["xom"].config)
     try:
@@ -162,7 +166,7 @@ class ReadableIterabel(io.RawIOBase):
         return to_copy
 
 
-class MasterChangelogRequest:
+class PrimaryChangelogRequest:
     MAX_REPLICA_BLOCK_TIME = MAX_REPLICA_BLOCK_TIME
     MAX_REPLICA_CHANGES_SIZE = MAX_REPLICA_CHANGES_SIZE
     REPLICA_MULTIPLE_TIMEOUT = REPLICA_MULTIPLE_TIMEOUT
@@ -195,25 +199,27 @@ class MasterChangelogRequest:
         else:  # just a regular request
             yield
 
-    def verify_master(self):
-        if not self.xom.is_master():
+    def verify_primary(self):
+        if not self.xom.is_primary():
             raise HTTPForbidden("Replication protocol disabled")
-        expected_uuid = self.request.headers.get(H_EXPECTED_MASTER_ID, None)
-        master_uuid = self.xom.config.get_master_uuid()
+        expected_uuid = self.request.headers.get(
+            H_EXPECTED_PRIMARY_ID,
+            self.request.headers.get(H_EXPECTED_MASTER_ID))
+        primary_uuid = self.xom.config.get_primary_uuid()
         # we require the header but it is allowed to be empty
         # (during initialization)
         if expected_uuid is None:
-            msg = "replica sent no %s header" % H_EXPECTED_MASTER_ID
+            msg = f"replica sent no {H_EXPECTED_PRIMARY_ID} or {H_EXPECTED_MASTER_ID} header"
             threadlog.error(msg)
             raise HTTPBadRequest(msg)
 
-        if expected_uuid and expected_uuid != master_uuid:
+        if expected_uuid and expected_uuid != primary_uuid:
             threadlog.error(
-                "expected %r as master_uuid, replica sent %r",
-                master_uuid, expected_uuid)
+                "expected %r as primary_uuid, replica sent %r",
+                primary_uuid, expected_uuid)
             raise HTTPBadRequest(
-                "expected %s as master_uuid, replica sent %s" %
-                (master_uuid, expected_uuid))
+                "expected %s as primary_uuid, replica sent %s" %
+                (primary_uuid, expected_uuid))
 
         identity = self.request.identity
         if identity is not None and not isinstance(identity, ReplicaIdentity):
@@ -233,7 +239,7 @@ class MasterChangelogRequest:
         #   never time out here, leading to more and more threads
         # if no commits happen.
 
-        self.verify_master()
+        self.verify_primary()
 
         serial = int(self.request.matchdict["serial"])
 
@@ -260,7 +266,7 @@ class MasterChangelogRequest:
             # "application/octet-stream" as the old default "Accept: */*"
             return self.get_streaming_changes()
 
-        self.verify_master()
+        self.verify_primary()
 
         start_serial = int(self.request.matchdict["serial"])
 
@@ -289,7 +295,7 @@ class MasterChangelogRequest:
                 "X-DEVPI-SERIAL": str(devpi_serial)})
 
     def get_streaming_changes(self):
-        self.verify_master()
+        self.verify_primary()
 
         start_serial = int(self.request.matchdict["serial"])
 
@@ -354,17 +360,17 @@ class ReplicaThread:
             xom.thread_pool.register(frt)
         self.initial_queue_thread = InitialQueueThread(xom, self.shared_data)
         xom.thread_pool.register(self.initial_queue_thread)
-        self.master_auth = xom.config.master_auth
-        self.master_url = xom.config.master_url
+        self.primary_auth = xom.config.primary_auth
+        self.primary_url = xom.config.primary_url
         self.use_streaming = xom.config.replica_streaming
-        self._master_serial = None
-        self._master_serial_timestamp = None
+        self._primary_serial = None
+        self._primary_serial_timestamp = None
         self.started_at = None
-        # updated whenever we try to connect to the master
-        self.master_contacted_at = None
-        # updated on valid reply or 202 from master
-        self.update_from_master_at = None
-        # set whenever the master serial and current replication serial match
+        # updated whenever we try to connect to the primary
+        self.primary_contacted_at = None
+        # updated on valid reply or 202 from primary
+        self.update_from_primary_at = None
+        # set whenever the primary serial and current replication serial match
         self.replica_in_sync_at = None
         self.session = self.xom.new_http_session("replica")
         self.initial_fetch = True
@@ -374,28 +380,90 @@ class ReplicaThread:
         return get_auth_serializer(self.xom.config)
 
     def get_master_serial(self):
-        return self._master_serial
+        warnings.warn(
+            "get_master_serial is deprecated, use get_primary_serial instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self.get_primary_serial()
 
     def get_master_serial_timestamp(self):
-        return self._master_serial_timestamp
+        warnings.warn(
+            "get_master_serial_timestamp is deprecated, use get_primary_serial_timestamp instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self.get_primary_serial_timestamp()
 
-    def update_master_serial(self, serial, update_sync=True):
+    @property
+    def _master_serial(self):
+        warnings.warn(
+            "_master_serial is deprecated, use _primary_serial instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self._primary_serial
+
+    @property
+    def _master_serial_timestamp(self):
+        warnings.warn(
+            "_master_serial_timestamp is deprecated, use _primary_serial_timestamp instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self._primary_serial_timestamp
+
+    @property
+    def master_auth(self):
+        warnings.warn(
+            "master_auth is deprecated, use primary_auth instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self.primary_auth
+
+    @property
+    def master_contacted_at(self):
+        warnings.warn(
+            "master_contacted_at is deprecated, use primary_contacted_at instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self.primary_contacted_at
+
+    @property
+    def master_url(self):
+        warnings.warn(
+            "master_url is deprecated, use primary_url instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self.primary_url
+
+    @property
+    def update_from_master_at(self):
+        warnings.warn(
+            "update_from_master_at is deprecated, use update_from_primary_at instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self.update_from_primary_at
+
+    def get_primary_serial(self):
+        return self._primary_serial
+
+    def get_primary_serial_timestamp(self):
+        return self._primary_serial_timestamp
+
+    def update_primary_serial(self, serial, *, update_sync=True):
         now = time.time()
-        # record that we got a reply from the master, so we can produce status
-        # information about the connection to master
-        self.update_from_master_at = now
+        # record that we got a reply from the primary, so we can produce status
+        # information about the connection to primary
+        self.update_from_primary_at = now
         if update_sync and self.xom.keyfs.get_current_serial() == serial:
             with self.shared_data._replica_in_sync_cv:
                 self.replica_in_sync_at = now
                 self.shared_data._replica_in_sync_cv.notify_all()
-        if self._master_serial is not None and serial <= self._master_serial:
-            if serial < self._master_serial:
+        if self._primary_serial is not None and serial <= self._primary_serial:
+            if serial < self._primary_serial:
                 self.log.error(
-                    "Got serial %s from master which is smaller than last "
-                    "recorded serial %s.", serial, self._master_serial)
+                    "Got serial %s from primary which is smaller than last "
+                    "recorded serial %s.", serial, self._primary_serial)
             return
-        self._master_serial = serial
-        self._master_serial_timestamp = now
+        self._primary_serial = serial
+        self._primary_serial_timestamp = now
 
     def fetch(self, handler, url):
         if self.initial_fetch:
@@ -408,14 +476,15 @@ class ReplicaThread:
         log = self.log
         config = self.xom.config
         log.info("fetching %s", url)
-        uuid, master_uuid = make_uuid_headers(config.nodeinfo)
-        assert uuid != master_uuid
+        uuid, primary_uuid = make_uuid_headers(config.nodeinfo)
+        assert uuid != primary_uuid
         try:
-            self.master_contacted_at = time.time()
+            self.primary_contacted_at = time.time()
             token = self.auth_serializer.dumps(uuid)
             headers = {
                 H_REPLICA_UUID: uuid,
-                H_EXPECTED_MASTER_ID: master_uuid,
+                H_EXPECTED_MASTER_ID: primary_uuid,
+                H_EXPECTED_PRIMARY_ID: primary_uuid,
                 H_REPLICA_OUTSIDE_URL: config.args.outside_url,
                 'Authorization': 'Bearer %s' % token}
             if self.use_streaming:
@@ -423,7 +492,7 @@ class ReplicaThread:
             r = self.session.get(
                 url,
                 allow_redirects=False,
-                auth=self.master_auth,
+                auth=self.primary_auth,
                 headers=headers,
                 stream=self.use_streaming,
                 timeout=self.REPLICA_REQUEST_TIMEOUT)
@@ -445,24 +514,33 @@ class ReplicaThread:
 
             # we check that the remote instance
             # has the same UUID we saw last time
-            master_uuid = config.get_master_uuid()
-            remote_master_uuid = r.headers.get(H_MASTER_UUID)
-            if not remote_master_uuid:
+            primary_uuid = config.get_primary_uuid()
+            remote_primary_uuid = r.headers.get(
+                H_PRIMARY_UUID,
+                r.headers.get(H_MASTER_UUID))
+            if H_MASTER_UUID in r.headers and r.headers.get(H_MASTER_UUID, remote_primary_uuid) != remote_primary_uuid:
+                log.error(
+                    "remote has differing values for %r and %r headers: %s",
+                    H_PRIMARY_UUID, H_MASTER_UUID, r.headers)
+                self.thread.sleep(self.ERROR_SLEEP)
+                return True
+            if not remote_primary_uuid:
                 # we don't fatally leave the process because
                 # it might just be a temporary misconfiguration
                 # for example of a nginx frontend
-                log.error("remote provides no %r header, running "
+                log.error("remote provides no %r or %r header, running "
                           "<devpi-server-2.1?"
-                          " headers were: %s", H_MASTER_UUID, r.headers)
+                          " headers were: %s",
+                          H_PRIMARY_UUID, H_MASTER_UUID, r.headers)
                 self.thread.sleep(self.ERROR_SLEEP)
                 return True
-            if master_uuid and remote_master_uuid != master_uuid:
-                # we got a master_uuid and it is not the one we
+            if primary_uuid and remote_primary_uuid != primary_uuid:
+                # we got a primary_uuid and it is not the one we
                 # expect, we are replicating for -- it's unlikely this heals
                 # itself.  It's thus better to die and signal we can't operate.
-                log.error("FATAL: master UUID %r does not match "
-                          "expected master UUID %r. EXITTING.",
-                          remote_master_uuid, master_uuid)
+                log.error("FATAL: primary UUID %r does not match "
+                          "expected primary UUID %r. EXITING.",
+                          remote_primary_uuid, primary_uuid)
                 # force exit of the process
                 os._exit(3)
 
@@ -482,17 +560,17 @@ class ReplicaThread:
                     log.exception("could not process: %s", r.url)
                 else:
                     # we successfully received data so let's
-                    # record the master_uuid for future consistency checks
-                    if not master_uuid:
-                        self.xom.config.set_master_uuid(remote_master_uuid)
-                    # also record the current master serial for status info
-                    self.update_master_serial(remote_serial)
+                    # record the primary_uuid for future consistency checks
+                    if not primary_uuid:
+                        self.xom.config.set_primary_uuid(remote_primary_uuid)
+                    # also record the current primary serial for status info
+                    self.update_primary_serial(remote_serial)
                     return True
             elif r.status_code == 202:
                 remote_serial = int(r.headers["X-DEVPI-SERIAL"])
                 log.debug("%s: trying again %s\n", r.status_code, url)
-                # also record the current master serial for status info
-                self.update_master_serial(remote_serial)
+                # also record the current primary serial for status info
+                self.update_primary_serial(remote_serial)
                 return True
             return False
 
@@ -501,7 +579,7 @@ class ReplicaThread:
         self.xom.keyfs.import_changes(serial, changes)
 
     def fetch_single(self, serial):
-        url = self.master_url.joinpath("+changelog", str(serial)).url
+        url = self.primary_url.joinpath("+changelog", str(serial)).url
         return self.fetch(
             partial(self.handler_single, serial=serial),
             url)
@@ -517,7 +595,7 @@ class ReplicaThread:
                         serial = load(stream)
                         (changes, rel_renames) = load(stream)
                         self.xom.keyfs.import_changes(serial, changes)
-                        self.update_master_serial(serial, update_sync=False)
+                        self.update_primary_serial(serial, update_sync=False)
                 except StopIteration:
                     pass
                 except EOFError:
@@ -526,10 +604,10 @@ class ReplicaThread:
             all_changes = loads(response.content)
             for serial, changes in all_changes:
                 self.xom.keyfs.import_changes(serial, changes)
-                self.update_master_serial(serial, update_sync=False)
+                self.update_primary_serial(serial, update_sync=False)
 
     def fetch_multi(self, serial):
-        url = self.master_url.joinpath("+changelog", "%s-" % serial).url
+        url = self.primary_url.joinpath("+changelog", "%s-" % serial).url
         return self.fetch(self.handler_multi, url)
 
     def tick(self):
@@ -836,8 +914,8 @@ class FileReplicationThread:
                     "path for existing files doesn't exist: %s",
                     self.xom.config.replica_file_search_path)
         self.use_hard_links = self.xom.config.hard_links
-        self.uuid, master_uuid = make_uuid_headers(xom.config.nodeinfo)
-        assert self.uuid != master_uuid
+        self.uuid, primary_uuid = make_uuid_headers(xom.config.nodeinfo)
+        assert self.uuid != primary_uuid
 
     @cached_property
     def auth_serializer(self):
@@ -912,10 +990,10 @@ class FileReplicationThread:
         del f
 
         threadlog.info(
-            "retrieving file from master for serial %s: %s", serial, relpath)
-        url = self.xom.config.master_url.joinpath(relpath).url
+            "retrieving file from primary for serial %s: %s", serial, relpath)
+        url = self.xom.config.primary_url.joinpath(relpath).url
         # we perform the request with a special header so that
-        # the master can avoid getting "volatile" links
+        # the primary can avoid getting "volatile" links
         token = self.auth_serializer.dumps(self.uuid)
         r = session.get(
             url, allow_redirects=False,
@@ -935,8 +1013,8 @@ class FileReplicationThread:
             self.shared_data.errors.remove(entry)
             return
         if r.status_code == 410:
+            # primary indicates Gone for files which were later deleted
             r.close()
-            # master indicates Gone for files which were later deleted
             threadlog.info(
                 "ignoring because of later deletion: %s",
                 relpath)
@@ -958,7 +1036,7 @@ class FileReplicationThread:
         if r.status_code != 200:
             r.close()
             threadlog.error(
-                "error downloading '%s' from master, will be retried later: %s",
+                "error downloading '%s' from primary, will be retried later: %s",
                 relpath, r.reason)
             # add the error for the UI
             self.shared_data.errors.add(dict(
@@ -1063,7 +1141,7 @@ class InitialQueueThread(object):
     def thread_run(self):
         thread_push_log("[FREPQ]")
         keyfs = self.xom.keyfs
-        threadlog.info("Queuing files for possible download from master")
+        threadlog.info("Queuing files for possible download from primary")
         keys = (keyfs.get_key('PYPIFILE_NOMD5'), keyfs.get_key('STAGEFILE'))
         last_time = time.time()
         processed = 0
@@ -1101,7 +1179,7 @@ class InitialQueueThread(object):
                     item.keyname, item.value, item.back_serial))
                 queued = queued + 1
         threadlog.info(
-            "Queued %s of %s files for possible download from master",
+            "Queued %s of %s files for possible download from primary",
             queued, processed)
 
 
@@ -1175,15 +1253,15 @@ class BodyFileWrapper:
         self.len = length
 
 
-def proxy_request_to_master(xom, request, *, stream=False):
-    master_url = xom.config.master_url
+def proxy_request_to_primary(xom, request, *, stream=False):
+    primary_url = xom.config.primary_url
     request_url = URL(request.url)
     url = (
-        master_url
+        primary_url
         .joinpath(request_url.path)
         .replace(query=request_url.query)
         .url)
-    assert url.startswith(master_url.url)
+    assert url.startswith(primary_url.url)
     http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method, url):
         try:
@@ -1202,15 +1280,15 @@ def proxy_request_to_master(xom, request, *, stream=False):
                                 allow_redirects=False,
                                 timeout=xom.config.args.proxy_timeout)
         except http.Errors as e:
-            msg = f"proxy-write-to-master {url}: {e}"
+            msg = f"proxy-write-to-primary {url}: {e}"
             raise UpstreamError(msg) from e
 
 
-def proxy_write_to_master(xom, request):
-    """ relay modifying http requests to master and wait until
+def proxy_write_to_primary(xom, request):
+    """ relay modifying http requests to primary and wait until
     the change is replicated back.
     """
-    r = proxy_request_to_master(xom, request, stream=True)
+    r = proxy_request_to_primary(xom, request, stream=True)
     # for redirects, the body is already read and stored in the ``next``
     # attribute (see requests.sessions.send)
     if r.raw.closed and r.next:
@@ -1227,22 +1305,22 @@ def proxy_write_to_master(xom, request):
     headers = clean_response_headers(r)
     headers["X-DEVPI-PROXY"] = "replica"
     if r.status_code == 302:  # REDIRECT
-        # rewrite master-related location to our replica site
-        master_location = r.headers["location"]
+        # rewrite primary-related location to our replica site
+        primary_location = r.headers["location"]
         outside_url = request.application_url
         headers["location"] = str(
-            master_location.replace(xom.config.master_url.url, outside_url))
+            primary_location.replace(xom.config.primary_url.url, outside_url))
     return Response(status="%s %s" % (r.status_code, r.reason),
                     app_iter=app_iter(),
                     headers=headers)
 
 
-def proxy_view_to_master(_context, request):
+def proxy_view_to_primary(_context, request):
     xom = request.registry["xom"]
     tx = getattr(xom.keyfs, "tx", None)
     if getattr(tx, "write", False):
         raise RuntimeError("there should be no write transaction")
-    return proxy_write_to_master(xom, request)
+    return proxy_write_to_primary(xom, request)
 
 
 class ReplicationErrors:
@@ -1257,7 +1335,7 @@ class ReplicationErrors:
 
 
 class FileReplicationError(Exception):
-    """ raised when replicating a file from the master failed. """
+    """ raised when replicating a file from the primary failed. """
     def __init__(self, response, relpath, message=None):
         self.url = response.url
         self.status_code = response.status_code

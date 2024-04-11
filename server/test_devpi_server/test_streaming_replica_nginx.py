@@ -16,8 +16,8 @@ def host_port(nginx_replica_host_port):
 
 
 @pytest.fixture
-def files_directory(server_directory):
-    return server_directory.join('replica', '+files')
+def files_path(replica_server_path):
+    return replica_server_path / '+files'
 
 
 server_url_session = test_streaming.server_url_session

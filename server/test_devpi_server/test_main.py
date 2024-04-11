@@ -104,7 +104,7 @@ def test_requests_only(makexom):
     assert len(xom.thread_pool._objects) == 1
     assert hasattr(xom.thread_pool._objects[0], "loop")
 
-    xom = makexom(opts=["--requests-only", "--master=http://localhost:3140"])
+    xom = makexom(opts=["--requests-only", "--primary-url=http://localhost:3140"])
     xom.create_app()
     assert len(xom.thread_pool._objects) == 1
     assert hasattr(xom.thread_pool._objects[0], "loop")

@@ -14,8 +14,8 @@ pytestmark = [
 
 
 @pytest.fixture
-def host_port(master_host_port):
-    return master_host_port
+def host_port(primary_host_port):
+    return primary_host_port
 
 
 @pytest.fixture
@@ -50,15 +50,15 @@ def content_digest():
 
 
 @pytest.fixture
-def files_directory(server_directory):
-    return server_directory.join('master', '+files')
+def files_path(primary_server_path):
+    return primary_server_path / '+files'
 
 
 class TestStreaming(object):
     @pytest.mark.slow
     @pytest.mark.parametrize("length,pkg_version,pkg_name", [
         (None, '1.0', 'pkg1'), (False, '1.1', 'pkg2')])
-    def test_streaming_download(self, content_digest, files_directory, length, pkg_version, pkg_name, server_url_session, simpypi, storage_info):
+    def test_streaming_download(self, content_digest, files_path, length, pkg_version, pkg_name, server_url_session, simpypi, storage_info):
         from time import sleep
         if "storage_with_filesystem" not in storage_info.get('_test_markers', []):
             pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
@@ -85,7 +85,7 @@ class TestStreaming(object):
             for part in stream:
                 data = data + part
             assert data == content
-        pkg_file = files_directory.join(
+        pkg_file = files_path.joinpath(
             'root', 'mirror', '+f', digest[:3], digest[3:16], pkgzip)
         # this is sometimes delayed a bit, so we check for a while
         for i in range(50):
@@ -96,7 +96,7 @@ class TestStreaming(object):
 
     @pytest.mark.parametrize("size_factor,pkg_version,pkg_name", [
         (2, '1.2', 'pkg3'), (0.5, '1.3', 'pkg4')])
-    def test_streaming_differing_content_size(self, content_digest, files_directory, pkg_version, pkg_name, server_url_session, simpypi, size_factor, storage_info):
+    def test_streaming_differing_content_size(self, content_digest, files_path, pkg_version, pkg_name, server_url_session, simpypi, size_factor, storage_info):
         from requests.exceptions import ChunkedEncodingError
         if "storage_with_filesystem" not in storage_info.get('_test_markers', []):
             pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
@@ -126,6 +126,6 @@ class TestStreaming(object):
             except ChunkedEncodingError:
                 pass
             assert data == content[:length]
-        pkg_file = files_directory.join(
+        pkg_file = files_path.joinpath(
             'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
         assert not pkg_file.exists()

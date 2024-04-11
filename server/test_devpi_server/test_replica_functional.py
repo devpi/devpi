@@ -7,9 +7,9 @@ import pytest
 
 
 @pytest.fixture
-def replica_mapp(makemapp, master_host_port, secretfile):
+def replica_mapp(makemapp, primary_host_port, secretfile):
     app = makemapp(options=[
-        '--master', 'http://%s:%s' % master_host_port,
+        '--primary-url', 'http://%s:%s' % primary_host_port,
         '--secretfile', secretfile.strpath])
     try:
         yield app
@@ -52,8 +52,8 @@ class TestMirrorIndexThings(BaseTestMirrorIndexThings):
 @pytest.mark.nomocking
 @pytest.mark.storage_with_filesystem
 def test_replicating_deleted_pypi_release(
-        caplog, makemapp, makefunctionaltestapp,
-        master_host_port, master_serverdir,
+        makemapp, makefunctionaltestapp,
+        primary_host_port, primary_server_path,
         replica_mapp, simpypi):
     # this was the behavior of devpi-server 4.3.1:
     # - a release was mirrored from pypi
@@ -65,7 +65,7 @@ def test_replicating_deleted_pypi_release(
     # - the master replies with a 502 and the replica stops at this point
     from devpi_common.url import URL
     import time
-    mapp = makemapp(makefunctionaltestapp(master_host_port))
+    mapp = makemapp(makefunctionaltestapp(primary_host_port))
     content = b'13'
     simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
     simpypi.add_file('/pkg/pkg-1.0.zip', content)
@@ -82,12 +82,12 @@ def test_replicating_deleted_pypi_release(
     assert r == content
     # remove files
     relpath = URL(result[0]).path[1:]
-    path = master_serverdir.join('+files').join(relpath)
+    path = primary_server_path / '+files' / relpath
     tries = 0
     while not path.exists() and tries < 10:
         time.sleep(.1)
         tries += 1
-    path.remove()
+    path.unlink()
     simpypi.remove_file('/pkg/pkg-1.0.zip')
     mapp.delete_index("mirror")
     # now start the replication thread

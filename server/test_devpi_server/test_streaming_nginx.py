@@ -16,8 +16,8 @@ def host_port(nginx_host_port):
 
 
 @pytest.fixture
-def files_directory(server_directory):
-    return server_directory.join('master', '+files')
+def files_path(primary_server_path):
+    return primary_server_path / '+files'
 
 
 server_url_session = test_streaming.server_url_session

@@ -331,9 +331,9 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
         # by default get_principals_for_pkg_read returns just the set principals
         assert stage.customizer.get_principals_for_pkg_read() == {
             'root', 'someuser'}
-        # but if the server acts as a master for replicas,
+        # but if the server acts as a primary for replicas,
         # then the special replica user is included
-        xom.config.nodeinfo['role'] = 'master'
+        xom.config.nodeinfo['role'] = 'primary'
         assert set(stage.customizer.get_principals_for_pkg_read()) == {
             'root', 'someuser', REPLICA_USER_NAME}
 

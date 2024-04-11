@@ -192,7 +192,7 @@ supervisor site configuration
 +++++++++++++++++++++++++++++++++++++++++++++++
 
 Let's look at the supervisor configuration files.  The 
-``supervisor-devpi.conf`` one presumes you have a master 
+``supervisor-devpi.conf`` one presumes you have a main
 supervisor configuration on your system and
 and just drop the include config file into a directory like
 ``/etc/supervisor/conf.d/`` on Ubuntu 12.04.  Here are the contents::

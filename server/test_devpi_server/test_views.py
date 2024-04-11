@@ -127,13 +127,21 @@ def test_user_patch_trailing_slash(testapp):
 
 @pytest.mark.parametrize("nodeinfo,expected", [
     ({}, (None, None)),
-    ({"uuid": "123", "role":"master"}, ("123", "123")),
-    ({"uuid": "123", "role":"replica"}, ("123", "")),
-    ({"uuid": "123", "master-uuid": "456", "role":"replica"}, ("123", "456")),
+    ({"uuid": "123", "role": "master"}, ("123", "123")),
+    ({"uuid": "123", "role": "primary"}, ("123", "123")),
+    ({"uuid": "123", "role": "replica"}, ("123", "")),
+    ({"uuid": "123", "primary-uuid": "456", "role": "replica"}, ("123", "456")),
 ])
 def test_make_uuid_headers(nodeinfo, expected):
     output = make_uuid_headers(nodeinfo)
     assert output == expected
+
+
+def test_make_uuid_headers_master_uuid():
+    nodeinfo = {"uuid": "123", "master-uuid": "456", "role": "replica"}
+    with pytest.deprecated_call():
+        output = make_uuid_headers(nodeinfo)
+    assert output == ("123", "456")
 
 
 def test_simple_project(pypistage, testapp):

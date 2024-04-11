@@ -50,7 +50,7 @@ release activities with Python.  Main features and usage scenarios:
   :doc:`replica <adminman/replica>` to speed up access, keep a failover server
   and to distribute the devpi system across your organisation.
   There is :doc:`json status information <adminman/server-status>`
-  about master/replica sites for monitoring.
+  about primary/replica sites for monitoring.
 
 - **importing/exporting**: To :ref:`upgrade <upgrade>` to a newer version, 
   devpi-server

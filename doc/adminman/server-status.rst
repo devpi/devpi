@@ -20,7 +20,7 @@ information about a running server::
     serial: serial of the current server state
     event-serial: serial for which events have been processed
   
-Master nodes also provide a list of replicas::
+Primary nodes also provide a list of replicas::
  
     replicas: list of replica dicts each of which looks like this:
         uuid: uuid of replica server
@@ -29,20 +29,20 @@ Master nodes also provide a list of replicas::
         in-request: True|False (currently polling or not)
         outside-url: nill|url with which the replica can be reached
 
-Replica nodes also provide extra information related to their master:
+Replica nodes also provide extra information related to their primary:
 
-    master-url: URL of master if we are a replica
-    master-uuid: uuid of master
-    master-serial: last known serial the master has
+    primary-url: URL of primary if we are a replica
+    primary-uuid: uuid of primary
+    primary-serial: last known serial the primary has
 
 
 
-UUIDs of master and replica sites
+UUIDs of primary and replica sites
 -------------------------------------------------------------
 
 On initial startup, each devpi-server instance generates a UUID which it
 returns through a ``X-DEVPI-SERVER-UUID`` HTTP header.  When operating as
-a replica, the remote master's UUID is internally stored as well and compared
+a replica, the remote primary's UUID is internally stored as well and compared
 for consistency on subsequent requests.
 
 

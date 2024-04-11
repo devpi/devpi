@@ -24,6 +24,7 @@ from devpi_common.validation import normalize_name
 from devpi_common.url import URL
 from devpi_server.log import threadlog, thread_clear_log
 from io import BytesIO
+from pathlib import Path
 from pyramid.authentication import b64encode
 from pyramid.httpexceptions import status_map
 from queue import Queue as BaseQueue
@@ -272,7 +273,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info, storage_plugin)
         else:
             fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
         if request.node.get_closest_marker("with_replica_thread"):
-            fullopts.append("--master=http://localhost")
+            fullopts.append("--primary-url=http://localhost")
         if not request.node.get_closest_marker("no_storage_option"):
             if storage_info["name"] != "sqlite":
                 fullopts.append("--storage=%s" % storage_info["name"])
@@ -298,7 +299,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info, storage_plugin)
             verify_connection_interface(conn)
         # initialize default indexes
         from devpi_server.main import init_default_indexes
-        if not xom.config.args.master_url:
+        if not xom.config.primary_url:
             init_default_indexes(xom)
         if xom.is_replica() and request.node.get_closest_marker("with_replica_thread"):
             xom.thread_pool.start_one(xom.replica_thread)
@@ -316,16 +317,16 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info, storage_plugin)
 
 
 @pytest.fixture
-def replica_xom(request, makexom, secretfile):
+def replica_xom(makexom, secretfile):
     from devpi_server.replica import register_key_subscribers
-    master_url = "http://localhost:3111"
-    xom = makexom(["--master", master_url, "--secretfile", secretfile.strpath])
+    primary_url = "http://localhost:3111"
+    xom = makexom(["--primary-url", primary_url, "--secretfile", secretfile.strpath])
     register_key_subscribers(xom)
     return xom
 
 
 @pytest.fixture
-def makefunctionaltestapp(request):
+def makefunctionaltestapp():
     def makefunctionaltestapp(host_port):
         mt = MyFunctionalTestApp(host_port)
         mt.xom = None
@@ -334,7 +335,7 @@ def makefunctionaltestapp(request):
 
 
 @pytest.fixture
-def maketestapp(request):
+def maketestapp():
     def maketestapp(xom):
         app = xom.create_app()
         mt = MyTestApp(app)
@@ -1110,8 +1111,18 @@ def call_devpi_in_dir():
 
 
 @pytest.fixture(scope="class")
-def master_serverdir(server_directory):
-    return server_directory.join("master")
+def master_serverdir(primary_server_path):
+    import warnings
+    warnings.warn(
+        "master_serverdir fixture is deprecated, use primary_server_path instead",
+        DeprecationWarning,
+        stacklevel=0)
+    return py.path.local(primary_server_path)
+
+
+@pytest.fixture(scope="class")
+def primary_server_path(server_directory):
+    return Path(server_directory.join("primary"))
 
 
 @pytest.fixture(scope="class")
@@ -1127,12 +1138,22 @@ def secretfile(server_directory):
 
 
 @pytest.fixture(scope="class")
-def master_host_port(request, call_devpi_in_dir, master_serverdir, server_directory, secretfile, storage_info):
+def master_host_port(primary_host_port):
+    import warnings
+    warnings.warn(
+        "master_host_port fixture is deprecated, use primary_host_port instead",
+        DeprecationWarning,
+        stacklevel=0)
+    return primary_host_port
+
+
+@pytest.fixture(scope="class")
+def primary_host_port(primary_server_path, secretfile, storage_info):
     host = 'localhost'
     port = get_open_port(host)
     args = [
         "devpi-server",
-        "--role", "master",
+        "--role", "primary",
         "--secretfile", secretfile.strpath,
         "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
         "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
@@ -1141,16 +1162,16 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir, server_direct
         "--port", str(port),
         "--requests-only"]
     storage_args = [
-        "--serverdir", master_serverdir.strpath]
+        "--serverdir", str(primary_server_path)]
     if storage_info["name"] != "sqlite":
         storage_option = "--storage=%s" % storage_info["name"]
         _get_test_storage_options = getattr(
             storage_info["storage"], "_get_test_storage_options", None)
         if _get_test_storage_options:
-            storage_options = _get_test_storage_options(master_serverdir)
+            storage_options = _get_test_storage_options(str(primary_server_path))
             storage_option = storage_option + storage_options
         storage_args.append(storage_option)
-    if not master_serverdir.join('.nodeinfo').exists():
+    if not primary_server_path.joinpath('.nodeinfo').exists():
         subprocess.check_call(
             ["devpi-init"] + storage_args)
     p = subprocess.Popen(args + storage_args)
@@ -1163,12 +1184,12 @@ def master_host_port(request, call_devpi_in_dir, master_serverdir, server_direct
 
 
 @pytest.fixture(scope="class")
-def replica_serverdir(server_directory):
-    return server_directory.join("replica")
+def replica_server_path(server_directory):
+    return Path(server_directory.join("replica"))
 
 
 @pytest.fixture(scope="class")
-def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serverdir, secretfile, storage_info):
+def replica_host_port(primary_host_port, replica_server_path, secretfile, storage_info):
     host = 'localhost'
     port = get_open_port(host)
     args = [
@@ -1179,20 +1200,20 @@ def replica_host_port(request, call_devpi_in_dir, master_host_port, replica_serv
         "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST),
         "--host", host, "--port", str(port)]
     storage_args = [
-        "--serverdir", replica_serverdir.strpath]
+        "--serverdir", str(replica_server_path)]
     if storage_info["name"] != "sqlite":
         storage_option = "--storage=%s" % storage_info["name"]
         _get_test_storage_options = getattr(
             storage_info["storage"], "_get_test_storage_options", None)
         if _get_test_storage_options:
-            storage_options = _get_test_storage_options(replica_serverdir)
+            storage_options = _get_test_storage_options(str(replica_server_path))
             storage_option = storage_option + storage_options
         storage_args.append(storage_option)
-    if not replica_serverdir.join('.nodeinfo').exists():
+    if not replica_server_path.joinpath('.nodeinfo').exists():
         subprocess.check_call([
             "devpi-init",
             "--role", "replica",
-            "--master-url", "http://%s:%s" % master_host_port] + storage_args)
+            "--primary-url", "http://%s:%s" % primary_host_port] + storage_args)
     p = subprocess.Popen(args + storage_args)
     try:
         wait_for_port(host, port)
@@ -1274,8 +1295,8 @@ def _nginx_host_port(host, port, call_devpi_in_dir, server_directory, adjust_ngi
 def nginx_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
-    # we need the skip above before master_host_port is called
-    (host, port) = request.getfixturevalue("master_host_port")
+    # we need the skip above before primary_host_port is called
+    (host, port) = request.getfixturevalue("primary_host_port")
     (p, nginx_port) = _nginx_host_port(
         host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content)
     try:
@@ -1290,7 +1311,7 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_c
 def nginx_replica_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
-    # we need the skip above before master_host_port is called
+    # we need the skip above before primary_host_port is called
     (host, port) = request.getfixturevalue("replica_host_port")
     (p, nginx_port) = _nginx_host_port(
         host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content)

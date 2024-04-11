@@ -6,7 +6,7 @@ pytestmark = [pytest.mark.notransaction]
 
 
 class TestStatus:
-    def test_status_master(self, testapp):
+    def test_status_primary(self, testapp):
         r = testapp.get_json("/+status", status=200)
         assert r.status_code == 200
         data = r.json["result"]
@@ -146,11 +146,11 @@ class TestStatusInfoPlugin:
     def test_replica_lagging(self, plugin, makexom, monkeypatch):
         import time
         now = time.time()
-        xom = makexom(["--master=http://localhost"])
+        xom = makexom(["--primary-url=http://localhost"])
         request = self._xomrequest(xom)
         assert xom.is_replica()
         # fake first serial processed
-        xom.replica_thread.update_master_serial(0)
+        xom.replica_thread.update_primary_serial(0)
         xom.replica_thread.replica_in_sync_at = now
         # no report in the first minute
         result = plugin(request)
@@ -160,18 +160,18 @@ class TestStatusInfoPlugin:
         result = plugin(request)
         assert result == [dict(
             status='warn',
-            msg='Replica is behind master for more than 1 minute')]
+            msg='Replica is behind primary for more than 1 minute')]
         # fatal after five minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
         assert result == [dict(
             status='fatal',
-            msg='Replica is behind master for more than 5 minutes')]
+            msg='Replica is behind primary for more than 5 minutes')]
 
-    def test_initial_master_connection(self, plugin, makexom, monkeypatch):
+    def test_initial_primary_connection(self, plugin, makexom, monkeypatch):
         import time
         now = time.time()
-        xom = makexom(["--master=http://localhost"])
+        xom = makexom(["--primary=http://localhost"])
         request = self._xomrequest(xom)
         assert xom.is_replica()
         assert xom.replica_thread.started_at is None
@@ -185,18 +185,18 @@ class TestStatusInfoPlugin:
         result = plugin(request)
         assert result == [dict(
             status='warn',
-            msg='No contact to master for more than 1 minute')]
+            msg='No contact to primary for more than 1 minute')]
         # fatal after five minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
         assert result == [dict(
             status='fatal',
-            msg='No contact to master for more than 5 minutes')]
+            msg='No contact to primary for more than 5 minutes')]
 
     @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
     @pytest.mark.with_replica_thread
     @pytest.mark.with_notifier
-    def test_no_master_update(self, plugin, xom, monkeypatch):
+    def test_no_primary_update(self, plugin, xom, monkeypatch):
         import time
         now = time.time()
         request = self._xomrequest(xom)
@@ -207,7 +207,7 @@ class TestStatusInfoPlugin:
         assert hasattr(xom, 'replica_thread')
         assert xom.is_replica()
         # fake last update
-        xom.replica_thread.update_from_master_at = now
+        xom.replica_thread.update_from_primary_at = now
         # no report in the first minute
         result = plugin(request)
         assert result == []
@@ -216,10 +216,10 @@ class TestStatusInfoPlugin:
         result = plugin(request)
         assert result == [dict(
             status='warn',
-            msg='No update from master for more than 1 minute')]
+            msg='No update from primary for more than 1 minute')]
         # fatal after five minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
         assert result == [dict(
             status='fatal',
-            msg='No update from master for more than 5 minutes')]
+            msg='No update from primary for more than 5 minutes')]

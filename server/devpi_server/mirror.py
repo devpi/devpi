@@ -200,7 +200,7 @@ class MirrorStage(BaseStage):
         # make a copy of extra_headers
         extra_headers = {} if extra_headers is None else dict(extra_headers)
         if self.xom.is_replica():
-            (uuid, master_uuid) = make_uuid_headers(self.xom.config.nodeinfo)
+            (uuid, primary_uuid) = make_uuid_headers(self.xom.config.nodeinfo)
             rt = self.xom.replica_thread
             token = rt.auth_serializer.dumps(uuid)
             extra_headers[rt.H_REPLICA_UUID] = uuid
@@ -263,7 +263,7 @@ class MirrorStage(BaseStage):
     @property
     def mirror_url(self):
         if self.xom.is_replica():
-            url = self.xom.config.master_url.joinpath(self.name, "+simple")
+            url = self.xom.config.primary_url.joinpath(self.name, "+simple")
         else:
             url = URL(self.ixconfig['mirror_url'])
         return url.asdir()
@@ -428,7 +428,7 @@ class MirrorStage(BaseStage):
             headers["If-None-Match"] = etag
         # use a minimum of 30 seconds as timeout for remote server and
         # 60s when running as replica, because the list can be quite large
-        # and the master might take a while to process it
+        # and the primary might take a while to process it
         if self.xom.is_replica():
             timeout = max(self.timeout, 60)
         else:
@@ -466,7 +466,7 @@ class MirrorStage(BaseStage):
         if not self.cache_projectnames.exists() or old != projects:
             self.cache_projectnames.set(projects, etag)
 
-            # trigger an initial-load event on master
+            # trigger an initial-load event on primary
             if not self.xom.is_replica():
                 # make sure we are at the current serial
                 # this avoids setting the value again when
@@ -605,7 +605,7 @@ class MirrorStage(BaseStage):
                 response.status_code, url))
 
         # pypi.org provides X-PYPI-LAST-SERIAL header in case of 200 returns.
-        # devpi-master may provide a 200 but not supply the header
+        # devpi-primary may provide a 200 but not supply the header
         # (it's really a 404 in disguise and we should change
         # devpi-server behaviour since pypi.org serves 404
         # on non-existing projects for a longer time now).
@@ -677,7 +677,7 @@ class MirrorStage(BaseStage):
                 self.keyfs.tx.on_commit_success(partial(
                     self.cache_retrieve_times.refresh, project, info["etag"]))
                 return self.SimpleLinks(links)
-            raise self.UpstreamError("no cache links from master for %s" %
+            raise self.UpstreamError("no cache links from primary for %s" %
                                      project)
 
         with self.keyfs.write_transaction(allow_restart=True):
@@ -781,7 +781,7 @@ class MirrorStage(BaseStage):
         except asyncio.TimeoutError:
             if not self.xom.is_replica():
                 # we process the future in the background
-                # but only on master, the replica will get the update
+                # but only on primary, the replica will get the update
                 # via the replication thread
                 self.xom.create_task(
                     self._update_simplelinks_in_future(newlinks_future, project, lock.defer()))

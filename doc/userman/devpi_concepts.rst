@@ -48,7 +48,7 @@ will be automatically downloaded into the server cache.
 .. note: Throughout this document, references to *devpi* impply the ``devpi client`` whereas references to the 
          ``devpi server`` will be explicit.
 
-The diagram depicts the topology of a master server as well as their index structures:
+The diagram depicts the topology of a primary server as well as their index structures:
 
 .. image:: ../images/devpi-topology.svg
          

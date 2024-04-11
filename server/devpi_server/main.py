@@ -522,7 +522,7 @@ class XOM:
         if self.is_replica():
             if info.options.get('is_mutating', True):
                 from .model import ensure_list
-                from .replica import proxy_view_to_master
+                from .replica import proxy_view_to_primary
                 from .views import is_mutating_http_method
                 request_methods = info.options['request_method']
                 if request_methods is None:
@@ -531,10 +531,10 @@ class XOM:
                     if is_mutating_http_method(request_method):
                         # we got a view which uses a mutating method and isn't
                         # marked to be excluded, so we replace the view with
-                        # one that proxies to the master, because a replica
+                        # one that proxies to the primary, because a replica
                         # must not modify its database except via the
                         # replication protocol
-                        return proxy_view_to_master
+                        return proxy_view_to_primary
         return view
     view_deriver.options = ('is_mutating',)  # type: ignore[attr-defined]
 
@@ -675,7 +675,14 @@ class XOM:
         return OutsideURLMiddleware(app, self)
 
     def is_master(self):
-        return self.config.role == "master"
+        warnings.warn(
+            "is_master is deprecated, use is_primary instead.",
+            DeprecationWarning,
+            stacklevel=2)
+        return self.is_primary
+
+    def is_primary(self):
+        return self.config.role == "primary"
 
     def is_replica(self):
         return self.config.role == "replica"

@@ -93,13 +93,13 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 @hookspec
 def devpiserver_mirror_initialnames(stage, projectnames):
     """ called when projectnames are first loaded into a mirror
-    (both for replica and a master)
+    (both for replica and a primary)
     """
 
 
 @hookspec
 def devpiserver_stage_created(stage):
-    """ called when a stage was successfully created. (both for replica and a master)
+    """ called when a stage was successfully created. (both for replica and a primary)
     """
 
 
@@ -260,7 +260,7 @@ def devpiserver_on_remove_file(stage, relpath):
 
 @hookspec
 def devpiserver_on_replicated_file(stage, project, version, link, serial, back_serial, is_from_mirror):
-    """Called when a file was downloaded from master on replica."""
+    """Called when a file was downloaded from primary on replica."""
 
 
 @hookspec(firstresult=True)

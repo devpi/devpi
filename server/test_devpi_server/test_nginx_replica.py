@@ -9,7 +9,7 @@ import pytest
 @pytest.fixture
 def mapp(makemapp, nginx_host_port, secretfile):
     app = makemapp(options=[
-        '--master', 'http://%s:%s' % nginx_host_port,
+        '--primary-url', 'http://%s:%s' % nginx_host_port,
         '--secretfile', secretfile.strpath])
     app.xom.thread_pool.start_one(app.xom.replica_thread)
     try:

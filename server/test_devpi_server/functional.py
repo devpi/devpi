@@ -474,7 +474,9 @@ class TestMirrorIndexThings:
         assert (
             'error 404 getting' in msg
             or 'received 404 from master' in msg
-            or 'received 502 from master' in msg)
+            or 'received 502 from master' in msg
+            or 'received 404 from primary' in msg
+            or 'received 502 from primary' in msg)
 
     def test_download_release(self, mapp, simpypi):
         mapp.create_and_login_user('mirror6')
