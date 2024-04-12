@@ -12,7 +12,6 @@ from devpi_common.url import URL
 from devpi_server import __version__ as server_version
 from devpi_server.model import is_valid_name
 from devpi_server.model import get_stage_customizer_classes
-from .log import configure_cli_logging
 from .main import CommandRunner
 from .main import DATABASE_VERSION
 from .main import Fatal
@@ -67,12 +66,13 @@ def export(pluginmanager=None, argv=None):
             add_help=False)
         parser.add_help_option()
         parser.add_configfile_option()
+        parser.add_logging_options()
         parser.add_storage_options()
         parser.add_export_options()
         parser.add_hard_links_option()
         parser.add_argument("directory")
         config = runner.get_config(argv, parser=parser)
-        configure_cli_logging(config.args)
+        runner.configure_logging(config.args)
         if not config.path_nodeinfo.exists():
             msg = f"The path '{config.serverdir}' contains no devpi-server data, use devpi-init to initialize."
             raise Fatal(msg)
@@ -119,13 +119,14 @@ def import_(pluginmanager=None, argv=None):
             add_help=False)
         parser.add_help_option()
         parser.add_configfile_option()
+        parser.add_logging_options()
         parser.add_storage_options()
         parser.add_init_options()
         parser.add_import_options()
         parser.add_hard_links_option()
         parser.add_argument("directory")
         config = runner.get_config(argv, parser=parser)
-        configure_cli_logging(config.args)
+        runner.configure_logging(config.args)
         if config.path_nodeinfo.exists():
             msg = f"The path {config.serverdir!r} already contains devpi-server data."
             raise Fatal(msg)

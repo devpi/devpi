@@ -1,4 +1,3 @@
-from .log import configure_cli_logging
 from .main import CommandRunner
 from .main import Fatal
 from .main import xom_from_config
@@ -19,10 +18,11 @@ def passwd():
             add_help=False)
         parser.add_help_option()
         parser.add_configfile_option()
+        parser.add_logging_options()
         parser.add_storage_options()
         parser.add_argument("user", nargs='?')
         config = runner.get_config(sys.argv, parser)
-        configure_cli_logging(config.args)
+        runner.configure_logging(config.args)
         xom = xom_from_config(config)
         log = xom.log
         log.info("serverdir: %s" % xom.config.serverdir)

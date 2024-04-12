@@ -584,6 +584,9 @@ class MyArgumentParser(argparse.ArgumentParser):
     def add_init_options(self):
         add_init_options(self, self.pluginmanager)
 
+    def add_logging_options(self) -> None:
+        add_logging_options(self, self.pluginmanager)
+
     def add_master_url_option(self):
         add_master_url_option(self, self.pluginmanager)
 
@@ -994,7 +997,6 @@ def getpath(path):
 
 
 def gensecret():
-    from .log import configure_cli_logging
     from .log import threadlog as log
     from .main import CommandRunner
     from .main import Fatal
@@ -1005,9 +1007,10 @@ def gensecret():
             add_help=False)
         parser.add_help_option()
         parser.add_configfile_option()
+        parser.add_logging_options()
         parser.add_secretfile_option()
         config = runner.get_config(sys.argv, parser=parser)
-        configure_cli_logging(config.args)
+        runner.configure_logging(config.args)
         if config.args.secretfile is None:
             raise Fatal("You need to provide a location for the secret file.")
         if not config.secretfile.exists():

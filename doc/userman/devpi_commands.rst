@@ -539,7 +539,7 @@ devpi command reference (server)
                             'standalone' by default and 'replica' if the --master-
                             url option is used. To enable the replication protocol
                             you have to explicitly set the 'master' role. [auto]
-      --version             show devpi_version (6.12.1) [False]
+      --version             show devpi_version (6.13.0) [False]
       --passwd USER         (DEPRECATED, use devpi-passwd command) set password
                             for user USER (interactive) [None]
 
@@ -680,7 +680,8 @@ devpi command reference (server)
 ::
 
     $ devpi-export -h
-    usage: devpi-export [-h] [-c CONFIGFILE] [--serverdir DIR] [--storage NAME]
+    usage: devpi-export [-h] [-c CONFIGFILE] [--debug] [--logger-cfg LOGGER_CFG]
+                        [--serverdir DIR] [--storage NAME]
                         [--keyfs-cache-size NUM] [--include-mirrored-files]
                         [--hard-links]
                         directory
@@ -694,6 +695,10 @@ devpi command reference (server)
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
+      --debug               run wsgi application with debug logging [False]
+      --logger-cfg LOGGER_CFG
+                            path to .json or .yaml logger configuration file.
+                            [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
       --storage NAME        the storage backend to use. "pg8000": Postgresql
                             backend, "sqlite": SQLite backend with files on the
@@ -714,7 +719,8 @@ devpi command reference (server)
 ::
 
     $ devpi-import -h
-    usage: devpi-import [-h] [-c CONFIGFILE] [--serverdir DIR] [--storage NAME]
+    usage: devpi-import [-h] [-c CONFIGFILE] [--debug] [--logger-cfg LOGGER_CFG]
+                        [--serverdir DIR] [--storage NAME]
                         [--keyfs-cache-size NUM] [--no-root-pypi]
                         [--root-passwd ROOT_PASSWD]
                         [--root-passwd-hash ROOT_PASSWD_HASH]
@@ -730,6 +736,10 @@ devpi command reference (server)
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
+      --debug               run wsgi application with debug logging [False]
+      --logger-cfg LOGGER_CFG
+                            path to .json or .yaml logger configuration file.
+                            [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
       --storage NAME        the storage backend to use. "pg8000": Postgresql
                             backend, "sqlite": SQLite backend with files on the
@@ -765,7 +775,7 @@ devpi command reference (server)
 ::
 
     $ devpi-init -h
-    usage: devpi-init [-h] [-c CONFIGFILE]
+    usage: devpi-init [-h] [-c CONFIGFILE] [--debug] [--logger-cfg LOGGER_CFG]
                       [--role {master,replica,standalone,auto}]
                       [--master-url MASTER_URL] [--serverdir DIR] [--storage NAME]
                       [--keyfs-cache-size NUM] [--no-root-pypi]
@@ -778,6 +788,10 @@ devpi command reference (server)
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
+      --debug               run wsgi application with debug logging [False]
+      --logger-cfg LOGGER_CFG
+                            path to .json or .yaml logger configuration file.
+                            [None]
       --role {master,replica,standalone,auto}
                             set role of this instance. The default 'auto' sets
                             'standalone' by default and 'replica' if the --master-
@@ -806,7 +820,8 @@ devpi command reference (server)
 ::
 
     $ devpi-passwd -h
-    usage: devpi-passwd [-h] [-c CONFIGFILE] [--serverdir DIR] [--storage NAME]
+    usage: devpi-passwd [-h] [-c CONFIGFILE] [--debug] [--logger-cfg LOGGER_CFG]
+                        [--serverdir DIR] [--storage NAME]
                         [--keyfs-cache-size NUM]
                         [user]
 
@@ -819,6 +834,10 @@ devpi command reference (server)
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
+      --debug               run wsgi application with debug logging [False]
+      --logger-cfg LOGGER_CFG
+                            path to .json or .yaml logger configuration file.
+                            [None]
       --serverdir DIR       directory for server data. [~/.devpi/server]
       --storage NAME        the storage backend to use. "pg8000": Postgresql
                             backend, "sqlite": SQLite backend with files on the

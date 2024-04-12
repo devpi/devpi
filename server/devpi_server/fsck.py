@@ -1,5 +1,4 @@
 from .filestore import FileEntry
-from .log import configure_cli_logging
 from .main import CommandRunner
 from .main import Fatal
 from .main import xom_from_config
@@ -25,10 +24,11 @@ def fsck():
             add_help=False)
         parser.add_help_option()
         parser.add_configfile_option()
+        parser.add_logging_options()
         parser.add_storage_options()
         add_fsck_options(parser.addgroup("fsck options"), pluginmanager)
         config = runner.get_config(sys.argv, parser=parser)
-        configure_cli_logging(config.args)
+        runner.configure_logging(config.args)
         xom = xom_from_config(config)
         args = xom.config.args
         log = xom.log

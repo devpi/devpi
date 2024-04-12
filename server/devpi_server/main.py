@@ -3,6 +3,8 @@
 a WSGI server to serve PyPI compatible indexes and a full
 recursive cache of pypi.org packages.
 """
+from __future__ import annotations
+
 import functools
 import httpx
 import inspect
@@ -23,7 +25,9 @@ from devpi_common.request import new_requests_session
 from .config import MyArgumentParser
 from .config import parseoptions, get_pluginmanager
 from .exceptions import lazy_format_exception_only
-from .log import configure_logging, threadlog
+from .log import configure_cli_logging
+from .log import configure_logging
+from .log import threadlog
 from .log import thread_push_log
 from .model import BaseStage
 from .model import RootModel
@@ -31,6 +35,11 @@ from .views import apireturn
 from . import mythread
 from . import __version__ as server_version
 from operator import iconcat
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    import argparse
 
 
 class Fatal(Exception):
@@ -59,6 +68,9 @@ class CommandRunner:
             self.return_code = 1
             return True
         return False
+
+    def configure_logging(self, args: argparse.Namespace) -> None:
+        configure_cli_logging(args)
 
     def create_parser(self, *, add_help, description):
         return MyArgumentParser(
