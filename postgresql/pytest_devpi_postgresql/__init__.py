@@ -191,8 +191,12 @@ def devpipostgresql_db_cleanup():
 
 
 @pytest.fixture(autouse=True, scope="session")
-def devpipostgresql_devpiserver_storage_backend_mock(request):
-    backend = getattr(request.config.option, 'backend', None)
+def devpipostgresql_devpiserver_storage_backend_mock(request, server_version):
+    from devpi_common.metadata import parse_version
+    if server_version < parse_version("6.11.0dev"):
+        backend = getattr(request.config.option, 'backend', None)
+    else:
+        backend = getattr(request.config.option, 'devpi_server_storage_backend', None)
     if backend is None:
         return
     old = main.devpiserver_storage_backend

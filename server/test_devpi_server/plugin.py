@@ -226,7 +226,7 @@ def mock():
 @pytest.fixture(scope="session")
 def storage_plugin(request):
     from pydoc import locate
-    backend = getattr(request.config.option, 'backend', None)
+    backend = request.config.option.devpi_server_storage_backend
     if backend is None:
         backend = 'devpi_server.keyfs_sqlite_fs'
     plugin = locate(backend)
