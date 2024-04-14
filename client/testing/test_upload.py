@@ -380,10 +380,10 @@ def test_post_derived_devpi_token(initproj, uploadhub):
 
 
 class TestUploadFunctional:
-    @pytest.fixture(params=["hello-1.0", "my-pkg-123-1.0"])
+    @pytest.fixture(params=[("hello", "1.0"), ("my-pkg-123", "1.0")])
     def projname_version_project(self, request, initproj):
-        project = initproj(request.param.rsplit("-", 1), {
-            "doc" if request.param.startswith("hello") else "docs":
+        project = initproj(request.param, {
+            "doc" if request.param[0] == "hello" else "docs":
             {
                 "conf.py": "#nothing",
                 "contents.rst": "",
@@ -391,34 +391,50 @@ class TestUploadFunctional:
         return (request.param, project)
 
     @pytest.fixture
-    def projname_version(self, projname_version_project):
+    def projname_version_tuple(self, projname_version_project):
         return projname_version_project[0]
 
-    def test_plain_dry_run(self, out_devpi, projname_version):
+    @pytest.fixture
+    def projname_version(self, projname_version_project):
+        return "%s-%s" % projname_version_project[0]
+
+    @pytest.fixture
+    def projname_version_norm_fnmatch(self, projname_version_tuple):
+        return "%s-%s" % (
+            projname_version_tuple[0].replace("-", "?"),
+            projname_version_tuple[1])
+
+    @pytest.fixture
+    def re_projname_version(self, projname_version_tuple):
+        return "%s-%s" % (
+            projname_version_tuple[0].replace("-", "[-_]"),
+            projname_version_tuple[1])
+
+    def test_plain_dry_run(self, out_devpi, projname_version_norm_fnmatch):
         assert Path("setup.py").is_file()
         out = out_devpi("upload", "--no-isolation", "--dry-run")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             skipped: file_upload of {projname_version}.*
-            """.format(projname_version=projname_version))
+            """.format(projname_version=projname_version_norm_fnmatch))
 
-    def test_with_docs_dry_run(self, out_devpi, projname_version):
+    def test_with_docs_dry_run(self, out_devpi, projname_version_norm_fnmatch):
         out = out_devpi("upload", "--no-isolation", "--dry-run", "--with-docs")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             skipped: file_upload of {projname_version}.*
             skipped: doc_upload of {projname_version}.doc.zip*
-            """.format(projname_version=projname_version))
+            """.format(projname_version=projname_version_norm_fnmatch))
 
-    def test_only_docs_dry_run(self, out_devpi, projname_version):
+    def test_only_docs_dry_run(self, out_devpi, projname_version_norm_fnmatch):
         out = out_devpi("upload", "--no-isolation", "--dry-run", "--only-docs")
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             skipped: doc_upload of {projname_version}.doc.zip*
-            """.format(projname_version=projname_version))
+            """.format(projname_version=projname_version_norm_fnmatch))
 
     @pytest.mark.parametrize("path", [
         "foo.doc.zip",
@@ -475,28 +491,27 @@ class TestUploadFunctional:
             doc_upload of foo-1.0.doc.zip*
             """.format(path=path))
 
-    def test_plain_with_docs(self, out_devpi, projname_version):
+    def test_plain_with_docs(self, out_devpi, projname_version_norm_fnmatch):
         out = out_devpi("upload", "--no-isolation", "--with-docs", code=[200, 200, 200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
-            file_upload of {projname_version}.*
-            doc_upload of {projname_version}.doc.zip*
-            """.format(projname_version=projname_version))
+            file_upload of {projname_version_norm_fnmatch}.*
+            doc_upload of {projname_version_norm_fnmatch}.doc.zip*
+            """.format(projname_version_norm_fnmatch=projname_version_norm_fnmatch))
 
-    def test_no_artifacts_in_docs(self, out_devpi, projname_version_project):
+    def test_no_artifacts_in_docs(self, out_devpi, projname_version, projname_version_project, projname_version_norm_fnmatch):
         from devpi_common.archive import Archive
         out = out_devpi("upload", "--wheel", "--with-docs", code=[200, 200])
         assert out.ret == 0
-        (projname_version, project) = projname_version_project
-        projname_version_norm = projname_version.replace("-", "*")
+        ((projname, version), project) = projname_version_project
         out.stdout.fnmatch_lines("""
             built:*
-            file_upload of {projname_version_norm}*.whl*
+            file_upload of {projname_version_norm_fnmatch}*.whl*
             doc_upload of {projname_version}.doc.zip*
             """.format(
             projname_version=projname_version,
-            projname_version_norm=projname_version_norm))
+            projname_version_norm_fnmatch=projname_version_norm_fnmatch))
         archive_path = project.join('dist', '%s.doc.zip' % projname_version)
         with Archive(archive_path) as archive:
             artifacts = [
@@ -504,41 +519,40 @@ class TestUploadFunctional:
                 if x.startswith(('lib/', 'bdist'))]
             assert artifacts == []
 
-    def test_sdist_zip_with_docs(self, out_devpi, projname_version):
+    def test_sdist_zip_with_docs(self, out_devpi, re_projname_version):
         out = out_devpi(
             "upload", "--formats", "sdist.zip", "--with-docs", code=[200, 200])
         assert out.ret == 0
         out.stdout.re_match_lines(r"""
             built:.*
-            file_upload of {projname_version}\.(tar\.gz|zip)
-            doc_upload of {projname_version}\.doc\.zip
-            """.format(projname_version=projname_version))
+            file_upload of {re_projname_version}\.(tar\.gz|zip)
+            doc_upload of {re_projname_version}\.doc\.zip
+            """.format(re_projname_version=re_projname_version))
 
-    def test_sdist_zip(self, out_devpi, projname_version):
+    def test_sdist_zip(self, out_devpi, re_projname_version):
         out = out_devpi("upload", "--no-isolation", "--formats", "sdist.zip", code=[200])
         assert out.ret == 0
         out.stdout.re_match_lines(r"""
             built:
-            file_upload of {projname_version}\.(tar\.gz|zip)
-            """.format(projname_version=projname_version))
+            file_upload of {re_projname_version}\.(tar\.gz|zip)
+            """.format(re_projname_version=re_projname_version))
 
-    def test_sdist(self, out_devpi, projname_version):
+    def test_sdist(self, out_devpi, projname_version_norm_fnmatch):
         out = out_devpi("upload", "--no-isolation", "--sdist", code=[200])
         assert out.ret == 0
         out.stdout.fnmatch_lines("""
             built:*
             file_upload of {projname_version}*
-            """.format(projname_version=projname_version))
+            """.format(projname_version=projname_version_norm_fnmatch))
 
-    def test_bdist_wheel(self, out_devpi, projname_version):
+    def test_bdist_wheel(self, out_devpi, projname_version_norm_fnmatch):
         out = out_devpi("upload", "--no-isolation", "--formats", "bdist_wheel", code=[200])
         assert out.ret == 0
-        projname_version_norm = projname_version.replace("-", "*")
         out.stdout.fnmatch_lines("""
             The --formats option is deprecated, replace it with --wheel to only*
             built:*
             file_upload of {projname_version_norm}*.whl*
-            """.format(projname_version_norm=projname_version_norm))
+            """.format(projname_version_norm=projname_version_norm_fnmatch))
 
     def test_wheel_setup_cfg(self, initproj, out_devpi):
         initproj("pkg-1.0", kind="setup.cfg")
@@ -558,44 +572,38 @@ class TestUploadFunctional:
             file_upload of pkg-1.0-*.whl*
             """)
 
-    def test_default_formats(self, out_devpi, projname_version):
+    def test_default_formats(self, out_devpi, re_projname_version):
         out = out_devpi(
             "upload", "--formats", "sdist,bdist_wheel", code=[200, 200])
         assert out.ret == 0
-        projname_version_norm = projname_version.replace("-", ".")
         out.stdout.re_match_lines_random(r"""
             The --formats option is deprecated, you can remove it to get the
             built:
-            file_upload of {projname_version_norm}-.+\.whl
-            file_upload of {projname_version}\.(tar\.gz|zip)
+            file_upload of {re_projname_version}-.+\.whl
+            file_upload of {re_projname_version}\.(tar\.gz|zip)
             """.format(
-            projname_version=projname_version,
-            projname_version_norm=projname_version_norm))
+            re_projname_version=re_projname_version))
 
-    def test_deprecated_formats(self, out_devpi, projname_version):
+    def test_deprecated_formats(self, out_devpi, re_projname_version):
         out = out_devpi(
             "upload", "--formats", "bdist_dumb,bdist_egg", code=[200, 200])
         assert out.ret == 0
-        projname_version_norm = projname_version.replace("-", ".")
         out.stdout.re_match_lines_random(r"""
             The --formats option is deprecated, none of the specified formats 'bdist_dumb,bdist_egg'
             .*Falling back to 'setup\.py bdist_dumb' which
             .*Falling back to 'setup\.py bdist_egg' which
             built:
-            file_upload of {projname_version}.*\.(tar\.gz|zip)
-            file_upload of {projname_version_norm}.*\.egg
+            file_upload of {re_projname_version}.*\.(tar\.gz|zip)
+            file_upload of {re_projname_version}.*\.egg
             """.format(
-            projname_version=projname_version,
-            projname_version_norm=projname_version_norm))
+            re_projname_version=re_projname_version))
 
-    def test_plain(self, out_devpi, projname_version):
+    def test_plain(self, out_devpi, projname_version_norm_fnmatch):
         out = out_devpi("upload", "--no-isolation", code=[200, 200])
         out.stdout.fnmatch_lines_random("""
             file_upload of {projname_version}.*
-            file_upload of {projname_version_norm}*.whl*
-            """.format(projname_version=projname_version,
-                       projname_version_norm=projname_version.replace("-", "*")
-                       ))
+            file_upload of {projname_version}*.whl*
+            """.format(projname_version=projname_version_norm_fnmatch))
 
     def test_upload_to_mirror(
             self, initproj, out_devpi, projname_version):
@@ -711,7 +719,7 @@ class TestUploadFunctional:
         vv = ViewLinkStore(url, data["result"])
         assert len(vv.get_links()) == 2
         links = dict((x.rel, x.basename.lower()) for x in vv.get_links())
-        assert links["releasefile"] == "%s.zip" % name_version_str
+        assert links["releasefile"].replace('_', '-') == "%s.zip" % name_version_str
         assert links["doczip"] == "%s.doc.zip" % name_version_str
 
     def test_cli_sdist_precedence(self, initproj, devpi, out_devpi):

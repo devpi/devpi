@@ -126,7 +126,9 @@ def test_index_option_with_environment_relative_root_current(
     (out, err) = capfd.readouterr()
     assert "DEVPI_INDEX" not in out
     assert "foo/bar" not in out
-    assert "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+    assert (
+        "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+        or "file_upload of hello1_1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines())
 
 
 @pytest.mark.parametrize("devpi_index", ["user/dev", "/user/dev"])
@@ -153,7 +155,9 @@ def test_index_option_with_environment_relative_user_current(
     (out, err) = capfd.readouterr()
     assert "DEVPI_INDEX" not in out
     assert "foo/bar" not in out
-    assert "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+    assert (
+        "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+        or "file_upload of hello1_1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines())
 
 
 @pytest.mark.parametrize("devpi_index", ["user/dev", "/user/dev"])
@@ -184,4 +188,6 @@ def test_index_option_with_environment_relative(
     (out, err) = capfd.readouterr()
     assert "DEVPI_INDEX" not in out
     assert "foo/bar" not in out
-    assert "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+    assert (
+        "file_upload of hello1.1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines()
+        or "file_upload of hello1_1-0.1.tar.gz to http://devpi/user/dev/" in out.splitlines())
