@@ -178,6 +178,11 @@ class UnpackedPackage:
                 # for example the source releases of argon2_cffi
                 inpkgdir = self.rootdir.joinpath(
                     f"{pkgname.replace('-', '_')}-{version}")
+                if not inpkgdir.exists():
+                    # setuptools implementation of PEP625
+                    # replaces dots by underscores
+                    inpkgdir = self.rootdir.joinpath(
+                        f"{pkgname.replace('.', '_')}-{version}")
         if not inpkgdir.exists():
             self.hub.fatal("Couldn't find unpacked package in", inpkgdir)
         self.path_unpacked = inpkgdir

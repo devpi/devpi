@@ -304,6 +304,37 @@ class TestWheel:
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
     @pytest.mark.skipif("config.option.fast")
+    def test_prepare_toxrun_args3(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
+        # basically the same test as above, but it's testing the unpack
+        # path for packages that have a dot in the name
+        vl = ViewLinkStore("http://something/index", {"+links": [
+            {"href": "http://b/prep.dot-1.0.zip", "rel": "releasefile"},
+            {"href": "http://b/prep.dot-1.0.tar.gz", "rel": "releasefile"},
+            {"href": "http://b/prep.dot-1.0-py2.py3-none-any.whl", "rel": "releasefile"},
+            {"href": "http://b/prep.dot-1.0-py2-none-any.whl", "rel": "releasefile"},
+        ], "name": "prep-dot", "version": "1.0"})
+        links = vl.get_links(rel="releasefile")
+        sdist_links, wheel_links = find_sdist_and_wheels(loghub, links)
+        dev_index = DevIndex(loghub, tmpdir, pseudo_current)
+
+        initproj("prep.dot-1.0", filedefs={})
+        subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
+        subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
+        for p in Path("dist").iterdir():
+            reqmock.mockresponse(
+                f"http://b/{p.name}",
+                code=200, data=p.read_bytes(), method="GET")
+        toxrunargs = prepare_toxrun_args(dev_index, vl, sdist_links, wheel_links)
+        assert len(toxrunargs) == 3
+        sdist1, sdist2, wheel1 = toxrunargs
+        assert sdist1[0].basename == "prep.dot-1.0.tar.gz"
+        assert str(sdist1[1].path_unpacked).endswith("targz" + os.sep + "prep_dot-1.0")
+        assert sdist2[0].basename == "prep.dot-1.0.zip"
+        assert str(sdist2[1].path_unpacked).endswith("zip" + os.sep + "prep_dot-1.0")
+        assert wheel1[0].basename == "prep.dot-1.0-py2.py3-none-any.whl"
+        assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
+
+    @pytest.mark.skipif("config.option.fast")
     def test_prepare_toxrun_args_select(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
         # test that we can explicitly select a non universal wheel
         pyver = "py%s" % sys.version_info[0]
