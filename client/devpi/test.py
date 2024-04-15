@@ -5,6 +5,7 @@ import shutil
 from devpi_common.archive import Archive
 from devpi_common.contextlib import chdir
 from devpi_common.metadata import parse_requirement
+import itertools
 import json
 import sys
 
@@ -172,12 +173,17 @@ class UnpackedPackage:
         if self.link.basename.endswith(".whl"):
             inpkgdir = self.rootdir
         else:
+            # default for check below if no glob matches
             inpkgdir = self.rootdir / f"{pkgname}-{version}"
-            if not inpkgdir.exists():
-                # sometimes dashes are replaced by underscores,
-                # for example the source releases of argon2_cffi
-                inpkgdir = self.rootdir.joinpath(
-                    f"{pkgname.replace('-', '_')}-{version}")
+            pkgname_glob = pkgname.replace('-', '?').replace('.', '?')
+            paths = itertools.chain(
+                self.rootdir.glob(f"{pkgname}-{version}"),
+                self.rootdir.glob(f"{pkgname}-{version}".lower()),
+                self.rootdir.glob(f"{pkgname_glob}-{version}"),
+                self.rootdir.glob(f"{pkgname_glob}-{version}".lower()))
+            for inpkgdir in paths:
+                if inpkgdir.exists():
+                    break
         if not inpkgdir.exists():
             self.hub.fatal("Couldn't find unpacked package in", inpkgdir)
         self.path_unpacked = inpkgdir

@@ -241,66 +241,54 @@ class TestWheel:
         assert 'only universal wheels' not in '\n'.join(loghub._getmatcher().lines)
 
     @pytest.mark.skipif("config.option.fast")
-    def test_prepare_toxrun_args(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
-        # XXX this test was a bit hard to setup and is also somewhat covered by
-        # the below wheel functional test so unclear if it's worth to
-        # maintain it (but now that we have it ...)
-        vl = ViewLinkStore("http://something/index", {"+links": [
-            {"href": "http://b/prep1-1.0.zip", "rel": "releasefile"},
-            {"href": "http://b/prep1-1.0.tar.gz", "rel": "releasefile"},
-            {"href": "http://b/prep1-1.0-py2.py3-none-any.whl", "rel": "releasefile"},
-            {"href": "http://b/prep1-1.0-py2-none-any.whl", "rel": "releasefile"},
-        ], "name": "prep1", "version": "1.0"})
+    @pytest.mark.parametrize("pkgname", (
+        "prep1",
+        "prep-dash",
+        "prep_under",
+        "prep.dot",
+        "prep.dot-dash",
+        "prep.dot_under",
+        "Upper"))
+    def test_prepare_toxrun_args(self, loghub, pkgname, pseudo_current, tmpdir, reqmock, initproj):
+        initproj((pkgname, "1.0"), filedefs={})
+        subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
+        subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
+        vl_links = []
+        for p in Path("dist").iterdir():
+            url = f"http://b/{p.name}"
+            vl_links.append(dict(href=url, rel="releasefile"))
+            if 'py2.py3' in url:
+                vl_links.append(dict(href=url.replace('py2.py3', 'py2'), rel="releasefile"))
+                vl_links.append(dict(href=url.replace('py2.py3', 'py3'), rel="releasefile"))
+            reqmock.mockresponse(
+                url,
+                code=200, data=p.read_bytes(), method="GET")
+        vl = ViewLinkStore(
+            "http://something/index",
+            {"+links": vl_links, "name": pkgname, "version": "1.0"})
         links = vl.get_links(rel="releasefile")
         sdist_links, wheel_links = find_sdist_and_wheels(loghub, links)
         dev_index = DevIndex(loghub, tmpdir, pseudo_current)
-
-        initproj("prep1-1.0", filedefs={})
-        subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
-        subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
-        for p in Path("dist").iterdir():
-            reqmock.mockresponse(
-                f"http://b/{p.name}",
-                code=200, data=p.read_bytes(), method="GET")
         toxrunargs = prepare_toxrun_args(dev_index, vl, sdist_links, wheel_links)
         assert len(toxrunargs) == 3
         sdist1, sdist2, wheel1 = toxrunargs
-        assert sdist1[0].basename == "prep1-1.0.tar.gz"
-        assert str(sdist1[1].path_unpacked).endswith("targz" + os.sep + "prep1-1.0")
-        assert sdist2[0].basename == "prep1-1.0.zip"
-        assert str(sdist2[1].path_unpacked).endswith("zip" + os.sep + "prep1-1.0")
-        assert wheel1[0].basename == "prep1-1.0-py2.py3-none-any.whl"
-        assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
-
-    @pytest.mark.skipif("config.option.fast")
-    def test_prepare_toxrun_args2(self, loghub, pseudo_current, tmpdir, reqmock, initproj):
-        # basically the same test as above, but it's testing the unpack
-        # path for packages that have an underscore in the name
-        vl = ViewLinkStore("http://something/index", {"+links": [
-            {"href": "http://b/prep_under-1.0.zip", "rel": "releasefile"},
-            {"href": "http://b/prep_under-1.0.tar.gz", "rel": "releasefile"},
-            {"href": "http://b/prep_under-1.0-py2.py3-none-any.whl", "rel": "releasefile"},
-            {"href": "http://b/prep_under-1.0-py2-none-any.whl", "rel": "releasefile"},
-        ], "name": "prep-under", "version": "1.0"})
-        links = vl.get_links(rel="releasefile")
-        sdist_links, wheel_links = find_sdist_and_wheels(loghub, links)
-        dev_index = DevIndex(loghub, tmpdir, pseudo_current)
-
-        initproj("prep_under-1.0", filedefs={})
-        subprocess.check_call(["python", "setup.py", "sdist", "--formats=gztar,zip"])
-        subprocess.check_call(["python", "setup.py", "bdist_wheel", "--universal"])
-        for p in Path("dist").iterdir():
-            reqmock.mockresponse(
-                f"http://b/{p.name}",
-                code=200, data=p.read_bytes(), method="GET")
-        toxrunargs = prepare_toxrun_args(dev_index, vl, sdist_links, wheel_links)
-        assert len(toxrunargs) == 3
-        sdist1, sdist2, wheel1 = toxrunargs
-        assert sdist1[0].basename == "prep_under-1.0.tar.gz"
-        assert str(sdist1[1].path_unpacked).endswith("targz" + os.sep + "prep_under-1.0")
-        assert sdist2[0].basename == "prep_under-1.0.zip"
-        assert str(sdist2[1].path_unpacked).endswith("zip" + os.sep + "prep_under-1.0")
-        assert wheel1[0].basename == "prep_under-1.0-py2.py3-none-any.whl"
+        pkgname_norm = pkgname.replace('-', '_').replace('.', '_').lower()
+        pkgname_whl = pkgname.replace('-', '_')
+        assert sdist1[0].basename in {
+            f"{pkgname}-1.0.tar.gz",
+            f"{pkgname_norm}-1.0.tar.gz"}
+        assert str(sdist1[1].path_unpacked).endswith((
+            "targz" + os.sep + f"{pkgname}-1.0",
+            "targz" + os.sep + f"{pkgname_norm}-1.0"))
+        assert sdist2[0].basename in {
+            f"{pkgname}-1.0.zip",
+            f"{pkgname_norm}-1.0.zip"}
+        assert str(sdist2[1].path_unpacked).endswith((
+            "zip" + os.sep + f"{pkgname}-1.0",
+            "zip" + os.sep + f"{pkgname_norm}-1.0"))
+        assert wheel1[0].basename in {
+            f"{pkgname}-1.0-py2.py3-none-any.whl",
+            f"{pkgname_whl}-1.0-py2.py3-none-any.whl"}
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
     @pytest.mark.skipif("config.option.fast")
