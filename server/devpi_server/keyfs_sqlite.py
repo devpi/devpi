@@ -389,6 +389,9 @@ class BaseStorage(object):
         return sqlite3.connect(
             self.sqlpath.strpath, timeout=60, isolation_level=None)
 
+    def _execute_conn_pragmas(self, sqlconn):
+        pass
+
     def _get_sqlconn(self, uri):
         # we will try different connection methods and overwrite _get_sqlconn
         # with the first successful one
@@ -445,6 +448,7 @@ class BaseStorage(object):
             mode = "rwc"
         uri = "file:%s?mode=%s" % (self.sqlpath, mode)
         sqlconn = self._get_sqlconn(uri)
+        self._execute_conn_pragmas(sqlconn)
         if write:
             start_time = time.monotonic()
             thread = current_thread()
