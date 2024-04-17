@@ -51,7 +51,7 @@ def hash_spec_matches(hash_spec, content):
 
 
 @pytest.mark.parametrize("kind", ["user", "index"])
-@pytest.mark.parametrize("name,status", [
+@pytest.mark.parametrize(("name", "status"), [
     ("foo_bar", 'ok'),
     ("foo-bar", 'ok'),
     ("foo.bar", 'ok'),
@@ -61,22 +61,19 @@ def hash_spec_matches(hash_spec, content):
     ("foo!bar42", 'fatal'),
     ("foo~bar42", 'fatal'),
     (":foobar", 'fatal'),
-    (":foobar:", 'fatal')])
-def test_invalid_name(caplog, testapp, name, status, kind):
-    reqdict = dict(password="123")
+    (":foobar:", 'fatal'),
+    ("föö", 'ok'),
+    ("😀", 'ok')])
+def test_invalid_name(testapp, name, status, kind):
+    from urllib.parse import quote as urlquote
+    reqdict = dict(password="123")  # noqa: S106
     if kind == "user":
-        r = testapp.put_json("/%s" % name, reqdict, expect_errors=True)
+        r = testapp.put_json("/%s" % urlquote(name), reqdict, expect_errors=True)
     else:
         r = testapp.put_json("/foo", reqdict)
         testapp.set_auth("foo", "123")
-        r = testapp.put_json("/foo/%s" % name, {}, expect_errors=True)
-    if status in ('ok', 'warn'):
-        if kind == "user":
-            code = 201
-        else:
-            code = 200
-    else:
-        code = 400
+        r = testapp.put_json("/foo/%s" % urlquote(name), {}, expect_errors=True)
+    code = (201 if kind == "user" else 200) if status in ('ok', 'warn') else 400
     assert r.status_code == code
     if status == 'fatal':
         msg = (
