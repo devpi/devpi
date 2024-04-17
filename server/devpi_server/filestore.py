@@ -169,8 +169,7 @@ class FileStore:
 
 def metaprop(name):
     def fget(self):
-        if self.meta is not None:
-            return self.meta.get(name)
+        return None if self.meta is None else self.meta.get(name)
 
     def fset(self, val):
         val = unicode_if_bytes(val)
