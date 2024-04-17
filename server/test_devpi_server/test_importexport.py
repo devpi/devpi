@@ -213,8 +213,14 @@ class TestImportExport:
 
             def import_testdata(self, name, options=()):
                 from devpi_server.importexport import import_
-                with importlib.resources.path(
-                        'test_devpi_server', 'importexportdata') as path:
+                if hasattr(importlib.resources, 'files'):
+                    files = importlib.resources.files('test_devpi_server')
+                    path_cm = importlib.resources.as_file(
+                        files / 'importexportdata')
+                else:
+                    path_cm = importlib.resources.path(
+                        'test_devpi_server', 'importexportdata')
+                with path_cm as path:
                     serverdir = gentmp()
                     argv = [
                         "devpi-import",
