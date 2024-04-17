@@ -616,7 +616,7 @@ class TestImportExport:
             linkstore = stage.get_linkstore_perstage(
                 link.project, link.version)
             tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
-            assert tox_link.hash_value == toxresult_hash
+            assert tox_link.best_available_hash_value == toxresult_hash
             assert tox_link.entry.last_modified == last_modified
             (history_log,) = tox_link.get_logs()
             assert history_log['what'] == 'upload'

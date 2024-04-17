@@ -1079,7 +1079,7 @@ class PyPIView:
                         pyver, filetype = get_pyversion_filetype(basename)
                         file_metadata["filetype"] = filetype
                         file_metadata["pyversion"] = pyver
-                        file_metadata["%s_digest" % link.hash_type] = link.hash_value
+                        file_metadata["%s_digest" % link.best_available_hash_type] = link.best_available_hash_value
                         content = entry.file_get_content()
                         self.log.info(
                             "sending %s to %s, metadata %s",
