@@ -312,7 +312,7 @@ class FileEntry(object):
         self.file_delete()
 
     def has_existing_metadata(self):
-        return self.hash_spec and self.last_modified
+        return bool(self.hash_spec and self.last_modified)
 
 
 def get_checksum_error(content_or_hash, relpath, hash_spec):
