@@ -2,6 +2,20 @@
 
 .. towncrier release notes start
 
+4.2.2 (2024-04-20)
+==================
+
+Bug Fixes
+---------
+
+- style.css: Always let content be full browser height. This also gives more height with some documentation themes when content is short.
+
+- style.css: set ``scrollbar-gutter: stable`` on ``body`` to prevent jumping content in documentation iframe.
+
+- Fix #970: overwrite fixed html/body heights like ``100%`` in documentation iframe content.
+
+
+
 4.2.1 (2023-07-02)
 ==================
 

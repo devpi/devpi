@@ -1,1 +1,0 @@
-Provide proper error message if the API request for ``devpi use`` fails.

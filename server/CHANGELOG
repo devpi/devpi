@@ -2,6 +2,27 @@
 
 .. towncrier release notes start
 
+6.11.0 (2024-04-20)
+===================
+
+Features
+--------
+
+- The ``devpi-fsck`` script now returns an error code when there have been missing files or checksum errors.
+
+- Fix #983: Add plugin hook for mirror authentication header.
+
+
+
+Bug Fixes
+---------
+
+- Preserve last modified of docs and toxresults during export/import.
+
+- Fix #1033: Use ``int`` for ``--mirror-cache-expiry`` to fix value of ``proxy_cache_valid`` in nginx caching config.
+
+
+
 6.10.0 (2023-12-19)
 ===================
 

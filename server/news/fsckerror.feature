@@ -1,1 +1,0 @@
-The ``devpi-fsck`` script now returns an error code when there have been missing files or checksum errors.

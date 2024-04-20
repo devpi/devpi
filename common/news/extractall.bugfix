@@ -1,1 +1,0 @@
-Use ``filter='data'`` for ``extractall`` call on supported Python versions as additional guard to the existing out of path checks against malicious tar files.

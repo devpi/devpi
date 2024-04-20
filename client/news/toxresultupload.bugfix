@@ -1,1 +1,0 @@
-If the server returns a message on toxresult upload, then print it as a warning.

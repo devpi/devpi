@@ -1,1 +1,0 @@
-Fix #970: overwrite fixed html/body heights like ``100%`` in documentation iframe content.

@@ -1,1 +1,0 @@
-Fix #983: Add plugin hook for mirror authentication header.

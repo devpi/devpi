@@ -2,6 +2,18 @@
 
 .. towncrier release notes start
 
+4.0.4 (2024-04-20)
+==================
+
+Bug Fixes
+---------
+
+- Use ``filter='data'`` for ``extractall`` call on supported Python versions as additional guard to the existing out of path checks against malicious tar files.
+
+- Remove custom ``LegacyVersion`` and use ``packaging-legacy`` instead, which is also used by pypi.org.
+
+
+
 4.0.3 (2023-11-23)
 ==================
 

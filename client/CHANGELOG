@@ -2,6 +2,24 @@
 
 .. towncrier release notes start
 
+7.0.3 (2024-04-20)
+==================
+
+Bug Fixes
+---------
+
+- Require ``build>=0.7.0`` to prevent import error with older versions.
+
+- Fix check for extracted path when testing packages related to PEP 625 changes in setuptools.
+
+- If the server returns a message on toxresult upload, then print it as a warning.
+
+- Provide proper error message if the API request for ``devpi use`` fails.
+
+- Fix #1011: change HTTP status codes >=400 to use self.fatal instead of raw SystemExit, protect 403 and 404 errors from SystemExit
+
+
+
 7.0.2 (2023-10-19)
 ==================
 

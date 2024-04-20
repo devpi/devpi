@@ -1,1 +1,0 @@
-Fix check for extracted path when testing packages related to PEP 625 changes in setuptools.
