@@ -138,9 +138,9 @@ jobs:
             os: "ubuntu-latest"
             tox-envs: "py37-setuptools6920"
           - project: "web"
-            python-version: "3.5"
+            python-version: "3.6"
             os: "ubuntu-20.04"
-            tox-envs: "py35-server520"
+            tox-envs: "py36-server520"
 
     env:
       PY_COLORS: 1
