@@ -2,6 +2,25 @@
 
 .. towncrier release notes start
 
+6.12.0 (2024-06-25)
+===================
+
+Features
+--------
+
+- Added ``devpiserver_on_toxresult_store`` hook to allow blocking or skipping a toxresult upload on more specific conditions as ``acl_toxresult_upload`` would allow.
+
+- Added ``devpiserver_on_toxresult_upload_forbidden`` hook to allow returning a custom message and result (403 or 200).
+
+
+
+Bug Fixes
+---------
+
+- Return json data if toxresult upload is forbidden.
+
+
+
 6.11.0 (2024-04-20)
 ===================
 

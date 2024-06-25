@@ -1,1 +1,0 @@
-Added ``devpiserver_on_toxresult_store`` hook to allow blocking or skipping a toxresult upload on more specific conditions as ``acl_toxresult_upload`` would allow.
