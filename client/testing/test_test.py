@@ -8,6 +8,7 @@ from devpi.test import find_sdist_and_wheels
 from devpi.test import prepare_toxrun_args
 from devpi.test import post_tox_json_report
 from pathlib import Path
+from textwrap import dedent
 
 
 def test_post_tox_json_report(loghub, mock_http_api):
@@ -221,6 +222,32 @@ def test_fallback_ini_relative(makehub, tmpdir, pseudo_current):
     p2 = tmpdir.ensure("tox.ini")
     args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
     assert contains_sublist(args, ["-c", str(p2)])
+
+
+def test_pyproject_toml(makehub, tmpdir, pseudo_current):
+    p = tmpdir.join("pyproject.toml")
+    p.write_text(dedent("""
+        [project]
+        keywords = [
+            "foo",
+            "bar",
+        ]
+
+        [tool.tox]
+        """), "utf-8")
+    hub = makehub(["test", "somepkg"])
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
+    assert contains_sublist(args, ["-c", str(p)])
+
+
+def test_setup_cfg(makehub, tmpdir, pseudo_current):
+    p = tmpdir.join("setup.cfg")
+    p.write_text("[tox:tox]", "utf-8")
+    hub = makehub(["test", "somepkg"])
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
+    assert contains_sublist(args, ["-c", str(p)])
 
 
 class TestWheel:

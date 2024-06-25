@@ -16,6 +16,7 @@ dependencies = [
     "pkginfo>=1.4.2",
     "platformdirs",
     "pluggy>=0.6.0,<2.0",
+    "tomli; python_version < '3.11'"
 ]
 requires-python = ">=3.7"
 maintainers = [
