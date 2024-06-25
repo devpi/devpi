@@ -212,6 +212,17 @@ def test_fallback_ini(makehub, tmpdir, pseudo_current):
     assert contains_sublist(args, ["-c", str(p2)])
 
 
+def test_fallback_ini_relative(makehub, tmpdir, pseudo_current):
+    p = tmpdir.ensure("mytox.ini")
+    hub = makehub(["test", "--fallback-ini", "mytox.ini", "somepkg"])
+    index = DevIndex(hub, tmpdir, pseudo_current)
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
+    assert contains_sublist(args, ["-c", str(p)])
+    p2 = tmpdir.ensure("tox.ini")
+    args = index.get_tox_args(unpack_path=Path(tmpdir.strpath))
+    assert contains_sublist(args, ["-c", str(p2)])
+
+
 class TestWheel:
     def test_find_wheels_and_sdist(self, loghub):
         vl = ViewLinkStore("http://something/index", {"+links": [

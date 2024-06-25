@@ -306,8 +306,8 @@ test
       -h, --help            show this help message and exit
       -e ENVNAME            tox test environment to run from the tox.ini
       -c PATH               tox configuration file to use with unpacked package
-      --fallback-ini PATH   tox ini file to be used if the downloaded package has
-                            none
+      --fallback-ini PATH   alternate name or full path to tox ini file to use if
+                            package has none
       --tox-args toxargs    extra command line arguments for tox. e.g.
                             --toxargs="-c othertox.ini"
       --no-upload           Skip upload of tox results

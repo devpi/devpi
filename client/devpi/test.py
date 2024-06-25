@@ -130,7 +130,12 @@ class DevIndex:
         elif unpack_path.joinpath("tox.ini").is_file():
             ini = hub.get_existing_file(unpack_path / "tox.ini")
         elif args.fallback_ini:
-            ini = hub.get_existing_file(args.fallback_ini)
+            if Path(args.fallback_ini).is_file():
+                # seems to be a direct path
+                ini = hub.get_existing_file(args.fallback_ini)
+            else:
+                # try relative to unpack_path
+                ini = hub.get_existing_file(unpack_path.joinpath(args.fallback_ini))
         else:
             hub.fatal("no tox.ini file found in %s" % unpack_path)
         toxargs.extend(["-c", str(ini)])

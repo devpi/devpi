@@ -1,0 +1,1 @@
+The ``--fallback-ini`` option of ``devpi test`` can now be relative to the package root. This allows using ``pyproject.toml`` or similar instead of ``tox.ini``.

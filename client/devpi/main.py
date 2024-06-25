@@ -1101,10 +1101,11 @@ def test(parser):
         default=None, action="store",
         help="tox configuration file to use with unpacked package")
 
-    parser.add_argument("--fallback-ini", metavar="PATH", type=str,
+    parser.add_argument(
+        "--fallback-ini", metavar="PATH", type=str,
         dest="fallback_ini",
         default=None, action="store",
-        help="tox ini file to be used if the downloaded package has none")
+        help="alternate name or full path to tox ini file to use if package has none")
 
     parser.add_argument("--tox-args", metavar="toxargs", action="store",
         dest="toxargs", default=None,
