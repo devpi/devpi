@@ -143,7 +143,7 @@ def post_tox_json_report(hub, href, jsondata):
     hub.line("posting tox result data to %s" % href)
     r = hub.http_api("post", href, kvdict=jsondata)
     if r.status_code == 200:
-        hub.info("successfully posted tox result data")
+        hub.info("success")
         msg = r.json_get('message')
         if msg:
             hub.warn(msg)

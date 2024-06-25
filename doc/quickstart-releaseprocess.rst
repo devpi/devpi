@@ -252,7 +252,7 @@ If you have a package which uses tox_ for testing you may now invoke::
       py: OK (10.57 seconds)
       congratulations :) (10.85 seconds)
     posting tox result data to http://localhost:3141/testuser/dev/+f/853/34ff3d48c83ba/example-1.0.tar.gz
-    successfully posted tox result data
+    success
 
 Here is what happened:
 
