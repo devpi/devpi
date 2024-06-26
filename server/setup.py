@@ -29,7 +29,7 @@ if __name__ == "__main__":
     install_requires = ["py>=1.4.23",
                         "httpx",
                         "argon2-cffi",
-                        "attrs>=21.3.0",
+                        "attrs>=22.2.0",
                         "defusedxml",
                         "devpi_common<5,>3.6.0",
                         "itsdangerous>=0.24",
