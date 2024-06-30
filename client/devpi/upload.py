@@ -19,6 +19,10 @@ from .main import HTTPReply, set_devpi_auth_header
 from pathlib import Path
 from subprocess import CalledProcessError
 from traceback import format_exception_only
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 
 def main(hub, args):
@@ -599,6 +603,54 @@ class NullCFG:
     wheel = None
 
 
+class PyProjectTOML:
+    notset = object()
+
+    def __init__(self, hub, section):
+        self.hub = hub
+        self._section = section
+
+    def _get(self, key):
+        value = self._section.get(key, self.notset)
+        if value is not self.notset:
+            self.hub.info(
+                f"Got {key}={value!r} from pyproject.toml [tool.devpi.upload].")
+            self._validbool(key, value)
+            return value
+        return None
+
+    def _validbool(self, key, value):
+        if value is None:
+            return
+        if not isinstance(value, bool):
+            self.hub.fatal(
+                f"Got non-boolean {value!r} for {key!r}, use true or false.")
+
+    @property
+    def formats(self):
+        formats = self._section.get("formats")
+        if formats is None:
+            return None
+        self.hub.fatal(
+            "The 'formats' option is deprecated and not supported in pyproject.toml.")
+
+    @property
+    def no_vcs(self):
+        return self._get("no-vcs")
+
+    @property
+    def sdist(self):
+        return self._get("sdist")
+
+    @property
+    def setupdir_only(self):
+        return self._get("setupdir-only")
+
+    @property
+    def wheel(self):
+        return self._get("wheel")
+
+
 class SetupCFG:
     notset = object()
 
@@ -669,6 +721,23 @@ class SetupCFG:
             self.hub.fatal(f"{e}")
 
 
+def read_pyprojecttoml(hub, path):
+    pyproject_toml = Path(path) / "pyproject.toml"
+    if pyproject_toml.is_file():
+        try:
+            with pyproject_toml.open("rb") as f:
+                cfg = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
+            hub.fatal(f"Error loading {pyproject_toml}:\n{e}")
+        section = cfg.get('tool', {}).get('devpi', {}).get('upload')
+        if section is not None:
+            hub.line(
+                f"detected tool.devpi.upload section in {pyproject_toml}",
+                bold=True)
+            return PyProjectTOML(hub, section)
+    return None
+
+
 def read_setupcfg(hub, path):
     setup_cfg = Path(path) / "setup.cfg"
     if setup_cfg.is_file():
@@ -681,6 +750,11 @@ def read_setupcfg(hub, path):
 
 def read_config(hub, path):
     setupcfg = read_setupcfg(hub, path)
-    if setupcfg is None:
-        return NullCFG()
-    return setupcfg
+    pyprojecttoml = read_pyprojecttoml(hub, path)
+    if pyprojecttoml and setupcfg:
+        hub.fatal("Got configuration in pyproject.toml and setup.cfg, choose one.")
+    if pyprojecttoml is not None:
+        return pyprojecttoml
+    if setupcfg is not None:
+        return setupcfg
+    return NullCFG()

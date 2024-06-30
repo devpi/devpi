@@ -1,0 +1,1 @@
+Support upload command configuration from ``pyproject.toml`` in ``[tool.devpi.upload]`` section.

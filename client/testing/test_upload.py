@@ -187,6 +187,79 @@ class TestCheckout:
         assert l[0]["cwd"] == exported.rootpath
 
 
+def test_setup_build_pyproject(uploadhub, tmpdir):
+    tmpdir.join("pyproject.toml").write(dedent("""
+        [tool.devpi.upload]
+        no-vcs=true
+        sdist=true
+        setupdir-only=false
+        wheel=false
+    """))
+    cfg = read_config(uploadhub, tmpdir)
+    assert cfg.formats is None
+    assert cfg.no_vcs is True
+    assert cfg.sdist is True
+    assert cfg.setupdir_only is False
+    assert cfg.wheel is False
+
+
+def test_setup_build_pyproject_bad_sdist(capsys, uploadhub, tmpdir):
+    tmpdir.join("pyproject.toml").write(dedent("""
+        [tool.devpi.upload]
+        sdist="foo"
+    """))
+    uploadhub._tw.fd = sys.stdout
+    cfg = read_config(uploadhub, tmpdir)
+    with pytest.raises(SystemExit):
+        _ = cfg.sdist
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("Got non-boolean 'foo' for 'sdist', use true or false.")
+
+
+def test_setup_build_pyproject_formats(capsys, uploadhub, tmpdir):
+    tmpdir.join("pyproject.toml").write(dedent("""
+        [tool.devpi.upload]
+        formats="foo"
+    """))
+    uploadhub._tw.fd = sys.stdout
+    cfg = read_config(uploadhub, tmpdir)
+    with pytest.raises(SystemExit):
+        _ = cfg.formats
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("The 'formats' option is deprecated and not supported in pyproject.toml.")
+
+
+def test_setup_build_pyproject_invalid_sdist(capsys, uploadhub, tmpdir):
+    tmpdir.join("pyproject.toml").write(dedent("""
+        [tool.devpi.upload]
+        sdist=foo
+    """))
+    uploadhub._tw.fd = sys.stdout
+    with pytest.raises(SystemExit):
+        read_config(uploadhub, tmpdir)
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("Error loading *pyproject.toml:")
+    lm.fnmatch_lines("Invalid *")
+
+
+def test_setup_build_pyproject_setupcfg(capsys, uploadhub, tmpdir):
+    tmpdir.join("pyproject.toml").write(dedent("""
+        [tool.devpi.upload]
+    """))
+    tmpdir.join("setup.cfg").write(dedent("""
+        [devpi:upload]
+    """))
+    uploadhub._tw.fd = sys.stdout
+    with pytest.raises(SystemExit):
+        read_config(uploadhub, tmpdir)
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("Got configuration in pyproject.toml and setup.cfg, choose one.")
+
+
 def test_setup_build_setupcfg(uploadhub, tmpdir):
     tmpdir.join("setup.cfg").write(dedent("""
         [bdist_wheel]
