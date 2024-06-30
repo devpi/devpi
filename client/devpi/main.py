@@ -549,6 +549,10 @@ class Hub:
         if not self.quiet:
             self.line(*msg, yellow=True, bold=True)
 
+    def warning(self, *msg):
+        if not self.quiet:
+            self.line(*msg, yellow=True, bold=True)
+
     def out_json(self, data):
         self._tw.line(json.dumps(data, sort_keys=True, indent=4))
 

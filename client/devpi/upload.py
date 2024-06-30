@@ -8,6 +8,7 @@ import zipfile
 import build.util
 import check_manifest
 
+from contextlib import suppress
 from devpi_common.metadata import Version, get_pyversion_filetype
 from devpi_common.metadata import splitext_archive
 from devpi_common.archive import Archive
@@ -33,9 +34,9 @@ def main(hub, args):
     if args.path:
         return main_fromfiles(hub, args)
 
-    setupcfg = read_setupcfg(hub, hub.cwd)
-    checkout = Checkout(hub, args, hub.cwd, hasvcs=setupcfg.get("no-vcs"),
-                        setupdir_only=setupcfg.get("setupdir-only"))
+    cfg = read_config(hub, hub.cwd)
+    checkout = Checkout(hub, args, hub.cwd, hasvcs=cfg.no_vcs,
+                        setupdir_only=cfg.setupdir_only)
 
     with hub.workdir() as uploadbase:
         exported = checkout.export(uploadbase)
@@ -43,8 +44,7 @@ def main(hub, args):
         exported.prepare()
         archives = []
         if not args.onlydocs:
-            archives.extend(exported.setup_build(
-                default_formats=setupcfg.get("formats")))
+            archives.extend(exported.setup_build(cfg=cfg))
         if args.onlydocs or args.withdocs:
             p = exported.setup_build_docs()
             if p:
@@ -428,17 +428,19 @@ class Exported:
             return option == "zip" if sys.platform == "win32" else option == "gztar"
         return False
 
-    def setup_build(self, default_formats=None):
+    def setup_build(self, cfg=None):
         deprecated_formats = []
         sdist = self.args.sdist
         wheel = self.args.wheel
         formats = self.args.formats
-        if formats is None:
-            formats = default_formats
+        if formats is not None:
+            formats = formats.split(",")
+        if formats is None and cfg is not None:
+            formats = cfg.formats
         if formats and not sdist and not wheel:
             sdist = None
             wheel = None
-            for sdist_format in (x.strip() for x in formats.split(",")):
+            for sdist_format in (x.strip() for x in formats):
                 if not sdist_format:
                     continue
                 if self.is_default_sdist(sdist_format):
@@ -579,6 +581,22 @@ def sdistformat(sdist_format):
     return res
 
 
+def strtobool(val):
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError(f"Invalid truth value {val!r}, use 'y', 'yes', 't', 'true', 'on', '1' for True, or 'n', 'no', 'f', 'false', 'off', '0' for False.")
+
+
+class NullCFG:
+    formats = None
+    no_vcs = None
+    setupdir_only = None
+
+
 class SetupCFG:
     notset = object()
 
@@ -586,13 +604,47 @@ class SetupCFG:
         self.hub = hub
         self._section = section
 
-    def get(self, key):
+    def _get(self, key):
         value = self._section.get(key, self.notset)
         if value is not self.notset:
             self.hub.info(
                 "Got %s=%r from setup.cfg [devpi:upload]." % (key, value))
             return value
         return None
+
+    def _validbool(self, value):
+        actual = bool(value)
+        expected = False
+        with suppress(ValueError):
+            expected = strtobool(value)
+        if actual != expected:
+            self.hub.warning(
+                f"Got {value!r} from config, which is interpreted as True. "
+                f"If you meant 'False', "
+                f"use an empty value or remove the line completely.")
+
+    @property
+    def formats(self):
+        formats = self._get("formats")
+        if formats is None:
+            return None
+        return formats.split(",")
+
+    @property
+    def no_vcs(self):
+        no_vcs = self._get("no-vcs")
+        if no_vcs is None:
+            return None
+        self._validbool(no_vcs)
+        return bool(no_vcs)
+
+    @property
+    def setupdir_only(self):
+        setupdir_only = self._get("setupdir-only")
+        if setupdir_only is None:
+            return None
+        self._validbool(setupdir_only)
+        return bool(setupdir_only)
 
 
 def read_setupcfg(hub, path):
@@ -602,4 +654,11 @@ def read_setupcfg(hub, path):
         if 'devpi:upload' in cfg.sections:
             hub.line("detected devpi:upload section in %s" % setup_cfg, bold=True)
             return SetupCFG(hub, cfg.sections["devpi:upload"])
-    return SetupCFG(hub, {})
+    return None
+
+
+def read_config(hub, path):
+    setupcfg = read_setupcfg(hub, path)
+    if setupcfg is None:
+        return NullCFG()
+    return setupcfg

@@ -6,12 +6,13 @@ import re
 import shutil
 import sys
 import tarfile
+from _pytest.pytester import LineMatcher
 from devpi.upload import Checkout
 from devpi.upload import find_parent_subpath
 from devpi.upload import filter_latest
 from devpi.upload import get_pkginfo
 from devpi.upload import main
-from devpi.upload import read_setupcfg
+from devpi.upload import read_config
 from devpi_common.contextlib import chdir
 from io import BytesIO
 from pathlib import Path
@@ -186,7 +187,7 @@ class TestCheckout:
         assert l[0]["cwd"] == exported.rootpath
 
 
-def test_setup_build_formats_setupcfg(uploadhub, tmpdir):
+def test_setup_build_setupcfg(uploadhub, tmpdir):
     tmpdir.join("setup.cfg").write(dedent("""
         [bdist_wheel]
         universal = 1
@@ -196,21 +197,51 @@ def test_setup_build_formats_setupcfg(uploadhub, tmpdir):
         no-vcs=1
         setupdir-only=1
     """))
-    cfg = read_setupcfg(uploadhub, tmpdir)
-    assert cfg.get("formats") == "bdist_wheel,sdist.zip"
-    assert cfg.get("no-vcs") == "1"
-    assert cfg.get("setupdir-only") == "1"
+    cfg = read_config(uploadhub, tmpdir)
+    assert cfg.formats == ["bdist_wheel", "sdist.zip"]
+    assert cfg.no_vcs is True
+    assert cfg.setupdir_only is True
 
 
-def test_setup_build_formats_setupcfg_nosection(uploadhub, tmpdir):
+def test_setup_build_setupcfg_false_warning_no_vcs(capsys, uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [devpi:upload]
+        no-vcs=false
+    """))
+    uploadhub._tw.fd = sys.stdout
+    cfg = read_config(uploadhub, tmpdir)
+    assert cfg.no_vcs is True
+    assert cfg.setupdir_only is None
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("Got no-vcs='false'*")
+    lm.fnmatch_lines("Got 'false' from config*")
+
+
+def test_setup_build_setupcfg_false_warning_setupdir_only(capsys, uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [devpi:upload]
+        setupdir-only=false
+    """))
+    uploadhub._tw.fd = sys.stdout
+    cfg = read_config(uploadhub, tmpdir)
+    assert cfg.no_vcs is None
+    assert cfg.setupdir_only is True
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("Got setupdir-only='false'*")
+    lm.fnmatch_lines("Got 'false' from config*")
+
+
+def test_setup_build_setupcfg_nosection(uploadhub, tmpdir):
     tmpdir.join("setup.cfg").write(dedent("""
         [bdist_wheel]
         universal = 1
     """))
-    cfg = read_setupcfg(uploadhub, tmpdir)
-    assert not cfg.get("formats")
-    assert not cfg.get("no-vcs")
-    assert not cfg.get("setupdir-only")
+    cfg = read_config(uploadhub, tmpdir)
+    assert cfg.formats is None
+    assert cfg.no_vcs is None
+    assert cfg.setupdir_only is None
 
 
 def test_parent_subpath(tmpdir):
