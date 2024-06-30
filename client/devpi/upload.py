@@ -430,8 +430,8 @@ class Exported:
 
     def setup_build(self, cfg=None):
         deprecated_formats = []
-        sdist = self.args.sdist
-        wheel = self.args.wheel
+        sdist = cfg.sdist or self.args.sdist
+        wheel = cfg.wheel or self.args.wheel
         formats = self.args.formats
         if formats is not None:
             formats = formats.split(",")
@@ -594,7 +594,9 @@ def strtobool(val):
 class NullCFG:
     formats = None
     no_vcs = None
+    sdist = None
     setupdir_only = None
+    wheel = None
 
 
 class SetupCFG:
@@ -639,12 +641,32 @@ class SetupCFG:
         return bool(no_vcs)
 
     @property
+    def sdist(self):
+        sdist = self._get("sdist")
+        if sdist is None:
+            return None
+        try:
+            return strtobool(sdist)
+        except ValueError as e:
+            self.hub.fatal(f"{e}")
+
+    @property
     def setupdir_only(self):
         setupdir_only = self._get("setupdir-only")
         if setupdir_only is None:
             return None
         self._validbool(setupdir_only)
         return bool(setupdir_only)
+
+    @property
+    def wheel(self):
+        wheel = self._get("wheel")
+        if wheel is None:
+            return None
+        try:
+            return strtobool(wheel)
+        except ValueError as e:
+            self.hub.fatal(f"{e}")
 
 
 def read_setupcfg(hub, path):

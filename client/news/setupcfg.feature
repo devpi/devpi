@@ -1,0 +1,1 @@
+Add ``sdist`` and ``wheel`` options for ``setup.cfg``.

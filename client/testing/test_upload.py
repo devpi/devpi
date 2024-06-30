@@ -195,12 +195,61 @@ def test_setup_build_setupcfg(uploadhub, tmpdir):
         [devpi:upload]
         formats=bdist_wheel,sdist.zip
         no-vcs=1
+        sdist=1
         setupdir-only=1
+        wheel=1
     """))
     cfg = read_config(uploadhub, tmpdir)
     assert cfg.formats == ["bdist_wheel", "sdist.zip"]
     assert cfg.no_vcs is True
+    assert cfg.sdist is True
     assert cfg.setupdir_only is True
+    assert cfg.wheel is True
+
+
+def test_setup_build_setupcfg_bad_sdist(capsys, uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [devpi:upload]
+        sdist=foo
+    """))
+    uploadhub._tw.fd = sys.stdout
+    cfg = read_config(uploadhub, tmpdir)
+    with pytest.raises(SystemExit):
+        _ = cfg.sdist
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("Got sdist='foo'*")
+    lm.fnmatch_lines("Invalid truth value*")
+
+
+def test_setup_build_setupcfg_bad_wheel(capsys, uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [devpi:upload]
+        wheel=foo
+    """))
+    uploadhub._tw.fd = sys.stdout
+    cfg = read_config(uploadhub, tmpdir)
+    with pytest.raises(SystemExit):
+        _ = cfg.wheel
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.fnmatch_lines("Got wheel='foo'*")
+    lm.fnmatch_lines("Invalid truth value*")
+
+
+def test_setup_build_setupcfg_false_sdist_wheel(capsys, uploadhub, tmpdir):
+    tmpdir.join("setup.cfg").write(dedent("""
+        [devpi:upload]
+        sdist=false
+        wheel=false
+    """))
+    uploadhub._tw.fd = sys.stdout
+    cfg = read_config(uploadhub, tmpdir)
+    assert cfg.sdist is False
+    assert cfg.wheel is False
+    (out, err) = capsys.readouterr()
+    lm = LineMatcher(out.splitlines())
+    lm.no_fnmatch_line("Got 'false' from config*")
 
 
 def test_setup_build_setupcfg_false_warning_no_vcs(capsys, uploadhub, tmpdir):
@@ -241,7 +290,9 @@ def test_setup_build_setupcfg_nosection(uploadhub, tmpdir):
     cfg = read_config(uploadhub, tmpdir)
     assert cfg.formats is None
     assert cfg.no_vcs is None
+    assert cfg.sdist is None
     assert cfg.setupdir_only is None
+    assert cfg.wheel is None
 
 
 def test_parent_subpath(tmpdir):
