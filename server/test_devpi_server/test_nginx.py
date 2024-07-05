@@ -54,7 +54,7 @@ class TestWithOutsideURLHeader:
                 'proxy_set_header X-outside-url.*$',
                 'proxy_set_header X-outside-url $x_scheme://outside.com;',
                 content,
-                flags=re.I | re.M)
+                flags=re.IGNORECASE | re.MULTILINE)
         return adjust_nginx_conf_content
 
     @pytest.mark.slow
@@ -76,7 +76,7 @@ class TestWithOutsideURLSubPathHeader:
                 'proxy_set_header X-outside-url.*$',
                 'proxy_set_header X-outside-url $x_scheme://outside.com/foo;',
                 content,
-                flags=re.I | re.M)
+                flags=re.IGNORECASE | re.MULTILINE)
         return adjust_nginx_conf_content
 
     @pytest.mark.slow

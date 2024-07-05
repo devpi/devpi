@@ -665,11 +665,9 @@ class Mapp(MappMixin):
             assert res.get("email") == email
 
     def modify_user(self, user, code=200, password=None, **kwargs):
-        reqdict = {}
+        reqdict = dict(kwargs)
         if password:
             reqdict["password"] = password
-        for key, value in kwargs.items():
-            reqdict[key] = value
         r = self.testapp.patch_json("/%s" % user, reqdict, expect_errors=True)
         assert r.status_code == code
         if code == 200:

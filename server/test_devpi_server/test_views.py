@@ -1264,7 +1264,7 @@ def test_push_non_existent(mapp, testapp, monkeypatch):
     # check push of non-existent release results in error
     r = testapp.push("/user1/dev", json.dumps(req), expect_errors=True)
     assert r.status_code == 400
-    #
+
     mapp.use("user1/dev")
     mapp.upload_file_pypi("pkg5-2.6.tgz", b"123", "pkg5", "2.6")
     # check that push to non-authorized existent target index results in error

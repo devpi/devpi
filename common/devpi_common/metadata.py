@@ -199,9 +199,7 @@ def is_archive_of_project(basename, targetname):
     # shows "x-docs-1.0.tar.gz" for targetname "x" (however it was uploaded)
     if not normalize_name(nameversion).startswith(targetname):
         return False
-    if ext.lower() not in ALLOWED_ARCHIVE_EXTS:
-        return False
-    return True
+    return ext.lower() in ALLOWED_ARCHIVE_EXTS
 
 
 class Requirement(BaseRequirement):

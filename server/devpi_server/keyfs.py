@@ -673,13 +673,9 @@ class Transaction(object):
     def exists(self, typedkey):
         if typedkey in self.cache:
             val = self.cache[typedkey]
-            if val in (absent, deleted):
-                return False
-            return True
+            return val not in (absent, deleted)
         (serial, val) = self.get_original(typedkey)
-        if val in (absent, deleted):
-            return False
-        return True
+        return val not in (absent, deleted)
 
     def delete(self, typedkey):
         if not self.write:
@@ -692,7 +688,7 @@ class Transaction(object):
             raise self.keyfs.ReadOnly()
         # sanity check for dictionaries: we always want to have unicode
         # keys, not bytes
-        if typedkey.type == dict:
+        if typedkey.type is dict:
             check_unicode_keys(val)
         assert val is not None
         self.cache[typedkey] = val

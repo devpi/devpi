@@ -5,7 +5,7 @@ from .types import ensure_unicode
 # on 13th Sep 2013 from http://bitbucket.org/pypa/pypi
 
 legal_package_name = re.compile(r"^[a-z0-9\._-]+$", re.IGNORECASE)
-safe_filenames = re.compile(r'.+?\.(exe|tar\.gz|bz2|rpm|deb|zip|tgz|egg|dmg|msi|whl)$', re.I)
+safe_filenames = re.compile(r'.+?\.(exe|tar\.gz|bz2|rpm|deb|zip|tgz|egg|dmg|msi|whl)$', re.IGNORECASE)
 safe_name_rex = re.compile('[^A-Za-z0-9]+')
 
 

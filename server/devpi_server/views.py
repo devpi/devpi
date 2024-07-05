@@ -81,9 +81,7 @@ def _select_simple_content_type(request):
 
 
 def is_simple_json(request):
-    if _select_simple_content_type(request) == SIMPLE_API_V1_JSON:
-        return True
-    return False
+    return _select_simple_content_type(request) == SIMPLE_API_V1_JSON
 
 
 def is_requested_by_installer(request):
@@ -449,9 +447,7 @@ def version_in_filename(version, filename):
     if version in filename:
         return True
     # PEP 427 escaped wheels
-    if re.sub(r"[^\w\d.]+", "_", version, flags=re.UNICODE) in filename:
-        return True
-    return False
+    return re.sub(r"[^\w\d.]+", "_", version, flags=re.UNICODE) in filename
 
 
 class PyPIView:
@@ -596,9 +592,7 @@ class PyPIView:
     def _use_absolute_urls(self):
         if self.xom.config.args.absolute_urls:
             return True
-        if 'HTTP_X_DEVPI_ABSOLUTE_URLS' in self.request.environ:
-            return True
-        return False
+        return 'HTTP_X_DEVPI_ABSOLUTE_URLS' in self.request.environ
 
     @view_config(route_name="/{user}/{index}/+simple/{project}")
     def simple_list_project_redirect(self):
@@ -786,18 +780,18 @@ class PyPIView:
         # depending on remote networks
         content_type = _select_simple_content_type(self.request)
         if content_type == SIMPLE_API_V1_JSON:
-            app_iter = self._simple_list_all_json_v1(stage, stage_results)
+            app_iter = self._simple_list_all_json_v1(stage_results)
         elif is_requested_by_installer(self.request):
-            app_iter = self._simple_list_all_installer(stage, stage_results)
+            app_iter = self._simple_list_all_installer(stage_results)
         else:
-            app_iter = self._simple_list_all(stage, stage_results)
+            app_iter = self._simple_list_all(stage.name, stage_results)
         return Response(
             app_iter=buffered_iterator(app_iter),
             content_type=content_type,
             vary=set(["Accept", "User-Agent"]))
 
-    def _simple_list_all(self, stage, stage_results):
-        title = "%s: simple list (including inherited indices)" % (stage.name)
+    def _simple_list_all(self, stage_name, stage_results):
+        title = f"{stage_name}: simple list (including inherited indices)"
         yield f"<!DOCTYPE html><html><head><title>{title}</title></head><body><h1>{title}</h1>".encode("utf-8")
         last_index = len(stage_results) - 1
         seen = set()
@@ -814,7 +808,7 @@ class PyPIView:
                         seen.add(name)
         yield "</body></html>".encode("utf-8")
 
-    def _simple_list_all_installer(self, stage, stage_results):
+    def _simple_list_all_installer(self, stage_results):
         yield "<!DOCTYPE html><html><body>".encode("utf-8")
         last_index = len(stage_results) - 1
         seen = set()
@@ -826,7 +820,7 @@ class PyPIView:
                         seen.add(name)
         yield "</body></html>".encode("utf-8")
 
-    def _simple_list_all_json_v1(self, stage, stage_results):
+    def _simple_list_all_json_v1(self, stage_results):
         yield '{"meta":{"api-version":"1.0"},"projects":['.encode("utf-8")
         last_index = len(stage_results) - 1
         seen = set()

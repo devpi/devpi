@@ -14,12 +14,12 @@ class HTMLPage(object):
     """Represents one page, along with its URL"""
 
     # FIXME: these regexes are horrible hacks:
-    _homepage_re = re.compile(r'<th>\s*home\s*page', re.I)
-    _download_re = re.compile(r'<th>\s*download\s+url', re.I)
+    _homepage_re = re.compile(r'<th>\s*home\s*page', re.IGNORECASE)
+    _download_re = re.compile(r'<th>\s*download\s+url', re.IGNORECASE)
     # These aren't so awful:
-    _rel_re = re.compile(r"""<[^>]*\srel\s*=\s*['"]?([^'">]+)[^>]*>""", re.I)
-    _href_re = re.compile('href=(?:"([^"]*)"|\'([^\']*)\'|([^>\\s\\n]*))', re.I | re.S)
-    _base_re = re.compile(r"""<base\s+href\s*=\s*['"]?([^'">]+)""", re.I)
+    _rel_re = re.compile(r"""<[^>]*\srel\s*=\s*['"]?([^'">]+)[^>]*>""", re.IGNORECASE)
+    _href_re = re.compile('href=(?:"([^"]*)"|\'([^\']*)\'|([^>\\s\\n]*))', re.IGNORECASE | re.DOTALL)
+    _base_re = re.compile(r"""<base\s+href\s*=\s*['"]?([^'">]+)""", re.IGNORECASE)
 
     def __init__(self, content, url, headers=None):
         self.content = content
@@ -113,7 +113,7 @@ class HTMLPage(object):
             url = self.clean_link(urljoin(self.base_url, url))
             yield Link(url, self)
 
-    _clean_re = re.compile(r'[^a-z0-9$&+,/:;=?@.#%_\\|-]', re.I)
+    _clean_re = re.compile(r'[^a-z0-9$&+,/:;=?@.#%_\\|-]', re.IGNORECASE)
 
     def clean_link(self, url):
         """Makes sure a link is fully encoded.  That is, if a ' ' shows up in

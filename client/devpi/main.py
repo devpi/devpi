@@ -407,8 +407,8 @@ class Hub:
             self.report_popen(args, cwd)
         encoding = sys.getdefaultencoding()
         try:
-            return subprocess.check_output(
-                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)  # noqa: S603
+            return subprocess.check_output(  # noqa: S603
+                args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)
         except subprocess.CalledProcessError as e:
             self.fatal(e.output.decode(encoding))
 

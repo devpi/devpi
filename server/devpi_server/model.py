@@ -42,9 +42,9 @@ def join_links_data(links, requires_python, yanked):
     # build list of (key, href, require_python, yanked) tuples
     result = []
     links = zip_longest(links, requires_python, yanked, fillvalue=None)
-    for link, require_python, yanked in links:
+    for link, require_python, link_yanked in links:
         key, href = link
-        result.append((key, href, require_python, yanked))
+        result.append((key, href, require_python, link_yanked))
     return result
 
 
@@ -1615,11 +1615,10 @@ class LinkStore:
 
     @property
     def metadata(self):
-        metadata = {}
-        for k, v in get_mutable_deepcopy(self.verdata).items():
-            if not k.startswith("+"):
-                metadata[k] = v
-        return metadata
+        return {
+            k: v
+            for k, v in get_mutable_deepcopy(self.verdata).items()
+            if not k.startswith("+")}
 
     def get_file_entry(self, relpath):
         return self.filestore.get_file_entry(relpath)
