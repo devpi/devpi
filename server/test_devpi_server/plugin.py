@@ -675,11 +675,6 @@ class Mapp(MappMixin):
         if code == 200:
             assert r.json == dict(message="user updated")
 
-    def create_user_fails(self, user, password, email="hello@example.com"):
-        with pytest.raises(webtest.AppError) as excinfo:
-            self.create_user(user, password)
-        assert "409" in excinfo.value.args[0]
-
     def create_and_login_user(self, user="someuser", password="123"):  # noqa: S107
         self.create_user(user, password)
         self.login(user, password)
