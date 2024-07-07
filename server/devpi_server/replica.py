@@ -6,6 +6,7 @@ import secrets
 import threading
 import time
 import traceback
+from contextlib import suppress
 from functools import partial
 from pluggy import HookimplMarker
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
@@ -1174,18 +1175,22 @@ class BodyFileWrapper:
         self.len = length
 
 
-def proxy_request_to_master(xom, request, stream=False):
+def proxy_request_to_master(xom, request, *, stream=False):
     master_url = xom.config.master_url
-    url = master_url.joinpath(request.path).url
+    request_url = URL(request.url)
+    url = (
+        master_url
+        .joinpath(request_url.path)
+        .replace(query=request_url.query)
+        .url)
     assert url.startswith(master_url.url)
     http = xom._httpsession
     with threadlog.around("info", "relaying: %s %s", request.method, url):
         try:
             headers = clean_request_headers(request)
-            try:
+            length = None
+            with suppress(ValueError, TypeError):
                 length = int(headers.get('Content-Length'))
-            except (ValueError, TypeError):
-                length = None
             if length:
                 body = BodyFileWrapper(request.body_file, length)
             else:
@@ -1197,7 +1202,8 @@ def proxy_request_to_master(xom, request, stream=False):
                                 allow_redirects=False,
                                 timeout=xom.config.args.proxy_timeout)
         except http.Errors as e:
-            raise UpstreamError("proxy-write-to-master %s: %s" % (url, e))
+            msg = f"proxy-write-to-master {url}: {e}"
+            raise UpstreamError(msg) from e
 
 
 def proxy_write_to_master(xom, request):
@@ -1231,10 +1237,11 @@ def proxy_write_to_master(xom, request):
                     headers=headers)
 
 
-def proxy_view_to_master(context, request):
+def proxy_view_to_master(_context, request):
     xom = request.registry["xom"]
     tx = getattr(xom.keyfs, "tx", None)
-    assert getattr(tx, "write", False) is False, "there should be no write transaction"
+    if getattr(tx, "write", False):
+        raise RuntimeError("there should be no write transaction")
     return proxy_write_to_master(xom, request)
 
 

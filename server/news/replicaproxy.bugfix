@@ -1,0 +1,1 @@
+Preserve query string when proxying requests from replica to primary. This fixes force removal on non-volatile indexes and probably other bugs.

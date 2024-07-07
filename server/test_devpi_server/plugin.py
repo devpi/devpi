@@ -789,11 +789,15 @@ class Mapp(MappMixin):
         r = self.testapp.get_json("/%s" % indexname)
         return r.json["result"]["mirror_whitelist"]
 
-    def delete_project(self, project, code=200, indexname=None,
-                       waithooks=False):
+    def delete_project(
+        self, project, *,
+        code=200, indexname=None, force=False, waithooks=False,
+    ):
         indexname = self._getindexname(indexname)
-        r = self.testapp.delete_json("/%s/%s" % (indexname,
-                project), {}, expect_errors=True)
+        path = f"/{indexname}/{project}"
+        if force:
+            path = f"{path}?force"
+        r = self.testapp.delete_json(path, {}, expect_errors=True)
         assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)

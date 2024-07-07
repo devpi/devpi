@@ -349,6 +349,18 @@ class TestIndexPushThings:
 
 @pytest.mark.nomocking
 class TestProjectThings:
+    def test_non_volatile_force_delete(self, mapp, server_version):
+        force_delete_fix_version = parse_version("6.12.1dev")
+        if server_version < force_delete_fix_version:
+            pytest.skip("devpi-server without force delete via replica fix")
+        mapp.create_and_login_user("cuser3")
+        mapp.create_index("dev", indexconfig={"volatile": False})
+        mapp.use("cuser3/dev")
+        content = mapp.makepkg("hello-1.0.tar.gz", b"content", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
+        mapp.delete_project("hello", code=403)
+        mapp.delete_project("hello", force=True)
+
     def test_toxresult(self, mapp):
         import json
         mapp.create_and_use('pruser1/dev')

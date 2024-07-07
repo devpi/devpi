@@ -240,6 +240,13 @@ class Mapp(MappMixin):
     def create_project(self, projectname, code=201, indexname=None):  # noqa: ARG002
         pytest.xfail(reason="no way to create project via command line yet")
 
+    def delete_project(self, projectname, *, code=200, force=False):
+        args = []
+        if force:
+            args.append("--force")
+        args.append(projectname)
+        self.out_devpi("remove", *args, code=code)
+
 
 def test_logoff(mapp):
     mapp.login()
