@@ -1,17 +1,17 @@
 from devpi_common.types import cached_property
 from devpi_server import interfaces as ds_interfaces
-from devpi_server.fileutil import dumps, loads
+from devpi_server.fileutil import dumps
+from devpi_server.fileutil import loads
 from devpi_server.keyfs import get_relpath_at
 from devpi_server.keyfs_types import RelpathInfo
-from devpi_server.log import threadlog, thread_push_log, thread_pop_log
+from devpi_server.log import thread_pop_log
+from devpi_server.log import thread_push_log
+from devpi_server.log import threadlog
+from devpi_server.model import ensure_boolean
 from devpi_server.readonly import ReadonlyView
-from devpi_server.readonly import ensure_deeply_readonly, get_mutable_deepcopy
-try:
-    from devpi_server.sizeof import gettotalsizeof
-except ImportError:
-    def gettotalsizeof(obj, maxlen=None):  # type: ignore[misc]
-        # dummy value for old devpi_server releases
-        return None
+from devpi_server.readonly import ensure_deeply_readonly
+from devpi_server.readonly import get_mutable_deepcopy
+from devpi_server.sizeof import gettotalsizeof
 from functools import partial
 from io import BytesIO
 from io import RawIOBase
@@ -24,9 +24,8 @@ import contextlib
 import os
 import pg8000.native
 import shutil
-import time
-from devpi_server.model import ensure_boolean
 import ssl
+import time
 
 
 for name in ('IStorageConnection3', 'IStorageConnection2', 'IStorageConnection'):
