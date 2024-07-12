@@ -8,6 +8,8 @@ from devpi_server.log import threadlog as log
 from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
 from devpi_server.views import PyPIView
+from devpi_web.compat import get_entry_hash_spec
+from devpi_web.compat import get_entry_hash_value
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs
 from devpi_web.doczip import docs_exist
@@ -151,7 +153,7 @@ def get_doc_info(context, request, version=None, check_content=True):
         if not relpath_exists:
             raise HTTPNotFound("File %s not found in documentation." % relpath)
     result = dict(
-        etag=entry.hash_value,
+        etag=get_entry_hash_value(entry),
         relpath=relpath,
         doc_version=doc_version,
         version_mismatch=doc_version != navigation_version(context))
@@ -340,8 +342,8 @@ def get_files_info(request, linkstore, show_toxresults=False):
     for link in sorted(filedata, key=attrgetter('basename')):
         url = url_for_entrypath(request, link.entrypath)
         entry = link.entry
-        if entry.hash_spec:
-            url += "#" + entry.hash_spec
+        if get_entry_hash_spec(entry):
+            url += "#" + get_entry_hash_spec(entry)
         py_version, file_type = get_pyversion_filetype(link.basename)
         if py_version == 'source':
             py_version = ''
@@ -359,7 +361,7 @@ def get_files_info(request, linkstore, show_toxresults=False):
             title=link.basename,
             url=url,
             basename=link.basename,
-            hash_spec=entry.hash_spec,
+            hash_spec=get_entry_hash_spec(entry),
             dist_type=dist_file_types.get(file_type, ''),
             py_version=py_version,
             last_modified=last_modified,

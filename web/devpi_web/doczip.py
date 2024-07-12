@@ -1,16 +1,19 @@
-from collections.abc import MutableMapping as DictMixin
 from bs4 import BeautifulSoup
+from collections.abc import MutableMapping as DictMixin
 from contextlib import contextmanager
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
+from devpi_web.compat import get_entry_hash_spec
+import json
+import py
+
+
 try:
     import fcntl
 except ImportError:
     fcntl = None  # type: ignore[assignment]
-import json
-import py
 
 
 def get_unpack_path(stage, name, version):
@@ -90,7 +93,7 @@ def unpack_docs(stage, name, version, entry):
     # we are not losing the original zip file anyway
     with locked_unpack_path(stage, name, version) as (hash_file, unpack_path):
         hash_file.seek(0)
-        if hash_file.read().strip() == entry.hash_spec:
+        if hash_file.read().strip() == get_entry_hash_spec(entry):
             return unpack_path
         if unpack_path.exists():
             try:
@@ -102,7 +105,7 @@ def unpack_docs(stage, name, version, entry):
             with Archive(f) as archive:
                 archive.extract(unpack_path)
         hash_file.seek(0)
-        hash_file.write(entry.hash_spec)
+        hash_file.write(get_entry_hash_spec(entry))
         hash_file.truncate()
         threadlog.debug("%s: unpacked %s-%s docs to %s",
                         stage.name, name, version, unpack_path)
