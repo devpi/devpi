@@ -858,6 +858,52 @@ class TestSubscriber:
             assert tx.at_serial == -1
 
 
+@notransaction
+def test_crash_recovery(keyfs, storage_info):
+    from devpi_server.fileutil import loads
+    from pathlib import Path
+    if "storage_with_filesystem" not in storage_info.get("_test_markers", []):
+        pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
+    content = b'foo'
+    with keyfs.write_transaction() as tx:
+        tx.conn.io_file_set('foo', content)
+    with keyfs.read_transaction() as tx:
+        path = Path(tx.conn.io_file_os_path('foo'))
+        raw_changelog_entry = tx.conn.get_raw_changelog_entry(tx.at_serial)
+        changelog_entry = loads(raw_changelog_entry)
+        tmpname = changelog_entry[1][0]
+    tmppath = path.with_name(tmpname)
+    assert path.exists()
+    assert not tmppath.exists()
+    # undo the rename done at transaction end
+    path.rename(tmppath)
+    assert not path.exists()
+    assert tmppath.exists()
+    keyfs.finalize_init()
+    # the rename should have been performed again
+    assert path.exists()
+    assert not tmppath.exists()
+    with keyfs.write_transaction() as tx:
+        tx.conn.io_file_delete('foo')
+    assert not path.exists()
+    assert not tmppath.exists()
+    # put file back in place
+    with path.open('wb') as f:
+        f.write(content)
+    assert path.exists()
+    assert not tmppath.exists()
+    keyfs.finalize_init()
+    # the deletion should have been performed again
+    assert not path.exists()
+    assert not tmppath.exists()
+    with keyfs.write_transaction() as tx:
+        tx.conn.io_file_set('foo', content)
+    path.unlink()
+    # due to the remove file we get an unrecoverable error
+    with pytest.raises(OSError, match="missing file"):
+        keyfs.finalize_init()
+
+
 def test_keyfs_sqlite(gentmp):
     from devpi_server import keyfs_sqlite
     tmp = gentmp()
