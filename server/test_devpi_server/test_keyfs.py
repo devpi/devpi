@@ -858,12 +858,6 @@ class TestSubscriber:
             assert tx.at_serial == -1
 
 
-def test_devpiserver_22_event_serial():
-    import devpi_server
-    if devpi_server.__version__ == "2.2.":
-        pytest.fail("change event_serial disk representation wrt -1/+1 hack")
-
-
 def test_keyfs_sqlite(gentmp):
     from devpi_server import keyfs_sqlite
     tmp = gentmp()
