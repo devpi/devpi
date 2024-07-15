@@ -72,10 +72,10 @@ def test_execnet_opcodes():
 def test_loads(data, expected):
     result = loads(data)
     assert result == expected
-    assert type(result) == type(expected)
+    assert type(result) is type(expected)
     result = _loads(data)
     assert result == expected
-    assert type(result) == type(expected)
+    assert type(result) is type(expected)
     # try round-trip
     dump = dumps(expected)
     assert len(dump) == dumplen(expected)
