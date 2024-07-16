@@ -68,7 +68,7 @@ meta_headers = {
     "X-DEVPI-SERVER-VERSION": server_version}
 
 
-INSTALLER_USER_AGENT = r"([^ ]* )*(distribute|setuptools|pip|pex)/.*"
+INSTALLER_USER_AGENT = r"([^ ]* )*(distribute|setuptools|pip|pex|uv)/.*"
 INSTALLER_USER_AGENT_REGEXP = re.compile(INSTALLER_USER_AGENT)
 
 
