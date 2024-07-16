@@ -26,6 +26,7 @@ Features
 
 - Added ``devpiserver_on_toxresult_upload_forbidden`` hook to allow returning a custom message and result (403 or 200).
 
+- Added support uv pip as an installer
 
 
 Bug Fixes
