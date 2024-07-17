@@ -304,9 +304,20 @@ user_agent_parameter_args = (
         'Python-urllib/3.5 setuptools/6.1',
         'setuptools/6.1 Python-urllib/3.5',
         'pex/1.0.1',
-        'pip/6.0.dev1 {"cpu":"x86_64","distro":{"name":"OS X","version":"10.9.5"},"implementation":{"name":"CPython","version":"2.7.8"},"installer":{"name":"pip","version":"6.0.dev1"},"python":"2.7.8","system":{"name":"Darwin","release":"13.4.0"}}'])
+        'pip/6.0.dev1 {"cpu":"x86_64","distro":{"name":"OS X","version":"10.9.5"},"implementation":{"name":"CPython","version":"2.7.8"},"installer":{"name":"pip","version":"6.0.dev1"},"python":"2.7.8","system":{"name":"Darwin","release":"13.4.0"}}',
+        'uv/0.1.20',
+        'uv/0.1.21 {"installer":{"name":"uv","version":"0.1.21"},"python":"3.12.2","implementation":{"name":"CPython","version":"3.12.2"},"distro":{"name":"Ubuntu","version":"22.04","id":"jammy","libc":null},"system":{"name":"Linux","release":"6.5.0-1016-azure"},"cpu":"x86_64","openssl_version":null,"setuptools_version":null,"rustc_version":null,"ci":true}',
+    ])
 user_agent_parameter_ids = [
-    'pip', 'setuptools', 'urllib-setuptools', 'setuptools-urllib', 'pex', 'pip6']
+    'pip',
+    'setuptools',
+    'urllib-setuptools',
+    'setuptools-urllib',
+    'pex',
+    'pip6',
+    'uv',
+    'uv-linehaul',
+]
 
 
 @pytest.mark.parametrize(*user_agent_parameter_args, ids=user_agent_parameter_ids)
