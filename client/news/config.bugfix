@@ -1,1 +1,0 @@
-In ``setup.cfg`` any value for upload settings was interpreted as True, now a warning is printed if it looks like False was meant and how to fix that. For backward compatibility the behavior wasn't changed.

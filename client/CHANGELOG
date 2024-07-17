@@ -2,6 +2,29 @@
 
 .. towncrier release notes start
 
+7.1.0 (2024-07-17)
+==================
+
+Features
+--------
+
+- Support upload command configuration from ``pyproject.toml`` in ``[tool.devpi.upload]`` section.
+
+- The ``--fallback-ini`` option of ``devpi test`` can now be relative to the package root. This allows using ``pyproject.toml`` or similar instead of ``tox.ini``.
+
+- Add ``sdist`` and ``wheel`` options for ``setup.cfg``.
+
+- Add detection of tox configs in pyproject.toml and setup.cfg for ``devpi test``.
+
+
+
+Bug Fixes
+---------
+
+- In ``setup.cfg`` any value for upload settings was interpreted as True, now a warning is printed if it looks like False was meant and how to fix that. For backward compatibility the behavior wasn't changed.
+
+
+
 7.0.3 (2024-04-20)
 ==================
 
