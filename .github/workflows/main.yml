@@ -348,6 +348,57 @@ jobs:
           python -m tox -a -vv
           PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes || echo "::warning::tox failed"
 
+  nogil-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}-nogil"
+    needs: ["client-tests", "server-tests", "web-tests"]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: "common"
+            python-version: "3.13-dev"
+            os: "ubuntu-latest"
+            tox-envs: "py313"
+          - project: "client"
+            python-version: "3.13-dev"
+            os: "ubuntu-latest"
+            tox-envs: "py313"
+          - project: "server"
+            python-version: "3.13-dev"
+            os: "ubuntu-latest"
+            tox-envs: "py313"
+          - project: "web"
+            python-version: "3.13-dev"
+            os: "ubuntu-latest"
+            tox-envs: "py313"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@v4"
+      - uses: "deadsnakes/action@v3.1.0"
+        with:
+          python-version: "${{ matrix.python-version }}"
+          nogil: true
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes || echo "::warning::tox failed"
+
   postgresql-bbb-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
