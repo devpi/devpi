@@ -27,6 +27,7 @@ from shutil import rmtree
 import stat
 from tempfile import mkdtemp
 import json
+import locale
 subcommand = lazydecorator()
 
 main_description = """
@@ -405,7 +406,7 @@ class Hub:
         args[0] = cmd
         if report:
             self.report_popen(args, cwd)
-        encoding = sys.getdefaultencoding()
+        encoding = locale.getpreferredencoding()
         try:
             return subprocess.check_output(  # noqa: S603
                 args, cwd=str(cwd), stderr=subprocess.STDOUT).decode(encoding)

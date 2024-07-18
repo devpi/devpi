@@ -1,0 +1,1 @@
+fix #682: fixed encoding issues when decoding output of subprocesses.
