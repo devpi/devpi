@@ -1,0 +1,1 @@
+Fix #1044: Correctly update cache expiry time when mirrored server returns 304 Not Modified.

@@ -576,11 +576,15 @@ class TestExtPYPIDB:
             "foo", text='<a href="foo-1.0.tar.gz"</a>', etag='"foo"')
         with pypistage.keyfs.read_transaction():
             pypistage.get_simplelinks_perstage("foo")
+            # call twice
+            pypistage.get_simplelinks_perstage("foo")
         call = pypistage.xom.httpget.call_log.pop()
         assert 'If-None-Match' not in call['extra_headers']
         assert pypistage.cache_retrieve_times.get_etag("foo") == '"foo"'
         pypistage.cache_retrieve_times.expire("foo", etag='"foo"')
         with pypistage.keyfs.read_transaction():
+            pypistage.get_simplelinks_perstage("foo")
+            # call twice
             pypistage.get_simplelinks_perstage("foo")
         call = pypistage.xom.httpget.call_log.pop()
         assert pypistage.cache_retrieve_times.get_etag("foo") == '"foo"'
@@ -590,6 +594,8 @@ class TestExtPYPIDB:
         # make sure an expired ETag exists
         pypistage.cache_retrieve_times.expire("foo", etag='"foo"')
         with pypistage.keyfs.read_transaction():
+            pypistage.get_simplelinks_perstage("foo")
+            # call twice
             pypistage.get_simplelinks_perstage("foo")
         call = pypistage.xom.httpget.call_log.pop()
         assert call['extra_headers']['If-None-Match'] == '"foo"'

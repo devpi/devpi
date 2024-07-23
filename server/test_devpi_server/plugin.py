@@ -364,22 +364,21 @@ def httpget(pypiurls):
             self._md5 = hashlib.md5()  # noqa: S324
             self.call_log = []
 
-        async def async_httpget(self, url, allow_redirects, timeout=None, extra_headers=None):
-            response = self.__call__(url, allow_redirects, extra_headers, timeout=timeout)
-            if response.status_code < 300:
-                text = response.text
-            else:
-                text = None
+        async def async_httpget(self, url, *, allow_redirects, timeout=None, extra_headers=None):
+            response = self.__call__(url, allow_redirects=allow_redirects, extra_headers=extra_headers, timeout=timeout)
+            text = response.text if response.status_code < 300 else None
             return (response, text)
 
-        def __call__(self, url, allow_redirects=False, extra_headers=None, **kw):
+        def __call__(self, url, *, allow_redirects=False, extra_headers=None, **kw):
             class mockresponse:
                 def __init__(xself, url):
                     fakeresponse = self.url2response.get(url)
+                    from_list = False
                     if isinstance(fakeresponse, list):
                         if not fakeresponse:
                             pytest.fail(
                                 f"http_api call to {url} has no further replies")
+                        from_list = True
                         fakeresponse = fakeresponse.pop(0)
                     if fakeresponse is None:
                         fakeresponse = dict(
@@ -396,6 +395,13 @@ def httpget(pypiurls):
                     xself.headers.setdefault('content-type', fakeresponse.get(
                         'content_type', 'text/html'))
                     if "etag" in fakeresponse:
+                        # add follow up response
+                        new_response = dict(fakeresponse, status_code=304)
+                        new_response.pop("etag")
+                        if from_list:
+                            self.url2response[url].append(new_response)
+                        else:
+                            self.url2response[url] = new_response
                         fakeresponse["headers"]["ETag"] = fakeresponse["etag"]
 
                 def close(xself):
@@ -455,12 +461,7 @@ def httpget(pypiurls):
             if pypiserial is not None:
                 headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
             kw.setdefault("url", URL(remoteurl).joinpath(name).asdir().url)
-            if "etag" in kw:
-                etag = kw.pop("etag")
-                self.add(text=text, **kw, etag=etag)
-                self.add(text=text, **kw, status_code=304)
-            else:
-                self.mockresponse(text=text, **kw)
+            self.mockresponse(text=text, **kw)
             return ret
 
         def _getmd5digest(self, s):

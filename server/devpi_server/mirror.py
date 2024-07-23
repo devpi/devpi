@@ -794,8 +794,8 @@ class MirrorStage(BaseStage):
                 f"timeout after {self.timeout} seconds while getting data for {project!r}")
         except self.UpstreamNotModified as e:
             if links is not None:
-                self.keyfs.tx.on_commit_success(partial(
-                    self.cache_retrieve_times.refresh, project, e.etag))
+                # immediately update the cache
+                self.cache_retrieve_times.refresh(project, e.etag)
                 return self.SimpleLinks(links)
             if e.etag is None:
                 threadlog.error(
