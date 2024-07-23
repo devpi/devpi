@@ -321,27 +321,15 @@ def add_deploy_options(parser, pluginmanager):
 
     parser.addoption(
         "--argon2-memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY_COST,
-        help="Argon2 memory cost parameter for key derivation. "
-             "This is *not* for the user password hashes. "
-             "There should be no need to touch this setting, "
-             "except you really know what this is about! "
-             "Replicas need to use the same parameters as the master.")
+        help=argparse.SUPPRESS)
 
     parser.addoption(
         "--argon2-parallelism", type=int, default=DEFAULT_ARGON2_PARALLELISM,
-        help="Argon2 parallelism parameter for key derivation. "
-             "This is *not* for the user password hashes. "
-             "There should be no need to touch this setting, "
-             "except you really know what this is about! "
-             "Replicas need to use the same parameters as the master.")
+        help=argparse.SUPPRESS)
 
     parser.addoption(
         "--argon2-time-cost", type=int, default=DEFAULT_ARGON2_TIME_COST,
-        help="Argon2 time cost parameter for key derivation. "
-             "This is *not* for the user password hashes. "
-             "There should be no need to touch this setting, "
-             "except you really know what this is about! "
-             "Replicas need to use the same parameters as the master.")
+        help=argparse.SUPPRESS)
 
     parser.addoption(
         "--requests-only", action="store_true",
@@ -567,7 +555,7 @@ class MyArgumentParser(argparse.ArgumentParser):
             default = action.default
             if isinstance(action, argparse._StoreFalseAction):
                 default = not default
-            if action.help and action.default != '==SUPPRESS==':
+            if action.help and action.help is not argparse.SUPPRESS and action.default is not argparse.SUPPRESS:
                 action.help += " [%s]" % default
 
     def addgroup(self, *args, **kwargs):
