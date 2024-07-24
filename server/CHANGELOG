@@ -2,6 +2,20 @@
 
 .. towncrier release notes start
 
+6.12.1 (2024-07-24)
+===================
+
+Bug Fixes
+---------
+
+- Support Python 3.13 by depending on legacy-cgi.
+
+- Preserve query string when proxying requests from replica to primary. This fixes force removal on non-volatile indexes and probably other bugs.
+
+- Fix #1044: Correctly update cache expiry time when mirrored server returns 304 Not Modified.
+
+
+
 6.12.0 (2024-06-25)
 ===================
 
