@@ -1666,7 +1666,7 @@ class LinkStore:
         entry = self._create_file_entry(
             filename, content_or_file,
             hashes=hashes,
-            ref_hash_spec=base_entry.hash_spec)
+            ref_hash_spec=base_entry._hash_spec)
         if last_modified is not None:
             entry.last_modified = last_modified
         return self._add_link_to_file_entry(
@@ -1721,7 +1721,7 @@ class LinkStore:
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.entrypath
         new_linkdict = {"rel": rel, "entrypath": file_entry.relpath,
-                        "hash_spec": file_entry.hash_spec, "_log": []}
+                        "hash_spec": file_entry._hash_spec, "_log": []}
         if for_entrypath:
             new_linkdict["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()

@@ -1,3 +1,4 @@
+from devpi_server.filestore import get_hashes
 from devpi_server.views import iter_cache_remote_file
 from io import BytesIO
 from webob.headers import ResponseHeaders
@@ -12,10 +13,6 @@ zip_types = ("application/zip", "application/x-zip-compressed")
 @pytest.fixture
 def filestore(xom):
     return xom.filestore
-
-
-def getdigest(content, hash_type):
-    return getattr(hashlib, hash_type)(content).hexdigest()
 
 
 @pytest.mark.writetransaction
@@ -123,7 +120,6 @@ class TestFileStore:
 
     @pytest.mark.storage_with_filesystem
     def test_file_exists_new_hash(self, filestore, gen, xom):
-        from devpi_server.filestore import get_checksum_error
         content1 = b'somedata'
         md5_1 = hashlib.md5(content1).hexdigest()
         link1 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_1)
@@ -140,8 +136,8 @@ class TestFileStore:
         assert entry2.file_exists()
         content2 = entry2.file_get_content()
         assert content1 != content2
-        assert isinstance(get_checksum_error(content2, entry2.relpath, entry2.hash_spec), ValueError)
-        assert get_checksum_error(content1, entry2.relpath, entry2.hash_spec) is None
+        assert isinstance(entry2.hashes.exception_for(content2, entry2.relpath), ValueError)
+        assert entry2.hashes.exception_for(content1, entry2.relpath) is None
         filestore.keyfs.commit_transaction_in_thread()
         assert py.path.local(filepath).exists()
 
@@ -154,19 +150,17 @@ class TestFileStore:
         assert not entry1.file_exists()
 
     def test_relpathentry(self, filestore, gen):
-        from devpi_server.filestore import get_default_hash_type
         link = gen.pypi_package_link("pytest-1.7.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry.url == link.url
         assert not entry.file_exists()
-        hash_type = get_default_hash_type()
-        hash_value = getdigest(b"", hash_type)
-        entry.hash_spec = hash_spec = "%s=%s" % (hash_type, hash_value)
+        hashes = get_hashes(b"")
+        entry.hash_spec = hash_spec = hashes.get_default_spec()
         assert not entry.file_exists()
         entry.file_set_content(b"")
         assert entry.file_exists()
         assert entry.url == link.url
-        assert entry.hash_spec.endswith(hash_value)
+        assert entry.hashes.get_default_spec() == hashes.get_default_spec()
 
         # reget
         entry = filestore.get_file_entry(entry.relpath)
@@ -281,7 +275,7 @@ def test_cache_remote_file(filestore, httpget, gen, xom):
     with filestore.keyfs.read_transaction():
         entry = filestore.get_file_entry(entry.relpath)
         assert entry.file_exists()
-        assert entry.hash_value == getdigest(content, entry.hash_type)
+        assert entry.hashes.get_default_spec() == get_hashes(content).get_default_spec()
         assert entry.file_size() == 3
         rheaders = entry.gethttpheaders()
         assert entry.file_get_content() == b"123"
@@ -328,8 +322,9 @@ def test_file_tx_rollback(filestore, gen, xom):
 def test_store_and_iter(filestore):
     with filestore.keyfs.write_transaction():
         content = b"hello"
+        hashes = get_hashes(content)
         entry = filestore.store("user", "index", "something-1.0.zip", content)
-        assert entry.hash_spec.endswith("="+getdigest(content, entry.hash_type))
+        assert entry.hashes.get_default_spec() == hashes.get_default_spec()
         assert entry.file_exists()
     with filestore.keyfs.read_transaction():
         entry2 = filestore.get_file_entry(entry.relpath)

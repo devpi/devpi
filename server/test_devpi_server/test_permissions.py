@@ -184,7 +184,7 @@ class TestAuthDenialPlugin:
         assert plugin.results == []
 
     def test_deny_acl_upload_push(self, makexom, makemapp, maketestapp):
-        from devpi_server.filestore import get_default_hash_spec
+        from devpi_server.filestore import get_hashes
         from devpi_server.filestore import make_splitdir
         from pyramid.authorization import Everyone
         from pyramid.util import is_nonstr_iter
@@ -223,7 +223,7 @@ class TestAuthDenialPlugin:
         mapp = makemapp(testapp)
         api1 = mapp.create_and_use()
         content = b"content"
-        hash_spec = get_default_hash_spec(content)
+        hash_spec = get_hashes(content).get_default_spec()
         hashdir = "/".join(make_splitdir(hash_spec))
         mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         api2 = mapp.create_index('dev2')

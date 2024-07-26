@@ -181,7 +181,7 @@ def test_upload_and_push_external_metadata21(mapp, reqmock, testapp):
 
 
 def test_upload_and_push_warehouse(mapp, testapp, reqmock):
-    from devpi_server.filestore import get_default_hash_type
+    from devpi_server.filestore import get_hashes
     # the new PyPI backend "warehouse" changes some things and they already
     # start to affect current PyPI behaviour
     api = mapp.create_and_use()
@@ -231,7 +231,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
         assert requests[i].url == req["posturl"]
     req = requests[1]
     assert b"metadata_version" in req.body
-    assert (b"%s_digest" % get_default_hash_type().encode()) in req.body
+    assert (b"%s_digest" % get_hashes(b"").get_default_type().encode()) in req.body
     assert b"pkg1-2.6.tgz" in req.body
     req = requests[2]
     assert b"metadata_version" in req.body

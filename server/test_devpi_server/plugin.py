@@ -71,8 +71,9 @@ def server_version():
 
 
 def make_file_url(basename, content, stagename=None, baseurl="http://localhost/", add_hash=True):
-    from devpi_server.filestore import get_default_hash_spec, make_splitdir
-    hash_spec = get_default_hash_spec(content)
+    from devpi_server.filestore import get_hashes
+    from devpi_server.filestore import make_splitdir
+    hash_spec = get_hashes(content).get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     if add_hash:
         s = "%s{stage}/+f/%s/%s#%s" % (baseurl, hashdir, basename, hash_spec)

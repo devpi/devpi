@@ -12,9 +12,7 @@ from devpi_common.viewhelp import ViewLinkStore
 import devpi_server.views
 from devpi_server.config import hookimpl
 from devpi_server.filestore import FileEntry
-from devpi_server.filestore import get_default_hash_spec
-from devpi_server.filestore import get_default_hash_type
-from devpi_server.filestore import get_default_hash_value
+from devpi_server.filestore import get_hashes
 from devpi_server.filestore import get_hash_spec
 from devpi_server.filestore import make_splitdir
 from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
@@ -251,7 +249,7 @@ def test_simple_project_outside_url_subpath(mapp, outside_url, pypistage, testap
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
-    hash_spec = get_default_hash_spec(b'123')
+    hash_spec = get_hashes(b'123').get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     assert links == [
         '../../+f/%s/qpwoei-1.0.tar.gz#%s' % (hashdir, hash_spec),
@@ -273,7 +271,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
-    hash_spec = get_default_hash_spec(b'123')
+    hash_spec = get_hashes(b'123').get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     assert links == [
         'http://localhost/root/pypi/+e/https_pypi.org/qpwoei-1.0.zip',
@@ -286,7 +284,7 @@ def test_simple_project_absolute_url(mapp, pypistage, testapp):
     assert r.status_code == 200
     links = sorted(x["href"] for x in getlinks(r.text))
     assert len(links) == 2
-    hash_spec = get_default_hash_spec(b'123')
+    hash_spec = get_hashes(b'123').get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     assert links == [
         'http://localhost/devpi/root/pypi/+e/https_pypi.org/qpwoei-1.0.zip',
@@ -360,8 +358,9 @@ def test_projects_pep_691(pypistage, testapp, url):
 def test_project_pep_691(mapp, testapp):
     api = mapp.create_and_use()
     content = b"123"
-    hash_value = get_default_hash_value(content)
-    hash_spec = get_default_hash_spec(content)
+    hashes = get_hashes(content)
+    hash_value = hashes.get_default_value()
+    hash_spec = hashes.get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     mapp.upload_file_pypi("pkg1-2.6.tgz", content, "pkg1", "2.6")
     content_types = [
@@ -381,7 +380,7 @@ def test_project_pep_691(mapp, testapp):
     (item,) = r.json['files']
     assert item['filename'] == 'pkg1-2.6.tgz'
     assert item['url'] == f'../+f/{hashdir}/pkg1-2.6.tgz'
-    assert item['hashes'] == {get_default_hash_type(): hash_value}
+    assert item['hashes'] == {hashes.get_default_type(): hash_value}
     assert item['requires-python'] == ''
     assert 'yanked' not in item
 
@@ -390,13 +389,15 @@ def test_project_pep_691_multiple(mapp, testapp):
     from operator import itemgetter
     api = mapp.create_and_use()
     content1 = b"123"
-    hash_value1 = get_default_hash_value(content1)
-    hash_spec1 = get_default_hash_spec(content1)
+    hashes1 = get_hashes(content1)
+    hash_value1 = hashes1.get_default_value()
+    hash_spec1 = hashes1.get_default_spec()
     hashdir1 = "/".join(make_splitdir(hash_spec1))
     mapp.upload_file_pypi("pkg1-2.6.tgz", content1, "pkg1", "2.6")
     content2 = b"456"
-    hash_value2 = get_default_hash_value(content2)
-    hash_spec2 = get_default_hash_spec(content2)
+    hashes2 = get_hashes(content2)
+    hash_value2 = hashes2.get_default_value()
+    hash_spec2 = hashes2.get_default_spec()
     hashdir2 = "/".join(make_splitdir(hash_spec2))
     mapp.upload_file_pypi("pkg1-2.7.tgz", content2, "pkg1", "2.7")
     content_types = [
@@ -416,12 +417,12 @@ def test_project_pep_691_multiple(mapp, testapp):
     (item1, item2) = sorted(r.json['files'], key=itemgetter("filename"))
     assert item1['filename'] == 'pkg1-2.6.tgz'
     assert item1['url'] == f'../+f/{hashdir1}/pkg1-2.6.tgz'
-    assert item1['hashes'] == {get_default_hash_type(): hash_value1}
+    assert item1['hashes'] == {hashes1.get_default_type(): hash_value1}
     assert item1['requires-python'] == ''
     assert 'yanked' not in item1
     assert item2['filename'] == 'pkg1-2.7.tgz'
     assert item2['url'] == f'../+f/{hashdir2}/pkg1-2.7.tgz'
-    assert item2['hashes'] == {get_default_hash_type(): hash_value2}
+    assert item2['hashes'] == {hashes2.get_default_type(): hash_value2}
     assert item2['requires-python'] == ''
     assert 'yanked' not in item2
 
@@ -1246,7 +1247,7 @@ def test_submit_without_trailing_slash(mapp, testapp):
     version = "1.0"
     basename = "%s-%s.tar.gz" % (name, version)
     content = b"a"
-    hash_spec = get_default_hash_spec(content)
+    hash_spec = get_hashes(content).get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     mapp.set_versiondata(
         dict(name=name, version=version))
@@ -1304,7 +1305,7 @@ def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
 def test_push_from_pypi(httpget, mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     content = b"123"
-    hash_spec = get_default_hash_spec(content)
+    hash_spec = get_hashes(content).get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", content)
     mapp.create_and_login_user("foo")
@@ -1338,7 +1339,7 @@ def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypist
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     content = b"123"
     pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", content)
-    hash_spec = get_default_hash_spec(content)
+    hash_spec = get_hashes(content).get_default_spec()
     hashdir = "/".join(make_splitdir(hash_spec))
     mapp.create_and_login_user("foo")
     mapp.create_index("newindex1", indexconfig=dict(bases=["root/pypi"]))

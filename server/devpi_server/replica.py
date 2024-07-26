@@ -25,7 +25,6 @@ from .config import hookimpl
 from .exceptions import lazy_format_exception
 from .filestore import ChecksumError
 from .filestore import FileEntry
-from .filestore import get_file_hash
 from .fileutil import buffered_iterator
 from .fileutil import dumps, load, loads
 from .log import thread_push_log, threadlog
@@ -938,13 +937,15 @@ class FileReplicationThread:
             return
         threadlog.debug("checking existing file: %s", path)
         f = open(path, "rb")
-        hexdigest = get_file_hash(f, entry.hash_type)
-        if hexdigest != entry.hash_value:
+        errors = entry.hashes.errors_for(f)
+        if errors:
             f.close()
+            # get one error
+            error_msg = errors.get(
+                entry.best_available_hash_type, next(iter(errors)))['msg']
             threadlog.info(
-                "%s mismatch, got %s: %s",
-                entry.hash_type, hexdigest, path)
-            return
+                "%s: %s", error_msg, path)
+            return None
         threadlog.info("using matching existing file: %s", path)
         f.seek(0)
         if self.use_hard_links:

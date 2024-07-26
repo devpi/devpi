@@ -13,6 +13,7 @@ from devpi_server.log import threadlog
 from devpi_server.markers import absent
 from inspect import currentframe
 from urllib.parse import unquote
+import warnings
 
 
 def _get_default_hash_types():  # this is a function for testing
@@ -188,22 +189,46 @@ def best_available_hash_type(hashes):
 
 
 def get_default_hash_algo():
+    warnings.warn(
+        "The get_default_hash_algo function is deprecated",
+        DeprecationWarning,
+        stacklevel=2)
     return getattr(hashlib, DEFAULT_HASH_TYPE)
 
 
 def get_default_hash_spec(content_or_file):
+    warnings.warn(
+        "The get_default_hash_spec function is deprecated, "
+        "use get_hashes instead",
+        DeprecationWarning,
+        stacklevel=2)
     return get_hashes(content_or_file, hash_types=(DEFAULT_HASH_TYPE,)).get_default_spec()
 
 
 def get_default_hash_type():
+    warnings.warn(
+        "The get_default_hash_type function is deprecated, "
+        "use get_hashes instead",
+        DeprecationWarning,
+        stacklevel=2)
     return DEFAULT_HASH_TYPE
 
 
 def get_default_hash_value(content_or_file):
+    warnings.warn(
+        "The get_default_hash_value function is deprecated, "
+        "use get_hashes instead",
+        DeprecationWarning,
+        stacklevel=2)
     return get_hashes(content_or_file, hash_types=(DEFAULT_HASH_TYPE,)).get_default_value()
 
 
 def get_file_hash(fp, hash_type):
+    warnings.warn(
+        "The get_file_hash function is deprecated, "
+        "use get_hashes instead",
+        DeprecationWarning,
+        stacklevel=2)
     return get_hashes(fp, hash_types=(hash_type,))[hash_type]
 
 
@@ -344,7 +369,9 @@ class FileStore:
     def store(self, user, index, basename, content_or_file, *, dir_hash_spec=None, hashes=None):
         # dir_hash_spec is set for toxresult files
         if dir_hash_spec is None:
-            dir_hash_spec = get_default_hash_spec(content_or_file)
+            if hashes is None:
+                hashes = get_hashes(content_or_file)
+            dir_hash_spec = hashes.get_default_spec()
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
         key = self.keyfs.STAGEFILE(
             user=user, index=index,
@@ -377,7 +404,7 @@ class BadGateway(Exception):
 class FileEntry(object):
     __slots__ = ('_meta', '_storepath', 'basename', 'key', 'readonly', 'relpath')
     BadGateway = BadGateway
-    hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
+    _hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
     last_modified = metaprop("last_modified")
     url = metaprop("url")
     project = metaprop("project")
@@ -407,28 +434,72 @@ class FileEntry(object):
         return DEFAULT_HASH_TYPES
 
     @property
+    def best_available_hash_type(self):
+        return self.hashes.best_available_type
+
+    @property
+    def best_available_hash_spec(self):
+        return self.hashes.best_available_spec
+
+    @property
+    def best_available_hash_value(self):
+        return self.hashes.best_available_value
+
+    @property
     def hashes(self):
-        return Digests.from_spec(self.hash_spec)
+        return Digests.from_spec(self._hash_spec)
 
     @property
     def hash_algo(self):
-        if self.hash_spec:
+        warnings.warn(
+            "The hash_algo property is deprecated.",
+            DeprecationWarning,
+            stacklevel=2)
+        if self._hash_spec:
             return parse_hash_spec(self.hash_spec)[0]
         else:
             return get_default_hash_algo()
 
     @property
+    def hash_spec(self):
+        warnings.warn(
+            "The hash_spec property is deprecated, "
+            "use best_available_hash_spec instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self._hash_spec
+
+    @hash_spec.setter
+    def hash_spec(self, hash_spec):
+        self._hash_spec = hash_spec
+
+    @property
     def hash_value(self):
-        if self.hash_spec:
-            return self.hash_spec.split("=", 1)[1]
+        warnings.warn(
+            "The hash_value property is deprecated, "
+            "use best_available_hash_value instead",
+            DeprecationWarning,
+            stacklevel=2)
+        if self._hash_spec:
+            return self._hash_spec.split("=", 1)[1]
         else:
-            return self.hash_spec
+            return self._hash_spec
 
     @property
     def hash_type(self):
-        return self.hash_spec.split("=")[0]
+        warnings.warn(
+            "The hash_type property is deprecated, "
+            "use best_available_hash_type instead",
+            DeprecationWarning,
+            stacklevel=2)
+        return self._hash_spec.split("=")[0]
 
     def file_get_checksum(self, hash_type):
+        warnings.warn(
+            "The file_get_checksum method is deprecated, "
+            "use file_get_hash_errors instead",
+            DeprecationWarning,
+            stacklevel=2)
         with self.file_open_read() as f:
             return get_file_hash(f, hash_type)
 
@@ -520,7 +591,7 @@ class FileEntry(object):
         self.file_delete()
 
     def has_existing_metadata(self):
-        return bool(self.hash_spec and self.last_modified)
+        return bool(self._hash_spec and self.last_modified)
 
     def validate(self, content_or_file=None):
         if content_or_file is None:
@@ -530,11 +601,16 @@ class FileEntry(object):
         if errors:
             # return one of the errors
             return errors.get(
-                self.hash_type, next(iter(errors.values())))['msg']
+                self.best_available_hash_type, next(iter(errors.values())))['msg']
         return None
 
 
 def get_checksum_error(content_or_hash, relpath, hash_spec):
+    warnings.warn(
+        "The get_checksum_error function is deprecated, "
+        "use get_hashes(...).exception_for instead",
+        DeprecationWarning,
+        stacklevel=2)
     if not hash_spec:
         return
     hash_algo, hash_value = parse_hash_spec(hash_spec)

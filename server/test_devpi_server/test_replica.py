@@ -2,8 +2,7 @@ import hashlib
 import os
 import pytest
 from devpi_server.log import thread_pop_log
-from devpi_server.filestore import get_default_hash_type
-from devpi_server.filestore import get_default_hash_value
+from devpi_server.filestore import get_hashes
 from devpi_server.fileutil import loads
 from devpi_server.keyfs import MissingFileException
 from devpi_server.log import threadlog, thread_push_log
@@ -599,8 +598,9 @@ class TestUseExistingFiles:
         existing_path = existing_base.join(path)
         existing_path.dirpath().ensure_dir()
         bad_data = b"bad_data"
-        bad_hash_type = get_default_hash_type()
-        bad_hash_value = get_default_hash_value(bad_data)
+        bad_hashes = get_hashes(bad_data)
+        bad_hash_type = bad_hashes.get_default_type()
+        bad_hash_value = bad_hashes.get_default_value()
         existing_path.write_binary(bad_data)
         # create the replica with the path to existing files
         replica_xom = make_replica_xom(options=[
@@ -636,8 +636,9 @@ class TestUseExistingFiles:
         existing_path = existing_base.join(path)
         existing_path.dirpath().ensure_dir()
         bad_data = b"bad_data"
-        bad_hash_type = get_default_hash_type()
-        bad_hash_value = get_default_hash_value(bad_data)
+        bad_hashes = get_hashes(bad_data)
+        bad_hash_type = bad_hashes.get_default_type()
+        bad_hash_value = bad_hashes.get_default_value()
         existing_path.write_binary(bad_data)
         assert existing_path.stat().nlink == 1
         # create the replica with the path to existing files and using hard links

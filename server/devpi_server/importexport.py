@@ -589,11 +589,15 @@ class Importer:
                     yanked.append(is_yanked)
                 stage._save_cache_links(
                     project, links, requires_python, yanked, serial, None)
-            if "md5" in hashes:
-                digest = entry.file_get_checksum("md5")
-                if digest != hashes["md5"]:
-                    msg = f"File {p} has bad checksum {digest}, expected {hashes['md5']}"
-                    raise Fatal(msg)
+            errors = entry.file_get_hash_errors(hashes)
+            if errors:
+                # get one error
+                error_hash_type = next(iter(errors))
+                error_info = errors[error_hash_type]
+                digest = error_info['got']
+                expected = error_info['expected']
+                msg = f"File {p} has bad checksum {digest}, expected {expected}."
+                raise Fatal(msg)
         elif filedesc["type"] == "doczip":
             version = filedesc["version"]
             # docs didn't always have entrymapping in export dump

@@ -3,7 +3,7 @@ import sys
 import pytest
 import json
 from devpi_server.config import hookimpl
-from devpi_server.filestore import get_default_hash_spec
+from devpi_server.filestore import get_hashes
 from devpi_server.filestore import make_splitdir
 from devpi_server.filestore import relpath_prefix
 from devpi_server.importexport import Exporter
@@ -322,7 +322,7 @@ class TestImportExport:
         api1 = mapp1.create_and_use()
         content1 = b'content1'
         mapp1.upload_file_pypi("hello-1.0.tar.gz", content1, "hello", "1.0")
-        hash_spec1 = get_default_hash_spec(content1)
+        hash_spec1 = get_hashes(content1).get_default_spec()
         hashdir1 = "/".join(make_splitdir(hash_spec1))
         path, = mapp1.get_release_paths("hello")
         path = path.strip("/")
@@ -330,7 +330,7 @@ class TestImportExport:
         api2 = mapp1.create_index(stagename2)
         content2 = b'content2'
         mapp1.upload_file_pypi("pkg1-1.0.tar.gz", content2, "pkg1", "1.0")
-        hash_spec2 = get_default_hash_spec(content2)
+        hash_spec2 = get_hashes(content2).get_default_spec()
         hashdir2 = "/".join(make_splitdir(hash_spec2))
         impexp.export()
         mapp2 = impexp.new_import()
@@ -514,7 +514,7 @@ class TestImportExport:
                 ('package-2.0.zip', f'root/pypi/+f/{hashdir3}/package-2.0.zip', '>=3.5', None)]
 
     def test_mirrordata(self, impexp):
-        hash_spec = get_default_hash_spec(b"content")
+        hash_spec = get_hashes(b"content").get_default_spec()
         hashdir = "/".join(make_splitdir(hash_spec))
         mapp = impexp.import_testdata('mirrordata')
         with mapp.xom.keyfs.read_transaction():
@@ -584,7 +584,7 @@ class TestImportExport:
 
     @pytest.mark.slow
     def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
-        from devpi_server.filestore import get_default_hash_value
+        from devpi_server.filestore import get_hashes
         from time import sleep
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -593,7 +593,7 @@ class TestImportExport:
         path, = mapp1.get_release_paths("hello")
         path = path.strip("/")
         toxresult_dump = json.dumps(tox_result_data)
-        toxresult_hash = get_default_hash_value(toxresult_dump.encode())
+        toxresult_hash = get_hashes(toxresult_dump.encode()).get_default_value()
         r = mapp1.upload_toxresult("/%s" % path, toxresult_dump)
         toxresult_link = mapp1.getjson(f'/{r.json["result"]}')["result"]
         last_modified = toxresult_link["last_modified"]
