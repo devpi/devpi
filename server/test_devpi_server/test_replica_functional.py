@@ -10,7 +10,7 @@ import pytest
 def replica_mapp(makemapp, primary_host_port, secretfile):
     app = makemapp(options=[
         '--primary-url', 'http://%s:%s' % primary_host_port,
-        '--secretfile', secretfile.strpath])
+        '--secretfile', secretfile])
     try:
         yield app
     finally:

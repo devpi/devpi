@@ -1,6 +1,7 @@
 from devpi_server.config import MyArgumentParser, parseoptions, get_pluginmanager
 from devpi_server.config import hookimpl
 from devpi_server.main import Fatal
+from pathlib import Path
 import pytest
 import textwrap
 
@@ -64,7 +65,7 @@ class TestConfig:
         caplog.clear()
         config = make_config(["devpi-server", "--secretfile=%s" % p])
         assert config.args.secretfile == str(p)
-        assert config.secretfile == str(p)
+        assert config.secret_path == Path(p)
         assert config.basesecret == secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 0
@@ -72,7 +73,7 @@ class TestConfig:
         caplog.clear()
         config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         assert config.args.secretfile is None
-        assert config.secretfile is None
+        assert config.secret_path is None
         assert config.basesecret != secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 1
@@ -82,7 +83,7 @@ class TestConfig:
         caplog.clear()
         config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         assert config.args.secretfile is None
-        assert config.secretfile is None
+        assert config.secret_path is None
         assert config.basesecret != secret
         assert config.basesecret != prev_secret
         recs = caplog.getrecords(".*new random secret.*")
@@ -100,7 +101,7 @@ class TestConfig:
         config = make_config(["devpi-server", "--serverdir", configdir.strpath])
         # the existing file should be used
         assert config.args.secretfile is None
-        assert config.secretfile == str(p)
+        assert config.secret_path == Path(p)
         assert config.basesecret == secret
         recs = caplog.getrecords(".*new random secret.*")
         assert len(recs) == 0

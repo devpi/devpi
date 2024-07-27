@@ -321,7 +321,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info, storage_plugin)
 def replica_xom(makexom, secretfile):
     from devpi_server.replica import register_key_subscribers
     primary_url = "http://localhost:3111"
-    xom = makexom(["--primary-url", primary_url, "--secretfile", secretfile.strpath])
+    xom = makexom(["--primary-url", primary_url, "--secretfile", secretfile])
     register_key_subscribers(xom)
     return xom
 
@@ -1135,7 +1135,7 @@ def secretfile(server_directory):
         secretfile.write(base64.b64encode(secrets.token_bytes(32)))
         if sys.platform != "win32":
             secretfile.chmod(0o600)
-    return secretfile
+    return secretfile.strpath
 
 
 @pytest.fixture(scope="class")
@@ -1155,7 +1155,7 @@ def primary_host_port(primary_server_path, secretfile, storage_info):
     args = [
         "devpi-server",
         "--role", "primary",
-        "--secretfile", secretfile.strpath,
+        "--secretfile", secretfile,
         "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
         "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
         "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST),
@@ -1195,7 +1195,7 @@ def replica_host_port(primary_host_port, replica_server_path, secretfile, storag
     port = get_open_port(host)
     args = [
         "devpi-server",
-        "--secretfile", secretfile.strpath,
+        "--secretfile", secretfile,
         "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
         "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
         "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST),

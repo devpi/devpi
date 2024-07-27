@@ -6,6 +6,7 @@ import secrets
 import sys
 import uuid
 from operator import itemgetter
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from pluggy import HookimplMarker, PluginManager
 import py
@@ -987,31 +988,40 @@ class Config(object):
 
     @cached_property
     def secretfile(self):
+        warnings.warn(
+            "The secretfile property is deprecated, "
+            "use secret_path instead",
+            DeprecationWarning,
+            stacklevel=3)
+        return py.path.local(self.secret_path)
+
+    @cached_property
+    def secret_path(self):
         if not self.args.secretfile:
-            secretfile = self.serverdir.join('.secret')
-            if not secretfile.check(file=True):
+            secretfile = Path(self.serverdir) / '.secret'
+            if not secretfile.is_file():
                 return None
             log.warning(
                 "Using deprecated existing secret file at '%s', use "
                 "--secretfile to explicitly provide the location." % secretfile)
             return secretfile
-        return py.path.local(
-            os.path.expanduser(self.args.secretfile))
+        return Path(self.args.secretfile).expanduser()
 
     def get_validated_secret(self):
         from .main import Fatal
         import stat
-        if not self.secretfile.check(file=True):
+        secret_path = self.secret_path
+        if not secret_path.is_file():
             raise Fatal("The given secret file doesn't exist.")
-        if self.secretfile.stat().mode & stat.S_IRWXO and sys.platform != "win32":
+        if secret_path.stat().st_mode & stat.S_IRWXO and sys.platform != "win32":
             raise Fatal("The given secret file is world accessible, the access mode must be user accessible only (0600).")
-        if self.secretfile.stat().mode & stat.S_IRWXG and sys.platform != "win32":
+        if secret_path.stat().st_mode & stat.S_IRWXG and sys.platform != "win32":
             raise Fatal("The given secret file is group accessible, the access mode must be user accessible only (0600).")
-        if self.secretfile.dirpath().stat().mode & stat.S_IWGRP and sys.platform != "win32":
+        if secret_path.parent.stat().st_mode & stat.S_IWGRP and sys.platform != "win32":
             raise Fatal("The folder of the given secret file is group writable, it must only be writable by the user.")
-        if self.secretfile.dirpath().stat().mode & stat.S_IWOTH and sys.platform != "win32":
+        if secret_path.parent.stat().st_mode & stat.S_IWOTH and sys.platform != "win32":
             raise Fatal("The folder of the given secret file is world writable, it must only be writable by the user.")
-        secret = self.secretfile.read_binary()
+        secret = secret_path.read_bytes()
         if len(secret) < 32:
             raise Fatal(
                 "The secret in the given secret file is too short, "
@@ -1024,7 +1034,7 @@ class Config(object):
 
     @cached_property
     def basesecret(self):
-        if self.secretfile is None:
+        if self.secret_path is None:
             log.warning(
                 "No secret file provided, creating a new random secret. "
                 "Login tokens issued before are invalid. "
@@ -1033,7 +1043,7 @@ class Config(object):
                 "devpi-gen-secret command.")
             return new_secret()
         secret = self.get_validated_secret()
-        log.info("Using secret file '%s'.", self.secretfile)
+        log.info("Using secret file '%s'.", self.secret_path)
         return secret
 
     @property
@@ -1091,17 +1101,16 @@ def gensecret():
         runner.configure_logging(config.args)
         if config.args.secretfile is None:
             raise Fatal("You need to provide a location for the secret file.")
-        if not config.secretfile.exists():
-            with config.secretfile.open("wb") as f:
-                f.write(new_secret())
-            log.info("New secret written to '%s'" % config.secretfile)
+        if not config.secret_path.exists():
+            config.secret_path.write_bytes(new_secret())
+            log.info("New secret written to '%s'" % config.secret_path)
             if sys.platform != "win32":
-                mode = config.secretfile.stat().mode
+                mode = config.secret_path.stat().st_mode
                 if mode & stat.S_IRWXG or mode & stat.S_IRWXO:
-                    config.secretfile.chmod(0o600)
+                    config.secret_path.chmod(0o600)
                     log.info("Changed file mode to 0600 to adjust access permissions.")
         else:
-            log.info("Checking existing secret at '%s'" % config.secretfile)
+            log.info("Checking existing secret at '%s'" % config.secret_path)
         # run checks
         config.get_validated_secret()
         log.info("Permissions of secret file look good.")

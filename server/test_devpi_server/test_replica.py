@@ -489,7 +489,7 @@ def make_replica_xom(makexom, secretfile):
         replica_xom = makexom([
             "--primary-url", "http://localhost",
             "--file-replication-threads", "1",
-            "--secretfile", secretfile.strpath] + list(options))
+            "--secretfile", secretfile] + list(options))
         # shorten error delay for tests
         replica_xom.replica_thread.shared_data.ERROR_QUEUE_MAX_DELAY = 0.1
         replica_xom.thread_pool.start_one(

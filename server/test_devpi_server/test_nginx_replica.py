@@ -10,7 +10,7 @@ import pytest
 def mapp(makemapp, nginx_host_port, secretfile):
     app = makemapp(options=[
         '--primary-url', 'http://%s:%s' % nginx_host_port,
-        '--secretfile', secretfile.strpath])
+        '--secretfile', secretfile])
     app.xom.thread_pool.start_one(app.xom.replica_thread)
     try:
         yield app
