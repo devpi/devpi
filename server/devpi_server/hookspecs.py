@@ -57,7 +57,7 @@ def devpiserver_genconfig(tw, config, argv, writer):
     """ used to write out configuration files.
 
     - tw is a TerminalWriter instance
-    - config gives access to the Config object for things like config.serverdir
+    - config gives access to the Config object for things like config.server_path
     - argv are the commandline arguments
     - writer is a function to write out the config with the following arguments: basename, config
     """

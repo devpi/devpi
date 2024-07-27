@@ -28,10 +28,10 @@ def init(pluginmanager=None, argv=None):
         config = runner.get_config(argv, parser=parser)
         runner.configure_logging(config.args)
         if config.nodeinfo_path.exists():
-            msg = f"The path {config.serverdir!r} already contains devpi-server data."
+            msg = f"The path {config.server_path!r} already contains devpi-server data."
             raise Fatal(msg)
-        sdir = config.serverdir
-        if not (sdir.exists() and len(sdir.listdir()) >= 2):
+        sdir = config.server_path
+        if not (sdir.exists() and len(list(sdir.iterdir())) >= 2):
             set_state_version(config, DATABASE_VERSION)
         xom = xom_from_config(config, init=True)
         init_default_indexes(xom)

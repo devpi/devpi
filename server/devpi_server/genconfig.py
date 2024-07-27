@@ -80,7 +80,7 @@ def gen_nginx(tw, config, argv, writer):
         outside_host=outside_host,
         outside_port=outside_port,
         port=config.args.port,
-        serverdir=config.serverdir)
+        serverdir=config.server_path)
     writer("nginx-devpi.conf", nginxconf)
 
 
@@ -120,7 +120,7 @@ def gen_nginx_caching(tw, config, argv, writer):
         outside_host=outside_host,
         outside_port=outside_port,
         port=config.args.port,
-        serverdir=config.serverdir)
+        serverdir=config.server_path)
     writer("nginx-devpi-caching.conf", nginxconf)
 
 
@@ -202,7 +202,7 @@ def genconfig(config=None, argv=None):
             # replace with absolute path
             new_argv.extend([
                 "--serverdir",
-                config.serverdir.strpath])
+                str(config.server_path.absolute())])
             continue
         if arg == "-c" or arg.startswith(("--configfile", "-c=")):
             if '=' not in arg:

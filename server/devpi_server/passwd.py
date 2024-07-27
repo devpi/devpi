@@ -25,8 +25,8 @@ def passwd():
         runner.configure_logging(config.args)
         xom = xom_from_config(config)
         log = xom.log
-        log.info("serverdir: %s" % xom.config.serverdir)
-        log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
+        log.info("serverdir: %s", xom.config.server_path)
+        log.info("uuid: %s", xom.config.nodeinfo["uuid"])
         username = xom.config.args.user
         if username is None:
             username = get_username()

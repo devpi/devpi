@@ -26,7 +26,7 @@ def test_gentmp_unique(gentmp):
 def test_makexom(makexom, maketestapp):
     xom1 = makexom()
     xom2 = makexom()
-    assert xom1.config.serverdir != xom2.config.serverdir
+    assert xom1.config.server_path != xom2.config.server_path
     testapp1 = maketestapp(xom1)
     testapp1.get("/")
     testapp2 = maketestapp(xom2)
@@ -39,4 +39,4 @@ def test_makemapp(makemapp):
     assert "hello" in mapp1.getuserlist()
     mapp2 = makemapp()
     assert "hello" not in mapp2.getuserlist()
-    assert mapp1.xom.config.serverdir != mapp2.xom.config.serverdir
+    assert mapp1.xom.config.server_path != mapp2.xom.config.server_path

@@ -302,7 +302,7 @@ class StatusView:
         config = self.xom.config
 
         status = {
-            "serverdir": str(config.serverdir),
+            "serverdir": str(config.server_path),
             "uuid": self.xom.config.nodeinfo["uuid"],
             "versioninfo":
                 dict(self.request.registry["devpi_version_info"]),

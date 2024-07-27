@@ -684,7 +684,16 @@ class Config(object):
 
     @cached_property
     def serverdir(self):
-        return py.path.local(os.path.expanduser(self.args.serverdir))
+        warnings.warn(
+            "The serverdir property is deprecated, "
+            "use server_path instead",
+            DeprecationWarning,
+            stacklevel=3)
+        return py.path.local(self.server_path)
+
+    @cached_property
+    def server_path(self):
+        return Path(self.args.serverdir).expanduser()
 
     @cached_property
     def path_nodeinfo(self):
@@ -697,7 +706,7 @@ class Config(object):
 
     @cached_property
     def nodeinfo_path(self):
-        return Path(self.serverdir) / ".nodeinfo"
+        return self.server_path / ".nodeinfo"
 
     def init_nodeinfo(self):
         log.info("Loading node info from %s", self.nodeinfo_path)
@@ -993,7 +1002,7 @@ class Config(object):
     def sqlite_file_needed_but_missing(self):
         return (
             self.storage_info['name'] == 'sqlite'
-            and not self.serverdir.join(".sqlite").exists()
+            and not self.server_path.joinpath(".sqlite").exists()
         )
 
     @cached_property
@@ -1008,7 +1017,7 @@ class Config(object):
     @cached_property
     def secret_path(self):
         if not self.args.secretfile:
-            secretfile = Path(self.serverdir) / '.secret'
+            secretfile = self.server_path / '.secret'
             if not secretfile.is_file():
                 return None
             log.warning(

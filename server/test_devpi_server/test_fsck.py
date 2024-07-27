@@ -23,7 +23,7 @@ def test_fsck_checksum_mismatch(mapp, storage_info):
     proc = subprocess.run(
         [  # noqa: S603,S607 - testing only
             "devpi-fsck",
-            "--serverdir", str(mapp.xom.config.serverdir),
+            "--serverdir", str(mapp.xom.config.server_path),
             *storage_args],
         check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     assert proc.returncode == 0, proc.stdout.decode()
@@ -31,7 +31,7 @@ def test_fsck_checksum_mismatch(mapp, storage_info):
     proc = subprocess.run(
         [  # noqa: S603,S607 - testing only
             "devpi-fsck",
-            "--serverdir", str(mapp.xom.config.serverdir),
+            "--serverdir", str(mapp.xom.config.server_path),
             *storage_args],
         check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out = proc.stdout.decode()

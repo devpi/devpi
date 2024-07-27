@@ -32,8 +32,8 @@ def fsck():
         xom = xom_from_config(config)
         args = xom.config.args
         log = xom.log
-        log.info("serverdir: %s" % xom.config.serverdir)
-        log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
+        log.info("serverdir: %s", xom.config.server_path)
+        log.info("uuid: %s", xom.config.nodeinfo["uuid"])
         keyfs = xom.keyfs
         keys = (keyfs.get_key('PYPIFILE_NOMD5'), keyfs.get_key('STAGEFILE'))
         last_time = time.time()

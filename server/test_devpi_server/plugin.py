@@ -1055,12 +1055,23 @@ def wait_for_port(host, port, timeout=60):
 
 
 @pytest.fixture(scope="class")
-def server_directory():
+def server_path():
     import tempfile
-    srvdir = py.path.local(
+    srvdir = Path(
         tempfile.mkdtemp(prefix='test-', suffix='-server-directory'))
     yield srvdir
-    srvdir.remove(ignore_errors=True)
+    shutil.rmtree(srvdir, ignore_errors=True)
+
+
+@pytest.fixture(scope="class")
+def server_directory(server_path):
+    import py
+    import warnings
+    warnings.warn(
+        "server_directory fixture is deprecated, use server_path instead",
+        DeprecationWarning,
+        stacklevel=0)
+    return py.path.local(server_path)
 
 
 @pytest.fixture(scope="module")
@@ -1122,20 +1133,20 @@ def master_serverdir(primary_server_path):
 
 
 @pytest.fixture(scope="class")
-def primary_server_path(server_directory):
-    return Path(server_directory.join("primary"))
+def primary_server_path(server_path):
+    return server_path / "primary"
 
 
 @pytest.fixture(scope="class")
-def secretfile(server_directory):
+def secretfile(server_path):
     import base64
     import secrets
-    secretfile = server_directory.join('testserver.secret')
+    secretfile = server_path / 'testserver.secret'
     if not secretfile.exists():
-        secretfile.write(base64.b64encode(secrets.token_bytes(32)))
+        secretfile.write_bytes(base64.b64encode(secrets.token_bytes(32)))
         if sys.platform != "win32":
             secretfile.chmod(0o600)
-    return secretfile.strpath
+    return str(secretfile)
 
 
 @pytest.fixture(scope="class")
@@ -1185,8 +1196,8 @@ def primary_host_port(primary_server_path, secretfile, storage_info):
 
 
 @pytest.fixture(scope="class")
-def replica_server_path(server_directory):
-    return Path(server_directory.join("replica"))
+def replica_server_path(server_path):
+    return server_path / "replica"
 
 
 @pytest.fixture(scope="class")
@@ -1251,55 +1262,56 @@ def adjust_nginx_conf_content():
     return adjust_nginx_conf_content
 
 
-def _nginx_host_port(host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
-    # let xproc find the correct executable instead of py.test
+def _nginx_host_port(host, port, call_devpi_in_dir, server_path, adjust_nginx_conf_content):
+    import os
     nginx = shutil.which("nginx")
     if nginx is None:
         pytest.skip("No nginx executable found.")
     nginx = str(nginx)
 
-    orig_dir = server_directory.chdir()
+    orig_dir = Path.cwd()
+    os.chdir(server_path)
     try:
         args = ["devpi-gen-config", "--host", host, "--port", str(port)]
-        if not server_directory.join('.nodeinfo').exists():
-            call_devpi_in_dir(server_directory.strpath, ["devpi-init"])
+        if not server_path.joinpath('.nodeinfo').exists():
+            call_devpi_in_dir(str(server_path), ["devpi-init"])
         call_devpi_in_dir(
-            server_directory.strpath,
+            str(server_path),
             args)
     finally:
-        orig_dir.chdir()
-    nginx_directory = server_directory.join("gen-config")
-    nginx_devpi_conf = nginx_directory.join("nginx-devpi.conf")
+        os.chdir(orig_dir)
+    nginx_directory = server_path / "gen-config"
+    nginx_devpi_conf = nginx_directory / "nginx-devpi.conf"
     nginx_port = get_open_port(host)
-    nginx_devpi_conf_content = nginx_devpi_conf.read()
+    nginx_devpi_conf_content = nginx_devpi_conf.read_text()
     nginx_devpi_conf_content = nginx_devpi_conf_content.replace(
         "listen 80;",
         "listen %s;" % nginx_port)
     nginx_devpi_conf_content = adjust_nginx_conf_content(nginx_devpi_conf_content)
-    nginx_devpi_conf.write(nginx_devpi_conf_content)
-    nginx_conf = nginx_directory.join("nginx.conf")
-    nginx_conf.write(nginx_conf_content)
+    nginx_devpi_conf.write_text(nginx_devpi_conf_content)
+    nginx_conf = nginx_directory / "nginx.conf"
+    nginx_conf.write_text(nginx_conf_content)
     try:
         subprocess.check_output([
             nginx, "-t",
-            "-c", nginx_conf.strpath,
-            "-p", nginx_directory.strpath], stderr=subprocess.STDOUT)
+            "-c", str(nginx_conf),
+            "-p", str(nginx_directory)], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         print(e.output, file=sys.stderr)
         raise
     p = subprocess.Popen([
-        nginx, "-c", nginx_conf.strpath, "-p", nginx_directory.strpath])
+        nginx, "-c", str(nginx_conf), "-p", str(nginx_directory)])
     return (p, nginx_port)
 
 
 @pytest.fixture(scope="class")
-def nginx_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
+def nginx_host_port(request, call_devpi_in_dir, server_path, adjust_nginx_conf_content):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
     # we need the skip above before primary_host_port is called
     (host, port) = request.getfixturevalue("primary_host_port")
     (p, nginx_port) = _nginx_host_port(
-        host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content)
+        host, port, call_devpi_in_dir, server_path, adjust_nginx_conf_content)
     try:
         wait_for_port(host, nginx_port)
         yield (host, nginx_port)
@@ -1309,13 +1321,13 @@ def nginx_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_c
 
 
 @pytest.fixture(scope="class")
-def nginx_replica_host_port(request, call_devpi_in_dir, server_directory, adjust_nginx_conf_content):
+def nginx_replica_host_port(request, call_devpi_in_dir, server_path, adjust_nginx_conf_content):
     if sys.platform.startswith("win"):
         pytest.skip("no nginx on windows")
     # we need the skip above before primary_host_port is called
     (host, port) = request.getfixturevalue("replica_host_port")
     (p, nginx_port) = _nginx_host_port(
-        host, port, call_devpi_in_dir, server_directory, adjust_nginx_conf_content)
+        host, port, call_devpi_in_dir, server_path, adjust_nginx_conf_content)
     try:
         wait_for_port(host, nginx_port)
         yield (host, nginx_port)

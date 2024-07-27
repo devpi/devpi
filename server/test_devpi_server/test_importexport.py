@@ -208,7 +208,7 @@ class TestImportExport:
                 from devpi_server.importexport import export
                 argv = [
                     "devpi-export",
-                    "--serverdir", self.mapp1.xom.config.serverdir]
+                    "--serverdir", self.mapp1.xom.config.server_path]
                 argv.extend(self.options)
                 argv.extend(["--storage", storage_info["name"]])
                 argv.append(self.exportdir)

@@ -99,7 +99,7 @@ DATABASE_VERSION = "4"
 
 
 def check_compatible_version(config):
-    if not config.serverdir.exists():
+    if not config.server_path.exists():
         return
     state_version = get_state_version(config)
     if server_version != state_version:
@@ -107,7 +107,7 @@ def check_compatible_version(config):
         if state_ver[0] != DATABASE_VERSION:
             msg = (
                 f"Incompatible state: server {server_version} cannot run "
-                f"serverdir {config.serverdir} created at database "
+                f"serverdir {config.server_path} created at database "
                 f"version {state_ver[0]}.\n"
                 f"Use devpi-export from older version, then "
                 f"devpi-import with newer version.")
@@ -115,20 +115,20 @@ def check_compatible_version(config):
 
 
 def get_state_version(config):
-    versionfile = config.serverdir.join(".serverversion")
+    versionfile = config.server_path / ".serverversion"
     if not versionfile.exists():
         msg = (
             "serverdir %s is non-empty and misses devpi-server meta information. "
             "You need to specify an empty directory or a directory that was "
-            "previously managed by devpi-server>=1.2" % config.serverdir)
+            "previously managed by devpi-server>=1.2" % config.server_path)
         raise Fatal(msg)
-    return versionfile.read()
+    return versionfile.read_text()
 
 
 def set_state_version(config, version=DATABASE_VERSION):
-    versionfile = config.serverdir.join(".serverversion")
-    versionfile.dirpath().ensure(dir=1)
-    versionfile.write(version)
+    versionfile = config.server_path / ".serverversion"
+    versionfile.parent.mkdir(parents=True, exist_ok=True)
+    versionfile.write_text(version)
 
 
 def main(argv=None):
@@ -149,7 +149,7 @@ def xom_from_config(config, init=False):
             "No sqlite storage found in %s."
             " Or you need to run with --storage to specify the storage type,"
             " or you first need to run devpi-init or devpi-import"
-            " in order to create the sqlite database." % config.serverdir
+            " in order to create the sqlite database." % config.server_path
         )
         raise Fatal(msg)
 
@@ -184,7 +184,7 @@ def _main(pluginmanager, argv=None):
 
     if not config.nodeinfo_path.exists():
         msg = (
-            f"The path '{config.serverdir}' contains no devpi-server data, "
+            f"The path '{config.server_path}' contains no devpi-server data, "
             f"use devpi-init to initialize.")
         raise Fatal(msg)
 
@@ -205,8 +205,8 @@ def wsgi_run(xom, app):
     kwargs = xom.config.waitress_info["kwargs"]
     addresses = xom.config.waitress_info["addresses"]
     log.info("devpi-server version: %s", server_version)
-    log.info("serverdir: %s" % xom.config.serverdir)
-    log.info("uuid: %s" % xom.config.nodeinfo["uuid"])
+    log.info("serverdir: %s", xom.config.server_path)
+    log.info("uuid: %s", xom.config.nodeinfo["uuid"])
     if len(addresses) == 1:
         log.info("serving at url: %s", addresses[0])
     else:
@@ -413,7 +413,7 @@ class XOM:
         from devpi_server.keyfs import KeyFS
         from devpi_server.model import add_keys
         keyfs = KeyFS(
-            self.config.serverdir,
+            self.config.server_path,
             self.config.storage,
             readonly=self.is_replica(),
             cache_size=self.config.args.keyfs_cache_size)

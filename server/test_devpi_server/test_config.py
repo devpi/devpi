@@ -155,12 +155,12 @@ class TestConfig:
     def test_devpi_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPI_SERVERDIR", tmpdir.strpath)
         config = make_config(["devpi-server"])
-        assert config.serverdir == tmpdir
+        assert config.server_path == tmpdir
 
     def test_devpiserver_serverdir_env(self, tmpdir, monkeypatch):
         monkeypatch.setenv("DEVPISERVER_SERVERDIR", tmpdir.strpath)
         config = make_config(["devpi-server"])
-        assert config.serverdir == tmpdir
+        assert config.server_path == tmpdir
 
     def test_role_master(self, tmpdir):
         config = make_config([

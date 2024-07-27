@@ -722,7 +722,7 @@ class TestFileReplication:
             'root/pypi/+f/5d4/1402abc4b2a76/pytest-1.8.zip']
         with replica_xom.keyfs.read_transaction():
             assert not r_entry.file_exists()
-            assert not replica_xom.config.serverdir.join(r_entry._storepath).exists()
+            assert not replica_xom.config.server_path.joinpath(r_entry._storepath).exists()
 
         # then we try to return the correct thing
         with xom.keyfs.write_transaction():
@@ -763,7 +763,7 @@ class TestFileReplication:
         with xom.keyfs.write_transaction():
             entry.file_delete()
             entry.delete()
-        assert not xom.config.serverdir.join(entry._storepath).exists()
+        assert not xom.config.server_path.joinpath(entry._storepath).exists()
 
         # and simulate what the primary will respond
         xom.httpget.mockresponse(primary_file_path, status_code=410)

@@ -125,7 +125,7 @@ class TestFileStore:
         link1 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_1)
         entry1 = filestore.maplink(link1, "root", "pypi", "pytest")
         # write a wrong file outside the transaction
-        filepath = xom.config.serverdir.join(entry1._storepath)
+        filepath = xom.config.server_path.joinpath(entry1._storepath)
         py.path.local(filepath).dirpath().ensure(dir=1)
         with filepath.open("w") as f:
             f.write('othercontent')
@@ -290,17 +290,17 @@ def test_file_tx_commit(filestore, gen, xom):
     assert not entry.file_exists()
     entry.file_set_content(b'123')
     assert entry.file_exists()
-    assert not xom.config.serverdir.join(entry._storepath).exists()
+    assert not xom.config.server_path.joinpath(entry._storepath).exists()
     assert entry.file_get_content() == b'123'
     # commit existing data and start new transaction
     filestore.keyfs.commit_transaction_in_thread()
     filestore.keyfs.begin_transaction_in_thread(write=True)
-    assert xom.config.serverdir.join(entry._storepath).exists()
+    assert xom.config.server_path.joinpath(entry._storepath).exists()
     entry.file_delete()
-    assert xom.config.serverdir.join(entry._storepath).exists()
+    assert xom.config.server_path.joinpath(entry._storepath).exists()
     assert not entry.file_exists()
     filestore.keyfs.commit_transaction_in_thread()
-    assert not xom.config.serverdir.join(entry._storepath).exists()
+    assert not xom.config.server_path.joinpath(entry._storepath).exists()
 
 
 @pytest.mark.notransaction
@@ -312,10 +312,10 @@ def test_file_tx_rollback(filestore, gen, xom):
     assert not entry.file_exists()
     entry.file_set_content(b'123')
     assert entry.file_exists()
-    assert not xom.config.serverdir.join(entry._storepath).exists()
+    assert not xom.config.server_path.joinpath(entry._storepath).exists()
     assert entry.file_get_content() == b'123'
     filestore.keyfs.rollback_transaction_in_thread()
-    assert not xom.config.serverdir.join(entry._storepath).exists()
+    assert not xom.config.server_path.joinpath(entry._storepath).exists()
 
 
 @pytest.mark.notransaction
