@@ -128,25 +128,25 @@ devpi install: installing a package
 We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
-    $ devpi install pytest==6.2.4
+    $ devpi install pytest==6.2.4 attrs==23.1.0 iniconfig==2.0.0 pluggy==0.13.1 py==1.11.0 toml==0.10.2
     --> .$ /tmp/docenv/bin/pip --version
-    --> .$ /tmp/docenv/bin/pip install -U pytest==6.2.4  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/'),PIP_PRE='1',PIP_USE_WHEEL='1']
+    --> .$ /tmp/docenv/bin/pip install -U pytest==6.2.4 attrs==23.1.0 iniconfig==2.0.0 pluggy==0.13.1 py==1.11.0 toml==0.10.2  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/'),PIP_PRE='1',PIP_USE_WHEEL='1']
     Looking in indexes: http://testuser:****@localhost:3141/testuser/dev/+simple/
     Collecting pytest==6.2.4
       Downloading http://localhost:3141/root/pypi/%2Bf/91e/f2131a9bd6be8/pytest-6.2.4-py3-none-any.whl (280 kB)
-    Collecting attrs>=19.2.0 (from pytest==6.2.4)
+    Collecting attrs==23.1.0
       Downloading http://localhost:3141/root/pypi/%2Bf/1f2/8b4522cdc2fb4/attrs-23.1.0-py3-none-any.whl (61 kB)
-    Collecting iniconfig (from pytest==6.2.4)
+    Collecting iniconfig==2.0.0
       Downloading http://localhost:3141/root/pypi/%2Bf/b6a/85871a79d2e3b/iniconfig-2.0.0-py3-none-any.whl (5.9 kB)
-    Requirement already satisfied: packaging in /tmp/docenv/lib/python3.8/site-packages (from pytest==6.2.4) (23.2)
-    Collecting pluggy<1.0.0a1,>=0.12 (from pytest==6.2.4)
-      Downloading http://localhost:3141/root/pypi/%2Bf/467/f0219e89bb506/pluggy-1.0.0.dev0-py2.py3-none-any.whl (17 kB)
-    Collecting py>=1.8.2 (from pytest==6.2.4)
+    Collecting pluggy==0.13.1
+      Downloading http://localhost:3141/root/pypi/%2Bf/966/c145cd83c9650/pluggy-0.13.1-py2.py3-none-any.whl (18 kB)
+    Collecting py==1.11.0
       Downloading http://localhost:3141/root/pypi/%2Bf/607/c53218732647d/py-1.11.0-py2.py3-none-any.whl (98 kB)
-    Collecting toml (from pytest==6.2.4)
+    Collecting toml==0.10.2
       Downloading http://localhost:3141/root/pypi/%2Bf/806/143ae5bfb6a3c/toml-0.10.2-py2.py3-none-any.whl (16 kB)
+    Requirement already satisfied: packaging in /tmp/docenv/lib/python3.8/site-packages (from pytest==6.2.4) (24.1)
     Installing collected packages: toml, py, pluggy, iniconfig, attrs, pytest
-    Successfully installed attrs-23.1.0 iniconfig-2.0.0 pluggy-1.0.0.dev0 py-1.11.0 pytest-6.2.4 toml-0.10.2
+    Successfully installed attrs-23.1.0 iniconfig-2.0.0 pluggy-0.13.1 py-1.11.0 pytest-6.2.4 toml-0.10.2
 
 The ``devpi install`` command configured a pip call, using the
 pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
@@ -241,9 +241,10 @@ If you have a package which uses tox_ for testing you may now invoke::
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
     --> .$ /home/devpi/devpi/bin/tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini -q  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/')]
     ============================= test session starts ==============================
-    platform linux -- Python 3.8.12, pytest-7.4.2, pluggy-1.3.0
+    platform linux -- Python 3.8.12, pytest-8.3.2, pluggy-1.5.0
     cachedir: .tox/py/.pytest_cache
-    rootdir: /tmp/devpi-test0/targz/example-1.0
+    rootdir: /home/runner/work/devpi/devpi
+    configfile: pyproject.toml
     collected 1 item
 
     test_example.py .                                                        [100%]

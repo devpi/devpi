@@ -236,6 +236,7 @@ the resulting release file.  First the typical ``setup.py`` packaging call::
    copying pysober.egg-info/top_level.txt -> pysober-0.2.0/pysober.egg-info
    copying test/conftest.py -> pysober-0.2.0/test
    copying test/test_pysober.py -> pysober-0.2.0/test
+   copying pysober.egg-info/SOURCES.txt -> pysober-0.2.0/pysober.egg-info
    Writing pysober-0.2.0/setup.cfg
    Creating tar archive
    removing 'pysober-0.2.0' (and everything under it)

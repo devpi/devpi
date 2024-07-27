@@ -85,17 +85,17 @@ an index server url.  We use it to point installers to a special
 ``root/pypi`` index, served by ``devpi-server`` by default.
 Let's install the ``pg8000`` package as a test from our cache::
 
-    $ pip install -i http://localhost:3141/root/pypi/+simple/ pg8000==1.30.2
+    $ pip install -i http://localhost:3141/root/pypi/+simple/ pg8000==1.30.2 scramp==1.4.4 python-dateutil==2.8.2 six==1.16.0 asn1crypto==1.5.1
     Looking in indexes: http://localhost:3141/root/pypi/+simple/
     Collecting pg8000==1.30.2
       Downloading http://localhost:3141/root/pypi/%2Bf/2fc/6bf2d81d70255/pg8000-1.30.2-py3-none-any.whl (54 kB)
-    Collecting scramp>=1.4.4 (from pg8000==1.30.2)
+    Collecting scramp==1.4.4
       Downloading http://localhost:3141/root/pypi/%2Bf/b14/2312df7c29772/scramp-1.4.4-py3-none-any.whl (13 kB)
-    Collecting python-dateutil>=2.8.2 (from pg8000==1.30.2)
+    Collecting python-dateutil==2.8.2
       Downloading http://localhost:3141/root/pypi/%2Bf/961/d03dc3453ebbc/python_dateutil-2.8.2-py2.py3-none-any.whl (247 kB)
-    Collecting six>=1.5 (from python-dateutil>=2.8.2->pg8000==1.30.2)
+    Collecting six==1.16.0
       Downloading http://localhost:3141/root/pypi/%2Bf/8ab/b2f1d86890a2d/six-1.16.0-py2.py3-none-any.whl (11 kB)
-    Collecting asn1crypto>=1.5.1 (from scramp>=1.4.4->pg8000==1.30.2)
+    Collecting asn1crypto==1.5.1
       Downloading http://localhost:3141/root/pypi/%2Bf/db4/e40728b728508/asn1crypto-1.5.1-py2.py3-none-any.whl (105 kB)
     Installing collected packages: asn1crypto, six, scramp, python-dateutil, pg8000
     Successfully installed asn1crypto-1.5.1 pg8000-1.30.2 python-dateutil-2.8.2 scramp-1.4.4 six-1.16.0
