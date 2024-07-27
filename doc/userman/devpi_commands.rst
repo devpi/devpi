@@ -539,7 +539,7 @@ devpi command reference (server)
                             'standalone' by default and 'replica' if the --master-
                             url option is used. To enable the replication protocol
                             you have to explicitly set the 'master' role. [auto]
-      --version             show devpi_version (6.9.2) [False]
+      --version             show devpi_version (6.12.1) [False]
       --passwd USER         (DEPRECATED, use devpi-passwd command) set password
                             for user USER (interactive) [None]
 
