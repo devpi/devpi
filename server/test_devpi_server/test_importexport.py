@@ -195,11 +195,11 @@ class TestIndexTree:
 
 class TestImportExport:
     @pytest.fixture()
-    def makeimpexp(self, makemapp, gentmp, storage_info):
+    def makeimpexp(self, makemapp, gen_path, storage_info):
         class ImpExp:
             def __init__(self, options=()):
                 from devpi_server.main import set_state_version
-                self.exportdir = gentmp()
+                self.exportdir = gen_path()
                 self.mapp1 = makemapp()
                 set_state_version(self.mapp1.xom.config)
                 self.options = options
@@ -224,7 +224,7 @@ class TestImportExport:
                     path_cm = importlib.resources.path(
                         'test_devpi_server', 'importexportdata')
                 with path_cm as path:
-                    serverdir = gentmp()
+                    serverdir = gen_path()
                     argv = [
                         "devpi-import",
                         "--no-events",
@@ -239,7 +239,7 @@ class TestImportExport:
             def new_import(self, options=(), plugin=None):
                 from devpi_server.config import get_pluginmanager
                 from devpi_server.importexport import import_
-                serverdir = gentmp()
+                serverdir = gen_path()
                 argv = [
                     "devpi-import",
                     "--no-events",
@@ -266,11 +266,11 @@ class TestImportExport:
         content = b'content1'
         mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         impexp.export()
-        data = json.loads(impexp.exportdir.join('dataindex.json').read_binary())
+        data = json.loads(impexp.exportdir.joinpath('dataindex.json').read_bytes())
         (filedata,) = data['indexes'][api1.stagename]['files']
         filedata['entrymapping'].pop('hash_spec')
         filedata['entrymapping']['md5'] = 'foo'
-        impexp.exportdir.join('dataindex.json').write_text(json.dumps(data), 'utf8')
+        impexp.exportdir.joinpath('dataindex.json').write_text(json.dumps(data))
         with pytest.raises(Fatal, match="has bad checksum 7e55db001d319a94b0b713529a756623, expected foo"):
             do_import(impexp.exportdir, terminalwriter, xom)
 
@@ -680,19 +680,16 @@ class TestImportExport:
           },
           "uuid": "72f86a504b14446e98ba840d0f4609ec"
         }
-        with open(impexp.exportdir.join('dataindex.json').strpath, 'w') as fp:
-            fp.write(json.dumps(DUMP_FILE))
+        impexp.exportdir.joinpath('dataindex.json').write_text(json.dumps(DUMP_FILE))
 
         filedir = impexp.exportdir
         for dir in ['user1', 'dev', 'hello']:
-            filedir = filedir.join(dir)
+            filedir = filedir / dir
             filedir.mkdir()
-        with open(filedir.join('hello-1.0.tar.gz').strpath, 'w') as fp:
-            fp.write('content')
-        filedir = filedir.join('9a0364b9e99bb480dd25e1f0284c8555')
+        filedir.joinpath('hello-1.0.tar.gz').write_text('content')
+        filedir = filedir / '9a0364b9e99bb480dd25e1f0284c8555'
         filedir.mkdir()
-        with open(filedir.join('hello-1.0.tar.gz.toxresult0').strpath, 'w') as fp:
-            fp.write(json.dumps(tox_result_data))
+        filedir.joinpath('hello-1.0.tar.gz.toxresult0').write_text(json.dumps(tox_result_data))
 
         mapp2 = impexp.new_import()
         with mapp2.xom.keyfs.read_transaction():
@@ -865,15 +862,13 @@ class TestImportExport:
               }
           }
         }
-        with open(impexp.exportdir.join('dataindex.json').strpath, 'w') as fp:
-            fp.write(json.dumps(DUMP_FILE))
+        impexp.exportdir.joinpath('dataindex.json').write_text(json.dumps(DUMP_FILE))
 
         filedir = impexp.exportdir
         for dir in ['user1', 'dev', 'hello']:
-            filedir = filedir.join(dir)
+            filedir = filedir / dir
             filedir.mkdir()
-        with open(filedir.join('hello-1.2_3.tar.gz').strpath, 'w') as fp:
-            fp.write('content')
+        filedir.joinpath('hello-1.2_3.tar.gz').write_text('content')
 
         # Run the import and check the version data
         mapp2 = impexp.new_import()
@@ -952,12 +947,12 @@ class TestImportExport:
         impexp.export()
 
         # check the number of links of the files in the exported data
-        assert impexp.exportdir.join(
-          'dataindex.json').stat().nlink == 1
-        assert impexp.exportdir.join(
-          'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
-        assert impexp.exportdir.join(
-          'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 2
+        assert impexp.exportdir.joinpath(
+            'dataindex.json').stat().st_nlink == 1
+        assert impexp.exportdir.joinpath(
+            'user1', 'dev', 'he_llo-1.0.doc.zip').stat().st_nlink == 2
+        assert impexp.exportdir.joinpath(
+            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().st_nlink == 2
 
         # now import the data
         mapp2 = impexp.new_import()
@@ -990,12 +985,12 @@ class TestImportExport:
         impexp.export()
 
         # check the number of links of the files in the exported data
-        assert impexp.exportdir.join(
-            'dataindex.json').stat().nlink == 1
-        assert impexp.exportdir.join(
-            'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 1
-        assert impexp.exportdir.join(
-            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 1
+        assert impexp.exportdir.joinpath(
+            'dataindex.json').stat().st_nlink == 1
+        assert impexp.exportdir.joinpath(
+            'user1', 'dev', 'he_llo-1.0.doc.zip').stat().st_nlink == 1
+        assert impexp.exportdir.joinpath(
+            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().st_nlink == 1
 
         # now import the data
         mapp2 = impexp.new_import(options=('--hard-links',))
@@ -1014,12 +1009,12 @@ class TestImportExport:
             assert archive.read("index.html").decode('utf-8') == "<html/>"
 
         # and the exported files should now have additional links
-        assert impexp.exportdir.join(
-            'dataindex.json').stat().nlink == 1
-        assert impexp.exportdir.join(
-            'user1', 'dev', 'he_llo-1.0.doc.zip').stat().nlink == 2
-        assert impexp.exportdir.join(
-            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().nlink == 2
+        assert impexp.exportdir.joinpath(
+            'dataindex.json').stat().st_nlink == 1
+        assert impexp.exportdir.joinpath(
+            'user1', 'dev', 'he_llo-1.0.doc.zip').stat().st_nlink == 2
+        assert impexp.exportdir.joinpath(
+            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().st_nlink == 2
 
     def test_uploadtrigger_jenkins_removed_if_not_set(self, impexp):
         mapp1 = impexp.mapp1
@@ -1141,7 +1136,7 @@ class TestImportExport:
 
         impexp.export()
 
-        assert os.listdir(impexp.exportdir.strpath) == ['dataindex.json']
+        assert [x.name for x in impexp.exportdir.iterdir()] == ['dataindex.json']
 
         httpget.mockresponse(pypiurls.simple, code=200, text="")
         httpget.mockresponse(indexconfig["mirror_url"], code=200, text="")

@@ -1,8 +1,29 @@
-import py
 import pytest
 
 
+def test_gen_path_suffix_raises(gen_path):
+    t = gen_path("source")
+    assert not list(t.iterdir())
+    pytest.raises(FileExistsError, lambda: gen_path("source"))
+
+
+def test_gen_path_suffix(gen_path):
+    source = gen_path("source")
+    dest = gen_path("dest")
+    assert source.parent == dest.parent
+    assert source.name.startswith("source")
+    assert dest.name.startswith("dest")
+
+
+def test_gen_path_unique(gen_path):
+    s1 = gen_path()
+    s2 = gen_path()
+    assert s1 != s2
+    assert s1.parent == s2.parent
+
+
 def test_gentmp_suffix_raises(gentmp):
+    import py
     t = gentmp("source")
     assert not t.listdir()
     pytest.raises(py.error.EEXIST, lambda: gentmp("source"))

@@ -10,8 +10,8 @@ notransaction = pytest.mark.notransaction
 
 
 @pytest.fixture
-def keyfs(gentmp, pool, storage):
-    keyfs = KeyFS(gentmp(), storage)
+def keyfs(gen_path, pool, storage):
+    keyfs = KeyFS(gen_path(), storage)
     pool.register(keyfs.notifier)
     yield keyfs
 
@@ -904,9 +904,9 @@ def test_crash_recovery(keyfs, storage_info):
         keyfs.finalize_init()
 
 
-def test_keyfs_sqlite(gentmp):
+def test_keyfs_sqlite(gen_path):
     from devpi_server import keyfs_sqlite
-    tmp = gentmp()
+    tmp = gen_path()
     keyfs = KeyFS(tmp, keyfs_sqlite.Storage)
     with keyfs.write_transaction() as tx:
         assert tx.conn.io_file_os_path('foo') is None
@@ -915,22 +915,22 @@ def test_keyfs_sqlite(gentmp):
     with keyfs.read_transaction() as tx:
         assert tx.conn.io_file_os_path('foo') is None
         assert tx.conn.io_file_get('foo') == b'bar'
-    assert [x.basename for x in tmp.listdir()] == ['.sqlite_db']
+    assert [x.name for x in tmp.iterdir()] == ['.sqlite_db']
 
 
-def test_keyfs_sqlite_fs(gentmp):
+def test_keyfs_sqlite_fs(gen_path):
     from devpi_server import keyfs_sqlite_fs
-    tmp = gentmp()
+    tmp = gen_path()
     keyfs = KeyFS(tmp, keyfs_sqlite_fs.Storage)
     with keyfs.write_transaction() as tx:
-        assert tx.conn.io_file_os_path('foo') == tmp.join('foo').strpath
+        assert tx.conn.io_file_os_path('foo') == str(tmp / 'foo')
         tx.conn.io_file_set('foo', b'bar')
         tx.conn._sqlconn.commit()
     with keyfs.read_transaction() as tx:
         assert tx.conn.io_file_get('foo') == b'bar'
         with open(tx.conn.io_file_os_path('foo'), 'rb') as f:
             assert f.read() == b'bar'
-    assert sorted(x.basename for x in tmp.listdir()) == ['.sqlite', 'foo']
+    assert sorted(x.name for x in tmp.iterdir()) == ['.sqlite', 'foo']
 
 
 @notransaction

@@ -20,12 +20,12 @@ wsgi_run_throws = pytest.mark.usefixtures("ground_wsgi_run")
 
 
 @pytest.fixture
-def config(gentmp):
-    serverdir = gentmp()
+def config(gen_path):
+    serverdir = gen_path()
     pluginmanager = get_pluginmanager()
     return parseoptions(
         pluginmanager,
-        ["devpi-server", "--serverdir", serverdir.strpath])
+        ["devpi-server", "--serverdir", str(serverdir)])
 
 
 def test_pkgresources_version_matches_init():
@@ -283,9 +283,9 @@ def test_request_args_timeout_handover(makexom, input_set):
     xom.httpget("http://whatever", allow_redirects=False, timeout=input_set['kwarg'])
 
 
-def test_no_root_pypi_option(gentmp, makexom, storage_info):
+def test_no_root_pypi_option(gen_path, makexom, storage_info):
     from devpi_server.init import init
-    serverdir = gentmp()
+    serverdir = gen_path()
     argv = ["devpi-init", "--serverdir", serverdir, "--no-root-pypi"]
     if storage_info["name"] != "sqlite":
         argv.append("--storage=%s" % storage_info["name"])
@@ -350,10 +350,10 @@ def test_serve_max_body(monkeypatch, tmpdir):
     main(["devpi-server", "--max-request-body-size", "42"])
 
 
-def test_root_passwd_option(gentmp, makexom, storage_info):
+def test_root_passwd_option(gen_path, makexom, storage_info):
     from devpi_server.init import init
     # by default the password is empty
-    serverdir = gentmp()
+    serverdir = gen_path()
     argv = ["devpi-init", "--serverdir", serverdir]
     if storage_info["name"] != "sqlite":
         argv.append("--storage=%s" % storage_info["name"])
@@ -364,7 +364,7 @@ def test_root_passwd_option(gentmp, makexom, storage_info):
         assert user.validate("")
         assert not user.validate("foobar")
     # the password can be set from the command line
-    serverdir = gentmp()
+    serverdir = gen_path()
     argv = [
         "devpi-init", "--serverdir", serverdir,
         "--root-passwd", "foobar"]
@@ -378,10 +378,10 @@ def test_root_passwd_option(gentmp, makexom, storage_info):
         assert user.validate("foobar")
 
 
-def test_root_passwd_hash_option(gentmp, makexom, storage_info):
+def test_root_passwd_hash_option(gen_path, makexom, storage_info):
     from devpi_server.init import init
     # by default the password is empty
-    serverdir = gentmp()
+    serverdir = gen_path()
     argv = ["devpi-init", "--serverdir", serverdir]
     if storage_info["name"] != "sqlite":
         argv.append("--storage=%s" % storage_info["name"])
@@ -392,7 +392,7 @@ def test_root_passwd_hash_option(gentmp, makexom, storage_info):
         assert user.validate("")
         assert not user.validate("foobar")
     # the password hash can be directly set from the command line
-    serverdir = gentmp()
+    serverdir = gen_path()
     argv = [
         "devpi-init", "--serverdir", serverdir,
         "--root-passwd-hash", "$argon2i$v=19$m=102400,t=2,p=8$j9G6V8o5B0Co9f4fQ6gVIg$WzcG2C5Bv0LwtzPWeBcz0g"]

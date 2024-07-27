@@ -148,20 +148,42 @@ def caplog(caplog):
 
 
 @pytest.fixture
-def gentmp(request, tmpdir_factory):
+def gen_path(request, tmp_path_factory):
+    from _pytest.pathlib import LOCK_TIMEOUT
+    from _pytest.pathlib import make_numbered_dir_with_cleanup
     cache = []
 
-    def gentmp(name=None):
+    def gen_path(name=None):
         if not cache:
             prefix = re.sub(r"[\W]", "_", request.node.name)
-            basedir = tmpdir_factory.mktemp(prefix, numbered=True)
+            basedir = tmp_path_factory.mktemp(prefix, numbered=True)
             cache.append(basedir)
         else:
             basedir = cache[0]
         if name:
-            return basedir.mkdir(name)
-        return py.path.local.make_numbered_dir(prefix="gentmp",
-                keep=0, rootdir=basedir, lock_timeout=None)
+            path = basedir / name
+            path.mkdir()
+            return path
+        return make_numbered_dir_with_cleanup(
+            prefix="gentmp", keep=0, root=basedir, lock_timeout=LOCK_TIMEOUT, mode=0o700)
+
+    return gen_path
+
+
+@pytest.fixture
+def gentmp(gen_path):
+    import py
+    import warnings
+
+    def gentmp(name=None):
+        warnings.warn(
+            "gentmp fixture is deprecated, use gen_path instead",
+            DeprecationWarning,
+            stacklevel=2)
+        try:
+            return py.path.local(gen_path(name=name))
+        except FileExistsError as e:
+            raise py.error.EEXIST from e
 
     return gentmp
 
@@ -247,7 +269,7 @@ def storage(storage_info):
 
 
 @pytest.fixture
-def makexom(request, gentmp, httpget, monkeypatch, storage_info, storage_plugin):
+def makexom(request, gen_path, httpget, monkeypatch, storage_info, storage_plugin):
     def makexom(opts=(), httpget=httpget, plugins=()):  # noqa: PLR0912
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
@@ -268,7 +290,7 @@ def makexom(request, gentmp, httpget, monkeypatch, storage_info, storage_plugin)
         pm = get_pluginmanager(load_entrypoints=False)
         for plugin in plugins:
             pm.register(plugin)
-        serverdir = gentmp()
+        serverdir = gen_path()
         if "--serverdir" in opts:
             fullopts = ["devpi-server"] + list(opts)
         else:
