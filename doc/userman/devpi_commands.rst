@@ -520,10 +520,7 @@ devpi command reference (server)
                         [--proxy-timeout NUM] [--no-replica-streaming]
                         [--request-timeout NUM] [--offline-mode] [--serverdir DIR]
                         [--storage NAME] [--keyfs-cache-size NUM]
-                        [--secretfile path]
-                        [--argon2-memory-cost ARGON2_MEMORY_COST]
-                        [--argon2-parallelism ARGON2_PARALLELISM]
-                        [--argon2-time-cost ARGON2_TIME_COST] [--requests-only]
+                        [--secretfile path] [--requests-only]
                         [--restrict-modify SPEC] [--theme THEME]
                         [--documentation-path DOCUMENTATION_PATH]
                         [--keep-docs-packed] [--indexer-backend NAME]
@@ -648,24 +645,6 @@ devpi command reference (server)
       --secretfile path     file containing the server side secret used for user
                             validation. If not specified, a random secret is
                             generated on each start up. [None]
-      --argon2-memory-cost ARGON2_MEMORY_COST
-                            Argon2 memory cost parameter for key derivation. This
-                            is *not* for the user password hashes. There should be
-                            no need to touch this setting, except you really know
-                            what this is about! Replicas need to use the same
-                            parameters as the master. [524288]
-      --argon2-parallelism ARGON2_PARALLELISM
-                            Argon2 parallelism parameter for key derivation. This
-                            is *not* for the user password hashes. There should be
-                            no need to touch this setting, except you really know
-                            what this is about! Replicas need to use the same
-                            parameters as the master. [8]
-      --argon2-time-cost ARGON2_TIME_COST
-                            Argon2 time cost parameter for key derivation. This is
-                            *not* for the user password hashes. There should be no
-                            need to touch this setting, except you really know
-                            what this is about! Replicas need to use the same
-                            parameters as the master. [16]
       --requests-only       only start as a worker which handles read/write web
                             requests but does not run an event processing or
                             replication thread. [False]

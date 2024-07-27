@@ -555,7 +555,7 @@ class MyArgumentParser(argparse.ArgumentParser):
             default = action.default
             if isinstance(action, argparse._StoreFalseAction):
                 default = not default
-            if action.help and action.help is not argparse.SUPPRESS and action.default is not argparse.SUPPRESS:
+            if action.help and argparse.SUPPRESS not in (action.help, default):
                 action.help += " [%s]" % default
 
     def addgroup(self, *args, **kwargs):
