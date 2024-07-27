@@ -14,7 +14,6 @@ import socket
 import sys
 import time
 from .functional import MappMixin
-from .reqmock import reqmock, patch_reqsessionmock  # noqa: F401 (definition of fixtures)
 from bs4 import BeautifulSoup
 from contextlib import closing
 from devpi_server import mirror
@@ -31,6 +30,9 @@ from queue import Queue as BaseQueue
 from webtest import TestApp as TApp
 from webtest import TestResponse
 import hashlib
+
+
+pytest_plugins = ["test_devpi_server.reqmock"]
 
 
 def pytest_configure(config):
