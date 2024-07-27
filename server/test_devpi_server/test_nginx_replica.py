@@ -7,15 +7,16 @@ import pytest
 
 
 @pytest.fixture
-def mapp(makemapp, nginx_host_port, secretfile):
+def mapp(makemapp, monkeypatch, nginx_host_port, secretfile):
     app = makemapp(options=[
         '--primary-url', 'http://%s:%s' % nginx_host_port,
         '--secretfile', secretfile])
+    monkeypatch.setattr(app.xom.replica_thread, "REPLICA_REQUEST_TIMEOUT", 5)
     app.xom.thread_pool.start_one(app.xom.replica_thread)
     try:
         yield app
     finally:
-        app.xom.thread_pool.shutdown()
+        app.xom.thread_pool.kill()
 
 
 @pytest.mark.slow

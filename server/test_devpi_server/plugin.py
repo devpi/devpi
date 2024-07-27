@@ -316,6 +316,8 @@ def makexom(request, gen_path, httpget, monkeypatch, storage_info, storage_plugi
         else:
             xom = XOM(config, httpget=httpget)
             add_pypistage_mocks(monkeypatch, httpget)
+        request.addfinalizer(xom.thread_pool.kill)
+        request.addfinalizer(xom._close_sessions)
         if not request.node.get_closest_marker("no_storage_option"):
             assert storage_plugin.__name__ in {
                 x.__module__ for x in xom.keyfs._storage.__class__.__mro__}
@@ -335,8 +337,6 @@ def makexom(request, gen_path, httpget, monkeypatch, storage_info, storage_plugi
         if not request.node.get_closest_marker("start_threads"):
             # we always need the async_thread
             xom.thread_pool.start_one(xom.async_thread)
-        request.addfinalizer(xom.thread_pool.shutdown)
-        request.addfinalizer(xom._close_sessions)
         return xom
     return makexom
 

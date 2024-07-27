@@ -14,7 +14,7 @@ def replica_mapp(makemapp, primary_host_port, secretfile):
     try:
         yield app
     finally:
-        app.xom.thread_pool.shutdown()
+        app.xom.thread_pool.kill()
 
 
 @pytest.fixture

@@ -6,8 +6,10 @@ import pytest
 @pytest.fixture
 def pool():
     pool = mythread.ThreadPool()
-    yield pool
-    pool.shutdown()
+    try:
+        yield pool
+    finally:
+        pool.kill()
 
 
 def test_basic_interact(pool, TimeoutQueue):

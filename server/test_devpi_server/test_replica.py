@@ -1059,7 +1059,7 @@ def test_primary_url_auth(makexom, monkeypatch):
 
     def get(*args, **kwargs):
         results.append((args, kwargs))
-        replica_xom.thread_pool.shutdown()
+        replica_xom.thread_pool.kill()
 
     monkeypatch.setattr(replica_xom.replica_thread.session, "get", get)
     with pytest.raises(Shutdown):

@@ -5,6 +5,16 @@ import time
 import types
 
 
+try:
+    from ctypes import c_long
+    from ctypes import py_object
+    from ctypes import pythonapi
+    PyThreadState_SetAsyncExc = pythonapi.PyThreadState_SetAsyncExc
+    HAS_SETASYNCEXC = True
+except ImportError:
+    HAS_SETASYNCEXC = False
+
+
 class Shutdown(Exception):
     """ this thread is shutting down. """
 
@@ -69,6 +79,7 @@ class ThreadPool:
         self._objects = []
         self._shutdown = threading.Event()
         self._shutdown_funcs = []
+        self._started = []
 
     def register(self, obj, kwargs=None, daemon=True):
         assert not isinstance(obj, threading.Thread)
@@ -115,6 +126,7 @@ class ThreadPool:
         assert hasattr(obj, "thread"), f"no thread registered for {obj}"
         if hasattr(obj, "thread_shutdown"):
             self._shutdown_funcs.append(obj.thread_shutdown)
+        self._started.append(obj)
         obj.thread.start()
 
     def exit_if_shutdown(self):
@@ -125,3 +137,28 @@ class ThreadPool:
         self._shutdown.set()
         for func in self._shutdown_funcs:
             func()
+
+    def kill(self):
+        self.shutdown()
+        for obj in self._started:
+            if obj.thread.is_alive():
+                obj.thread.join(0.1)
+        if not HAS_SETASYNCEXC:
+            return
+        for obj in self._started:
+            if obj.thread.is_alive():
+                with contextlib.suppress(ValueError):
+                    _interrupt_thread(obj.thread.ident)
+
+
+def _interrupt_thread(tid):
+    '''Raises KeyboardInterrupt in the threads with id tid'''
+    res = PyThreadState_SetAsyncExc(
+        c_long(tid), py_object(KeyboardInterrupt))
+    if res == 0:
+        raise ValueError("invalid thread id")
+    if res != 1:
+        # "if it returns a number greater than one, you're in trouble,
+        # and you should call it again with exc=NULL to revert the effect"
+        PyThreadState_SetAsyncExc(c_long(tid), None)
+        raise SystemError("PyThreadState_SetAsyncExc failed")

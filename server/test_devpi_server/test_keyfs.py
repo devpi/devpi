@@ -24,8 +24,10 @@ def key(request):
 @pytest.fixture
 def pool():
     pool = ThreadPool()
-    yield pool
-    pool.shutdown()
+    try:
+        yield pool
+    finally:
+        pool.kill()
 
 
 class TestKeyFS:
@@ -732,7 +734,7 @@ class TestSubscriber:
             try:
                 yield key1
             finally:
-                pool.shutdown()
+                pool.kill()
 
         with make_keyfs() as key1:
             monkeypatch.setattr(key1.keyfs._storage, "_notify_on_commit",
