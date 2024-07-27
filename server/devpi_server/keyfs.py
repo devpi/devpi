@@ -22,6 +22,8 @@ from .readonly import is_deeply_readonly
 from .filestore import FileEntry
 from .fileutil import read_int_from_file, write_int_to_file
 from devpi_common.types import cached_property
+from pathlib import Path
+import errno
 import time
 import warnings
 
@@ -55,7 +57,7 @@ class TxNotificationThread:
     def __init__(self, keyfs):
         self.keyfs = keyfs
         self.cv_new_event_serial = mythread.threading.Condition()
-        self.event_serial_path = str(self.keyfs.basedir.join(".event_serial"))
+        self.event_serial_path = str(self.keyfs.base_path / ".event_serial")
         self.event_serial_in_sync_at = None
         self._on_key_change = {}
 
@@ -80,19 +82,22 @@ class TxNotificationThread:
         return read_int_from_file(self.event_serial_path, 0) - 1
 
     def get_event_serial_timestamp(self):
-        f = py.path.local(self.event_serial_path)
+        f = Path(self.event_serial_path)
         retries = 5
         while retries:
             try:
-                return f.stat().mtime
-            except py.error.ENOENT:
-                return
-            except py.error.EBUSY:
+                return f.stat().st_mtime
+            except FileNotFoundError:
+                break
+            except OSError as e:
+                if e.errno not in (errno.EBUSY, errno.ETXTBSY):
+                    raise
                 retries -= 1
                 if not retries:
                     raise
                 # let other threads work
                 time.sleep(0.001)
+        return None
 
     def write_event_serial(self, event_serial):
         write_int_to_file(event_serial + 1, self.event_serial_path)
@@ -235,20 +240,30 @@ class KeyFS(object):
         """ attempt to open write transaction while in readonly mode. """
 
     def __init__(self, basedir, storage, readonly=False, cache_size=10000):
-        self.basedir = py.path.local(basedir).ensure(dir=1)
+        self.base_path = Path(basedir)
+        self.base_path.mkdir(parents=True, exist_ok=True)
         self._keys = {}
         self._threadlocal = mythread.threading.local()
         self._cv_new_transaction = mythread.threading.Condition()
         self._import_subscriber = None
         self.notifier = TxNotificationThread(self)
         self._storage = storage(
-            self.basedir,
+            py.path.local(self.base_path),
             notify_on_commit=self._notify_on_commit,
             cache_size=cache_size)
         self._readonly = readonly
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} {self.basedir}>"
+        return f"<{self.__class__.__name__} {self.base_path}>"
+
+    @cached_property
+    def basedir(self):
+        warnings.warn(
+            "The basedir property is deprecated, "
+            "use base_path instead",
+            DeprecationWarning,
+            stacklevel=3)
+        return py.path.local(self.base_path)
 
     def get_connection(self, closing=True, write=False, timeout=30):
         try:
