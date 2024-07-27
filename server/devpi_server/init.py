@@ -27,7 +27,7 @@ def init(pluginmanager=None, argv=None):
         parser.add_init_options()
         config = runner.get_config(argv, parser=parser)
         runner.configure_logging(config.args)
-        if config.path_nodeinfo.exists():
+        if config.nodeinfo_path.exists():
             msg = f"The path {config.serverdir!r} already contains devpi-server data."
             raise Fatal(msg)
         sdir = config.serverdir

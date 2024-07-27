@@ -75,7 +75,7 @@ def export(pluginmanager=None, argv=None):
         parser.add_argument("directory")
         config = runner.get_config(argv, parser=parser)
         runner.configure_logging(config.args)
-        if not config.path_nodeinfo.exists():
+        if not config.nodeinfo_path.exists():
             msg = f"The path '{config.serverdir}' contains no devpi-server data, use devpi-init to initialize."
             raise Fatal(msg)
         xom = xom_from_config(config)
@@ -129,7 +129,7 @@ def import_(pluginmanager=None, argv=None):
         parser.add_argument("directory")
         config = runner.get_config(argv, parser=parser)
         runner.configure_logging(config.args)
-        if config.path_nodeinfo.exists():
+        if config.nodeinfo_path.exists():
             msg = f"The path {config.serverdir!r} already contains devpi-server data."
             raise Fatal(msg)
         sdir = config.serverdir

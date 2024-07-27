@@ -182,7 +182,7 @@ def _main(pluginmanager, argv=None):
     # now we can configure logging
     configure_logging(config.args)
 
-    if not config.path_nodeinfo.exists():
+    if not config.nodeinfo_path.exists():
         msg = (
             f"The path '{config.serverdir}' contains no devpi-server data, "
             f"use devpi-init to initialize.")

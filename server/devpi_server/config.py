@@ -688,10 +688,19 @@ class Config(object):
 
     @cached_property
     def path_nodeinfo(self):
-        return self.serverdir.join(".nodeinfo")
+        warnings.warn(
+            "The path_nodeinfo property is deprecated, "
+            "use nodeinfo_path instead",
+            DeprecationWarning,
+            stacklevel=3)
+        return py.path.local(self.nodeinfo_path)
+
+    @cached_property
+    def nodeinfo_path(self):
+        return Path(self.serverdir) / ".nodeinfo"
 
     def init_nodeinfo(self):
-        log.info("Loading node info from %s", self.path_nodeinfo)
+        log.info("Loading node info from %s", self.nodeinfo_path)
         self._determine_role()
         self._determine_uuid()
         self._determine_storage()
@@ -748,18 +757,19 @@ class Config(object):
 
     @cached_property
     def nodeinfo(self):
-        if self.path_nodeinfo.exists():
-            return json.loads(self.path_nodeinfo.read("r"))
+        if self.nodeinfo_path.is_file():
+            with self.nodeinfo_path.open() as f:
+                return json.load(f)
         return {}
 
     def write_nodeinfo(self):
-        nodeinfo_dir = self.path_nodeinfo.dirpath()
-        nodeinfo_dir.ensure(dir=1)
-        prefix = "-" + self.path_nodeinfo.basename
-        with NamedTemporaryFile(prefix=prefix, delete=False, dir=nodeinfo_dir.strpath) as f:
+        nodeinfo_dir = self.nodeinfo_path.parent
+        nodeinfo_dir.mkdir(parents=True, exist_ok=True)
+        prefix = "-" + self.nodeinfo_path.name
+        with NamedTemporaryFile(prefix=prefix, delete=False, dir=nodeinfo_dir) as f:
             f.write(json.dumps(self.nodeinfo, indent=2).encode('utf-8'))
-        fileutil.rename(f.name, self.path_nodeinfo.strpath)
-        threadlog.info("wrote nodeinfo to: %s", self.path_nodeinfo)
+        fileutil.rename(f.name, self.nodeinfo_path)
+        threadlog.info("wrote nodeinfo to: %s", self.nodeinfo_path)
 
     @property
     def master_auth(self):
