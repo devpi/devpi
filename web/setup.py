@@ -66,6 +66,7 @@ setup(
         'devpi-server>=5.2.0',
         'devpi-common>=3.2.0',
         'docutils>=0.11',
+        'py',
         'pygments>=1.6',
         'pyramid!=1.10a1',
         'pyramid-chameleon',

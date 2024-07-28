@@ -10,6 +10,7 @@ from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
 from devpi_web.indexing import preprocess_project
 from devpi_web.main import get_indexer
+from pathlib import Path
 from pluggy import HookimplMarker
 from whoosh import fields
 from whoosh.analysis import Filter, LowercaseFilter, RegexTokenizer
@@ -24,7 +25,6 @@ from whoosh.searching import ResultsPage
 from whoosh.util.text import rcompile
 import itertools
 import os
-import py
 import shutil
 import sys
 import time
@@ -489,20 +489,23 @@ def setup_thread(xom):
     return indexer_thread
 
 
-class Index(object):
+class Index:
     SearchUnavailableException = SearchUnavailableException
 
     def __init__(self, config, settings):
         if 'path' not in settings:
-            index_path = config.serverdir.join('.indices')
+            if hasattr(config, "server_path"):
+                index_path = config.server_path / '.indices'
+            else:
+                index_path = Path(config.serverdir.join('.indices'))
         else:
             index_path = settings['path']
             if not os.path.isabs(index_path):
                 fatal("The path for Whoosh index files must be absolute.")
-            index_path = py.path.local(index_path)
-        index_path.ensure_dir()
-        log.info("Using %s for Whoosh index files." % index_path)
-        self.index_path = index_path.strpath
+            index_path = Path(index_path)
+        index_path.mkdir(parents=True, exist_ok=True)
+        log.info("Using %s for Whoosh index files.", index_path)
+        self.index_path = str(index_path)
         self.indexer_thread = None
         self.shared_data = None
         self.xom = None

@@ -16,7 +16,7 @@ import py
 def get_unpack_path(stage, name, version):
     path = stage.xom.config.args.documentation_path
     if path is None:
-        path = stage.keyfs.basedir
+        path = py.path.local(stage.keyfs.base_path) if hasattr(stage.keyfs, "base_path") else stage.keyfs.basedir
     else:
         path = py.path.local(path)
     return path.join(
