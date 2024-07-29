@@ -858,23 +858,28 @@ def statusview(request):
             in_request=replica.get('in-request', 'unknown'),
             last_request=format_timestamp(
                 replica.get('last-request', 'unknown'))))
+    primary_url = status.get('primary-url', status.get('master-url'))
+    primary_uuid = status.get('primary-uuid', status.get('master-uuid'))
+    primary_serial = status.get('primary-serial', status.get('master-serial'))
+    primary_serial_ts = status.get('primary-serial-timestamp', status.get('master-serial-timestamp'))
+    update_from_primary_at = status.get('update-from-primary-at', status.get('update-from-master-at'))
     return dict(
         msgs=request.status_info['msgs'],
         info=dict(
             uuid=status.get('uuid', 'unknown'),
             role=status.get('role', 'unknown'),
             outside_url=status.get('outside-url', 'unknown'),
-            master_url=status.get('master-url'),
-            master_uuid=status.get('master-uuid'),
-            master_serial=status.get('master-serial'),
+            master_url=primary_url,
+            master_uuid=primary_uuid,
+            master_serial=primary_serial,
             master_serial_timestamp=format_timestamp(
-                status.get('master-serial-timestamp'), unset_value="never"),
+                primary_serial_ts, unset_value="never"),
             replica_started_at=format_timestamp(
                 status.get('replica-started-at')),
             replica_in_sync_at=format_timestamp(
                 status.get('replica-in-sync-at'), unset_value="never"),
             update_from_master_at=format_timestamp(
-                status.get('update-from-master-at'), unset_value="never"),
+                update_from_primary_at, unset_value="never"),
             serial=status.get('serial', 'unknown'),
             last_commit_timestamp=format_timestamp(
                 status.get('last-commit-timestamp', 'unknown')),

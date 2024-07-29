@@ -303,7 +303,7 @@ class TestStatusView:
         html = BeautifulSoup(result.body, 'html.parser')
         result = {bs_text(x.select('th')): bs_text(x.select('td')) for x in html.select('table.status tr')}
         assert not xom.is_replica()
-        assert result['Role'] == 'MASTER'
+        assert result['Role'] in ('MASTER', 'PRIMARY')
 
     # def test_exception(self, dummyrequest, plugin):
     #     from devpi_web.main import status_info
@@ -432,22 +432,28 @@ class TestReplicaStatusView:
     @pytest.fixture
     def xom(self, makexom):
         import devpi_web.main
+        primary_url_arg = (
+            "--master-url"
+            if devpi_server_version < parse_version("7dev") else
+            "--primary-url")
         return makexom(
-            ["--master-url", "http://localhost"],
+            [primary_url_arg, "http://localhost"],
             plugins=[(devpi_web.main, None)])
 
     @pytest.mark.skipif(devpi_server_version < parse_version("6dev"), reason="Needs replica_thread attribute to be set")
     def test_role(self, bs_text, dummyrequest, plugin, statusview, xom):
         from devpi_web.main import status_info
         assert xom.is_replica()
-        xom.config.set_master_uuid('master-uuid')
-        xom.replica_thread.update_master_serial(42)
+        set_primary_uuid = getattr(xom.config, 'set_primary_uuid', getattr(xom.config, 'set_master_uuid', None))
+        set_primary_uuid('primary-uuid')
+        update_primary_serial = getattr(xom.replica_thread, 'update_primary_serial', getattr(xom.replica_thread, 'update_master_serial', None))
+        update_primary_serial(42)
         plugin.results = [[]]
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)
         html = BeautifulSoup(result.body, 'html.parser')
         result = {bs_text(x.select('th')): x.select('td') for x in html.select('table.status tr')}
         assert bs_text(result['Master URL']) == 'http://localhost'
-        assert bs_text(result['Master UUID']) == 'master-uuid'
+        assert bs_text(result['Master UUID']) == 'primary-uuid'
         assert bs_text(result['Master serial']).startswith('42 last time changed')
         assert bs_text(result['Role']) == 'REPLICA'
