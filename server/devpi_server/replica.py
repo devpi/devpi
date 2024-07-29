@@ -1119,6 +1119,7 @@ class FileReplicationThread:
                     is_from_mirror=index_type == IndexType("mirror"))
 
     def tick(self):
+        self.thread.exit_if_shutdown()
         self.shared_data.process_next(self.handler)
 
     def thread_run(self):
@@ -1157,6 +1158,7 @@ class InitialQueueThread(object):
                         stage.name, stage.ixconfig['type'])
             relpaths = tx.iter_relpaths_at(keys, tx.at_serial)
             for item in relpaths:
+                self.thread.exit_if_shutdown()
                 if item.value is None:
                     continue
                 if self.shared_data.queue.qsize() > self.shared_data.num_threads:

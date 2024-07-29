@@ -436,6 +436,7 @@ class IndexerThread(object):
             writer.commit()
 
     def tick(self):
+        self.thread.exit_if_shutdown()
         self.shared_data.process_next(self.handler)
 
     def thread_run(self):

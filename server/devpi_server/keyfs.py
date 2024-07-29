@@ -118,8 +118,9 @@ class TxNotificationThread:
         if event_serial >= serial:
             if event_serial == serial:
                 self.event_serial_in_sync_at = time.time()
-            self.keyfs.wait_tx_serial(serial + 1)
-            self.thread.exit_if_shutdown()
+            self.keyfs.wait_tx_serial(
+                serial + 1,
+                recheck_callback=self.thread.exit_if_shutdown)
 
     def thread_run(self):
         self.log = thread_push_log("[NOTI]")
@@ -307,7 +308,7 @@ class KeyFS(object):
         with self._cv_new_transaction:
             self._cv_new_transaction.notify_all()
 
-    def wait_tx_serial(self, serial, timeout=None, recheck=1.0):
+    def wait_tx_serial(self, serial, *, timeout=None, recheck=0.1, recheck_callback=None):
         """ Return True when the transaction with the serial has been committed.
         Return False if it hasn't happened within a specified timeout.
         If timeout was not specified, we'll wait indefinitely.  In any case,
@@ -332,6 +333,8 @@ class KeyFS(object):
                             return False
                         self._cv_new_transaction.wait(timeout=recheck)
                         time_spent += recheck
+                        if recheck_callback is not None:
+                            recheck_callback()
                     return True
 
     def get_next_serial(self):
