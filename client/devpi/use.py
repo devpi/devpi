@@ -327,7 +327,7 @@ class Current(object):
         if basic_auth is not None:
             hub.warn(
                 "Use of basic authentication is deprecated, "
-                "take a look at devpi-lockdown instead. "
+                "take a look at devpi-tokens and/or devpi-lockdown instead. "
                 "If that doesn't work for you, "
                 "let us know by filing an issue with details of your usecase.")
             self.set_basic_auth(basic_auth[0], basic_auth[1])
@@ -335,7 +335,7 @@ class Current(object):
             if client_cert:
                 hub.warn(
                     "Use of client side certificates is deprecated, "
-                    "take a look at devpi-lockdown instead. "
+                    "take a look at devpi-tokens and/or devpi-lockdown instead. "
                     "If that doesn't work for you, "
                     "let us know by filing an issue with details of your usecase.")
                 self.set_client_cert(client_cert)
