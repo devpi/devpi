@@ -55,3 +55,11 @@ def keep_docs_packed(monkeypatch, request):
 
     monkeypatch.setattr("devpi_web.doczip.keep_docs_packed", func)
     return value
+
+
+@pytest.fixture
+def bs_text():
+    def bs_text(resultset):
+        return ' '.join(''.join(x.text for x in resultset).split())
+
+    return bs_text
