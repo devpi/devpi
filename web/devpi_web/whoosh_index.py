@@ -2,9 +2,9 @@ from collections import defaultdict
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
 from devpi_server.log import thread_push_log
-from devpi_server.main import fatal
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_server import mythread
+from devpi_web.compat import fatal
 from devpi_web.indexing import iter_projects
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
