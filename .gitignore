@@ -27,6 +27,8 @@ wheels/
 *.egg
 *.egg-info
 */pip-wheel-metadata/
+/pip-selfcheck.json
+/pip.conf
 
 # Installer logs
 pip-log.txt
@@ -73,3 +75,8 @@ ENV/
 *.sw[po]
 **/tags
 CHANGELOG.short.rst
+/*.yaml
+/nginx.conf
+/failed*.txt
+/notes.txt
+/theme_plugin/
