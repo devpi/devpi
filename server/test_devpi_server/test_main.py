@@ -283,12 +283,14 @@ def test_request_args_timeout_handover(makexom, input_set):
     xom.httpget("http://whatever", allow_redirects=False, timeout=input_set['kwarg'])
 
 
-def test_no_root_pypi_option(gen_path, makexom, storage_info):
+def test_no_root_pypi_option(gen_path, makexom, storage_args):
     from devpi_server.init import init
     serverdir = gen_path()
-    argv = ["devpi-init", "--serverdir", serverdir, "--no-root-pypi"]
-    if storage_info["name"] != "sqlite":
-        argv.append("--storage=%s" % storage_info["name"])
+    argv = [
+        "devpi-init",
+        "--serverdir", serverdir,
+        *storage_args(serverdir),
+        "--no-root-pypi"]
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.read_transaction():
@@ -350,13 +352,14 @@ def test_serve_max_body(monkeypatch, tmpdir):
     main(["devpi-server", "--max-request-body-size", "42"])
 
 
-def test_root_passwd_option(gen_path, makexom, storage_info):
+def test_root_passwd_option(gen_path, makexom, storage_args):
     from devpi_server.init import init
     # by default the password is empty
     serverdir = gen_path()
-    argv = ["devpi-init", "--serverdir", serverdir]
-    if storage_info["name"] != "sqlite":
-        argv.append("--storage=%s" % storage_info["name"])
+    argv = [
+        "devpi-init",
+        "--serverdir", serverdir,
+        *storage_args(serverdir)]
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.read_transaction():
@@ -366,10 +369,10 @@ def test_root_passwd_option(gen_path, makexom, storage_info):
     # the password can be set from the command line
     serverdir = gen_path()
     argv = [
-        "devpi-init", "--serverdir", serverdir,
+        "devpi-init",
+        "--serverdir", serverdir,
+        *storage_args(serverdir),
         "--root-passwd", "foobar"]
-    if storage_info["name"] != "sqlite":
-        argv.append("--storage=%s" % storage_info["name"])
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.read_transaction():
@@ -378,13 +381,14 @@ def test_root_passwd_option(gen_path, makexom, storage_info):
         assert user.validate("foobar")
 
 
-def test_root_passwd_hash_option(gen_path, makexom, storage_info):
+def test_root_passwd_hash_option(gen_path, makexom, storage_args):
     from devpi_server.init import init
     # by default the password is empty
     serverdir = gen_path()
-    argv = ["devpi-init", "--serverdir", serverdir]
-    if storage_info["name"] != "sqlite":
-        argv.append("--storage=%s" % storage_info["name"])
+    argv = [
+        "devpi-init",
+        "--serverdir", serverdir,
+        *storage_args(serverdir)]
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
     with xom.keyfs.read_transaction():
@@ -394,10 +398,10 @@ def test_root_passwd_hash_option(gen_path, makexom, storage_info):
     # the password hash can be directly set from the command line
     serverdir = gen_path()
     argv = [
-        "devpi-init", "--serverdir", serverdir,
+        "devpi-init",
+        "--serverdir", serverdir,
+        *storage_args(serverdir),
         "--root-passwd-hash", "$argon2i$v=19$m=102400,t=2,p=8$j9G6V8o5B0Co9f4fQ6gVIg$WzcG2C5Bv0LwtzPWeBcz0g"]
-    if storage_info["name"] != "sqlite":
-        argv.append("--storage=%s" % storage_info["name"])
     init(argv=argv)
     xom = makexom(opts=("--serverdir", serverdir))
     # we allow writes, because the hash might be upgraded

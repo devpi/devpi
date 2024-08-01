@@ -266,12 +266,28 @@ def storage_info(storage_plugin):
 
 
 @pytest.fixture(scope="session")
+def storage_args(storage_info):
+    def storage_args(basedir):
+        args = []
+        if storage_info["name"] != "sqlite":
+            storage_option = "--storage=%s" % storage_info["name"]
+            _get_test_storage_options = getattr(
+                storage_info["storage"], "_get_test_storage_options", None)
+            if _get_test_storage_options:
+                storage_options = _get_test_storage_options(str(basedir))
+                storage_option = storage_option + storage_options
+            args.append(storage_option)
+        return args
+    return storage_args
+
+
+@pytest.fixture(scope="session")
 def storage(storage_info):
     return storage_info['storage']
 
 
 @pytest.fixture
-def makexom(request, gen_path, httpget, monkeypatch, storage_info, storage_plugin):
+def makexom(request, gen_path, httpget, monkeypatch, storage_args, storage_plugin):
     def makexom(opts=(), httpget=httpget, plugins=()):  # noqa: PLR0912
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
@@ -300,8 +316,7 @@ def makexom(request, gen_path, httpget, monkeypatch, storage_info, storage_plugi
         if request.node.get_closest_marker("with_replica_thread"):
             fullopts.append("--primary-url=http://localhost")
         if not request.node.get_closest_marker("no_storage_option"):
-            if storage_info["name"] != "sqlite":
-                fullopts.append("--storage=%s" % storage_info["name"])
+            fullopts.extend(storage_args(serverdir))
         fullopts = [str(x) for x in fullopts]
         config = parseoptions(pm, fullopts)
         config.init_nodeinfo()
@@ -1184,7 +1199,7 @@ def master_host_port(primary_host_port):
 
 
 @pytest.fixture(scope="class")
-def primary_host_port(primary_server_path, secretfile, storage_info):
+def primary_host_port(primary_server_path, secretfile, storage_args):
     host = 'localhost'
     port = get_open_port(host)
     args = [
@@ -1196,21 +1211,15 @@ def primary_host_port(primary_server_path, secretfile, storage_info):
         "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST),
         "--host", host,
         "--port", str(port),
-        "--requests-only"]
-    storage_args = [
-        "--serverdir", str(primary_server_path)]
-    if storage_info["name"] != "sqlite":
-        storage_option = "--storage=%s" % storage_info["name"]
-        _get_test_storage_options = getattr(
-            storage_info["storage"], "_get_test_storage_options", None)
-        if _get_test_storage_options:
-            storage_options = _get_test_storage_options(str(primary_server_path))
-            storage_option = storage_option + storage_options
-        storage_args.append(storage_option)
+        "--requests-only",
+        "--serverdir", str(primary_server_path),
+        *storage_args(primary_server_path)]
     if not primary_server_path.joinpath('.nodeinfo').exists():
-        subprocess.check_call(
-            ["devpi-init"] + storage_args)
-    p = subprocess.Popen(args + storage_args)
+        subprocess.check_call([  # noqa: S607
+            "devpi-init",
+            "--serverdir", str(primary_server_path),
+            *storage_args(primary_server_path)])
+    p = subprocess.Popen(args)
     try:
         wait_for_port(host, port)
         yield (host, port)
@@ -1225,7 +1234,7 @@ def replica_server_path(server_path):
 
 
 @pytest.fixture(scope="class")
-def replica_host_port(primary_host_port, replica_server_path, secretfile, storage_info):
+def replica_host_port(primary_host_port, replica_server_path, secretfile, storage_args):
     host = 'localhost'
     port = get_open_port(host)
     args = [
@@ -1234,23 +1243,17 @@ def replica_host_port(primary_host_port, replica_server_path, secretfile, storag
         "--argon2-memory-cost", str(LOWER_ARGON2_MEMORY_COST),
         "--argon2-parallelism", str(LOWER_ARGON2_PARALLELISM),
         "--argon2-time-cost", str(LOWER_ARGON2_TIME_COST),
-        "--host", host, "--port", str(port)]
-    storage_args = [
-        "--serverdir", str(replica_server_path)]
-    if storage_info["name"] != "sqlite":
-        storage_option = "--storage=%s" % storage_info["name"]
-        _get_test_storage_options = getattr(
-            storage_info["storage"], "_get_test_storage_options", None)
-        if _get_test_storage_options:
-            storage_options = _get_test_storage_options(str(replica_server_path))
-            storage_option = storage_option + storage_options
-        storage_args.append(storage_option)
+        "--host", host, "--port", str(port),
+        "--serverdir", str(replica_server_path),
+        *storage_args(replica_server_path)]
     if not replica_server_path.joinpath('.nodeinfo').exists():
-        subprocess.check_call([
+        subprocess.check_call([  # noqa: S607
             "devpi-init",
+            "--serverdir", str(replica_server_path),
+            *storage_args(replica_server_path),
             "--role", "replica",
-            "--primary-url", "http://%s:%s" % primary_host_port] + storage_args)
-    p = subprocess.Popen(args + storage_args)
+            "--primary-url", "http://%s:%s" % primary_host_port])
+    p = subprocess.Popen(args)
     try:
         wait_for_port(host, port)
         yield (host, port)
