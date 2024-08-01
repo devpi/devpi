@@ -147,17 +147,13 @@ class Storage(main.Storage):
 
     @classmethod
     def _get_test_storage_options(cls, basedir):
-        cls._db = cls._get_test_db(basedir)
+        db = cls._get_test_db(basedir)
         return ":host=%s,port=%s,user=%s,database=%s" % (
-            cls.host, cls.port, cls.user, cls._db)
+            cls.host, cls.port, cls.user, db)
 
     @property
     def database(self):
-        db = getattr(self, '_db', None)
-        if db is None:
-            db = self._get_test_db(self.basedir)
-        self.__dict__['database'] = db
-        return db
+        return self._get_test_db(self.basedir)
 
     def get_connection(self, *args, **kwargs):
         result = main.Storage.get_connection(self, *args, **kwargs)
