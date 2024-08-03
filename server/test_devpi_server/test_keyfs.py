@@ -36,6 +36,19 @@ class TestKeyFS:
         pytest.raises(KeyError, lambda: keyfs.tx.get_value_at(key, 0))
 
     @notransaction
+    def test_delete_non_existent(self, keyfs, key):
+        k = keyfs.add_key("NAME", key, bytes)
+        with keyfs.write_transaction():
+            assert not k.exists()
+            k.delete()
+            assert not k.exists()
+        with keyfs.read_transaction():
+            assert not k.exists()
+        with keyfs._storage.get_connection() as conn:
+            # there should be no changelog entry
+            assert conn.last_changelog_serial == -1
+
+    @notransaction
     def test_keyfs_readonly(self, storage, tmpdir):
         keyfs = KeyFS(tmpdir, storage, readonly=True)
         with pytest.raises(keyfs.ReadOnly):
