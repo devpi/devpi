@@ -1,0 +1,1 @@
+Fix #1052: require pkginfo >= 1.10.0 which supports newer metadata versions.

@@ -13,7 +13,9 @@ dependencies = [
     "colorama;platform_system=='Windows'",
     "devpi_common<5,>=4dev",
     "iniconfig",
-    "pkginfo>=1.4.2",
+    # update to 1.11.0 when dropping Python 3.7 support,
+    # to get warnings about unknown metadata versions
+    "pkginfo>=1.10.0",
     "platformdirs",
     "pluggy>=0.6.0,<2.0",
     "tomli; python_version < '3.11'"
