@@ -5,7 +5,6 @@ extend = "../pyproject.toml"
 [tool.ruff.lint]
 extend-ignore = [
     "ARG002", # maybe cleanup later - unused method argument
-    "B007", # maybe cleanup later
     "COM812", # cleanup later
     "FBT002", # cleanup soon - boolean positional argument
     "FLY002", # maybe cleanup later - f-string instead of join
@@ -18,7 +17,6 @@ extend-ignore = [
     "RUF012", # cleanup later
     "RSE102", # maybe cleanup later
     "S608", # cleanup soon - possible sql injection
-    "SIM105", # cleanup soon
     "UP020", # cleanup soon - use builtin 'open'
     "UP024", # maybe cleanup later - aliased errors
     "UP032", # cleanup later - f-string instead of format

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from contextlib import closing
+from contextlib import suppress
 from devpi_postgresql import main
 from pathlib import Path
 from pluggy import HookimplMarker
@@ -110,18 +113,14 @@ def devpipostgresql_postgresql(request):
                 tmpdir_path, notify_on_commit=False,
                 cache_size=10000, settings=settings)
             yield settings
-            for conn, db, ts in Storage._connections:
-                try:
+            for conn, _is_closing, _db, _ts in Storage._connections:
+                with suppress(AttributeError):
                     conn.close()
-                except AttributeError:
-                    pass
             # use a copy of the set, as it might be changed in another thread
             for db in set(Storage._dbs_created):
-                try:
+                with suppress(subprocess.CalledProcessError):
                     subprocess.check_call([
-                        'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
-                except subprocess.CalledProcessError:
-                    pass
+                        'dropdb', '--if-exists', '-h', Storage.host, '-p', str(Storage.port), db])
         finally:
             p.terminate()
             p.wait()
@@ -157,33 +156,35 @@ class Storage(main.Storage):
 
     def get_connection(self, *args, **kwargs):
         result = main.Storage.get_connection(self, *args, **kwargs)
-        conn = getattr(result, 'thing', result)
-        self._connections.append((conn, conn.storage.database, time.time()))
+        is_closing = isinstance(result, closing)
+        conn = result.thing if is_closing else result
+        self._connections.append((conn, is_closing, conn.storage.database, time.monotonic()))
         return result
 
 
 @pytest.fixture(autouse=True, scope="class")
-def devpipostgresql_db_cleanup():
+def _devpipostgresql_db_cleanup():
     # this fixture is doing cleanups after tests, so it doesn't yield anything
     yield
     dbs_to_skip = set()
-    for i, (conn, db, ts) in reversed(list(enumerate(Storage._connections))):
+    for i, (conn, _is_closing, db, ts) in reversed(list(enumerate(Storage._connections))):
         sqlconn = getattr(conn, '_sqlconn', None)
         if sqlconn is not None:
-            # the connection is still open
-            dbs_to_skip.add(db)
-            continue
+            if ((time.monotonic() - ts) > 120):
+                conn.close()
+            else:
+                # the connection is still open
+                dbs_to_skip.add(db)
+                continue
         del Storage._connections[i]
     for db in Storage._dbs_created - dbs_to_skip:
         try:
             subprocess.check_call([
-                'dropdb', '-h', Storage.host, '-p', str(Storage.port), db])
+                'dropdb', '--if-exists', '-h', Storage.host, '-p', str(Storage.port), db])
         except subprocess.CalledProcessError:
-            pass
+            continue
         else:
             Storage._dbs_created.remove(db)
-            if hasattr(Storage, '_db'):
-                del Storage._db
 
 
 @pytest.fixture(autouse=True, scope="session")
