@@ -772,20 +772,24 @@ class Transaction(object):
             # the __dict__. The ``transaction`` context manager will call
             # ``rollback``, which then arrives here.
             return
-        threadlog.debug("closing transaction at %s", self.at_serial)
-        del self._model
-        del self._original
-        del self.cache
-        del self.dirty
-        self.conn.close()
-        self.closed = True
+        try:
+            threadlog.debug("closing transaction at %s", self.at_serial)
+            del self._model
+            del self._original
+            del self.cache
+            del self.dirty
+        finally:
+            self.conn.close()
+            self.closed = True
         return self.at_serial
 
     def rollback(self):
-        if hasattr(self.conn, 'rollback'):
-            self.conn.rollback()
-        threadlog.debug("transaction rollback at %s" % (self.at_serial))
-        result = self._close()
+        try:
+            if hasattr(self.conn, 'rollback'):
+                self.conn.rollback()
+            threadlog.debug("transaction rollback at %s" % (self.at_serial))
+        finally:
+            result = self._close()
         self._run_listeners(self._finished_listeners)
         return result
 
@@ -802,6 +806,7 @@ class Transaction(object):
         except BaseException:
             self.doomed = True
             raise
+        self._close()
         self.__dict__ = newtx.__dict__
 
     def doom(self):
