@@ -54,4 +54,5 @@ regendoc \
     --normalize "@congratulations :\) \(\d+\.\d+ seconds\)@congratulations :) (10.85 seconds)@" \
     --normalize "@\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+ INFO @INFO @" \
     --normalize "@\.temp/devpi-test-.+/targz/example-1\.0/\.tox/py/\.pytest_cache@.tox/py/.pytest_cache@" \
+    --normalize "@^.*WARNING: Retrying.*ReadTimeoutError.*\$@@" \
     $*

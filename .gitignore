@@ -51,6 +51,7 @@ coverage.xml
 
 # Sphinx documentation
 /doc/_build/
+/doc/example-1.0.tar.gz
 /doc/gen-config/
 
 # PyBuilder

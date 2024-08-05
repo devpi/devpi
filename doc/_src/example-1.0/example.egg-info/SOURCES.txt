@@ -1,0 +1,7 @@
+example.py
+setup.py
+example.egg-info/PKG-INFO
+example.egg-info/SOURCES.txt
+example.egg-info/dependency_links.txt
+example.egg-info/not-zip-safe
+example.egg-info/top_level.txt

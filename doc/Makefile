@@ -191,13 +191,16 @@ doctest:
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
 
-regen: quickstart-pypimirror quickstart-releaseprocess quickstart-server regen.uman-all
-	rm -rf TARGETDIR
+regen: example-1.0.tar.gz quickstart-pypimirror quickstart-releaseprocess quickstart-server regen.uman-all
+	rm -rf TARGETDIR example-1.0.tar.gz
+
+example-1.0.tar.gz:
+	cd _src; tar czf ../example-1.0.tar.gz example-1.0
 
 quickstart-pypimirror:
 	USER=testuser sh regen.sh --update quickstart-pypimirror.rst
 
-quickstart-releaseprocess:
+quickstart-releaseprocess: example-1.0.tar.gz
 	USER=testuser sh regen.sh --update quickstart-releaseprocess.rst
 
 quickstart-server:
