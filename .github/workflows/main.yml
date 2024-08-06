@@ -803,7 +803,10 @@ jobs:
         shell: "bash"
         run: |
           set -xe -o nounset
+          python -m mypy --no-incremental 2> >(tee mypy-stderr.txt >&2)
+          test ! "$(grep -ci warning mypy-stderr.txt || true)" != "0" || echo "::error::mypy reported warnings"
           python -m mypy
+          test ! "$(grep -ci warning mypy-stderr.txt || true)" != "0"
 
   flake8-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
