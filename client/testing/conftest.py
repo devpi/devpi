@@ -473,45 +473,6 @@ class Gen:
             return md5list[0]
         return md5list
 
-    def resultlog(self, name="pkg1", version=None,
-                  md5=None, passed=1, failed=1, skipped=1):
-        from devpi.test.inject.pytest_devpi import (
-            ReprResultLog, getplatforminfo)
-        if version is None:
-            self._version += 1
-            version = "%s" % self._version
-
-        res = ReprResultLog("/%s-%s.tgz" % (name, version),
-                            md5 or self.md5(),
-                            **getplatforminfo())
-        out = StringIO()
-        for i in range(passed):
-            out.write(". test_pass.py::test_pass%s\n" % i)
-        for i in range(failed):
-            out.write("F test_fail.py::test_fail%s\n longrepr%s\n" % (i, i))
-        for i in range(skipped):
-            out.write("s test_skip.py::test_skip%s\n skiprepr%s\n" % (i, i))
-        out.seek(0)
-        res.parse_resultfile(out)
-        res.version = version
-        return res
-
-    def releasedoc(self, stage, **kwargs):
-        from devpi.server.db_couch import get_releaseid
-        doc = self.releasemetadata(**kwargs)
-        doc["_id"] = get_releaseid(stage, name=doc["name"],
-                                   version=doc["version"])
-        return doc
-
-    def releasemetadata(self, **kwargs):
-        from devpi.server.db import metadata_keys
-        kw = dict([(x, u"") for x in metadata_keys])
-        kw["version"] = u"0.0"
-        for key, val in kwargs.items():
-            assert key in kw
-            kw[key] = val
-        return kw
-
     def pkgname(self):
         self._pkgname += 1
         return "genpkg%d" % self._pkgname
