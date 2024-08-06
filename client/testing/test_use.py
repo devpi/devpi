@@ -4,6 +4,7 @@ from devpi.use import get_keyvalues, out_index_list
 import pytest
 import re
 import requests.exceptions
+import urllib3.exceptions
 
 
 def test_ask_confirm(makehub, monkeypatch):
@@ -323,7 +324,7 @@ class TestUnit:
 
     @pytest.mark.parametrize("Exc", [
         requests.exceptions.ConnectionError,
-        requests.exceptions.BaseHTTPError,
+        urllib3.exceptions.HTTPError,
     ])
     def test_use_with_nonexistent_domain(self, capfd, cmd_devpi, Exc,
                                          monkeypatch):
