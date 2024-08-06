@@ -10,7 +10,7 @@ certauth
 execnet
 mr.laforge
 mock
-mypy[python2]==0.971
+mypy
 mypy-zope
 pypitoken
 pytest
