@@ -168,6 +168,59 @@ class TestStatusInfoPlugin:
             status='fatal',
             msg='Replica is behind primary for more than 5 minutes')]
 
+    def test_events_lagging_while_replicating(self, plugin, makexom, monkeypatch):
+        # when the replication is still going,
+        # there should be no mention of event processing
+        import time
+        now = time.time()
+        xom = makexom(["--primary-url=http://localhost"])
+        request = self._xomrequest(xom)
+        assert xom.is_replica()
+        # fake first serial processed
+        xom.replica_thread.update_primary_serial(0)
+        xom.replica_thread.replica_in_sync_at = now
+        # nothing if events never processed directly after startup
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 30)
+        result = plugin(request)
+        assert result == []
+        # fatal after 5 minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='Replica is behind primary for more than 5 minutes')]
+        # fake first event processed
+        xom.keyfs.notifier.write_event_serial(0)
+        xom.keyfs.notifier.event_serial_in_sync_at = now
+        # no report in the first minute
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 30)
+        result = plugin(request)
+        assert result == []
+        # warning after 5 minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='Replica is behind primary for more than 5 minutes')]
+        # fatal after 30 minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 1810)
+        result = plugin(request)
+        assert result == [dict(
+            status='warn',
+            msg='Replica is behind primary for more than 5 minutes')]
+        # warning about sync after one hour
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 3610)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Replica is behind primary for more than 60 minutes')]
+        # fatal sync state after 6 hours
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 21610)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Replica is behind primary for more than 60 minutes')]
+
     def test_initial_primary_connection(self, plugin, makexom, monkeypatch):
         import time
         now = time.time()

@@ -362,6 +362,7 @@ def devpiweb_get_status_info(request):
     msgs = []
     status = StatusView(request)._status()
     now = time()
+    check_event_serial = True
     if status["role"] == "REPLICA":
         primary_serial = status["primary-serial"]
         if primary_serial is not None and primary_serial > status["serial"]:
@@ -382,7 +383,7 @@ def devpiweb_get_status_info(request):
                 msgs.append(dict(status="fatal", msg="No update from primary for more than 5 minutes"))
             elif (now - last_update) > 60:
                 msgs.append(dict(status="warn", msg="No update from primary for more than 1 minute"))
-    if status["serial"] > status["event-serial"]:
+    if check_event_serial and status["serial"] > status["event-serial"]:
         if status["event-serial-in-sync-at"] is None:
             sync_at = None
         else:
