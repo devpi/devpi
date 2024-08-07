@@ -156,17 +156,17 @@ class TestStatusInfoPlugin:
         result = plugin(request)
         assert result == []
         # warning after one minute
-        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 70)
-        result = plugin(request)
-        assert result == [dict(
-            status='warn',
-            msg='Replica is behind primary for more than 1 minute')]
-        # fatal after five minutes
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 310)
         result = plugin(request)
         assert result == [dict(
-            status='fatal',
+            status='warn',
             msg='Replica is behind primary for more than 5 minutes')]
+        # fatal after five minutes
+        monkeypatch.setattr(devpi_server.views, "time", lambda: now + 3610)
+        result = plugin(request)
+        assert result == [dict(
+            status='fatal',
+            msg='Replica is behind primary for more than 60 minutes')]
 
     def test_events_lagging_while_replicating(self, plugin, makexom, monkeypatch):
         # when the replication is still going,

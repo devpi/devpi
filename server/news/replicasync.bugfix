@@ -1,0 +1,1 @@
+Only warn about replica not being in sync instead of fatal status while still replicating.

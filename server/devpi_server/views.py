@@ -364,14 +364,7 @@ def devpiweb_get_status_info(request):
     now = time()
     check_event_serial = True
     if status["role"] == "REPLICA":
-        primary_serial = status["primary-serial"]
-        if primary_serial is not None and primary_serial > status["serial"]:
-            if status["replica-in-sync-at"] is None or (now - status["replica-in-sync-at"]) > 300:
-                msgs.append(dict(status="fatal", msg="Replica is behind primary for more than 5 minutes"))
-            elif (now - status["replica-in-sync-at"]) > 60:
-                msgs.append(dict(status="warn", msg="Replica is behind primary for more than 1 minute"))
-        elif len(status["replication-errors"]):
-            msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
+        replica_sync_status = "fatal"
         if status["replica-started-at"] is not None:
             last_update = status["update-from-primary-at"]
             if last_update is None:
@@ -383,6 +376,20 @@ def devpiweb_get_status_info(request):
                 msgs.append(dict(status="fatal", msg="No update from primary for more than 5 minutes"))
             elif (now - last_update) > 60:
                 msgs.append(dict(status="warn", msg="No update from primary for more than 1 minute"))
+            else:
+                replica_sync_status = "warn"
+        replica_in_sync_at = status["replica-in-sync-at"]
+        replica_in_sync_delta = None if replica_in_sync_at is None else (now - replica_in_sync_at)
+        primary_serial = status["primary-serial"]
+        if primary_serial is not None and primary_serial > status["serial"]:
+            if replica_in_sync_delta is None or replica_in_sync_delta > 3600:
+                msgs.append(dict(status=replica_sync_status, msg="Replica is behind primary for more than 60 minutes"))
+            elif (now - replica_in_sync_at) > 300:
+                msgs.append(dict(status="warn", msg="Replica is behind primary for more than 5 minutes"))
+            else:
+                check_event_serial = False
+        elif len(status["replication-errors"]):
+            msgs.append(dict(status="fatal", msg="Unhandled replication errors"))
     if check_event_serial and status["serial"] > status["event-serial"]:
         if status["event-serial-in-sync-at"] is None:
             sync_at = None
