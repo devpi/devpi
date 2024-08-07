@@ -920,10 +920,10 @@ def devpiweb_get_status_info(request):
                 last_activity_seconds = (now - shared_data.last_added)
             elif shared_data.last_processed:
                 last_activity_seconds = (now - shared_data.last_processed)
-            if last_activity_seconds > 300:
-                msgs.append(dict(status="fatal", msg="Nothing indexed for more than 5 minutes"))
-            elif last_activity_seconds > 60:
-                msgs.append(dict(status="warn", msg="Nothing indexed for more than 1 minute"))
+            if last_activity_seconds > 3600:
+                msgs.append(dict(status="fatal", msg="Nothing indexed for more than 60 minutes"))
+            elif last_activity_seconds > 300:
+                msgs.append(dict(status="warn", msg="Nothing indexed for more than 5 minutes"))
             if qsize > 10:
                 msgs.append(dict(status="warn", msg="%s items in index queue" % qsize))
         error_qsize = shared_data.error_queue.qsize()
