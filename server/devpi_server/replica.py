@@ -446,7 +446,7 @@ class ReplicaThread:
     def get_primary_serial_timestamp(self):
         return self._primary_serial_timestamp
 
-    def update_primary_serial(self, serial, *, update_sync=True):
+    def update_primary_serial(self, serial, *, update_sync=True, ignore_lower=False):
         now = time.time()
         # record that we got a reply from the primary, so we can produce status
         # information about the connection to primary
@@ -456,7 +456,7 @@ class ReplicaThread:
                 self.replica_in_sync_at = now
                 self.shared_data._replica_in_sync_cv.notify_all()
         if self._primary_serial is not None and serial <= self._primary_serial:
-            if serial < self._primary_serial:
+            if serial < self._primary_serial and not ignore_lower:
                 self.log.error(
                     "Got serial %s from primary which is smaller than last "
                     "recorded serial %s.", serial, self._primary_serial)
@@ -551,6 +551,12 @@ class ReplicaThread:
                 return False
 
             if r.status_code == 200:
+                # we successfully received data so let's
+                # record the primary_uuid for future consistency checks
+                if not primary_uuid:
+                    self.xom.config.set_primary_uuid(remote_primary_uuid)
+                # also record the current primary serial for status info
+                self.update_primary_serial(remote_serial)
                 try:
                     handler(r)
                 except mythread.Shutdown:
@@ -563,7 +569,7 @@ class ReplicaThread:
                     if not primary_uuid:
                         self.xom.config.set_primary_uuid(remote_primary_uuid)
                     # also record the current primary serial for status info
-                    self.update_primary_serial(remote_serial)
+                    self.update_primary_serial(remote_serial, ignore_lower=True)
                     return True
             elif r.status_code == 202:
                 remote_serial = int(r.headers["X-DEVPI-SERIAL"])
@@ -594,7 +600,7 @@ class ReplicaThread:
                         serial = load(stream)
                         (changes, rel_renames) = load(stream)
                         self.xom.keyfs.import_changes(serial, changes)
-                        self.update_primary_serial(serial, update_sync=False)
+                        self.update_primary_serial(serial, update_sync=False, ignore_lower=True)
                 except StopIteration:
                     pass
                 except EOFError:
@@ -603,7 +609,7 @@ class ReplicaThread:
             all_changes = loads(response.content)
             for serial, changes in all_changes:
                 self.xom.keyfs.import_changes(serial, changes)
-                self.update_primary_serial(serial, update_sync=False)
+                self.update_primary_serial(serial, update_sync=False, ignore_lower=True)
 
     def fetch_multi(self, serial):
         url = self.primary_url.joinpath("+changelog", "%s-" % serial).url
