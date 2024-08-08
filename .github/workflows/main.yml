@@ -170,7 +170,7 @@ jobs:
   client-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
-    needs: "packages"
+    needs: "server-tests"
     strategy:
       matrix:
         include:
@@ -256,7 +256,7 @@ jobs:
   web-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
-    needs: "packages"
+    needs: "server-tests"
     strategy:
       matrix:
         include:
@@ -566,7 +566,7 @@ jobs:
   postgresql-web-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
-    needs: ["server-tests", "web-tests"]
+    needs: ["postgresql-tests", "web-tests"]
     strategy:
       matrix:
         include:
