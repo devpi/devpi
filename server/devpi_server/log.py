@@ -64,20 +64,21 @@ class TagLogger:
                               last=self)
 
     def debug(self, msg, *args):
-        self._logout.debug(self._prefix + msg, *args)
+        self._logout.debug(self._prefix + msg, *args, stacklevel=2)
 
     def info(self, msg, *args):
-        self._logout.info(self._prefix + msg, *args)
+        self._logout.info(self._prefix + msg, *args, stacklevel=2)
 
     def warning(self, msg, *args):
-        self._logout.warning(self._prefix + msg, *args)
+        self._logout.warning(self._prefix + msg, *args, stacklevel=2)
+
     warn = warning
 
     def error(self, msg, *args):
-        self._logout.error(self._prefix + msg, *args)
+        self._logout.error(self._prefix + msg, *args, stacklevel=2)
 
     def exception(self, msg, *args):
-        self._logout.exception(self._prefix + msg, *args)
+        self._logout.exception(self._prefix + msg, *args, stacklevel=2)
 
 
 class ThreadLog:
