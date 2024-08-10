@@ -34,6 +34,9 @@ def devpiserver_add_parser_options(parser):
         "--debug-signal", action="store_true",
         help="enable USR1 signal handler to log the current stack trace "
              "of each thread")
+    debugging.addoption(
+        "--debug-toolbar", action="store_true",
+        help="enable pyramid-debugtoolbar")
 
 
 @hookimpl
@@ -50,6 +53,8 @@ def devpiserver_cmdline_run(xom):
 
 @hookimpl
 def devpiserver_pyramid_configure(config, pyramid_config):
+    if config.args.debug_toolbar:
+        pyramid_config.include('pyramid_debugtoolbar')
     pyramid_config.include('devpi_debugging.main')
 
 

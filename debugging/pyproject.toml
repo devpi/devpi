@@ -11,6 +11,7 @@ dependencies = [
     'devpi-common',
     'devpi-server>=7dev',
     'devpi-web',
+    'pyramid-debugtoolbar',
 ]
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
