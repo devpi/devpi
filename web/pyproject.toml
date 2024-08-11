@@ -1,3 +1,60 @@
+[tool.ruff]
+extend = "../pyproject.toml"
+
+
+[tool.ruff.lint]
+extend-ignore = [
+    "A001", # cleanup later - variable name shadows builtin
+    "A002", # cleanup later - argument name shadows builtin
+    "ARG001", # maybe cleanup later - unused function argument
+    "ARG002", # maybe cleanup later - unused method argument
+    "ARG005", # maybe cleanup later - unused lambda argument
+    "B007", # maybe cleanup later
+    "B008", # cleanup later
+    "B904", # maybe cleanup later
+    "BLE001", # cleanup soon - blind exception
+    "C400", # maybe cleanup later - rewrite as list comprehension
+    "C401", # maybe cleanup later - rewrite as set comprehension
+    "C402", # maybe cleanup later - rewrite as dict comprehension
+    "C405", # cleanup soon - set literal instead of set call
+    "COM812", # cleanup later
+    "ERA001", # cleanup soon
+    "FBT002", # cleanup soon - boolean positional argument
+    "FIX002", # cleanup later - todo
+    "FLY002", # maybe cleanup later - f-string instead of join
+    "G002", # cleanup soon - logging statement uses %
+    "I001", # maybe cleanup later - import block unsorted
+    "PERF401", # maybe cleanup later - list comprehension
+    "PERF402", # maybe cleanup later - list copy
+    "PIE804", # cleanup later
+    "PIE808", # maybe cleanup later
+    "PLR0912", # maybe cleanup later
+    "PLR1730", # maybe cleanup later
+    "PLW2901", # maybe cleanup later
+    "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
+    "RET502", # maybe cleanup later - implicit return None
+    "RET503", # maybe cleanup later - missing return
+    "RET504", # maybe cleanup later - unnecessary assignment before return
+    "RET505", # maybe cleanup later - unnecessary elif after return
+    "RET507", # maybe cleanup later - unnecessary elif after continue
+    "RET508", # maybe cleanup later - unnecessary else after break
+    "RUF005", # cleanup later
+    "RUF012", # cleanup later
+    "RUF100", # after soon to cleanup
+    "RSE102", # maybe cleanup later
+    "SIM102", # maybe cleanup later
+    "SIM105", # cleanup soon
+    "SIM108", # cleanup later
+    "SIM117", # cleanup later
+    "UP004", # cleanup later - inherit from 'object'
+    "UP012", # false positives (bug in ruff?) - unnecessary utf-8 encode
+    "UP020", # cleanup soon - use builtin 'open'
+    "UP025", # maybe cleanup later - unicode literals
+    "UP030", # cleanup later - implicit references for positional format fields
+    "UP032", # cleanup later - f-string instead of format
+]
+
+
 [tool.towncrier]
 package = "devpi_web"
 filename = "CHANGELOG"

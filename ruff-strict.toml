@@ -1,0 +1,92 @@
+exclude = [
+    "doc/",
+]
+
+target-version = "py37"
+
+
+[lint]
+select = ["ALL"]
+ignore = [
+    "A003", # ignore - class attribute name shadows builtin
+    "ANN", # maybe cleanup later - annotations
+    "C408", # ignore - dict call
+    "C901", # ignore - complex structure
+    "D", # ignore - docstrings
+    "E501", # ignore - line too long
+    "E741", # ignore - ambiguous variable name
+    "EM101", # ignore - string literal in exception
+    "EM102", # ignore - f-string in exception
+    "N", # ignore - naming
+    "PERF203", # ignore (false positive?) - try-except in loop
+    "PLR0913", # ignore - too many arguments
+    "PLR0915", # maybe cleanup later
+    "PLR2004", # ignore - magic value comparison
+    "PT001", # ignore - pytest.fixture
+    "PT023", # ignore - pytest.mark.nomocking
+    "PTH", # ignore - pathlib
+    "Q", # ignore - quotes style
+    "S101", # ignore - asserts
+    "SLF001", # ignore - private member accessed
+    "TD", # ignore - todos
+    "TRY003", # ignore - raise vanilla args
+    "UP031", # maybe cleanup later - printf string formatting
+]
+
+pyupgrade.keep-runtime-typing = true
+
+
+[lint.isort]
+case-sensitive = true
+force-single-line = true
+from-first = true
+lines-after-imports = 2
+no-sections = true
+order-by-type = false
+
+
+[lint.per-file-ignores]
+".ci/cleanup_devpi_indices.py" = [
+    "INP001", # ignore - implicit namespace package
+    "S603", # ignore - subprocess untrusted input
+    "S607", # ignore - subprocess partial executable path
+    "T201", # ignore - print found
+]
+"client/devpi/hookspecs.py" = [
+    "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
+]
+"client/testing/conftest.py" = [
+    "INP001", # ignore - implicit namespace package
+    "S603", # ignore - subprocess untrusted input
+    "T201", # ignore - print found
+]
+"server/devpi_server/hookspecs.py" = [
+    "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
+]
+"server/test_devpi_server/plugin.py" = [
+    "S603", # ignore - subprocess untrusted input
+    "T201", # ignore - print found
+]
+"web/devpi_web/hookspecs.py" = [
+    "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
+]
+"web/tests/conftest.py" = [
+    "INP001", # ignore - implicit namespace package
+]
+"*/pytest_devpi_postgresql/__init__.py" = [
+    "S603", # ignore - subprocess untrusted input
+    "S607", # ignore - subprocess partial executable path
+]
+"setup.py" = [
+    "INP001", # ignore - implicit namespace package
+]
+"test_*" = [
+    "INP001", # ignore - implicit namespace package
+    "S105", # ignore - possible hardcoded password
+    "S106", # ignore - possible hardcoded password
+    "S113", # ignore - requests call without timeout
+    "S324", # ignore - md5 - use usedforsecurity=False with Python 3.9
+    "S603", # ignore - subprocess untrusted input
+    "S607", # ignore - subprocess partial executable path
+    "T201", # ignore - print found
+]

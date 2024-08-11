@@ -1,29 +1,31 @@
 from requests import Session
 import datetime
-import sys
 import subprocess
+import sys
+
 
 MAXDAYS = 14
+
 
 session = Session()
 session.headers["Accept"] = "application/json"
 
 
-def get_indexes(baseurl, username):
+def get_indexes(baseurl: str, username: str) -> dict:
     response = session.get(baseurl + username)
     assert response.status_code == 200
     result = response.json()["result"]
     return result["indexes"]
 
 
-def get_projectnames(baseurl, username, indexname):
+def get_projectnames(baseurl: str, username: str, indexname: str) -> list:
     response = session.get(baseurl + username + "/" + indexname)
     assert response.status_code == 200
     result = response.json()["result"]
     return result["projects"]
 
 
-def get_release_dates(baseurl, username, indexname, projectname):
+def get_release_dates(baseurl: str, username: str, indexname: str, projectname: str) -> set:
     response = session.get(baseurl + username + "/" + indexname + "/" + projectname)
     assert response.status_code == 200
     result = response.json()["result"]
@@ -35,7 +37,7 @@ def get_release_dates(baseurl, username, indexname, projectname):
     return dates
 
 
-def run():
+def run() -> None:
     baseurl = "https://m.devpi.net/"
     username = "devpi-github"
     for indexname in get_indexes(baseurl, username):
@@ -55,7 +57,8 @@ def run():
         else:
             date = now
         if (now - date) > datetime.timedelta(days=MAXDAYS):
-            assert username and indexname
+            assert username
+            assert indexname
             url = baseurl + username + "/" + indexname
             subprocess.check_call(["devpi", "index", "-y", "--delete", url])
 

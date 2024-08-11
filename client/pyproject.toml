@@ -58,6 +58,57 @@ devpi-client-subcommands = "devpi.main"
 "Source Code" = "https://github.com/devpi/devpi"
 
 
+[tool.ruff]
+extend = "../pyproject.toml"
+
+
+[tool.ruff.lint]
+extend-ignore = [
+    "A001", # cleanup later - variable name shadows builtin
+    "A002", # cleanup later - argument name shadows builtin
+    "ARG001", # maybe cleanup later - unused function argument
+    "ARG002", # maybe cleanup later - unused method argument
+    "ARG005", # maybe cleanup later - unused lambda argument
+    "B007", # maybe cleanup later
+    "BLE001", # cleanup soon - blind exception
+    "C402", # maybe cleanup later - rewrite as dict comprehension
+    "C405", # cleanup soon - set literal instead of set call
+    "COM812", # cleanup later
+    "ERA001", # cleanup soon
+    "FBT002", # cleanup soon - boolean positional argument
+    "FIX003", # cleanup later - xxx
+    "G002", # cleanup soon - logging statement uses %
+    "I001", # maybe cleanup later - import block unsorted
+    "PERF401", # maybe cleanup later - list comprehension
+    "PLR0912", # maybe cleanup later
+    "PLW2901", # maybe cleanup later
+    "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
+    "PT007", # maybe cleanup later - wrong type for pytest.mark.parametrize
+    "PT011", # cleanup soon - pytest.raises match
+    "PT017", # cleanup later - use pytest.raises
+    "PT018", # maybe cleanup later - composite assert
+    "RET502", # maybe cleanup later - implicit return None
+    "RET503", # maybe cleanup later - missing return
+    "RET504", # maybe cleanup later - unnecessary assignment before return
+    "RET505", # maybe cleanup later - unnecessary elif after return
+    "RET506", # maybe cleanup later - unnecessary elif after raise
+    "RUF005", # cleanup later
+    "RUF012", # cleanup later
+    "RUF100", # after soon to cleanup
+    "RSE102", # maybe cleanup later
+    "SIM102", # maybe cleanup later
+    "SIM108", # cleanup later
+    "SIM110", # cleanup soon
+    "SIM117", # cleanup later
+    "TRY301", # maybe cleanup later
+    "UP004", # cleanup later - inherit from 'object'
+    "UP008", # cleanup later - super
+    "UP015", # cleanup later - open mode parameters
+    "UP025", # maybe cleanup later - unicode literals
+    "UP032", # cleanup later - f-string instead of format
+]
+
+
 [tool.setuptools]
 packages = ['devpi']
 

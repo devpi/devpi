@@ -808,7 +808,7 @@ jobs:
           python -m mypy
           test ! "$(grep -ci warning mypy-stderr.txt || true)" != "0"
 
-  flake8-tests:
+  lint-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
 
     env:
@@ -818,6 +818,8 @@ jobs:
 
     steps:
       - uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
       - uses: "actions/setup-python@v5"
         with:
           python-version: "3.x"
@@ -827,8 +829,8 @@ jobs:
           set -xe -o nounset
           python -VV
           python -m site
-          python -m pip install --upgrade pip flake8 setuptools wheel
-      - name: "Run flake8"
+          python -m pip install --upgrade pip flake8 match-diff-lines ruff setuptools wheel
+      - name: "Run lint commands"
         shell: "bash"
         run: |
           set -x -o nounset
@@ -838,34 +840,9 @@ jobs:
           pushd postgresql; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
           pushd server; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
           pushd web; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          ruff check --output-format=github . || export FAILED="1"
+          .ci/lint-strict.sh || export FAILED="1"
           test "$FAILED" = "0"
-  ruff-tests:
-    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
-
-    env:
-      PY_COLORS: 1
-
-    runs-on: "ubuntu-latest"
-    strategy:
-      fail-fast: false
-
-    steps:
-      - uses: "actions/checkout@v4"
-      - uses: "actions/setup-python@v5"
-        with:
-          python-version: "3.x"
-      - name: "Install dependencies"
-        shell: "bash"
-        run: |
-          set -xe -o nounset
-          python -VV
-          python -m site
-          python -m pip install --upgrade pip ruff setuptools wheel
-      - name: "Run ruff"
-        shell: "bash"
-        run: |
-          set -xe -o nounset
-          ruff check --output-format=github .
 
   plugins-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}

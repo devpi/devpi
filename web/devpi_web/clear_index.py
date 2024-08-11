@@ -31,7 +31,7 @@ def clear_index(argv=None):
         configure_cli_logging(config.args)
         xom = xom_from_config(config)
         log = xom.log
-        log.warn(  # noqa: PGH002,G010 - this is actually TagLogger from devpi-server, but devpi-web still needs to support older devpi-server versions
+        log.warn(  # noqa: G010 - this is actually TagLogger from devpi-server, but devpi-web still needs to support older devpi-server versions
             "You should stop devpi-server before running this command.")
         ix = get_indexer(xom)
         ix.delete_index()

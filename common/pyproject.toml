@@ -38,6 +38,45 @@ classifiers = [
 repository = "https://github.com/devpi/devpi"
 
 
+[tool.ruff]
+extend = "../pyproject.toml"
+
+
+[tool.ruff.lint]
+extend-ignore = [
+    "A001", # cleanup later - variable name shadows builtin
+    "A002", # cleanup later - argument name shadows builtin
+    "ARG001", # maybe cleanup later - unused function argument
+    "ARG002", # maybe cleanup later - unused method argument
+    "B007", # maybe cleanup later
+    "B904", # maybe cleanup later
+    "BLE001", # cleanup soon - blind exception
+    "COM812", # cleanup later
+    "FBT002", # cleanup soon - boolean positional argument
+    "FIX003", # cleanup later - xxx
+    "G002", # cleanup soon - logging statement uses %
+    "I001", # maybe cleanup later - import block unsorted
+    "PERF401", # maybe cleanup later - list comprehension
+    "PLR0912", # maybe cleanup later
+    "PLW2901", # maybe cleanup later
+    "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
+    "PT011", # cleanup soon - pytest.raises match
+    "PT018", # maybe cleanup later - composite assert
+    "RET502", # maybe cleanup later - implicit return None
+    "RET503", # maybe cleanup later - missing return
+    "RUF005", # cleanup later
+    "RSE102", # maybe cleanup later
+    "SIM105", # cleanup soon
+    "SIM108", # cleanup later
+    "SIM110", # cleanup soon
+    "SIM115", # cleanup soon
+    "TRY004", # maybe cleanup later
+    "UP004", # cleanup later - inherit from 'object'
+    "UP008", # cleanup later - super
+    "UP024", # maybe cleanup later - aliased errors
+]
+
+
 [tool.setuptools]
 packages = ['devpi_common']
 
