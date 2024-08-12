@@ -56,6 +56,7 @@ if __name__ == "__main__":
         'Bug Tracker': 'https://github.com/devpi/devpi/issues',
         'Changelog': 'https://github.com/devpi/devpi/blob/main/server/CHANGELOG',
         'Documentation': 'https://doc.devpi.net',
+        'Funding': 'https://github.com/sponsors/devpi',
         'Source Code': 'https://github.com/devpi/devpi'
       },
       version='6.12.1',
