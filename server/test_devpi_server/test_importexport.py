@@ -146,30 +146,38 @@ def test_export_import_no_root_pypi(
         export_dir.strpath])
     assert ret == 0
     # first we test regular import
-    import_dir = tmpdir.join("import")
-    ret = import_(argv=[
-        "devpi-import",
-        "--serverdir", str(import_dir),
-        *storage_args(import_dir),
-        "--no-events",
-        export_dir.strpath])
+    import1_dir = tmpdir.join("import1")
+    ret = import_(
+        argv=[
+            "devpi-import",
+            "--serverdir",
+            str(import1_dir),
+            *storage_args(import1_dir),
+            "--no-events",
+            export_dir.strpath,
+        ]
+    )
     assert ret == 0
     out, err = capfd.readouterr()
-    assert sorted_serverdir(clean) == sorted_serverdir(import_dir)
+    assert sorted_serverdir(clean) == sorted_serverdir(import1_dir)
     assert 'import_all: importing finished' in out
     assert err == ''
     # now we add --no-root-pypi
-    import_dir.remove()
-    ret = import_(argv=[
-        "devpi-import",
-        "--serverdir", str(import_dir),
-        *storage_args(import_dir),
-        "--no-events",
-        "--no-root-pypi",
-        export_dir.strpath])
+    import2_dir = tmpdir.join("import2")
+    ret = import_(
+        argv=[
+            "devpi-import",
+            "--serverdir",
+            str(import2_dir),
+            *storage_args(import2_dir),
+            "--no-events",
+            "--no-root-pypi",
+            export_dir.strpath,
+        ]
+    )
     assert ret == 0
     out, err = capfd.readouterr()
-    assert sorted_serverdir(clean) == sorted_serverdir(import_dir)
+    assert sorted_serverdir(clean) == sorted_serverdir(import2_dir)
     assert 'import_all: importing finished' in out
     assert err == ''
 
