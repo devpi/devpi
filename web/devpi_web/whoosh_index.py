@@ -498,7 +498,7 @@ class Index:
             if hasattr(config, "server_path"):
                 index_path = config.server_path / '.indices'
             else:
-                index_path = Path(config.serverdir.join('.indices'))
+                index_path = Path(str(config.serverdir.join('.indices')))
         else:
             index_path = settings['path']
             if not os.path.isabs(index_path):
