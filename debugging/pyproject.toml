@@ -1,12 +1,34 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "devpi-debugging"
+version = "0.3.0"
+description = "devpi-debugging: a debugging view for devpi-server"
+dependencies = [
+    'devpi-common',
+    'devpi-server>=7dev',
+    'devpi-web',
+]
+license = {file = "LICENSE"}
+requires-python = ">=3.9"
+
+
+[project.entry-points.devpi_server]
+devpi-debugging = "devpi_debugging.main"
+
+
 [tool.ruff]
 extend = "../pyproject.toml"
+target-version = "py39"
 
 
 [tool.ruff.format]
 exclude = [
     "devpi_debugging/main.py",
     "devpi_debugging/views.py",
-    "setup.py",
 ]
 
 
@@ -21,4 +43,10 @@ extend-ignore = [
     "PLR0912", # maybe cleanup later
     "SIM102", # maybe cleanup later
     "SIM114", # maybe cleanup later
+]
+
+
+[tool.setuptools]
+packages = [
+    'devpi_debugging',
 ]
