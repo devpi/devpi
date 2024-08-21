@@ -234,13 +234,11 @@ extend-ignore = [
     "TRY004", # maybe cleanup later
     "TRY301", # maybe cleanup later
     "UP004", # cleanup later - inherit from 'object'
-    "UP006", # cleanup later - typing
     "UP008", # cleanup later - super
     "UP012", # false positives (bug in ruff?) - unnecessary utf-8 encode
     "UP024", # maybe cleanup later - aliased errors
     "UP025", # maybe cleanup later - unicode literals
     "UP032", # cleanup later - f-string instead of format
-    "UP035", # cleanup later - typing imports
 ]
 
 
