@@ -10,7 +10,7 @@ from devpi_server.config import hookimpl
 from devpi_server.filestore import get_hashes
 from devpi_server.model import InvalidIndexconfig
 from devpi_server.model import PrivateStage
-from devpi_server.model import Unknown
+from devpi_server.model import unknown
 from devpi_server.model import ensure_boolean
 from devpi_server.model import ensure_acl_list
 from devpi_server.model import ensure_list
@@ -96,8 +96,8 @@ def test_get_mirror_whitelist_info(model, pypistage):
         blocked_by_mirror_whitelist=None)
     register_and_store(stage2, "pytest-1.1.tar.gz")
     assert stage2.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=Unknown,
-        blocked_by_mirror_whitelist='root/pypi')
+        has_mirror_base=unknown, blocked_by_mirror_whitelist="root/pypi"
+    )
     # now add to whitelist
     ixconfig = stage2.ixconfig.copy()
     ixconfig["mirror_whitelist"] = ["pytest"]
@@ -110,8 +110,8 @@ def test_get_mirror_whitelist_info(model, pypistage):
     ixconfig["mirror_whitelist"] = []
     stage2.modify(**ixconfig)
     assert stage2.get_mirror_whitelist_info("pytest") == dict(
-        has_mirror_base=Unknown,
-        blocked_by_mirror_whitelist='root/pypi')
+        has_mirror_base=unknown, blocked_by_mirror_whitelist="root/pypi"
+    )
     # and try "*"
     ixconfig = stage2.ixconfig.copy()
     ixconfig["mirror_whitelist"] = ["*"]
@@ -134,7 +134,7 @@ def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
             m.setattr(mapp.xom, 'httpget', None)
             stage = mapp.xom.model.getstage(api.stagename)
             info = stage.get_mirror_whitelist_info("pkg1")
-            assert info['has_mirror_base'] is Unknown
+            assert info["has_mirror_base"] is unknown
             assert info['blocked_by_mirror_whitelist'] == "root/pypi"
     mapp.use("root/pypi")
     mapp.xom.httpget.mockresponse(
@@ -152,7 +152,7 @@ def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
             # now we check that we get correct info without fetching data
             stage = mapp.xom.model.getstage(api.stagename)
             info = stage.get_mirror_whitelist_info("pkg1")
-            assert info['has_mirror_base'] is Unknown
+            assert info["has_mirror_base"] is unknown
             assert info['blocked_by_mirror_whitelist'] == "root/pypi"
     # now we whitelist the package
     testapp.patch_json("/" + api.stagename, ["mirror_whitelist+=pkg1"])

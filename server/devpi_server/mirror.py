@@ -19,9 +19,9 @@ from html.parser import HTMLParser
 from .config import hookimpl
 from .exceptions import lazy_format_exception
 from .filestore import key_from_link
+from .markers import unknown
 from .model import BaseStageCustomizer
 from .model import BaseStage
-from .model import Unknown
 from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
@@ -762,7 +762,7 @@ class MirrorStage(BaseStage):
                     "cached not found for project %s" % project)
             else:
                 exists = self.has_project_perstage(project)
-                if exists is Unknown and self.no_project_list:
+                if exists is unknown and self.no_project_list:
                     pass
                 elif not exists:
                     # immediately cache the not found with no ETag
@@ -835,7 +835,7 @@ class MirrorStage(BaseStage):
         if self.no_project_list:
             if project in self._stale_list_projects_perstage():
                 return True
-            return Unknown
+            return unknown
         # use the internal method to avoid a copy
         return project in self._list_projects_perstage()
 
