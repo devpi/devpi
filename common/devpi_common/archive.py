@@ -43,11 +43,14 @@ def Archive(path_or_file):
         raise
 
 
-class BaseArchive(object):
+class BaseArchive:
     class FileNotExist(ValueError):
         """ File does not exist. """
     def __init__(self, file):
         self.file = file
+
+    def getfile(self, name):
+        raise NotImplementedError
 
     def read(self, name):
         f = self.getfile(name)
@@ -96,7 +99,7 @@ class TarArchive(BaseArchive):
                 raise ValueError(
                     f"archive name {member.name!r} out of bound") from e
         if hasattr(tarfile, 'data_filter'):
-            self._archive.extractall(str(to_path), members=members, filter='data')
+            self._archive.extractall(str(to_path), members=members, filter='data')  # type: ignore[call-arg,unused-ignore]
         else:
             self._archive.extractall(str(to_path), members=members)  # noqa: S202
 

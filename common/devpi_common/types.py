@@ -1,7 +1,14 @@
+from __future__ import annotations
+
 from lazy import lazy as cached_property  # noqa: F401 must be importable
 from types import FunctionType
+from typing import TYPE_CHECKING
 import hashlib
 import operator
+
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 # re-introduced for 2.0 series but not used anymore
@@ -26,7 +33,9 @@ def canraise(Error):
     return wrap
 
 
-class CompareMixin(object):
+class CompareMixin:
+    cmpval: Any
+
     def _cmp(self, other, op):
         return op(self.cmpval, other.cmpval)
 

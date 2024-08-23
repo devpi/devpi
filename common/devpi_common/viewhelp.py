@@ -1,5 +1,7 @@
-import posixpath
+from __future__ import annotations
+
 from .url import URL
+import posixpath
 
 
 class ViewLinkStore:
@@ -30,6 +32,11 @@ class ViewLinkStore:
 
 
 class ViewLink:
+    basename: str
+    for_href: str
+    href: str
+    rel: str
+
     def __init__(self, base_url, linkdict):
         self.__dict__.update(linkdict)
         self.href = base_url.joinpath(self.href).url
@@ -64,7 +71,7 @@ class ToxResultEnv:
         self.failed = self.setup["failed"] or self.test["failed"]
 
     def _get_commands_info(self, commands):
-        result = dict(
+        result: dict = dict(
             failed=any(try_int(x["retcode"]) not in (None, 0) for x in commands),
             commands=[])
         for command in commands:
@@ -88,7 +95,7 @@ def get_toxenvs(toxresult, seen, newest=True):
 
 
 def iter_toxresults(links, load, newest=True):
-    seen = set()
+    seen: set = set()
     for link in reversed(links):
         try:
             toxresult = load(link)

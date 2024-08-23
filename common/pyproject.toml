@@ -62,7 +62,6 @@ extend-ignore = [
     "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT011", # cleanup soon - pytest.raises match
     "PT018", # maybe cleanup later - composite assert
-    "RET502", # maybe cleanup later - implicit return None
     "RET503", # maybe cleanup later - missing return
     "RUF005", # cleanup later
     "RSE102", # maybe cleanup later
@@ -71,7 +70,6 @@ extend-ignore = [
     "SIM110", # cleanup soon
     "SIM115", # cleanup soon
     "TRY004", # maybe cleanup later
-    "UP004", # cleanup later - inherit from 'object'
     "UP008", # cleanup later - super
     "UP024", # maybe cleanup later - aliased errors
 ]

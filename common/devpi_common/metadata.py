@@ -176,13 +176,11 @@ class BasenameMeta(CompareMixin):
 
 
 def get_latest_version(seq, stable=False):
-    if not seq:
-        return
-    versions = map(Version, seq)
+    versions = [Version(x) for x in seq]
     if stable:
         versions = [x for x in versions if not x.is_prerelease()]
-        if not versions:
-            return
+    if not versions:
+        return None
     return max(versions).string
 
 

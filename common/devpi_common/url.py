@@ -1,10 +1,22 @@
+from __future__ import annotations
 
-import posixpath
-from devpi_common.types import cached_property, ensure_unicode, parse_hash_spec
+from devpi_common.types import cached_property
+from devpi_common.types import ensure_unicode
+from devpi_common.types import parse_hash_spec
 from requests.models import parse_url
+from typing import TYPE_CHECKING
+from urllib.parse import parse_qs
+from urllib.parse import parse_qsl
+from urllib.parse import unquote
+from urllib.parse import urlencode
+from urllib.parse import urljoin
+from urllib.parse import urlparse
+from urllib.parse import urlunsplit
+import posixpath
 
-from urllib.parse import parse_qs, parse_qsl
-from urllib.parse import urlencode, urlparse, urlunsplit, urljoin, unquote
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 def _joinpath(url, args, *, asdir=False):
@@ -21,7 +33,9 @@ def _joinpath(url, args, *, asdir=False):
 
 
 class URL:
-    def __init__(self, url="", *args, **kwargs):
+    url: str
+
+    def __init__(self, url: URL | str = "", *args: Any, **kwargs: Any) -> None:
         if isinstance(url, URL):
             url = url.url
         if args:
@@ -39,14 +53,13 @@ class URL:
         return self.url
 
     def __repr__(self):
-        cloaked = self
+        cloaked: URL = self
         if self.username:
             cloaked = cloaked.replace(username="****")
         if self.password:
             cloaked = cloaked.replace(password="****")  # noqa: S106
-        cloaked = repr(cloaked.url.encode())
-        cloaked = cloaked.lstrip("b")
-        return "%s(%s)" % (self.__class__.__name__, cloaked)
+        cloaked_str = repr(cloaked.url.encode()).lstrip("b")
+        return "%s(%s)" % (self.__class__.__name__, cloaked_str)
 
     def __eq__(self, other):
         return self.url == getattr(other, "url", other)
