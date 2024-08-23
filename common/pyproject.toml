@@ -67,7 +67,6 @@ extend-ignore = [
     "RSE102", # maybe cleanup later
     "SIM105", # cleanup soon
     "SIM108", # cleanup later
-    "SIM110", # cleanup soon
     "SIM115", # cleanup soon
     "TRY004", # maybe cleanup later
     "UP008", # cleanup later - super

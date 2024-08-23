@@ -1,10 +1,17 @@
-import posixpath
-import re
+from __future__ import annotations
+
+from .types import CompareMixin
+from .validation import normalize_name
 from packaging.requirements import Requirement as BaseRequirement
 from packaging_legacy.version import parse as parse_version
-from .types import CompareMixin
-from .types import cached_property
-from .validation import normalize_name
+from typing import TYPE_CHECKING
+import posixpath
+import re
+
+
+if TYPE_CHECKING:
+    from packaging_legacy.version import LegacyVersion
+    from packaging_legacy.version import Version as PackagingVersion
 
 
 ALLOWED_ARCHIVE_EXTS = set(
@@ -129,28 +136,58 @@ def splitext_archive(basename):
     return base, ext
 
 
-class Version(CompareMixin):
-    def __init__(self, versionstring):
-        self.string = versionstring
+class Version(str):
+    __slots__ = ('_cmpstr', '_cmpval')
+    _cmpstr: str
+    _cmpval: LegacyVersion | PackagingVersion
 
-    @cached_property
-    def cmpval(self):
-        return parse_version(self.string)
+    def __eq__(self, other):
+        if not isinstance(other, Version):
+            raise NotImplementedError
+        return self.cmpval == other.cmpval
 
-    def __str__(self):
-        return self.string
+    def __ge__(self, other):
+        if not isinstance(other, Version):
+            raise NotImplementedError
+        return self.cmpval >= other.cmpval
+
+    def __gt__(self, other):
+        if not isinstance(other, Version):
+            raise NotImplementedError
+        return self.cmpval > other.cmpval
+
+    def __le__(self, other):
+        if not isinstance(other, Version):
+            raise NotImplementedError
+        return self.cmpval <= other.cmpval
+
+    def __lt__(self, other):
+        if not isinstance(other, Version):
+            raise NotImplementedError
+        return self.cmpval < other.cmpval
+
+    def __ne__(self, other):
+        if not isinstance(other, Version):
+            raise NotImplementedError
+        return self.cmpval != other.cmpval
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.string!r})"
+        orig = super().__repr__()
+        return f"{self.__class__.__name__}({orig})"
+
+    @property
+    def cmpval(self):
+        _cmpval = getattr(self, '_cmpval', None)
+        if _cmpval is None:
+            self._cmpval = _cmpval = parse_version(self)
+        return _cmpval
 
     def is_prerelease(self):
-        if hasattr(self.cmpval, 'is_prerelease'):
-            return self.cmpval.is_prerelease
-        # backward compatibility
-        for x in self.cmpval:
-            if x.startswith('*') and x < '*final':
-                return True
-        return False
+        return self.cmpval.is_prerelease
+
+    @property
+    def string(self):
+        return str(self)
 
 
 class BasenameMeta(CompareMixin):
