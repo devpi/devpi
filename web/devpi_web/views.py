@@ -2,6 +2,7 @@ from defusedxml.xmlrpc import DefusedExpatParser
 from devpi_common.metadata import Version
 from devpi_common.metadata import get_pyversion_filetype
 from devpi_common.metadata import get_sorted_versions
+from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from devpi_common.viewhelp import iter_toxresults
 from devpi_server.log import threadlog as log
@@ -333,47 +334,88 @@ def make_history_view_item(request, log_item):
     return result
 
 
-def get_files_info(request, linkstore, show_toxresults=False):
-    files = []
-    filedata = linkstore.get_links(rel='releasefile')
-    if not filedata:
-        log.warn("project %r version %r has no files",
-                 linkstore.project, linkstore.version)
-    for link in sorted(filedata, key=attrgetter('basename')):
-        url = url_for_entrypath(request, link.entrypath)
-        entry = link.entry
-        if get_entry_hash_spec(entry):
-            url += "#" + get_entry_hash_spec(entry)
-        py_version, file_type = get_pyversion_filetype(link.basename)
-        if py_version == 'source':
-            py_version = ''
-        size = ''
-        if entry.file_exists():
-            size = "%.0f %s" % sizeof_fmt(entry.file_size())
+class FileInfo:
+    def __init__(self, request, link, linkstore, show_toxresults):
+        self.entry = link.entry
+        self.link = link
+        self.linkstore = linkstore
+        self.request = request
+        self.show_toxresults = show_toxresults
+
+    @cached_property
+    def basename(self):
+        return self.entry.basename
+
+    @cached_property
+    def dist_type(self):
+        (py_version, file_type) = self.pyversion_filetype
+        return dist_file_types.get(file_type, '')
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    @cached_property
+    def hash_spec(self):
+        return get_entry_hash_spec(self.entry)
+
+    @cached_property
+    def history(self):
         try:
-            history = [
-                make_history_view_item(request, x)
-                for x in link.get_logs()]
+            return [
+                make_history_view_item(self.request, x)
+                for x in self.link.get_logs()]
         except AttributeError:
-            history = []
-        last_modified = format_timetuple(parsedate(entry.last_modified))
-        fileinfo = dict(
-            title=link.basename,
-            url=url,
-            basename=link.basename,
-            hash_spec=get_entry_hash_spec(entry),
-            dist_type=dist_file_types.get(file_type, ''),
-            py_version=py_version,
-            last_modified=last_modified,
-            history=history,
-            size=size)
-        if show_toxresults:
-            toxresults = get_toxresults_info(linkstore, link)
-            if toxresults:
-                fileinfo['toxresults'] = toxresults
-                fileinfo['toxresults_state'] = get_toxresults_state(toxresults)
-        files.append(fileinfo)
-    return files
+            return []
+
+    @cached_property
+    def last_modified(self):
+        return format_timetuple(parsedate(self.entry.last_modified))
+
+    @cached_property
+    def py_version(self):
+        (py_version, file_type) = self.pyversion_filetype
+        return '' if py_version == 'source' else py_version
+
+    @cached_property
+    def pyversion_filetype(self):
+        return get_pyversion_filetype(self.basename)
+
+    @cached_property
+    def size(self):
+        if self.entry.file_exists():
+            (value, unit) = sizeof_fmt(self.entry.file_size())
+            return f"{value:.0f} {unit}"
+        return ''
+
+    @cached_property
+    def title(self):
+        return self.basename
+
+    @cached_property
+    def toxresults(self):
+        if not self.show_toxresults:
+            return []
+        return get_toxresults_info(self.linkstore, self.link)
+
+    @cached_property
+    def toxresults_state(self):
+        return get_toxresults_state(self.toxresults)
+
+    @cached_property
+    def url(self):
+        url = url_for_entrypath(self.request, self.entry.relpath)
+        if self.hash_spec:
+            url = f"{url}#{self.hash_spec}"
+        return url
+
+
+def get_files_info(request, linkstore, *, show_toxresults=False):
+    filedata = sorted(
+        linkstore.get_links(rel='releasefile'),
+        key=attrgetter('basename'))
+    return [
+        FileInfo(request, link, linkstore, show_toxresults)
+        for link in filedata]
 
 
 def load_toxresult(link):
@@ -561,7 +603,7 @@ def index_get(context, request):
                 request.route_url, "toxresults",
                 user=stage.user.name, index=stage.index,
                 project=name, version=ver),
-            files=get_files_info(request, linkstore, show_toxresults),
+            files=get_files_info(request, linkstore, show_toxresults=show_toxresults),
             docs=get_docs_info(request, stage, linkstore),
             _version_data=verdata))
     packages.sort(key=lambda x: x["info"]["title"])
@@ -730,7 +772,7 @@ def version_get(context, request):
         infos.append((escape(key), value))
     show_toxresults = (stage.ixconfig['type'] != 'mirror')
     linkstore = stage.get_linkstore_perstage(name, version)
-    files = get_files_info(request, linkstore, show_toxresults)
+    files = get_files_info(request, linkstore, show_toxresults=show_toxresults)
     docs = get_docs_info(request, stage, linkstore)
     home_page = verdata.get("home_page")
     nav_links = []
