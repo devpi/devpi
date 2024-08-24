@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 from devpi_common.metadata import parse_version
 from devpi_server import __version__ as _devpi_server_version
 from devpi_web.compat import make_file_url
-from devpi_web.compat import read_transaction
 from devpi_web.main import hookimpl
 from functools import partial
 import pytest
@@ -113,25 +112,23 @@ def test_error_html_only(mapp, testapp, monkeypatch):
     assert b"502 Bad Gateway" in r.body
 
 
-def test_refresh_button(mapp, pypistage, testapp):
+def test_refresh_button(pypistage, testapp):
     pypistage.mock_simple("hello", "<html/>")
+    r = testapp.xget(200, "/root/pypi/+simple/hello/")
+    assert r.html.select('a') == []
+    assert r.headers['X-PYPI-LAST-SERIAL'] == '10000'
     r = testapp.xget(200, "/root/pypi/hello/")
-    input, = r.html.select('form input[name=refresh]')
-    assert input.attrs['value'] == 'Refresh'
-    with read_transaction(mapp.xom.keyfs):
-        info = pypistage.key_projsimplelinks("hello").get()
-    assert info != {}
-    assert info["links"] == []
-    assert info["serial"] == 10000
+    (input_elem,) = r.html.select('form input[name=refresh]')
+    assert input_elem.attrs['value'] == 'Refresh'
     pypistage.mock_simple("hello", pkgver="hello-1.0.zip", pypiserial=10001)
     r = testapp.post("/root/pypi/hello/refresh")
     assert r.status_code == 302
     assert r.location.endswith("/root/pypi/hello")
-    with read_transaction(mapp.xom.keyfs):
-        info = pypistage.key_projsimplelinks("hello").get()
-    assert info["links"] == [
-        ('hello-1.0.zip', 'root/pypi/+e/https_pypi.org_hello/hello-1.0.zip')]
-    assert info["serial"] == 10001
+    r = testapp.xget(200, "/root/pypi/+simple/hello/")
+    (a_elem,) = r.html.select('a')
+    assert a_elem.text == 'hello-1.0.zip'
+    assert a_elem['href'].endswith('+e/https_pypi.org_hello/hello-1.0.zip')
+    assert r.headers['X-PYPI-LAST-SERIAL'] == '10001'
 
 
 @pytest.mark.parametrize("url, headers, selector, expected", [
