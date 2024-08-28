@@ -192,6 +192,10 @@ class MirrorStage(BaseStage):
         self.xom = xom
         self.offline = self.xom.config.offline_mode
         self.timeout = xom.config.request_timeout
+        # use a minimum of 30 seconds as timeout for remote server and
+        # 60 seconds when running as replica, because the list can be
+        # quite large and the primary might take a while to process it
+        self.projects_timeout = max(self.timeout, 60 if self.xom.is_replica() else 30)
         # list of locally mirrored projects
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         # used to log about stale projects only once
@@ -428,16 +432,12 @@ class MirrorStage(BaseStage):
         etag = self.cache_projectnames.get_etag()
         if etag is not None:
             headers["If-None-Match"] = etag
-        # use a minimum of 30 seconds as timeout for remote server and
-        # 60s when running as replica, because the list can be quite large
-        # and the primary might take a while to process it
-        if self.xom.is_replica():
-            timeout = max(self.timeout, 60)
-        else:
-            timeout = max(self.timeout, 30)
         response = self.httpget(
-            self.mirror_url_without_auth, allow_redirects=True,
-            extra_headers=headers, timeout=timeout)
+            self.mirror_url_without_auth,
+            allow_redirects=True,
+            extra_headers=headers,
+            timeout=self.projects_timeout,
+        )
         if response.status_code == 304:
             return (self.cache_projectnames.get(), etag)
         elif response.status_code != 200:
