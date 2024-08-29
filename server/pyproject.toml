@@ -11,7 +11,6 @@ extend-ignore = [
     "ARG002", # maybe cleanup later - unused method argument
     "ARG003", # cleanup soon - unused method argument
     "ARG005", # maybe cleanup later - unused lambda argument
-    "ASYNC109", # maybe cleanup later - unused lambda argument
     "B007", # maybe cleanup later
     "B008", # cleanup later
     "B904", # maybe cleanup later
