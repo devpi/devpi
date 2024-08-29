@@ -224,15 +224,16 @@ def wsgi_run(xom, app):
     return 0
 
 
-def get_caller_location():
+def get_caller_location(stacklevel=2):
     frame = inspect.currentframe()
     if frame is None:
         return 'unknown (no current frame)'
-    caller_frame = frame.f_back.f_back
-    return "%s:%s::%s" % (
-        caller_frame.f_code.co_filename,
-        caller_frame.f_lineno,
-        caller_frame.f_code.co_name)
+    while frame and stacklevel:
+        frame = frame.f_back
+        stacklevel -= 1
+    if frame is None:
+        return f"unknown (stacklevel {stacklevel})"
+    return f"{frame.f_code.co_filename}:{frame.f_lineno}::{frame.f_code.co_name}"
 
 
 class AsyncioLoopThread(object):
