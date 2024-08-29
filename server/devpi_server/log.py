@@ -27,6 +27,10 @@ def _configure_logging(config_args: argparse.Namespace) -> None:
         stream=sys.stdout)
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.setLevel(logging.ERROR)
+    httpx_log = logging.getLogger("httpx")
+    httpx_log.setLevel(logging.ERROR)
+    httpcore_log = logging.getLogger("httpcore")
+    httpcore_log.setLevel(logging.ERROR)
 
     logger_cfg_fn = getattr(config_args, "logger_cfg", None)
     if logger_cfg_fn:
