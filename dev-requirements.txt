@@ -12,7 +12,7 @@ match-diff-lines; python_version >= '3.9'
 mr.laforge
 mock
 mypy
-mypy-zope
+mypy-zope>=1.0.5
 pypitoken
 pytest
 pytest-asyncio

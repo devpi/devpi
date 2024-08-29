@@ -6,5 +6,13 @@ if test "$VIRTUAL_ENV" == ""; then
     exit 1
 fi
 
-pip uninstall -y devpi-{common,client,server,web}
-pip install -U --upgrade-strategy eager -r dev-requirements.txt
+if which uv; then
+    UNINSTALL_COMMAND="uv pip uninstall"
+    INSTALL_COMMAND="uv pip install --reinstall"
+else
+    UNINSTALL_COMMAND="pip uninstall -y"
+    INSTALL_COMMAND="pip install --upgrade-strategy eager"
+fi
+
+$UNINSTALL_COMMAND devpi-{common,client,server,web}
+$INSTALL_COMMAND -U -r dev-requirements.txt
