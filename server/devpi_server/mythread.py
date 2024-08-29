@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .log import threadlog
 import contextlib
 import threading
@@ -21,7 +23,7 @@ class Shutdown(Exception):
 
 def current_thread():
     systhread = threading.current_thread()
-    target = systhread._target
+    target = systhread._target  # type: ignore[attr-defined]
     if not isinstance(target, types.MethodType):
         return systhread
     thread = getattr(target.__self__, "thread", None)
@@ -31,6 +33,8 @@ def current_thread():
 
 
 class MyThread(threading.Thread):
+    pool: ThreadPool
+
     def sleep(self, secs):
         start = time.monotonic()
         remaining = secs
@@ -45,22 +49,19 @@ class MyThread(threading.Thread):
     def exit_if_shutdown(self):
         return self.pool.exit_if_shutdown()
 
-    def run(self):
+    def run(self) -> None:
         try:
-            result = threading.Thread.run(self)
-        except self.pool.Shutdown:
+            threading.Thread.run(self)
+        except (KeyboardInterrupt, self.pool.Shutdown):
             pass
-        except Exception as e:
-            threadlog.exception(
-                "Exception in thread '%s'", self.name)
+        except Exception as e:  # noqa: BLE001
+            threadlog.exception("Exception in thread '%s'", self.name)
             self.pool._fatal_exc = e
-        except BaseException as e:
-            threadlog.exception(
-                "Fatal exception in thread '%s'", self.name)
+        except BaseException as e:  # noqa: BLE001
+            threadlog.exception("Fatal exception in thread '%s'", self.name)
             self.pool._fatal_exc = e
         else:
             threadlog.info("Thread '%s' ended", self.name)
-            return result
         finally:
             self.pool._a_thread_ended.set()
 
@@ -109,12 +110,15 @@ class ThreadPool:
         try:
             self.start()
             while 1:
-                if self._a_thread_ended.wait(timeout=1):
-                    if self._fatal_exc is not None:
-                        raise self._fatal_exc
-                    if not main_thread.is_alive():
-                        break
-                    self._a_thread_ended.clear()
+                try:
+                    if self._a_thread_ended.wait(timeout=1):
+                        if self._fatal_exc is not None:
+                            raise self._fatal_exc
+                        if not main_thread.is_alive():
+                            break
+                        self._a_thread_ended.clear()
+                except KeyboardInterrupt:
+                    break
         finally:
             self.shutdown()
 

@@ -255,7 +255,9 @@ class AsyncioLoopThread(object):
         while 1:
             try:
                 self.loop.run_forever()
-            except Exception:
+            except KeyboardInterrupt:
+                pass
+            except Exception:  # noqa: BLE001
                 threadlog.exception("Exception in asyncio event loop")
             finally:
                 threadlog.info("The asyncio event loop stopped")

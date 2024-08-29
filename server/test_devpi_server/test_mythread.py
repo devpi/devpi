@@ -17,6 +17,8 @@ def test_basic_interact(pool, TimeoutQueue):
     queue2 = TimeoutQueue()
 
     class T:
+        thread: mythread.MyThread
+
         def thread_run(self):
             queue1.put(10)
             queue2.get()
@@ -40,6 +42,8 @@ def test_custom_shutdown(pool, TimeoutQueue):
     queue1 = TimeoutQueue()
 
     class T:
+        thread: mythread.MyThread
+
         def thread_shutdown(self):
             queue1.put(10)
 
@@ -60,6 +64,8 @@ def test_custom_shutdown(pool, TimeoutQueue):
 @pytest.mark.skipif('platform.python_implementation() == "PyPy"')
 def test_run(pool):
     class T:
+        thread: mythread.MyThread
+
         def thread_run(self):
             self.thread.sleep(100)
 
@@ -75,6 +81,8 @@ def test_run(pool):
 
 def test_start_one(pool):
     class T:
+        thread: mythread.MyThread
+
         def thread_run(self):
             self.thread.sleep(100)
 
