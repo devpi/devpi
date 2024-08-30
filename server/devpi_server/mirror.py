@@ -874,8 +874,9 @@ class MirrorStage(BaseStage):
                 if sm.yanked is not None and sm.yanked is not False:
                     verdata['yanked'] = sm.yanked
                 elinks = verdata.setdefault("+elinks", [])
-                entrypath = sm.path
-                elinks.append({"rel": "releasefile", "entrypath": entrypath})
+                elinks.append(
+                    dict(rel="releasefile", entrypath=sm.path, hash_spec=sm.hash_spec)
+                )
         if readonly:
             return ensure_deeply_readonly(verdata)
         return verdata
