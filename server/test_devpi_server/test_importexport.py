@@ -508,16 +508,17 @@ class TestImportExport:
             projects = stage.list_projects_perstage()
             assert projects == {'package': 'package'}
             links = sorted(
-                (x.key, x.href, x.require_python, x.yanked)
-                for x in stage.get_simplelinks_perstage("package"))
+                (x.key, x.path, x.require_python, x.yanked)
+                for x in stage.get_simplelinks_perstage("package")
+            )
             assert links == [
                 ('package-1.1.zip', f'root/pypi/+f/{hashdir1}/package-1.1.zip', None, None),
                 ('package-1.2.zip', f'root/pypi/+f/{hashdir2}/package-1.2.zip', None, ""),
                 ('package-2.0.zip', f'root/pypi/+f/{hashdir3}/package-2.0.zip', '>=3.5', None)]
 
     def test_mirrordata(self, impexp):
-        hash_spec = get_hashes(b"content").get_default_spec()
-        hashdir = "/".join(make_splitdir(hash_spec))
+        hashes = get_hashes(b"content")
+        hashdir = "/".join(make_splitdir(hashes.get_default_spec()))
         mapp = impexp.import_testdata('mirrordata')
         with mapp.xom.keyfs.read_transaction():
             stage = mapp.xom.model.getstage('root/pypi')
@@ -527,7 +528,11 @@ class TestImportExport:
             assert link.project == "dddttt"
             assert link.version == "0.1.dev1"
             assert link.relpath == f'root/pypi/+f/{hashdir}/dddttt-0.1.dev1.tar.gz'
-            assert link.entry.hash_spec == hash_spec
+            assert (
+                link.entrypath
+                == f"root/pypi/+f/{hashdir}/dddttt-0.1.dev1.tar.gz#{hashes.best_available_spec}"
+            )
+            assert link.entry.hashes.best_available_spec == hashes.best_available_spec
 
     def test_modifiedpypi(self, impexp):
         mapp = impexp.import_testdata('modifiedpypi')

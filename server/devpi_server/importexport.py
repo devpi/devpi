@@ -582,7 +582,10 @@ class Importer:
                 (_, links_with_data, serial) = stage._load_cache_links(project)
                 if links_with_data is None:
                     links_with_data = []
-                links = [(url.basename, entry.relpath)]
+                entrypath = entry.relpath
+                if hash_spec := entry.best_available_hash_spec:
+                    entrypath = f"{entrypath}#{hash_spec}"
+                links = [(url.basename, entrypath)]
                 requires_python = [versions[version].get('requires_python')]
                 yanked = [versions[version].get('yanked')]
                 for key, href, require_python, is_yanked in links_with_data:
