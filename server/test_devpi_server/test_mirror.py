@@ -408,6 +408,34 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 1
 
+    @pytest.mark.notransaction
+    def test_get_changed_releaselinks_across_tx(self, pypistage):
+        pypistage.mock_simple(
+            "pytest", pypiserial=1,
+            text='')
+        with pypistage.keyfs.read_transaction():
+            ret = pypistage.get_releaselinks("pytest")
+        assert ret == []
+        pypistage.mock_simple(
+            "pytest", pypiserial=1,
+            text='<a href="../../pkg/pytest-1.0.zip#md5={md5}" />')
+        with pypistage.keyfs.read_transaction():
+            ret = pypistage.get_releaselinks("pytest")
+        (link,) = ret
+        assert link.yanked is None
+        pypistage.mock_simple(
+            "pytest", pypiserial=1,
+            text='<a href="../../pkg/pytest-1.0.zip#md5={md5}" data-yanked="brownbag" />')
+        with pypistage.keyfs.read_transaction():
+            ret = pypistage.get_releaselinks("pytest")
+        (link,) = ret
+        assert link.yanked == "brownbag"
+        # now check that it was actually stored and not only from the parsed links
+        with pypistage.keyfs.read_transaction():
+            ret = pypistage.get_releaselinks("pytest")
+        (link,) = ret
+        assert link.yanked == "brownbag"
+
     def test_get_releaselinks_cache_refresh_on_lower_serial(self, pypistage, caplog):
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
