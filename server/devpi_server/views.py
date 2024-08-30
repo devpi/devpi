@@ -1188,7 +1188,7 @@ class PyPIView:
                         self.request.authenticated_userid,
                         src=self.context.stage.name,
                         dst=target_stage.name)
-                    yield (200, "store_toxresult", tlink.entrypath)
+                    yield (200, "store_toxresult", tlink.relpath)
         for link in links.get("doczip", ()):
             with link.entry.file_open_read() as doczip:
                 new_link = target_stage.store_doczip(
@@ -1882,7 +1882,8 @@ def iter_fetch_remote_file(stage, entry, url):
 
 
 def url_for_entrypath(request, entrypath):
-    parts = entrypath.split("/")
+    path = entrypath.split("#", 1)[0]
+    parts = path.split("/")
     user, index = parts[:2]
     assert parts[2] in ("+f", "+e")
     route_name = "/{user}/{index}/%s/{relpath:.*}" % parts[2]

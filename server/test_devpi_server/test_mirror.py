@@ -374,7 +374,7 @@ class TestExtPYPIDB:
         # originally it was scraped/crawled
         assert len(links) == 1
         assert links[0].entry.url == "https://pypi.org/pkg/pytest-1.0.zip"
-        assert links[0].entrypath.endswith("/pytest-1.0.zip")
+        assert links[0].relpath.endswith("/pytest-1.0.zip")
 
         links = pypistage.get_linkstore_perstage("pytest", "1.0").get_links()
         assert len(links) == 1
@@ -392,9 +392,9 @@ class TestExtPYPIDB:
         links = pypistage.get_releaselinks("pytest")
         assert len(links) == 2
         assert links[0].entry.url == "https://pypi.org/pkg/pytest-1.0.1.zip"
-        assert links[0].entrypath.endswith("/pytest-1.0.1.zip")
+        assert links[0].relpath.endswith("/pytest-1.0.1.zip")
         assert links[1].entry.url == "https://pypi.org/pkg/pytest-1.0.zip"
-        assert links[1].entrypath.endswith("/pytest-1.0.zip")
+        assert links[1].relpath.endswith("/pytest-1.0.zip")
 
     def test_parse_and_scrape_non_html_ignored(self, pypistage):
         pypistage.mock_simple("pytest", text='''

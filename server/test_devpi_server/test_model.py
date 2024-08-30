@@ -353,7 +353,7 @@ class TestStage:
         register_and_store(stage, "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         assert len(links) == 1
-        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.0.zip")
 
     def test_inheritance_error_are_nop(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
@@ -406,8 +406,7 @@ class TestStage:
 
     def test_project_versiondata_shadowed(self, pypistage, stage):
         stage.modify(bases=("root/pypi",), mirror_whitelist=['someproject'])
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.0.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.0.zip" />')
         content = b"123"
         register_and_store(stage, "someproject-1.0.zip", content)
         verdata = stage.get_versiondata("someproject", "1.0")
@@ -417,26 +416,24 @@ class TestStage:
 
     def test_project_whitelist(self, pypistage, stage):
         stage.modify(bases=("root/pypi",))
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.1.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.1.zip" />')
         register_and_store(stage, "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
-        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.0.zip")
         # if we add the project to the whitelist, we also get the release
         # from pypi
         stage.modify(mirror_whitelist=['someproject'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
-        assert links[0].entrypath.endswith("someproject-1.1.zip")
-        assert links[1].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.1.zip")
+        assert links[1].relpath.endswith("someproject-1.0.zip")
 
     def test_project_whitelist_empty_project(self, pypistage, stage):
         stage.modify(bases=("root/pypi",))
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.1.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.1.zip" />')
         stage.set_versiondata(udict(name="someproject", version="1.0"))
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we get
@@ -445,8 +442,7 @@ class TestStage:
 
     def test_project_whitelist_nothing_in_stage(self, pypistage, stage):
         stage.modify(bases=("root/pypi",))
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.1.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.1.zip" />')
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we get
         # no releases, because we only registered, but didn't upload
@@ -459,39 +455,37 @@ class TestStage:
         stage.modify(
             mirror_whitelist_inheritance="union",
             bases=(stage_dev2.name,))
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.1.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.1.zip" />')
         register_and_store(stage, "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
-        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.0.zip")
         # if we add the project to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(mirror_whitelist=['someproject'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
-        assert links[0].entrypath.endswith("someproject-1.1.zip")
-        assert links[1].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.1.zip")
+        assert links[1].relpath.endswith("someproject-1.0.zip")
 
     def test_project_whitelist_all(self, pypistage, stage):
         stage.modify(bases=("root/pypi",))
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.1.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.1.zip" />')
         register_and_store(stage, "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
-        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.0.zip")
         # if we allow all projects in the whitelist, we also get the release
         # from pypi
         stage.modify(mirror_whitelist=['*'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
-        assert links[0].entrypath.endswith("someproject-1.1.zip")
-        assert links[1].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.1.zip")
+        assert links[1].relpath.endswith("someproject-1.0.zip")
 
     def test_project_whitelist_all_inheritance(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
@@ -499,41 +493,39 @@ class TestStage:
         stage.modify(
             mirror_whitelist_inheritance="union",
             bases=(stage_dev2.name,))
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.1.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.1.zip" />')
         register_and_store(stage, "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
-        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.0.zip")
         # if we add all projects to the whitelist of the inherited index, we
         # also get the release from pypi
         stage_dev2.modify(mirror_whitelist=['*'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
-        assert links[0].entrypath.endswith("someproject-1.1.zip")
-        assert links[1].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.1.zip")
+        assert links[1].relpath.endswith("someproject-1.0.zip")
 
     def test_project_whitelist_inheritance_all(self, pypistage, stage, user):
         user.create_stage(index="dev2", bases=("root/pypi",))
         stage_dev2 = user.getstage("dev2")
         stage.modify(bases=(stage_dev2.name,))
-        pypistage.mock_simple("someproject",
-            "<a href='someproject-1.1.zip' /a>")
+        pypistage.mock_simple("someproject", '<a href="someproject-1.1.zip" />')
         register_and_store(stage, "someproject-1.0.zip", b"123")
         links = stage.get_releaselinks("someproject")
         # because the whitelist doesn't include "someproject" we only get
         # our upload
         assert len(links) == 1
-        assert links[0].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.0.zip")
         # if we add all projects to the whitelist of the inheriting index, we
         # also get the release from pypi
         stage.modify(mirror_whitelist=['*'])
         links = stage.get_releaselinks("someproject")
         assert len(links) == 2
-        assert links[0].entrypath.endswith("someproject-1.1.zip")
-        assert links[1].entrypath.endswith("someproject-1.0.zip")
+        assert links[0].relpath.endswith("someproject-1.1.zip")
+        assert links[1].relpath.endswith("someproject-1.0.zip")
 
     @pytest.mark.parametrize("setting, expected", [
         ('someproject', ['someproject']),
@@ -1361,7 +1353,7 @@ class TestLinkStore:
             rel="doczip", basename="proj1-1.0.doc.zip",
             content_or_file=b'123')
         link, = linkstore.get_links(rel="releasefile")
-        assert link.entrypath.endswith("proj1-1.0.zip")
+        assert link.relpath.endswith("proj1-1.0.zip")
 
     def test_toxresult_create_remove(self, linkstore):
         linkstore.create_linked_entry(
@@ -1371,7 +1363,7 @@ class TestLinkStore:
             rel="releasefile", basename="proj1-1.1.zip",
             content_or_file=b'456')
         (link1, link2) = linkstore.get_links(rel="releasefile")
-        assert link1.entrypath.endswith("proj1-1.0.zip")
+        assert link1.relpath.endswith("proj1-1.0.zip")
 
         tox_content1 = b'tox123'
         hash_spec1 = get_hashes(tox_content1).get_default_spec()
@@ -1381,10 +1373,10 @@ class TestLinkStore:
         linkstore.new_reflink(rel="toxresult", content_or_file=tox_content2, for_entrypath=link2)
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link1)
         assert rlink.hash_spec == hash_spec1
-        assert rlink.for_entrypath == link1.entrypath
+        assert rlink.for_entrypath == link1.relpath
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link2)
         assert rlink.hash_spec == hash_spec2
-        assert rlink.for_entrypath == link2.entrypath
+        assert rlink.for_entrypath == link2.relpath
 
         link1_entry = link1.entry  # queried below
 
@@ -1395,8 +1387,8 @@ class TestLinkStore:
         assert len(links) == 2
         assert links[0].rel == "releasefile"
         assert links[1].rel == "toxresult"
-        assert links[1].for_entrypath == links[0].entrypath
-        assert links[0].entrypath.endswith("proj1-1.1.zip")
+        assert links[1].for_entrypath == links[0].relpath
+        assert links[0].relpath.endswith("proj1-1.1.zip")
         assert not link1_entry.key.exists()
 
 

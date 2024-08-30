@@ -257,7 +257,7 @@ class IndexDump:
 
     def dump_releasefiles(self, linkstore):
         for link in linkstore.get_links(rel="releasefile"):
-            entry = self.exporter.filestore.get_file_entry(link.entrypath)
+            entry = self.exporter.filestore.get_file_entry(link.relpath)
             if not entry.last_modified:
                 continue
             if not entry.file_exists():
@@ -279,13 +279,15 @@ class IndexDump:
                 self.basedir.join(linkstore.project, reflink._hash_spec,
                                   tox_link.basename)
             )
-            self.add_filedesc(type="toxresult",
-                              project=linkstore.project,
-                              relpath=relpath,
-                              version=linkstore.version,
-                              entrymapping=tox_link.entry.meta,
-                              for_entrypath=reflink.entrypath,
-                              log=tox_link.get_logs())
+            self.add_filedesc(
+                type="toxresult",
+                project=linkstore.project,
+                relpath=relpath,
+                version=linkstore.version,
+                entrymapping=tox_link.entry.meta,
+                for_entrypath=reflink.relpath,
+                log=tox_link.get_logs(),
+            )
 
     def add_filedesc(self, type, project, relpath, **kw):
         if not self.exporter.basepath.join(relpath).check():

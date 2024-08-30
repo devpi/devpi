@@ -810,7 +810,8 @@ class BaseStage(object):
         return LinkStore(self, name, version, readonly=readonly)
 
     def get_link_from_entrypath(self, entrypath):
-        entry = self.xom.filestore.get_file_entry(entrypath)
+        relpath = entrypath.rsplit("#", 1)[0]
+        entry = self.xom.filestore.get_file_entry(relpath)
         if entry.project is None:
             return None
         linkstore = self.get_linkstore_perstage(entry.project,
@@ -1542,14 +1543,14 @@ def linkdictprop(name, default=notset):
 
 class ELink:
     """ model Link using entrypathes for referencing. """
-    __slots__ = ('_entry', 'basename', 'filestore', 'linkdict', 'project', 'version')
+
+    __slots__ = ("_basename", "_entry", "filestore", "linkdict", "project", "version")
 
     _log = linkdictprop("_log")
-    entrypath = linkdictprop("entrypath")
+    relpath = linkdictprop("entrypath")
     for_entrypath = linkdictprop("for_entrypath", default=None)
     _hash_spec = linkdictprop("hash_spec", default="")
     rel = linkdictprop("rel", default=None)
-    relpath = linkdictprop("entrypath")
     require_python = linkdictprop("require_python")
     yanked = linkdictprop("yanked")
 
@@ -1557,7 +1558,8 @@ class ELink:
         self._entry = notset
         self.filestore = filestore
         self.linkdict = linkdict
-        self.basename = posixpath.basename(self.entrypath)
+        if self.for_entrypath is not None:
+            assert "#" not in self.for_entrypath
         self.project = project
         self.version = version
 
@@ -1612,6 +1614,21 @@ class ELink:
             stacklevel=2)
         return self._hash_spec.split("=")[0]
 
+    @property
+    def basename(self):
+        _basename = getattr(self, "_basename", None)
+        if _basename is None:
+            _basename = self._basename = posixpath.basename(self.relpath)
+        return _basename
+
+    @property
+    def entrypath(self):
+        entrypath = self.relpath
+        hash_spec = self.best_available_hash_spec
+        if hash_spec:
+            return f"{entrypath}#{hash_spec}"
+        return entrypath
+
     def matches_checksum(self, content_or_file):
         hash_algo, hash_value = parse_hash_spec(self._hash_spec)
         if not hash_algo:
@@ -1625,7 +1642,7 @@ class ELink:
     @property
     def entry(self):
         if self._entry is notset:
-            self._entry = self.filestore.get_file_entry(self.entrypath)
+            self._entry = self.filestore.get_file_entry(self.relpath)
         return self._entry
 
     def add_log(self, what, who, **kw):
@@ -1688,7 +1705,9 @@ class LinkStore:
     def new_reflink(self, rel, content_or_file, for_entrypath,
                     *, filename=None, hashes=None, last_modified=None):
         if isinstance(for_entrypath, ELink):
-            for_entrypath = for_entrypath.entrypath
+            for_entrypath = for_entrypath.relpath
+        elif for_entrypath is not None:
+            assert "#" not in for_entrypath
         links = self.get_links(entrypath=for_entrypath)
         assert len(links) == 1, f"need exactly one reference, got {links}"
         base_entry = links[0].entry
@@ -1713,24 +1732,29 @@ class LinkStore:
         for link in del_links:
             link.entry.delete()
             linkdicts.remove(link.linkdict)
-            was_deleted.append(link.entrypath)
-            threadlog.info("deleted %r link %s", link.rel, link.entrypath)
+            was_deleted.append(link.relpath)
+            threadlog.info("deleted %r link %s", link.rel, link.relpath)
         if linkdicts:
-            for entrypath in was_deleted:
-                self.remove_links(for_entrypath=entrypath)
+            for relpath in was_deleted:
+                self.remove_links(for_entrypath=relpath)
         if was_deleted:
             self._mark_dirty()
 
     def get_links(self, rel=None, basename=None, entrypath=None,
                   for_entrypath=None):
         if isinstance(for_entrypath, ELink):
-            for_entrypath = for_entrypath.entrypath
+            for_entrypath = for_entrypath.relpath
+        elif for_entrypath is not None:
+            assert "#" not in for_entrypath
 
         def fil(link):
-            return (not rel or rel==link.rel) and \
-                   (not basename or basename==link.basename) and \
-                   (not entrypath or entrypath==link.entrypath) and \
-                   (not for_entrypath or for_entrypath==link.for_entrypath)
+            return (
+                (not rel or rel == link.rel)
+                and (not basename or basename == link.basename)
+                and (not entrypath or entrypath in (link.entrypath, link.relpath))
+                and (not for_entrypath or for_entrypath == link.for_entrypath)
+            )
+
         return list(filter(fil, [ELink(self.filestore, linkdict, self.project, self.version)
                            for linkdict in self.verdata.get("+elinks", [])]))
 
@@ -1753,7 +1777,9 @@ class LinkStore:
 
     def _add_link_to_file_entry(self, rel, file_entry, for_entrypath=None):
         if isinstance(for_entrypath, ELink):
-            for_entrypath = for_entrypath.entrypath
+            for_entrypath = for_entrypath.relpath
+        elif for_entrypath is not None:
+            assert "#" not in for_entrypath
         new_linkdict = {"rel": rel, "entrypath": file_entry.relpath,
                         "hash_spec": file_entry._hash_spec, "_log": []}
         if for_entrypath:
