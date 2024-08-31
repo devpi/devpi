@@ -1458,12 +1458,7 @@ class PyPIView:
         # getting the stage from context will cause 404 if stage is deleted
         stage = self.context.stage
 
-        # we need to add auth back to the url, as aiohttp doesn't include it
-        # in the response url, unlike requests did.
-        # we do it in _pkgserv now to avoid storing the credentials
-        # in the database and avoid changes in the db when mirror_url changes.
-        mirror_url_auth = getattr(stage, "mirror_url_auth", {})
-        url = URL(entry.url).replace(**mirror_url_auth)
+        url = URL(entry.url)
 
         file_exists = entry.file_exists()
         if entry.last_modified is None or not file_exists:
@@ -1472,7 +1467,13 @@ class PyPIView:
             if stage.use_external_url:
                 # The file is in a mirror and either deleted or not
                 # yet downloaded. Redirect to external url
-                return HTTPFound(location=URL(url).url)
+                # we need to add auth back to the url, as httpx doesn't include it
+                # in the response url
+                # we do it in _pkgserv now to avoid storing the credentials
+                # in the database and avoid changes in the db when mirror_url changes.
+                mirror_url_auth = getattr(stage, "mirror_url_auth", {})
+                url = url.replace(**mirror_url_auth)
+                return HTTPFound(location=url.url)
             if stage.ixconfig['type'] != "mirror" and not file_exists and not self.xom.is_replica():
                 # return error when private file is missing and not in
                 # replica mode, otherwise fall through to fetch file
