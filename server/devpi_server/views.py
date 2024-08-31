@@ -1104,7 +1104,8 @@ class PyPIView:
             logs = link.get_logs()
             del link
             if should_fetch_remote_file(entry, self.request.headers):
-                list(iter_fetch_remote_file(stage, entry, entry.url))
+                for _data in iter_fetch_remote_file(stage, entry, entry.url):
+                    pass
             with entry.file_open_read() as f:
                 new_link = target_stage.store_releasefile(
                     name, version, entry.basename, f,
