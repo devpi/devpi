@@ -567,6 +567,7 @@ class Importer:
                 link = stage.store_releasefile(
                     project, version,
                     p.basename, f,
+                    hashes=hashes,
                     last_modified=mapping["last_modified"])
                 entry = link.entry
             else:  # mirrors
@@ -574,7 +575,8 @@ class Importer:
                 url = URL(mapping['url']).replace(fragment=hashes.best_available_spec)
                 entry = self.xom.filestore.maplink(
                     url, stage.username, stage.index, project)
-                entry.file_set_content(f, last_modified=mapping["last_modified"])
+                entry.file_set_content(
+                    f, hashes=hashes, last_modified=mapping["last_modified"])
                 (_, links_with_data, serial) = stage._load_cache_links(project)
                 if links_with_data is None:
                     links_with_data = []
@@ -597,7 +599,7 @@ class Importer:
             # docs didn't always have entrymapping in export dump
             last_modified = mapping.get("last_modified")
             link = stage.store_doczip(
-                project, version, f, last_modified=last_modified)
+                project, version, f, hashes=hashes, last_modified=last_modified)
         elif filedesc["type"] == "toxresult":
             linkstore = stage.get_linkstore_perstage(
                 filedesc["projectname"], filedesc["version"])
@@ -609,7 +611,7 @@ class Importer:
             link, = linkstore.get_links(basename=basename)
             link = stage.store_toxresult(
                 link, f, filename=posixpath.basename(filedesc["relpath"]),
-                last_modified=last_modified)
+                hashes=hashes, last_modified=last_modified)
         else:
             msg = f"unknown file type: {type}"
             raise Fatal(msg)

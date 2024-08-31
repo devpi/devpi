@@ -43,6 +43,7 @@ from .exceptions import lazy_format_exception_only
 from .filestore import BadGateway
 from .filestore import RunningHashes
 from .filestore import get_checksum_error
+from .filestore import get_hashes
 from .filestore import get_seekable_content_or_file
 from .fileutil import buffered_iterator
 from .keyfs import KeyfsTimeoutError
@@ -595,7 +596,9 @@ class PyPIView:
         # the getjson call validates that we got valid json
         getjson(self.request)
         # but we store the original body
-        tox_link = stage.store_toxresult(link, self.request.body)
+        toxresultdata = self.request.body
+        hashes = get_hashes(toxresultdata)
+        tox_link = stage.store_toxresult(link, toxresultdata, hashes=hashes)
         tox_link.add_log(
             'upload', self.request.authenticated_userid, dst=stage.name)
         apireturn(200, type="toxresultpath",
@@ -1125,9 +1128,13 @@ class PyPIView:
             if should_fetch_remote_file(entry, self.request.headers):
                 for _data in iter_fetch_remote_file(stage, entry, entry.url):
                     pass
+                # re-get entry for current metadata which might have
+                # added hashes if a file had to be streamed from a remote
+                entry = self.xom.filestore.get_file_entry(entry.relpath)
             with entry.file_open_read() as f:
                 new_link = target_stage.store_releasefile(
                     name, version, entry.basename, f,
+                    hashes=entry.hashes,
                     last_modified=entry.last_modified)
             new_link.add_logs(
                 x for x in logs
@@ -1145,7 +1152,8 @@ class PyPIView:
                 if toxlink.for_entrypath == entry.relpath:
                     ref_link = tstore.get_links(entrypath=new_entry.relpath)[0]
                     with toxlink.entry.file_open_read() as f:
-                        tlink = target_stage.store_toxresult(ref_link, f)
+                        tlink = target_stage.store_toxresult(
+                            ref_link, f, hashes=toxlink.entry.hashes)
                     tlink.add_logs(
                         x for x in toxlink.get_logs()
                         if x.get('what') != 'overwrite')
@@ -1157,7 +1165,8 @@ class PyPIView:
                     yield (200, "store_toxresult", tlink.entrypath)
         for link in links["doczip"]:
             with link.entry.file_open_read() as doczip:
-                new_link = target_stage.store_doczip(name, version, doczip)
+                new_link = target_stage.store_doczip(
+                    name, version, doczip, hashes=link.entry.hashes)
             new_link.add_logs(link.get_logs())
             new_link.add_log(
                 'push',
@@ -1198,6 +1207,7 @@ class PyPIView:
             abort_submit(request, 400, "content file field not found")
         content_filename = _content.filename
         content_file = get_seekable_content_or_file(_content.file)
+        hashes = get_hashes(content_file)
         name = ensure_unicode(request.POST["name"])
         # version may be empty on plain doczip uploads
         version = ensure_unicode(request.POST.get("version") or "")
@@ -1218,7 +1228,7 @@ class PyPIView:
             try:
                 link = stage.store_releasefile(
                     project, version,
-                    content_filename, content_file)
+                    content_filename, content_file, hashes=hashes)
             except stage.NonVolatile as e:
                 if e.link.matches_checksum(content_file):
                     abort_submit(
@@ -1241,7 +1251,8 @@ class PyPIView:
             if "version" in request.POST:
                 self._update_versiondata_form(stage, request.POST)
             try:
-                link = stage.store_doczip(project, version, content_file)
+                link = stage.store_doczip(
+                    project, version, content_file, hashes=hashes)
             except stage.MissesVersion as e:
                 abort_submit(
                     request, 400,
@@ -1683,6 +1694,8 @@ class FileStreamer:
             self.f.write(data)
             yield data
 
+        self.hashes = running_hashes.digests
+
         if content_size and int(content_size) != filesize:
             raise ValueError(
                 "%s: got %s bytes of %r from remote, expected %s" % (
@@ -1735,7 +1748,8 @@ def iter_cache_remote_file(stage, entry, url):
                 entry.file_set_content(
                     f,
                     last_modified=r.headers.get("last-modified", None),
-                    hash_spec=entry.hash_spec)
+                    hash_spec=entry.hash_spec,
+                    hashes=file_streamer.hashes)
                 if entry.project:
                     stage = xom.model.getstage(entry.user, entry.index)
                     # for mirror indexes this makes sure the project is in the database

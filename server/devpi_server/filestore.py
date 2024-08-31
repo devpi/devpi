@@ -341,7 +341,7 @@ class FileStore:
     def get_file_entry_from_key(self, key, meta=_nodefault, readonly=True):
         return FileEntry(key, meta=meta, readonly=readonly)
 
-    def store(self, user, index, basename, content_or_file, dir_hash_spec=None):
+    def store(self, user, index, basename, content_or_file, *, dir_hash_spec=None, hashes=None):
         # dir_hash_spec is set for toxresult files
         if dir_hash_spec is None:
             dir_hash_spec = get_default_hash_spec(content_or_file)
@@ -350,7 +350,7 @@ class FileStore:
             user=user, index=index,
             hashdir_a=hashdir_a, hashdir_b=hashdir_b, filename=basename)
         entry = FileEntry(key, readonly=False)
-        entry.file_set_content(content_or_file)
+        entry.file_set_content(content_or_file, hashes=hashes)
         return entry
 
 
@@ -471,13 +471,19 @@ class FileEntry(object):
     def file_os_path(self):
         return self.tx.conn.io_file_os_path(self._storepath)
 
-    def file_set_content(self, content_or_file, *, last_modified=None, hash_spec=None):
+    def file_set_content(self, content_or_file, *, last_modified=None, hash_spec=None, hashes=None):
         if last_modified != -1:
             if last_modified is None:
                 last_modified = unicode_if_bytes(format_date_time(None))
             self.last_modified = last_modified
+        hashes = Digests() if hashes is None else Digests(hashes)
+        if hash_spec:
+            hashes.add_spec(hash_spec)
+        missing_hash_types = hashes.get_missing_hash_types()
+        if missing_hash_types:
+            hashes.update(get_hashes(content_or_file, hash_types=missing_hash_types))
         if not hash_spec:
-            hash_spec = get_default_hash_spec(content_or_file)
+            hash_spec = hashes.get_default_spec()
         self.hash_spec = hash_spec
         self.tx.conn.io_file_set(self._storepath, content_or_file)
         # we make sure we always refresh the meta information
