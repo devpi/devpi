@@ -73,10 +73,9 @@ class TestStatusInfoPlugin:
         assert not xom.is_replica()
         assert result == []
 
-    @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
-    @pytest.mark.with_replica_thread
     @pytest.mark.with_notifier
-    def test_no_issue_replica(self, plugin, xom):
+    def test_no_issue_replica(self, makexom, plugin):
+        xom = makexom(["--primary=http://localhost"])
         request = self._xomrequest(xom)
         serial = xom.keyfs.get_current_serial()
         xom.keyfs.notifier.wait_event_serial(serial)
@@ -246,12 +245,11 @@ class TestStatusInfoPlugin:
             status='fatal',
             msg='No contact to primary for more than 5 minutes')]
 
-    @pytest.mark.xfail(reason="sometimes fail due to race condition in db table creation")
-    @pytest.mark.with_replica_thread
-    @pytest.mark.with_notifier
-    def test_no_primary_update(self, plugin, xom, monkeypatch):
+    @pytest.mark.start_threads
+    def test_no_primary_update(self, makexom, plugin, monkeypatch):
         import time
         now = time.time()
+        xom = makexom(["--primary=http://localhost"])
         request = self._xomrequest(xom)
         serial = xom.keyfs.get_current_serial()
         xom.keyfs.notifier.wait_event_serial(serial)

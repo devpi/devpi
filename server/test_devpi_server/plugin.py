@@ -59,9 +59,6 @@ def pytest_configure(config):
         "with_notifier: use the notifier thread")
     config.addinivalue_line(
         "markers",
-        "with_replica_thread: start the replica thread")
-    config.addinivalue_line(
-        "markers",
         "writetransaction: start with a write transaction")
 
 
@@ -313,8 +310,6 @@ def makexom(request, gen_path, httpget, monkeypatch, storage_args, storage_plugi
             fullopts = ["devpi-server"] + list(opts)
         else:
             fullopts = ["devpi-server", "--serverdir", serverdir] + list(opts)
-        if request.node.get_closest_marker("with_replica_thread"):
-            fullopts.append("--primary-url=http://localhost")
         if not request.node.get_closest_marker("no_storage_option"):
             fullopts.extend(storage_args(serverdir))
         fullopts = [str(x) for x in fullopts]
@@ -343,8 +338,6 @@ def makexom(request, gen_path, httpget, monkeypatch, storage_args, storage_plugi
         from devpi_server.main import init_default_indexes
         if not xom.config.primary_url:
             init_default_indexes(xom)
-        if xom.is_replica() and request.node.get_closest_marker("with_replica_thread"):
-            xom.thread_pool.start_one(xom.replica_thread)
         if request.node.get_closest_marker("start_threads"):
             xom.thread_pool.start()
         elif request.node.get_closest_marker("with_notifier"):
