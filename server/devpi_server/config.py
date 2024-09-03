@@ -244,14 +244,6 @@ def add_replica_options(parser, pluginmanager):
     add_hard_links_option(parser, pluginmanager)
 
     parser.addoption(
-        "--replica-cert", action="store", dest="replica_cert",
-        metavar="pem_file",
-        help="when running as a replica, use the given .pem file as the "
-             "SSL client certificate to authenticate to the server "
-             "(EXPERIMENTAL)",
-        default=None)
-
-    parser.addoption(
         "--file-replication-threads", type=int, metavar="NUM",
         default=DEFAULT_FILE_REPLICATION_THREADS,
         help="number of threads for file download from primary")
@@ -877,10 +869,6 @@ class Config(object):
     @property
     def hard_links(self):
         return getattr(self.args, 'hard_links', False)
-
-    @property
-    def replica_cert(self):
-        return getattr(self.args, 'replica_cert', None)
 
     @property
     def replica_file_search_path(self):

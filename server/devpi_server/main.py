@@ -455,9 +455,9 @@ class XOM:
         return keyfs
 
     def new_http_session(self, component_name, max_retries=None):
-        session = new_requests_session(agent=(component_name, server_version), max_retries=max_retries)
-        session.cert = self.config.replica_cert
-        return session
+        return new_requests_session(
+            agent=(component_name, server_version), max_retries=max_retries
+        )
 
     @cached_property
     def _httpsession(self):
