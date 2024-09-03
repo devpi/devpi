@@ -16,12 +16,6 @@ except ImportError:
     from devpi_server.main import fatal  # noqa: F401
 
 
-try:
-    from test_devpi_server.plugin import make_file_url
-except ImportError:
-    from test_devpi_server.conftest import make_file_url  # noqa: F401
-
-
 def get_entry_hash_spec(entry):
     return (
         entry.best_available_hash_spec

@@ -1,11 +1,16 @@
 from bs4 import BeautifulSoup
 from devpi_common.metadata import parse_version
 from devpi_server import __version__ as _devpi_server_version
-from devpi_web.compat import make_file_url
 from devpi_web.main import hookimpl
 from functools import partial
 import pytest
 import re
+
+
+try:
+    from test_devpi_server.plugin import make_file_url
+except ImportError:
+    from test_devpi_server.conftest import make_file_url  # type: ignore[no-redef]
 
 
 devpi_server_version = parse_version(_devpi_server_version)
