@@ -967,6 +967,30 @@ class TestSubmitValidation:
         assert data["projects"] == ["pkg5"]
         mapp.get_release_paths("Pkg5")
 
+    @pytest.mark.notransaction
+    def test_upload_delete_upload_again(self, mapp):
+        mapp.create_and_use("cuser8/dev")
+        content = b"content"
+        mapp.upload_file_pypi(
+            "pkg-1.1.whl", content, "pkg", "1.1", register=False, set_whitelist=False
+        )
+        mapp.upload_file_pypi(
+            "pkg-1.1.tar.gz", content, "pkg", "1.1", register=False, set_whitelist=False
+        )
+        info = mapp.getjson("/%s/pkg" % mapp.api.stagename)
+        links = [x["href"] for x in info["result"]["1.1"]["+links"]]
+        assert len(links) == 2
+        mapp.delete_project("pkg")
+        mapp.upload_file_pypi(
+            "pkg-1.1.whl", content, "pkg", "1.1", register=False, set_whitelist=False
+        )
+        mapp.upload_file_pypi(
+            "pkg-1.1.tar.gz", content, "pkg", "1.1", register=False, set_whitelist=False
+        )
+        info = mapp.getjson("/%s/pkg" % mapp.api.stagename)
+        links = [x["href"] for x in info["result"]["1.1"]["+links"]]
+        assert len(links) == 2, links
+
     def test_upload_file_metadata(self, submit, mapp):
         metadata = {"name": "Pkg5", "version": "1.0", ":action": "submit"}
         # submit with description
