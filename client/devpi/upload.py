@@ -350,6 +350,8 @@ class Checkout:
         for fn in files:
             source = self.rootpath / fn
             dest = newrepo / fn
+            if os.path.isdir(source):
+                continue
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, dest, follow_symlinks=False)
         self.hub.debug("copied", len(files), "files to", newrepo)
