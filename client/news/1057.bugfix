@@ -1,0 +1,1 @@
+Fix #1057: PermissionError during upload due to trying to copy a folder like a file.
