@@ -355,10 +355,6 @@ def add_secretfile_option(parser, pluginmanager):
              "validation. If not specified, a random secret is "
              "generated on each start up.")
 
-
-def add_deploy_options(parser, pluginmanager):
-    add_secretfile_option(parser, pluginmanager)
-
     parser.addoption(
         "--argon2-memory-cost", type=int, default=DEFAULT_ARGON2_MEMORY_COST,
         help=argparse.SUPPRESS)
@@ -370,6 +366,10 @@ def add_deploy_options(parser, pluginmanager):
     parser.addoption(
         "--argon2-time-cost", type=int, default=DEFAULT_ARGON2_TIME_COST,
         help=argparse.SUPPRESS)
+
+
+def add_deploy_options(parser, pluginmanager):
+    add_secretfile_option(parser, pluginmanager)
 
     parser.addoption(
         "--requests-only", action="store_true",
