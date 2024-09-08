@@ -101,6 +101,8 @@ def unpack_docs(stage, name, version, entry):
             except py.error.ENOENT:
                 # there is a rare possibility of a race condition here
                 pass
+        if not entry.file_exists():
+            return unpack_path
         with entry.file_open_read() as f:
             with Archive(f) as archive:
                 archive.extract(unpack_path)

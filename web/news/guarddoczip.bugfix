@@ -1,0 +1,1 @@
+Guard against missing doczip files, which can happen on replicas during replication.
