@@ -1,1 +1,0 @@
-Increase threshold for index status from 60 s to 300 s for warnings and from 300 s to 3600 s for fatal.

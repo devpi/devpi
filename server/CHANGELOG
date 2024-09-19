@@ -2,6 +2,41 @@
 
 .. towncrier release notes start
 
+6.13.0 (2024-09-19)
+===================
+
+Deprecations and Removals
+-------------------------
+
+- Remove/Deprecate "master" related terminology in favor of "primary".
+  Usage related changes are the switch to ``--primary-url`` instead of ``--master-url`` and ``--role=primary`` instead of ``--role=master``.
+  Using the old terms will now output warnings.
+  The ``+status`` API has additional fields and the ``role`` field content will change with 7.0.0.
+
+
+
+Features
+--------
+
+- Enable logging command line options for all commands.
+
+- Added support uv pip as an installer.
+
+
+
+Bug Fixes
+---------
+
+- Don't report on lagging event processing while replicating.
+
+- Report primary serial correctly with streaming replication.
+
+- Don't store file data in memory when fetching a release while pushing from a mirror.
+
+- Only warn about replica not being in sync instead of fatal status while still replicating.
+
+
+
 6.12.1 (2024-07-24)
 ===================
 

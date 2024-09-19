@@ -1,4 +1,0 @@
-Remove/Deprecate "master" related terminology in favor of "primary".
-Usage related changes are the switch to ``--primary-url`` instead of ``--master-url`` and ``--role=primary`` instead of ``--role=master``.
-Using the old terms will now output warnings.
-The ``+status`` API has additional fields and the ``role`` field content will change with 7.0.0.

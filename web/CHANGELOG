@@ -2,6 +2,22 @@
 
 .. towncrier release notes start
 
+4.2.3 (2024-09-19)
+==================
+
+Bug Fixes
+---------
+
+- Fix deprecation warnings from devpi-server 6.13.0.
+
+- Lazily evaluate file information. Especially with devpi-postgresql this safes many database accesses on most pages.
+
+- Guard against missing doczip files, which can happen on replicas during replication.
+
+- Increase threshold for index status from 60 s to 300 s for warnings and from 300 s to 3600 s for fatal.
+
+
+
 4.2.2 (2024-04-20)
 ==================
 

@@ -1,1 +1,0 @@
-Don't store file data in memory when fetching a release while pushing from a mirror.

@@ -1,1 +1,0 @@
-Lazily evaluate file information. Especially with devpi-postgresql this safes many database accesses on most pages.

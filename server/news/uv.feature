@@ -1,1 +1,0 @@
-Added support uv pip as an installer.
