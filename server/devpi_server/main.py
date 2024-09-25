@@ -365,9 +365,11 @@ class XOM:
 
     @cached_property
     def supported_features(self):
-        results = set((
+        results = {
+            'push-no-docs',
+            'push-only-docs',
             'server-keyvalue-parsing',
-        ))
+        }
         for features in self.config.hook.devpiserver_get_features():
             results.update(features)
         return tuple(sorted(results))

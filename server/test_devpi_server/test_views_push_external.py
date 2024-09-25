@@ -73,6 +73,43 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     assert result[0][1] == 'register'
 
 
+def test_upload_and_push_external_no_docs(mapp, testapp, reqmock):
+    from devpi_server.filestore import relpath_prefix
+    api = mapp.create_and_use()
+    content = b"123"
+    hashdir = relpath_prefix(content)
+    mapp.upload_file_pypi("pkg1-2.6.tgz", content, "pkg1", "2.6")
+    zipcontent = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password", no_docs=True)
+    reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
+    body = json.dumps(req).encode()
+    r = testapp.request(api.index, method="POST", body=body)
+    assert r.status_code == 200
+    (action_register, action_upload) = r.json["result"]
+    assert action_register == [200, 'register', 'pkg1', '2.6']
+    assert action_upload == [
+        200, 'upload', f'user1/dev/+f/{hashdir}/pkg1-2.6.tgz', '']
+
+
+def test_upload_and_push_external_only_docs(mapp, testapp, reqmock):
+    api = mapp.create_and_use()
+    content = b"123"
+    mapp.upload_file_pypi("pkg1-2.6.tgz", content, "pkg1", "2.6")
+    zipcontent = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", zipcontent, "pkg1", "")
+    req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
+               username="user", password="password", only_docs=True)
+    reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
+    body = json.dumps(req).encode()
+    r = testapp.request(api.index, method="POST", body=body)
+    assert r.status_code == 200
+    (action_register, action_docfile) = r.json["result"]
+    assert action_register == [200, 'register', 'pkg1', '2.6']
+    assert action_docfile == [200, 'docfile', 'pkg1']
+
+
 def test_upload_and_push_external_exception(mapp, testapp, reqmock):
     import requests
     api = mapp.create_and_use()

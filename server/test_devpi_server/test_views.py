@@ -1389,6 +1389,55 @@ def test_upload_docs_for_version_without_release(mapp, testapp, monkeypatch):
     mapp.upload_doc("pkg1-2.7.doc.zip", b'', "pkg1", "2.7")
 
 
+def test_upload_and_push_docs_only(mapp, testapp):
+    mapp.create_and_login_user()
+    mapp.create_index("prod")
+    mapp.create_index("dev")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    content26 = zip_dict({"index.html": "<html><body>2.6</body></html>"})
+    mapp.upload_doc("pkg1.zip", content26, "pkg1", "")
+    mapp.upload_file_pypi("pkg1-2.7.tgz", b"123", "pkg1", "2.7")
+    content27 = zip_dict({"index.html": "<html><body>2.7</body></html>"})
+    mapp.upload_doc("pkg1.zip", content27, "pkg1", "")
+    req = dict(name="pkg1", version="2.6", targetindex="someuser/prod", only_docs=True)
+    testapp.post("/someuser/dev", params=json.dumps(req), code=200)
+    vv = get_view_version_links(testapp, "/someuser/prod", "pkg1", "2.6")
+    (link,) = vv.get_links()
+    assert link.basename == "pkg1-2.6.doc.zip"
+    assert link.rel == "doczip"
+    mapp.getjson("/someuser/prod/2.7", code=404)
+
+
+def test_upload_and_push_no_docs(mapp, testapp):
+    mapp.create_and_login_user()
+    mapp.create_index("prod")
+    mapp.create_index("dev")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    content26 = zip_dict({"index.html": "<html><body>2.6</body></html>"})
+    mapp.upload_doc("pkg1.zip", content26, "pkg1", "")
+    mapp.upload_file_pypi("pkg1-2.7.tgz", b"123", "pkg1", "2.7")
+    content27 = zip_dict({"index.html": "<html><body>2.7</body></html>"})
+    mapp.upload_doc("pkg1.zip", content27, "pkg1", "")
+    req = dict(name="pkg1", version="2.6", targetindex="someuser/prod", no_docs=True)
+    testapp.post("/someuser/dev", params=json.dumps(req), code=200)
+    vv = get_view_version_links(testapp, "/someuser/prod", "pkg1", "2.6")
+    (link,) = vv.get_links()
+    assert link.basename == "pkg1-2.6.tgz"
+    assert link.rel == "releasefile"
+    mapp.getjson("/someuser/prod/2.7", code=404)
+
+
+def test_upload_and_push_no_docs_and_only_docs(mapp, testapp):
+    mapp.create_and_login_user()
+    mapp.create_index("dev")
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    content26 = zip_dict({"index.html": "<html><body>2.6</body></html>"})
+    mapp.upload_doc("pkg1.zip", content26, "pkg1", "")
+    req = dict(name="pkg1", version="2.6", targetindex="someuser/prod", no_docs=True, only_docs=True)
+    r = testapp.post("/someuser/dev", params=json.dumps(req), code=400)
+    assert r.json["message"] == "can't use 'no_docs' and 'only_docs' together"
+
+
 @proj
 def test_upload_and_push_internal(mapp, testapp, proj):
     mapp.create_user("user1", "1")

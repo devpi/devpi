@@ -141,7 +141,7 @@ class HTTPResponse(HTTPSuccessful):
         Exception.__init__(self)
 
 
-def apireturn(code, message=None, result=None, type=None):
+def apiresult(code, message=None, result=None, type=None):  # noqa: A002
     d = dict()
     if result is not None:
         assert type is not None
@@ -151,7 +151,11 @@ def apireturn(code, message=None, result=None, type=None):
         d["message"] = message
     data = json.dumps(d, indent=2) + "\n"
     headers = {"content-type": "application/json"}
-    raise HTTPResponse(body=data, status=code, headers=headers)
+    return HTTPResponse(body=data, status=code, headers=headers)
+
+
+def apireturn(code, message=None, result=None, type=None):  # noqa: A002
+    raise apiresult(code, message=message, result=result, type=type)
 
 
 def json_preferred(request):
@@ -1007,8 +1011,8 @@ class PyPIView:
         stage = self.context.stage
         pushdata = getjson(request)
         try:
-            name = pushdata["name"]
-            version = pushdata["version"]
+            name = pushdata.pop("name")
+            version = pushdata.pop("version")
         except KeyError:
             apireturn(400, message="no name/version specified in json")
 
@@ -1018,9 +1022,18 @@ class PyPIView:
         except stage.MissesRegistration:
             apireturn(400, "there are no files for %s-%s on stage %s" % (
                 name, version, stage.name))
+        rels = {'releasefile', 'doczip', 'toxresult'}
+        no_docs = pushdata.pop("no_docs", False)
+        only_docs = pushdata.pop("only_docs", False)
+        if no_docs and only_docs:
+            return apiresult(400, "can't use 'no_docs' and 'only_docs' together")
+        if no_docs:
+            rels.remove('doczip')
+        elif only_docs:
+            rels = {'doczip'}
         links = {
             rel: sorted(linkstore.get_links(rel=rel), key=attrgetter('basename'))
-            for rel in ('releasefile', 'doczip', 'toxresult')}
+            for rel in rels}
         if not any(links.values()):
             self.log.info("%s: no files for version %s %s", stage.name, name, version)
             apireturn(404, f"no release/files found for {name} {version}")
@@ -1031,8 +1044,11 @@ class PyPIView:
         metadata = linkstore.metadata
 
         results = []
-        targetindex = pushdata.get("targetindex", None)
+        targetindex = pushdata.pop("targetindex", None)
         if targetindex is not None:  # in-server push
+            if pushdata:
+                keys = ', '.join(sorted(pushdata.keys()))
+                return apiresult(400, f"unknown additional options: {keys}")
             parts = targetindex.split("/")
             if len(parts) != 2:
                 apireturn(400, message="targetindex not in format user/index")
@@ -1077,7 +1093,7 @@ class PyPIView:
                 ok_codes = (200, 201, 410)
                 proceed = (r.status_code in ok_codes)
                 if proceed:
-                    for link in links["releasefile"]:
+                    for link in links.get("releasefile", ()):
                         entry = link.entry
                         file_metadata = metadata.copy()
                         file_metadata[":action"] = "file_upload"
@@ -1104,7 +1120,7 @@ class PyPIView:
                             results.append((
                                 r.status_code, "upload", entry.relpath, text))
                             r.close()
-                    if links["doczip"]:
+                    if links.get("doczip", ()):
                         doc_metadata = metadata.copy()
                         doc_metadata[":action"] = "doc_upload"
                         doczip = links["doczip"][0].entry.file_get_content()
@@ -1126,7 +1142,7 @@ class PyPIView:
 
     def _push_links(self, links, target_stage, name, version):
         stage = self.context.stage
-        for link in links["releasefile"]:
+        for link in links.get("releasefile", ()):
             entry = link.entry
             logs = link.get_logs()
             del link
@@ -1168,7 +1184,7 @@ class PyPIView:
                         src=self.context.stage.name,
                         dst=target_stage.name)
                     yield (200, "store_toxresult", tlink.entrypath)
-        for link in links["doczip"]:
+        for link in links.get("doczip", ()):
             with link.entry.file_open_read() as doczip:
                 new_link = target_stage.store_doczip(
                     name, version, doczip, hashes=link.entry.hashes)
