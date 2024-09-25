@@ -1,0 +1,1 @@
+Allow pushing of versions which only have documentation and no releases.

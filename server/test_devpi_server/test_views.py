@@ -1390,7 +1390,7 @@ def test_upload_docs_for_version_without_release(mapp, testapp, monkeypatch):
 
 
 @proj
-def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
+def test_upload_and_push_internal(mapp, testapp, proj):
     mapp.create_user("user1", "1")
     mapp.create_and_login_user("user2")
     mapp.create_index("prod", indexconfig=dict(acl_upload=["user1", "user2"]))
@@ -1447,6 +1447,42 @@ def test_upload_and_push_internal(mapp, testapp, monkeypatch, proj):
     vv = shadows[0]
     link = vv.get_link(rel="releasefile")
     assert link.href.endswith("/pkg1-2.6.tgz")
+
+
+@proj
+def test_upload_and_push_internal_no_releases_but_docs(mapp, testapp, proj):
+    mapp.create_user("user1", "1")
+    mapp.create_and_login_user("user2")
+    mapp.create_index("prod", indexconfig=dict(acl_upload=["user1", "user2"]))
+    mapp.create_index("dev", indexconfig=dict(acl_upload=["user2"]))
+
+    mapp.login("user1", "1")
+    mapp.create_index("dev")
+    mapp.use("user1/dev")
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6")
+
+    # check that push is authorized and executed towards user2/prod index
+    req = dict(name="pkg1", version="2.6", targetindex="user2/prod")
+    r = testapp.push("/user1/dev", json.dumps(req))
+    assert r.status_code == 200
+    vv = get_view_version_links(testapp, "/user2/prod", "pkg1", "2.6",
+                                proj=proj)
+    (link,) = vv.get_links()
+    assert link.rel == "doczip"
+    history_log = link.log
+    assert len(history_log) == 2
+    assert history_log[0]['what'] == 'upload'
+    assert history_log[0]['who'] == 'user1'
+    assert history_log[0]['dst'] == 'user1/dev'
+    assert history_log[1]['what'] == 'push'
+    assert history_log[1]['who'] == 'user1'
+    assert history_log[1]['src'] == 'user1/dev'
+    assert history_log[1]['dst'] == 'user2/prod'
+    assert link.href.endswith("/pkg1-2.6.doc.zip")
+    r = testapp.get(link.href)
+    archive = Archive(BytesIO(r.body))
+    assert 'index.html' in archive.namelist()
 
 
 def test_acl_toxresults_upload(mapp, testapp, tox_result_data):

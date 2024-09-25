@@ -1021,11 +1021,9 @@ class PyPIView:
         links = {
             rel: sorted(linkstore.get_links(rel=rel), key=attrgetter('basename'))
             for rel in ('releasefile', 'doczip', 'toxresult')}
-        if not links["releasefile"]:
-            self.log.info("%s: no release files for version %s-%s" %
-                          (stage.name, name, version))
-            apireturn(404, message="no release/files found for %s-%s" % (
-                name, version))
+        if not any(links.values()):
+            self.log.info("%s: no files for version %s %s", stage.name, name, version)
+            apireturn(404, f"no release/files found for {name} {version}")
 
         if not request.has_permission("pkg_read"):
             abort(request, 403, "package read forbidden")
