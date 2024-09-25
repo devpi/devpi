@@ -210,7 +210,7 @@ push
 
     $ devpi push -h
     usage: devpi push [-h] [--debug] [-y] [-v] [--clientdir DIR] [--index INDEX]
-                      [--pypirc path]
+                      [--no-docs] [--only-docs] [--pypirc path]
                       pkgspec TARGETSPEC
 
     push a release and releasefiles to an internal or external index. You can push
@@ -230,6 +230,10 @@ push
     optional arguments:
       -h, --help       show this help message and exit
       --index INDEX    index to push from (defaults to current index)
+      --no-docs        Do not push documentation zips, only release files.
+                       Requires devpi-server 6.14.0.
+      --only-docs      Only push documentation zips, no release files. Requires
+                       devpi-server 6.14.0.
       --pypirc path    path to pypirc
 
     generic options:

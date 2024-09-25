@@ -2,7 +2,9 @@ import pytest
 import json
 import textwrap
 from devpi.main import Hub
+from devpi.main import initmain
 from devpi.push import parse_target, PyPIPush, DevpiPush
+from io import StringIO
 from subprocess import check_output
 
 
@@ -72,11 +74,84 @@ def test_push_devpi(loghub, mock_http_api):
         index = None
     pusher = parse_target(loghub, args)
     mock_http_api.set(loghub.current.index, result={})
-    pusher.execute(loghub, "pytest", "2.3.5")
+    pusher.execute(loghub, "pytest", "2.3.5", req_options={})
     dict(name="pytest", version="2.3.5", targetindex="user/name")
-    assert len(mock_http_api.called) == 1
-    # loghub.http_api.assert_called_once_with(
-    #            "push", loghub.current.index, kvdict=req)
+    ((methodname, _url, kwargs),) = mock_http_api.called
+    assert methodname == "push"
+    kvdict = dict(kwargs["kvdict"])
+    assert kvdict.pop("name") == "pytest"
+    assert kvdict.pop("version") == "2.3.5"
+    assert kvdict.pop("targetindex") == "user/name"
+    assert not kvdict
+
+
+def test_push_devpi_no_docs(mock_http_api, tmpdir):
+    out = StringIO()
+    (hub, push) = initmain([
+        "devpitest",
+        "--clientdir", tmpdir.join("client").strpath,
+        "push",
+        "--no-docs",
+        "pytest==2.3.5",
+        "user/name"], file=out)
+    mock_http_api.set(hub.current.index, result={})
+    with pytest.raises(SystemExit):
+        push(hub, hub.args)
+    assert not mock_http_api.called
+    assert "server doesn't support the '--no-docs' option" in out.getvalue()
+    hub.current.features = {'push-no-docs'}
+    push(hub, hub.args)
+    ((methodname, _url, kwargs),) = mock_http_api.called
+    assert methodname == "push"
+    kvdict = dict(kwargs["kvdict"])
+    assert kvdict.pop("name") == "pytest"
+    assert kvdict.pop("version") == "2.3.5"
+    assert kvdict.pop("targetindex") == "user/name"
+    assert kvdict.pop("no_docs") is True
+    assert not kvdict
+
+
+def test_push_devpi_no_docs_and_only_docs(mock_http_api, tmpdir):
+    out = StringIO()
+    (hub, push) = initmain([
+        "devpitest",
+        "--clientdir", tmpdir.join("client").strpath,
+        "push",
+        "--no-docs",
+        "--only-docs",
+        "pytest==2.3.5",
+        "user/name"], file=out)
+    mock_http_api.set(hub.current.index, result={})
+    with pytest.raises(SystemExit):
+        push(hub, hub.args)
+    assert not mock_http_api.called
+    assert "Can't use '--no-docs' and '--only-docs' together." in out.getvalue()
+
+
+def test_push_devpi_only_docs(mock_http_api, tmpdir):
+    out = StringIO()
+    (hub, push) = initmain([
+        "devpitest",
+        "--clientdir", tmpdir.join("client").strpath,
+        "push",
+        "--only-docs",
+        "pytest==2.3.5",
+        "user/name"], file=out)
+    mock_http_api.set(hub.current.index, result={})
+    with pytest.raises(SystemExit):
+        push(hub, hub.args)
+    assert not mock_http_api.called
+    assert "server doesn't support the '--only-docs' option" in out.getvalue()
+    hub.current.features = {'push-only-docs'}
+    push(hub, hub.args)
+    ((methodname, _url, kwargs),) = mock_http_api.called
+    assert methodname == "push"
+    kvdict = dict(kwargs["kvdict"])
+    assert kvdict.pop("name") == "pytest"
+    assert kvdict.pop("version") == "2.3.5"
+    assert kvdict.pop("targetindex") == "user/name"
+    assert kvdict.pop("only_docs") is True
+    assert not kvdict
 
 
 def test_push_devpi_index_option(loghub, mock_http_api):
@@ -85,7 +160,7 @@ def test_push_devpi_index_option(loghub, mock_http_api):
         index = "src/dev"
     pusher = parse_target(loghub, args)
     mock_http_api.set("src/dev", result={})
-    pusher.execute(loghub, "pytest", "2.3.5")
+    pusher.execute(loghub, "pytest", "2.3.5", req_options={})
     dict(name="pytest", version="2.3.5", targetindex="user/name")
     assert len(mock_http_api.called) == 1
 
@@ -110,7 +185,7 @@ def test_push_devpi_index_option_with_environment(loghub, monkeypatch, mock_http
             authstatus=["noauth", "", []]))
     pusher = parse_target(loghub, loghub.args)
     mock_http_api.set("http://devpi/src/dev", result={})
-    pusher.execute(loghub, "pytest", "2.3.5")
+    pusher.execute(loghub, "pytest", "2.3.5", req_options={})
     dict(name="pytest", version="2.3.5", targetindex="user/name")
     assert len(mock_http_api.called) == 3
 
@@ -140,6 +215,8 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         clientdir = tmpdir.join("client")
         debug = False
         index = None
+        no_docs = False
+        only_docs = False
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
@@ -159,6 +236,8 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         target = "pypi:whatever"
         pkgspec = spec
         index = None
+        no_docs = False
+        only_docs = False
 
     main(hub, args)
     assert len(l) == 1
@@ -176,6 +255,8 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         target = "pypi:notspecified"
         pkgspec = spec
         index = None
+        no_docs = False
+        only_docs = False
 
     (out, err) = capsys.readouterr()
     with pytest.raises(SystemExit):
@@ -214,6 +295,8 @@ def test_fail_push(monkeypatch, tmpdir):
         clientdir = tmpdir.join("client")
         debug = False
         index = None
+        no_docs = False
+        only_docs = False
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
@@ -233,6 +316,8 @@ def test_fail_push(monkeypatch, tmpdir):
         target = "pypi:whatever"
         pkgspec = "pkg==1.0"
         index = None
+        no_docs = False
+        only_docs = False
 
     try:
         main(hub, args)

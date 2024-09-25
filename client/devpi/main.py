@@ -47,7 +47,7 @@ def main(argv=None):
         return method(hub, hub.args)
 
 
-def initmain(argv):
+def initmain(argv, file=None):
     pm = get_pluginmanager()
     args = parse_args(argv, pm)
     mod = args.mainloc
@@ -55,7 +55,7 @@ def initmain(argv):
     if ":" in mod:
         mod, func = mod.split(":")
     mod = __import__(mod, None, None, ["__doc__"])
-    return Hub(args, pm=pm), getattr(mod, func)
+    return Hub(args, file=file, pm=pm), getattr(mod, func)
 
 
 def get_pluginmanager(load_entry_points=True):
@@ -1154,17 +1154,27 @@ def push(parser):
         needs to be defined in your ``.pypirc`` file.  Or you can
         push to another devpi index ("user/name").
     """
-    parser.add_argument("--index", default=None,
+    parser.add_argument(
+        "--index", default=None,
         help="index to push from (defaults to current index)")
-    parser.add_argument("--pypirc", metavar="path", type=str,
+    parser.add_argument(
+        "--no-docs", action="store_true", default=False,
+        help="Do not push documentation zips, only release files. Requires devpi-server 6.14.0.")
+    parser.add_argument(
+        "--only-docs", action="store_true", default=False,
+        help="Only push documentation zips, no release files. Requires devpi-server 6.14.0.")
+    parser.add_argument(
+        "--pypirc", metavar="path", type=str,
         default=None, action="store",
         help="path to pypirc")
-    parser.add_argument("pkgspec", metavar="pkgspec", type=str,
+    parser.add_argument(
+        "pkgspec", metavar="pkgspec", type=str,
         default=None, action="store",
         help="release in format 'name==version'. of which the metadata and "
              "all release files are to be uploaded to the specified "
              "external pypi repo.")
-    parser.add_argument("target", metavar="TARGETSPEC", type=str,
+    parser.add_argument(
+        "target", metavar="TARGETSPEC", type=str,
         action="store",
         help="local or remote target index. local targets are of form "
              "'USER/NAME', specifying an existing writeable local index. "
