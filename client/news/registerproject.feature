@@ -1,0 +1,1 @@
+Support ``--register-project`` for ``push`` command to external index with devpi-server >= 6.14.0.

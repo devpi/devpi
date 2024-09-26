@@ -211,6 +211,7 @@ push
     $ devpi push -h
     usage: devpi push [-h] [--debug] [-y] [-v] [--clientdir DIR] [--index INDEX]
                       [--no-docs] [--only-docs] [--pypirc path]
+                      [--register-project]
                       pkgspec TARGETSPEC
 
     push a release and releasefiles to an internal or external index. You can push
@@ -219,28 +220,31 @@ push
     Or you can push to another devpi index ("user/name").
 
     positional arguments:
-      pkgspec          release in format 'name==version'. of which the metadata
-                       and all release files are to be uploaded to the specified
-                       external pypi repo.
-      TARGETSPEC       local or remote target index. local targets are of form
-                       'USER/NAME', specifying an existing writeable local index.
-                       remote targets are of form 'REPO:' where REPO must be an
-                       existing entry in the pypirc file.
+      pkgspec             release in format 'name==version'. of which the metadata
+                          and all release files are to be uploaded to the
+                          specified external pypi repo.
+      TARGETSPEC          local or remote target index. local targets are of form
+                          'USER/NAME', specifying an existing writeable local
+                          index. remote targets are of form 'REPO:' where REPO
+                          must be an existing entry in the pypirc file.
 
     optional arguments:
-      -h, --help       show this help message and exit
-      --index INDEX    index to push from (defaults to current index)
-      --no-docs        Do not push documentation zips, only release files.
-                       Requires devpi-server 6.14.0.
-      --only-docs      Only push documentation zips, no release files. Requires
-                       devpi-server 6.14.0.
-      --pypirc path    path to pypirc
+      -h, --help          show this help message and exit
+      --index INDEX       index to push from (defaults to current index)
+      --no-docs           Do not push documentation zips, only release files.
+                          Requires devpi-server 6.14.0.
+      --only-docs         Only push documentation zips, no release files. Requires
+                          devpi-server 6.14.0.
+      --pypirc path       path to pypirc
+      --register-project  Register project before uploading to external index.
+                          Requires devpi-server 6.14.0.
 
     generic options:
-      --debug          show debug messages including more info on server requests
-      -y               assume 'yes' on confirmation questions
-      -v, --verbose    increase verbosity
-      --clientdir DIR  directory for storing login and other state
+      --debug             show debug messages including more info on server
+                          requests
+      -y                  assume 'yes' on confirmation questions
+      -v, --verbose       increase verbosity
+      --clientdir DIR     directory for storing login and other state
 
 .. _cmdref_remove:
 

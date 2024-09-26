@@ -217,6 +217,7 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         index = None
         no_docs = False
         only_docs = False
+        register_project = False
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
@@ -238,6 +239,7 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         index = None
         no_docs = False
         only_docs = False
+        register_project = False
 
     main(hub, args)
     assert len(l) == 1
@@ -257,6 +259,7 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
         index = None
         no_docs = False
         only_docs = False
+        register_project = False
 
     (out, err) = capsys.readouterr()
     with pytest.raises(SystemExit):
@@ -264,6 +267,77 @@ def test_main_push_pypi(capsys, monkeypatch, tmpdir, spec):
     (out, err) = capsys.readouterr()
     assert "Error while trying to read section 'notspecified'" in out
     assert "KeyError" in out
+
+
+def test_push_pypi(mock_http_api, tmpdir):
+    p = tmpdir.join("pypirc")
+    p.write(textwrap.dedent("""
+        [distutils]
+        index-servers = whatever
+
+        [whatever]
+        repository: http://anotherserver
+        username: test
+        password: testp
+    """))
+    out = StringIO()
+    (hub, push) = initmain([
+        "devpitest",
+        "--clientdir", tmpdir.join("client").strpath,
+        "push",
+        "--pypirc", str(p),
+        "pytest==2.3.5",
+        "pypi:whatever"], file=out)
+    mock_http_api.set(hub.current.index, result={})
+    push(hub, hub.args)
+    ((methodname, _url, kwargs),) = mock_http_api.called
+    assert methodname == "push"
+    kvdict = dict(kwargs["kvdict"])
+    assert kvdict.pop("name") == "pytest"
+    assert kvdict.pop("version") == "2.3.5"
+    assert kvdict.pop("username") == "test"
+    assert kvdict.pop("password") == "testp"
+    assert kvdict.pop("posturl") == "http://anotherserver"
+    assert not kvdict
+
+
+def test_push_pypi_register_project(mock_http_api, tmpdir):
+    p = tmpdir.join("pypirc")
+    p.write(textwrap.dedent("""
+        [distutils]
+        index-servers = whatever
+
+        [whatever]
+        repository: http://anotherserver
+        username: test
+        password: testp
+    """))
+    out = StringIO()
+    (hub, push) = initmain([
+        "devpitest",
+        "--clientdir", tmpdir.join("client").strpath,
+        "push",
+        "--pypirc", str(p),
+        "--register-project",
+        "pytest==2.3.5",
+        "pypi:whatever"], file=out)
+    mock_http_api.set(hub.current.index, result={})
+    with pytest.raises(SystemExit):
+        push(hub, hub.args)
+    assert not mock_http_api.called
+    assert "server doesn't support the '--register-project' option" in out.getvalue()
+    hub.current.features = {'push-register-project'}
+    push(hub, hub.args)
+    ((methodname, _url, kwargs),) = mock_http_api.called
+    assert methodname == "push"
+    kvdict = dict(kwargs["kvdict"])
+    assert kvdict.pop("name") == "pytest"
+    assert kvdict.pop("version") == "2.3.5"
+    assert kvdict.pop("username") == "test"
+    assert kvdict.pop("password") == "testp"
+    assert kvdict.pop("posturl") == "http://anotherserver"
+    assert kvdict.pop("register_project") is True
+    assert not kvdict
 
 
 def test_fail_push(monkeypatch, tmpdir):
@@ -297,6 +371,7 @@ def test_fail_push(monkeypatch, tmpdir):
         index = None
         no_docs = False
         only_docs = False
+        register_project = False
     hub = Hub(args)
     monkeypatch.setattr(hub.http, "request", mypost)
     hub.current.reconfigure(dict(index="/some/index"))
@@ -318,6 +393,7 @@ def test_fail_push(monkeypatch, tmpdir):
         index = None
         no_docs = False
         only_docs = False
+        register_project = False
 
     try:
         main(hub, args)

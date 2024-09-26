@@ -1168,6 +1168,9 @@ def push(parser):
         default=None, action="store",
         help="path to pypirc")
     parser.add_argument(
+        "--register-project", action="store_true", default=False,
+        help="Register project before uploading to external index. Requires devpi-server 6.14.0.")
+    parser.add_argument(
         "pkgspec", metavar="pkgspec", type=str,
         default=None, action="store",
         help="release in format 'name==version'. of which the metadata and "

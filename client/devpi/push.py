@@ -11,11 +11,17 @@ class PyPIPush:
         self.user = user
         self.password = password
 
-    def execute(self, hub, name, version, *, req_options):
+    def execute(self, hub, name, version, *, req_options, register_project=None):
         password = hub.derive_token(self.password, name)
         req = dict(req_options,
                    name=name, version=str(version), posturl=self.posturl,
                    username=self.user, password=password)
+        if register_project is not None:
+            features = hub.current.features or set()
+            if register_project:
+                if 'push-register-project' not in features:
+                    hub.fatal("The server doesn't support the '--register-project' option, 6.14.0 or newer required.")
+                req["register_project"] = True
         index = hub.current.index
         return hub.http_api("push", index, kvdict=req, fatal=False)
 
@@ -25,7 +31,7 @@ class DevpiPush:
         self.targetindex = targetindex
         self.index = index
 
-    def execute(self, hub, name, version, *, req_options):
+    def execute(self, hub, name, version, *, req_options, register_project=None):  # noqa: ARG002
         req = dict(req_options,
                    name=name, version=str(version),
                    targetindex=self.targetindex)
@@ -98,7 +104,9 @@ def main(hub, args):  # noqa: PLR0912
         if 'push-only-docs' not in features:
             hub.fatal("The server doesn't support the '--only-docs' option, 6.14.0 or newer required.")
         req_options["only_docs"] = True
-    r = pusher.execute(hub, name, version, req_options=req_options)
+    r = pusher.execute(
+        hub, name, version,
+        req_options=req_options, register_project=args.register_project)
     failed = r.status_code not in (200, 201)
     if r.type == "actionlog":
         for action in r["result"]:
