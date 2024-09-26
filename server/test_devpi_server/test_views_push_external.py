@@ -33,7 +33,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
 
     # push OK
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+               username="user", password="password", register_project=True)
     rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
@@ -56,7 +56,7 @@ def test_upload_and_push_external(mapp, testapp, reqmock):
     rec = reqmock.mockresponse(url=None, code=410, method="POST", data="msg")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
-    assert r.status_code == 200
+    assert r.status_code == 502
     (action_register, action_upload, action_docfile) = r.json["result"]
     assert action_register == [410, 'register', 'pkg1', '2.6']
     assert action_upload == [
@@ -87,8 +87,7 @@ def test_upload_and_push_external_no_docs(mapp, testapp, reqmock):
     body = json.dumps(req).encode()
     r = testapp.request(api.index, method="POST", body=body)
     assert r.status_code == 200
-    (action_register, action_upload) = r.json["result"]
-    assert action_register == [200, 'register', 'pkg1', '2.6']
+    (action_upload,) = r.json["result"]
     assert action_upload == [
         200, 'upload', f'user1/dev/+f/{hashdir}/pkg1-2.6.tgz', '']
 
@@ -105,8 +104,7 @@ def test_upload_and_push_external_only_docs(mapp, testapp, reqmock):
     body = json.dumps(req).encode()
     r = testapp.request(api.index, method="POST", body=body)
     assert r.status_code == 200
-    (action_register, action_docfile) = r.json["result"]
-    assert action_register == [200, 'register', 'pkg1', '2.6']
+    (action_docfile,) = r.json["result"]
     assert action_docfile == [200, 'docfile', 'pkg1']
 
 
@@ -126,7 +124,7 @@ def test_upload_and_push_external_exception(mapp, testapp, reqmock):
 
     # first test should fail during register
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+               username="user", password="password", register_project=True)
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
@@ -143,11 +141,11 @@ def test_upload_and_push_external_exception(mapp, testapp, reqmock):
         status=410, preload_content=False,
         reason="Project pre-registration is no longer required or supported, so continue directly to uploading files."))
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+               username="user", password="password", register_project=True)
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
-    assert r.status_code == 200
+    assert r.status_code == 502
     assert r.json['type'] == 'actionlog'
     assert len(r.json['result']) == 2
     assert r.json['result'][0][0] == 410
@@ -169,18 +167,16 @@ def test_upload_and_push_external_metadata12(mapp, reqmock, testapp):
     assert verdata['requires_python'] == ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
                username="user", password="password")
-    rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
+    rep = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
     assert r.status_code == 200
-    assert len(rec.requests) == 2
-    for i in range(2):
-        assert rec.requests[i].url == req["posturl"]
-    req = rec.requests[1]
+    (rec,) = rep.requests
+    assert rec.url == req["posturl"]
     fs = cgi_FieldStorage(
-        fp=BytesIO(req.body),
-        headers=req.headers,
+        fp=BytesIO(rec.body),
+        headers=rec.headers,
         environ={
             'REQUEST_METHOD': 'POST'})
     assert fs.getvalue('metadata_version') == "2.1"
@@ -199,18 +195,16 @@ def test_upload_and_push_external_metadata21(mapp, reqmock, testapp):
     assert verdata['description_content_type'] == "text/plain"
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
                username="user", password="password")
-    rec = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
+    rep = reqmock.mockresponse(url=None, code=200, method="POST", data="msg")
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
     assert r.status_code == 200
-    assert len(rec.requests) == 2
-    for i in range(2):
-        assert rec.requests[i].url == req["posturl"]
-    req = rec.requests[1]
+    (rec,) = rep.requests
+    assert rec.url == req["posturl"]
     fs = cgi_FieldStorage(
-        fp=BytesIO(req.body),
-        headers=req.headers,
+        fp=BytesIO(rec.body),
+        headers=rec.headers,
         environ={
             'REQUEST_METHOD': 'POST'})
     assert fs.getvalue('metadata_version') == "2.1"
@@ -258,7 +252,7 @@ def test_upload_and_push_warehouse(mapp, testapp, reqmock):
 
     # push OK
     req = dict(name="pkg1", version="2.6", posturl="http://whatever.com/",
-               username="user", password="password")
+               username="user", password="password", register_project=True)
     body = json.dumps(req).encode("utf-8")
     r = testapp.request(api.index, method="POST", body=body,
                         expect_errors=True)
@@ -287,9 +281,8 @@ def test_upload_and_push_egg(mapp, testapp, reqmock):
     # push
     req = dict(name="pkg2", version="1.0", posturl="http://whatever.com/",
                username="user", password="password")
-    rec = reqmock.mockresponse(url=None, data=b"msg", code=200)
+    rep = reqmock.mockresponse(url=None, data=b"msg", code=200)
     r = testapp.push(api.index, json.dumps(req))
     assert r.status_code == 200
-    assert len(rec.requests) == 2
-    assert rec.requests[0].url == req["posturl"]
-    assert rec.requests[1].url == req["posturl"]
+    (rec,) = rep.requests
+    assert rec.url == req["posturl"]

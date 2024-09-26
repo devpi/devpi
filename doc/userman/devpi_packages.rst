@@ -307,7 +307,7 @@ Let's also make sure we now switch (use) the appropriate index::
 
    $ devpi use /sophie/dev    
    current devpi index: http://localhost:3141/sophie/dev (logged in as sophie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -383,7 +383,7 @@ version to her ``/sophie/dev`` index by first using the index::
 
    $ devpi use /emilie/prod   
    current devpi index: http://localhost:3141/emilie/prod (logged in as sophie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -400,7 +400,7 @@ Then switching back to her index::
 
    $ devpi use /sophie/dev
    current devpi index: http://localhost:3141/sophie/dev (logged in as sophie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists

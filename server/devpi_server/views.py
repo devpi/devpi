@@ -10,6 +10,7 @@ from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
 import devpi_server
 from html import escape
+from http import HTTPStatus
 from lazy import lazy
 from operator import attrgetter
 from pluggy import HookimplMarker
@@ -1071,6 +1072,7 @@ class PyPIView:
                 return apireturn(502, e.args[0])
             apireturn(200, result=results, type="actionlog")
         else:
+            register_project = pushdata.pop("register_project", False)
             posturl = pushdata["posturl"]
             username = pushdata["username"]
             password = pushdata["password"]
@@ -1078,20 +1080,23 @@ class PyPIView:
             # prepare metadata for submission
             metadata[":action"] = "submit"
             metadata["metadata_version"] = "2.1"
-            self.log.info("registering %s-%s to %s", name, version, posturl)
             session = new_requests_session(agent=("server", server_version))
             with contextlib.closing(session):
-                try:
-                    r = session.post(posturl, data=metadata, auth=pypiauth)
-                    r.close()
-                except Exception as e:
-                    exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
-                    results.append((-1, "exception on register:", exc_msg))
-                    apireturn(502, result=results, type="actionlog")
-                self.log.debug("register returned: %s", r.status_code)
-                results.append((r.status_code, "register", name, version))
-                ok_codes = (200, 201, 410)
-                proceed = (r.status_code in ok_codes)
+                ok_codes = {HTTPStatus.OK, HTTPStatus.CREATED}
+                if register_project:
+                    self.log.info("registering %s-%s to %s", name, version, posturl)
+                    try:
+                        r = session.post(posturl, data=metadata, auth=pypiauth)
+                        r.close()
+                    except Exception as e:  # noqa: BLE001
+                        exc_msg = ''.join(traceback.format_exception_only(e.__class__, e))
+                        results.append((-1, "exception on register:", exc_msg))
+                        apireturn(502, result=results, type="actionlog")
+                    self.log.debug("register returned: %s", r.status_code)
+                    results.append((r.status_code, "register", name, version))
+                    proceed = (r.status_code in ok_codes | {HTTPStatus.GONE})
+                else:
+                    proceed = True
                 if proceed:
                     for link in links.get("releasefile", ()):
                         entry = link.entry

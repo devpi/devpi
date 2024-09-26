@@ -368,6 +368,7 @@ class XOM:
         results = {
             'push-no-docs',
             'push-only-docs',
+            'push-register-project',
             'server-keyvalue-parsing',
         }
         for features in self.config.hook.devpiserver_get_features():

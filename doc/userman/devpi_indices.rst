@@ -58,7 +58,7 @@ set the index::
 
    $ devpi use /root/pypi
    current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -71,7 +71,7 @@ and then issue::
            simpleindex: http://localhost:3141/root/pypi/+simple/
             pypisubmit: None
                  login: http://localhost:3141/+login
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -89,7 +89,7 @@ he or she doesn't have any index associated to his or her username::
 
    $ devpi use
    current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -202,7 +202,7 @@ She can start using them (short endpoint)::
 
    $ devpi use dev
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -212,7 +212,7 @@ or (long endpoint)::
 
    $ devpi use prod
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -225,7 +225,7 @@ And from there, the urls should be set to::
            simpleindex: http://localhost:3141/emilie/prod/+simple/
             pypisubmit: http://localhost:3141/emilie/prod/
                  login: http://localhost:3141/+login
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -490,7 +490,7 @@ Now that we have two indices, we can switch between them by doing::
 
    $ devpi use /emilie/prod
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -500,7 +500,7 @@ checking::
 
    $ devpi use 
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -510,7 +510,7 @@ switching::
 
    $ devpi use /emilie/dev
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
@@ -520,7 +520,7 @@ and checking again::
 
    $ devpi use
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
-   supported features: push-no-docs, push-only-docs, server-keyvalue-parsing
+   supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip cfg, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
