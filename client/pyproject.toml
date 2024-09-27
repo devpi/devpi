@@ -102,7 +102,6 @@ extend-ignore = [
     "SIM117", # cleanup later
     "TRY301", # maybe cleanup later
     "UP004", # cleanup later - inherit from 'object'
-    "UP008", # cleanup later - super
     "UP015", # cleanup later - open mode parameters
     "UP025", # maybe cleanup later - unicode literals
     "UP032", # cleanup later - f-string instead of format

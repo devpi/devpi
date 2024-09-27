@@ -26,8 +26,9 @@ But before that, users must indicate to the devpi client which server to use::
    using server: http://localhost:3141/ (not logged in)
    no current index: type 'devpi use -l' to discover indices
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 In this case, we do not make use of a particular index. We could however
@@ -42,8 +43,9 @@ For instance, to use the ``pypi`` index, once could issue::
    current devpi index: http://localhost:3141/root/pypi (not logged in)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
    
 More on the use command can be found :ref:`here <devpi_um_indices_use_section>`

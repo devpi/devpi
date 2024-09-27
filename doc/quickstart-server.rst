@@ -368,8 +368,9 @@ For purposes of this tutorial, we use the URL
     using server: http://localhost:4040/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 At this point we are not connected to any index, just to the
@@ -432,8 +433,9 @@ and use it ::
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 Our ``alice/dev`` index derives from ``root/pypi``
@@ -450,9 +452,9 @@ cause ``pip`` and ``easy_install`` to use our in-use index server::
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
-    /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/uv.toml: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: no
 
 This will modify or create common configuration files in your home directory
@@ -464,9 +466,9 @@ this configuration modification::
     current devpi index: http://localhost:4040/alice/dev (logged in as alice)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
-    /tmp/docenv/pip.conf: http://localhost:4040/alice/dev/+simple/
+    /tmp/docenv/uv.toml: http://localhost:4040/alice/dev/+simple/
     always-set-cfg: yes
 
 This will imply ``--set-cfg`` on all subsequent ``devpi use ...`` operations.

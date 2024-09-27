@@ -543,7 +543,7 @@ def cmd_devpi(tmpdir, monkeypatch):
         print_info("*** inline$ %s" % " ".join(callargs))
         hub, method = initmain(callargs)
         monkeypatch.setattr(hub, "ask_confirm", ask_confirm)
-        expected = kwargs.get("code", None)
+        expected = kwargs.get("code")
         try:
             method(hub, hub.args)
         except SystemExit as sysex:

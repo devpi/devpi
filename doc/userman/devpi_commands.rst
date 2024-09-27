@@ -433,10 +433,10 @@ use
       --local               create devpi settings in active virtualenv. All future
                             invocations will use that location instead of the
                             default as long as the virtualenv is active.
-      --set-cfg             create or modify pip/setuptools config files so
-                            pip/easy_install will pick up the current devpi index
-                            url. If a virtualenv is activated, only its pip config
-                            will be set.
+      --set-cfg             create or modify pip/setuptools/uv config files so
+                            pip/easy_install/uv will pick up the current devpi
+                            index url. If a virtualenv is activated, only its pip
+                            and uv config will be set.
       -t {yes,no,auto}, --pip-set-trusted {yes,no,auto}
                             when used in conjunction with set-cfg, also set
                             matching pip trusted-host setting for the provided

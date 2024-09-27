@@ -37,8 +37,9 @@ client provides the :ref:`cmdref_use` sub-command to achieve this purpose::
    using server: http://localhost:3141/ (logged in as root)
    no current index: type 'devpi use -l' to discover indices
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
    
 where ``http://devpi.mydomain:3141`` is the **base url** to a given `devpi`_ 
@@ -60,8 +61,9 @@ set the index::
    current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 and then issue::
@@ -73,8 +75,9 @@ and then issue::
                  login: http://localhost:3141/+login
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 .. addind a REsT comment here works around a regendoc bug.              
@@ -91,8 +94,9 @@ he or she doesn't have any index associated to his or her username::
    current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 In order to create an index, use the :ref:`cmdref_index` sub-command. In the 
@@ -204,8 +208,9 @@ She can start using them (short endpoint)::
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
    
 or (long endpoint)::
@@ -214,8 +219,9 @@ or (long endpoint)::
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
    
 And from there, the urls should be set to:: 
@@ -227,8 +233,9 @@ And from there, the urls should be set to::
                  login: http://localhost:3141/+login
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
    
 .. note:: By default, a user index has its ``acl_upload`` property set to 
@@ -492,8 +499,9 @@ Now that we have two indices, we can switch between them by doing::
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 checking::
@@ -502,8 +510,9 @@ checking::
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 switching::
@@ -512,8 +521,9 @@ switching::
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 and checking again::
@@ -522,8 +532,9 @@ and checking again::
    current devpi index: http://localhost:3141/emilie/dev (logged in as emilie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 Deleting an Index

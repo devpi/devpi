@@ -309,8 +309,9 @@ Let's also make sure we now switch (use) the appropriate index::
    current devpi index: http://localhost:3141/sophie/dev (logged in as sophie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
    
 Finally let's take a look at the index to see if the ``pysober`` is present::
@@ -385,8 +386,9 @@ version to her ``/sophie/dev`` index by first using the index::
    current devpi index: http://localhost:3141/emilie/prod (logged in as sophie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 And then performing the :term:`push`::
@@ -402,8 +404,9 @@ Then switching back to her index::
    current devpi index: http://localhost:3141/sophie/dev (logged in as sophie)
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
-   only setting venv pip cfg, no global configuration changed
+   only setting venv pip/uv config, no global configuration changed
    /tmp/docenv/pip.conf: no config file exists
+   /tmp/docenv/uv.toml: no config file exists
    always-set-cfg: no
 
 Sophie would see the following::

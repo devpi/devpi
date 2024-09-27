@@ -81,8 +81,9 @@ Then we point the devpi client to it::
     using server: http://localhost:3141/ (not logged in)
     no current index: type 'devpi use -l' to discover indices
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 Then we add our own "testuser"::
@@ -114,8 +115,9 @@ Finally we use the new index::
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 We are now ready to go for uploading and testing packages.
@@ -176,8 +178,9 @@ Let's verify we are logged in to the correct index::
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 Now go to the directory of a ``setup.py`` file of one of your projects  
@@ -330,8 +333,9 @@ Let's check again our current index::
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 Let's now use our ``testuser/staging`` index::
@@ -340,8 +344,9 @@ Let's now use our ``testuser/staging`` index::
     current devpi index: http://localhost:3141/testuser/staging (logged in as testuser)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 and check the test result status again::
@@ -390,8 +395,9 @@ If we now switch back to using ``testuser/dev``::
     current devpi index: http://localhost:3141/testuser/dev (logged in as testuser)
     supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
     venv for install/set commands: /tmp/docenv
-    only setting venv pip cfg, no global configuration changed
+    only setting venv pip/uv config, no global configuration changed
     /tmp/docenv/pip.conf: no config file exists
+    /tmp/docenv/uv.toml: no config file exists
     always-set-cfg: no
 
 and look at our example release files::

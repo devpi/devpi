@@ -1,4 +1,7 @@
-from devpi.use import BuildoutCfg, DistutilsCfg, PipCfg
+from devpi.use import BuildoutCfg
+from devpi.use import DistutilsCfg
+from devpi.use import PipCfg
+from devpi.use import UvConf
 from devpi.use import Current, PersistentCurrent
 from devpi.use import get_keyvalues, out_index_list
 import pytest
@@ -614,6 +617,7 @@ class TestUnit:
         index = "http://world/simple"
         cmd_devpi("use", "--venv=%s" % venvdir, "--set-cfg", index)
 
+        assert not UvConf().path.exists()
         assert not PipCfg().path.exists()
         assert not DistutilsCfg.default_location.exists()
         assert not BuildoutCfg.default_location.exists()
@@ -627,6 +631,11 @@ class TestUnit:
         assert len(result) == 1
         result = result[0].splitlines()
         assert len(result) == 2
+
+        venv_uv_conf = venvdir.join("uv.toml")
+        assert venv_uv_conf.exists()
+        content = venv_uv_conf.read()
+        assert len(re.findall(rf'index-url\s*=\s*"{index}"', content)) == 1
 
     def test_active_venv_setcfg(self, mock_http_api, cmd_devpi, tmpdir, monkeypatch):
         from devpi.use import vbin
@@ -655,8 +664,10 @@ class TestUnit:
         cmd_devpi("use", "--set-cfg", index)
 
         assert PipCfg(venv=venvdir).path.exists()
+        assert UvConf(venv=venvdir).path.exists()
 
         assert not PipCfg().path.exists()
+        assert not UvConf().path.exists()
         assert not DistutilsCfg.default_location.exists()
         assert not BuildoutCfg.default_location.exists()
 
@@ -703,6 +714,12 @@ class TestUnit:
         assert len(result) == 1
         result = result[0].splitlines()
         assert len(result) == 2
+        assert UvConf().default_location.exists()
+        content = UvConf().default_location.read_text()
+        assert len(
+            re.findall(
+                rf'index-url\s*=\s*"{scheme}://{basic_auth}world/simple"',
+                content)) == 1
         assert DistutilsCfg.default_location.exists()
         content = DistutilsCfg.default_location.read()
         assert len(
@@ -1001,8 +1018,14 @@ def test_pipcfg_default_location(tmpdir, monkeypatch):
     assert path != PipCfg().path
 
 
+def test_uvconf_default_location(tmpdir, monkeypatch):
+    path = UvConf().path
+    monkeypatch.setenv('UV_CONFIG_FILE', tmpdir.join("cfg").strpath)
+    assert path != UvConf().path
+
+
 class TestCfgParsing:
-    @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg, BuildoutCfg])
+    @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg, BuildoutCfg, UvConf])
     def cfgclass(self, request):
         return request.param
 
@@ -1026,7 +1049,8 @@ class TestCfgParsing:
 
     def test_read_config_but_no_index(self, tmpdir, cfgclass):
         path = tmpdir.join("cfg")
-        path.write(cfgclass.section_name + "\n")
+        if cfgclass.section_name:
+            path.write(cfgclass.section_name + "\n")
         cfg = cfgclass(path)
         cfg.write_indexserver("http://qwe")
         cfg = cfgclass(path)

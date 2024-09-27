@@ -47,7 +47,7 @@ class indexproperty(baseproperty):
     dict_name = '_currentdict'
 
 
-class Current(object):
+class Current:
     index = indexproperty("index")
     simpleindex = indexproperty("simpleindex")
     pypisubmit = indexproperty("pypisubmit")
@@ -583,9 +583,10 @@ def main(hub, args=None):
             "Detected pip config at legacy location: %s\n"
             "You should move it to: %s" % (
                 pipcfg.legacy_location, pipcfg.new_location))
+    uvconf = UvConf(venv=venvdir)
 
     if venvdir:
-        hub.line("only setting venv pip cfg, no global configuration changed")
+        hub.line("only setting venv pip/uv config, no global configuration changed")
         extra_cfgs = []
     else:
         extra_cfgs = [DistutilsCfg(), BuildoutCfg()]
@@ -607,9 +608,19 @@ def main(hub, args=None):
                 pipcfg.clear_trustedhost(indexserver)
 
             extra_cfgs.append(pipcfg)
-    for cfg in [pipcfg] + extra_cfgs:
+
+            uvconf.write_indexserver(indexserver)
+
+            extra_cfgs.append(uvconf)
+
+    processed = set()
+    for cfg in [pipcfg, uvconf, *extra_cfgs]:
+        if cfg in processed:
+            continue
         show_one_conf(hub, cfg)
+        processed.add(cfg)
     hub.line("always-set-cfg: %s" % ("yes" if current.always_setcfg else "no"))
+    return None
 
 
 def show_one_conf(hub, cfg):
@@ -625,8 +636,9 @@ def show_one_conf(hub, cfg):
     hub.info("%s: %s" % (cfg.screen_name, status))
 
 
-class BaseCfg(object):
+class BaseCfg:
     config_name = "index_url"
+    config_use_quotes = False
     regex = re.compile(r"(index[_-]url)\s*=\s*(.*)")
 
     def __init__(self, path=None):
@@ -649,13 +661,22 @@ class BaseCfg(object):
                 if m:
                     return m.group(2)
 
+    def make_config_indexserver(self, indexserver):
+        config_indexserver = indexserver
+        if self.config_use_quotes:
+            config_indexserver = re.sub(
+                r'^"?(.*?)"?$', r'"\1"', config_indexserver.strip())
+        return config_indexserver
+
     def write_default(self, indexserver):
         if self.path.exists():
             raise ValueError("config file already exists")
-        content = "\n".join([self.section_name,
-                             "%s = %s\n" % (self.config_name, indexserver)])
+        config_indexserver = self.make_config_indexserver(indexserver)
+        lines = [f"{self.config_name} = {config_indexserver}\n"]
+        if self.section_name:
+            lines.insert(0, self.section_name)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(content)
+        self.path.write_text("\n".join(lines))
 
     def write_indexserver(self, indexserver):
         self.ensure_backup_file()
@@ -666,6 +687,7 @@ class BaseCfg(object):
             section = None
         else:
             section = self.section_name
+        config_indexserver = self.make_config_indexserver(indexserver)
         newlines = []
         found = False
         with self.path.open() as f:
@@ -673,15 +695,16 @@ class BaseCfg(object):
                 if not section:
                     m = self.regex.match(line)
                     if m:
-                        line = "%s = %s\n" % (m.group(1), indexserver)
+                        line = "%s = %s\n" % (m.group(1), config_indexserver)
                         found = True
                 elif section in line.lower():
-                    line = line + "%s = %s\n" % (self.config_name, indexserver)
+                    line = line + "%s = %s\n" % (self.config_name, config_indexserver)
                     found = True
                 newlines.append(line)
             if not found:
-                newlines.append(self.section_name + "\n")
-                newlines.append("%s = %s\n" %(self.config_name, indexserver))
+                if self.section_name:
+                    newlines.append(self.section_name + "\n")
+                newlines.append("%s = %s\n" %(self.config_name, config_indexserver))
         self.path.write_text("".join(newlines))
 
     def ensure_backup_file(self):
@@ -703,7 +726,7 @@ class PipCfg(BaseCfg):
 
     def __init__(self, path=None, venv=None):
         self.venv = venv
-        super(PipCfg, self).__init__(path=path)
+        super().__init__(path=path)
 
     @cached_property
     def appdirs(self):
@@ -804,6 +827,32 @@ class PipCfg(BaseCfg):
                 if not re.match(r'trusted-host\s*=\s*%s' % indexserver.hostname, line):
                     newlines.append(line)
         self.path.write_text("".join(newlines))
+
+
+class UvConf(BaseCfg):
+    section_name = None
+    config_name = "index-url"
+    config_use_quotes = True
+    regex = re.compile(r'(index-url)\s*=\s*"?(.*?)"?\s*$')
+
+    def __init__(self, path=None, venv=None):
+        self.venv = venv
+        super().__init__(path=path)
+
+    @property
+    def global_location(self):
+        varname = "$XDG_CONFIG_HOME" if sys.platform != "win32" else r"%APPDATA%"
+        expanded = os.path.expandvars(varname)
+        path = Path("~/.config" if varname == expanded else expanded)
+        return path.expanduser() / "uv" / "uv.toml"
+
+    @property
+    def default_location(self):
+        if self.venv:
+            return Path(self.venv).expanduser() / "uv.toml"
+        if 'UV_CONFIG_FILE' in os.environ:
+            return Path(os.environ.get('UV_CONFIG_FILE')).expanduser()
+        return self.global_location
 
 
 class BuildoutCfg(BaseCfg):

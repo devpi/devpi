@@ -791,18 +791,21 @@ def use(parser):
         help="create devpi settings in active virtualenv. "
              "All future invocations will use that location instead of the "
              "default as long as the virtualenv is active.")
-    parser.add_argument("--set-cfg", action="store_true", default=None,
+    parser.add_argument(
+        "--set-cfg", action="store_true", default=None,
         dest="setcfg",
-        help="create or modify pip/setuptools config files so "
-             "pip/easy_install will pick up the current devpi index url. "
-             "If a virtualenv is activated, only its pip config will be set.")
-    parser.add_argument("-t", "--pip-set-trusted", choices=["yes", "no", "auto"], default="auto",
+        help="create or modify pip/setuptools/uv config files so "
+             "pip/easy_install/uv will pick up the current devpi index url. "
+             "If a virtualenv is activated, only its pip and uv config will be set.")
+    parser.add_argument(
+        "-t", "--pip-set-trusted", choices=["yes", "no", "auto"], default="auto",
         dest="settrusted",
         help="when used in conjunction with set-cfg, also set matching "
              "pip trusted-host setting for the provided devpi index url. "
              "With 'auto', trusted will be set for http urls or hosts that "
              "fail https ssl validation. 'no' will clear setting")
-    parser.add_argument("--always-set-cfg",
+    parser.add_argument(
+        "--always-set-cfg",
         choices=["yes", "no"], default=None,
         dest="always_setcfg",
         help="on 'yes', all subsequent 'devpi use' will implicitly use "
@@ -813,19 +816,25 @@ def use(parser):
         help="set virtual environment to use for install activities. "
              "specify '-' to unset it. "
              "Note: an activated virtualenv will be used without needing this.")
-    parser.add_argument("--urls", action="store_true",
+    parser.add_argument(
+        "--urls", action="store_true",
         help="show remote endpoint urls")
-    parser.add_argument("--list", "-l", action="store_true",
+    parser.add_argument(
+        "--list", "-l", action="store_true",
         help="show all available indexes at the remote server")
-    parser.add_argument("--user", "-u", action="store",
+    parser.add_argument(
+        "--user", "-u", action="store",
         help="when listing indexes, limit to the specified user")
-    parser.add_argument("--delete", action="store_true",
+    parser.add_argument(
+        "--delete", action="store_true",
         help="delete current association with server")
-    parser.add_argument("--client-cert", action="store", default=None,
+    parser.add_argument(
+        "--client-cert", action="store", default=None,
         metavar="pem_file",
         help="use the given .pem file as the SSL client certificate to "
              "authenticate to the server (EXPERIMENTAL)")
-    parser.add_argument("url", nargs="?",
+    parser.add_argument(
+        "url", nargs="?",
         help="set current API endpoints to the ones obtained from the "
              "given url.  If already connected to a server, you can "
              "specify '/USER/INDEXNAME' which will use the same server "
