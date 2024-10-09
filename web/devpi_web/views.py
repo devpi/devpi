@@ -781,9 +781,6 @@ def version_get(context, request):
         nav_links.append(dict(
             title="Documentation",
             url=docs['url']))
-        nav_links.append(dict(
-            title="Documentation (Download)",
-            url=docs['zip_url']))
     if home_page:
         nav_links.append(dict(
             title="Homepage",
@@ -834,7 +831,8 @@ def version_get(context, request):
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.project, version=version))
+            project=context.project, version=version),
+        docs=docs)
 
 
 @view_config(

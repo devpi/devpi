@@ -98,6 +98,10 @@
             </tbody>
         </table>
 
+        <p tal:condition="docs">
+            Download documentation as zip-file: <a href="${docs.zip_url}">${docs.title}</a>
+        </p>
+
         <div id="description" tal:content="structure content" />
         </div>
         <metal:footer use-macro="request.macros['footer']" />
