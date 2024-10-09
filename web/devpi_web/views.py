@@ -474,7 +474,8 @@ def get_docs_info(request, stage, linkstore):
             title="%s-%s" % (name, ver),
             url=request.route_url(
                 "docviewroot", user=stage.user.name, index=stage.index,
-                project=name, version=ver, relpath="index.html"))
+                project=name, version=ver, relpath="index.html"),
+            zip_url=url_for_entrypath(request, links[0].entrypath))
 
 
 def get_user_info(context, request, user):
@@ -780,6 +781,9 @@ def version_get(context, request):
         nav_links.append(dict(
             title="Documentation",
             url=docs['url']))
+        nav_links.append(dict(
+            title="Documentation (Download)",
+            url=docs['zip_url']))
     if home_page:
         nav_links.append(dict(
             title="Homepage",

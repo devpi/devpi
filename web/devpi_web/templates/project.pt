@@ -35,7 +35,10 @@
                 <tr tal:repeat="version versions">
                     <td><a href="${version.index_url}">${version.index_title}</a></td>
                     <td><a href="${version.url}">${version.title}</a></td>
-                    <td><a tal:condition="version.docs" href="${version.docs.url}">${version.docs.title}</a></td>
+                    <td>
+                        <a tal:condition="version.docs" href="${version.docs.url}">${version.docs.title}</a>
+                        <span tal:condition="version.docs">(<a href="${version.docs.zip_url}">Download</a>)</span>
+                    </td>
                 </tr>
             </tbody>
         </table>
