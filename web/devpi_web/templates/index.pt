@@ -40,7 +40,10 @@
                         </tal:file>
                     </tal:files>
                 </td>
-                <td><a tal:condition="package.docs" href="${package.docs.url}">${package.docs.title}</a></td>
+                <td>
+                    <a tal:condition="package.docs" href="${package.docs.url}">${package.docs.title}</a>
+                    <span tal:condition="package.docs">(<a href="${package.docs.zip_url}">Download</a>)</span>
+                </td>
             </tr>
             </tbody>
         </table>

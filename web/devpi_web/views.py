@@ -474,7 +474,8 @@ def get_docs_info(request, stage, linkstore):
             title="%s-%s" % (name, ver),
             url=request.route_url(
                 "docviewroot", user=stage.user.name, index=stage.index,
-                project=name, version=ver, relpath="index.html"))
+                project=name, version=ver, relpath="index.html"),
+            zip_url=url_for_entrypath(request, links[0].entrypath))
 
 
 def get_user_info(context, request, user):
@@ -830,7 +831,8 @@ def version_get(context, request):
         make_toxresult_url=functools.partial(
             request.route_url, "toxresult",
             user=context.username, index=context.index,
-            project=context.project, version=version))
+            project=context.project, version=version),
+        docs=docs)
 
 
 @view_config(

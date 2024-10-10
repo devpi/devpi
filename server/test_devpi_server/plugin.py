@@ -910,6 +910,13 @@ class Mapp(MappMixin):
         assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)
+
+        # return the file url so users/callers can easily use it
+        # (probably the official server response should include the url)
+        r.file_url = make_file_url(basename, content, stagename=indexname)
+        r.file_url_no_hash = make_file_url(
+            basename, content, stagename=indexname, add_hash=False)
+
         return r
 
     def upload_toxresult(self, path, content, code=200, waithooks=False):
