@@ -142,8 +142,10 @@ def test_index_view_project_docs(keep_docs_packed, mapp, testapp):
     api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     content = zip_dict({"index.html": "<html/>"})
-    doc_zip = mapp.upload_doc("pkg1-2.6.doc.zip", content, "pkg1", "2.6", code=200,
-                    waithooks=True).file_url_no_hash
+    mapp.upload_doc("pkg1-2.6.doc.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
+    doc_zip_url = make_file_url("pkg1-2.6.doc.zip", content, stagename=api.stagename)
+    doc_zip_url = doc_zip_url.rsplit("#", 1)[0]
     r = testapp.get(api.index, headers=dict(accept="text/html"))
     assert r.status_code == 200
     links = r.html.select('#content a')
@@ -151,7 +153,7 @@ def test_index_view_project_docs(keep_docs_packed, mapp, testapp):
         ("simple index", "http://localhost/%s/+simple/" % api.stagename),
         ("pkg1-2.6", "http://localhost/%s/pkg1/2.6" % api.stagename),
         ("pkg1-2.6", "http://localhost/%s/pkg1/2.6/+d/index.html" % api.stagename),
-        ('Download', doc_zip),
+        ('Download', doc_zip_url),
         ("root/pypi", "http://localhost/root/pypi"),
         ("simple", "http://localhost/root/pypi/+simple/")]
 
@@ -316,8 +318,10 @@ def test_project_view_root_and_docs(keep_docs_packed, mapp, testapp, pypistage):
         mirror_whitelist=["*"]))
     content = zip_dict({"index.html": "<html/>"})
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
-    doc_zip = mapp.upload_doc(
-        "pkg1-2.6.doc.zip", content, "pkg1", "2.6", code=200, waithooks=True).file_url_no_hash
+    mapp.upload_doc(
+        "pkg1-2.6.doc.zip", content, "pkg1", "2.6", code=200, waithooks=True)
+    doc_zip_url = make_file_url("pkg1-2.6.doc.zip", content, stagename=api.stagename)
+    doc_zip_url = doc_zip_url.rsplit("#", 1)[0]
     r = testapp.xget(200, api.index + '/pkg1', headers=dict(accept="text/html"))
     links = r.html.select('#content a')
     assert [(l.text, l.attrs['href']) for l in links] == [
@@ -329,7 +333,7 @@ def test_project_view_root_and_docs(keep_docs_packed, mapp, testapp, pypistage):
         ("root/pypi", "http://localhost/root/pypi"),
         ("2.6", "http://localhost/root/pypi/pkg1/2.6"),
         ("pkg1-2.6", "http://localhost/user1/dev/pkg1/2.6/+d/index.html"),
-        ("Download", doc_zip)]
+        ("Download", doc_zip_url)]
 
 
 def test_project_view_inherited_no_versions_on_stage(mapp, testapp):
@@ -363,7 +367,9 @@ def test_version_view(mapp, testapp, monkeypatch):
     zip = mapp.upload_file_pypi(
         "pkg1-2.6.zip", b"contentzip", "pkg1", "2.6").file_url
     content = zip_dict({"index.html": "<html/>"})
-    doc_zip = mapp.upload_doc("pkg1-2.6.doc.zip", content, "pkg1", "2.6", code=200).file_url_no_hash
+    mapp.upload_doc("pkg1-2.6.doc.zip", content, "pkg1", "2.6", code=200)
+    doc_zip_url = make_file_url("pkg1-2.6.doc.zip", content, stagename=api.stagename)
+    doc_zip_url = doc_zip_url.rsplit("#", 1)[0]
     classifiers = ["Intended Audience :: Developers",
                    "License :: OSI Approved :: MIT License"]
     mapp.set_versiondata({
@@ -407,7 +413,7 @@ def test_version_view(mapp, testapp, monkeypatch):
         ('user1/dev', 'http://localhost/user1/dev'),
         ("pkg1-2.6.zip", zip),
         ('user1/dev', 'http://localhost/user1/dev'),
-        ('pkg1-2.6', doc_zip)]
+        ('pkg1-2.6', doc_zip_url)]
 
 
 @pytest.mark.with_notifier
