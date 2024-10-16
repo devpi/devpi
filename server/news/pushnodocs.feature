@@ -1,1 +1,0 @@
-Allow pushing of release files only with no documentation. Requires devpi-client 7.2.0.

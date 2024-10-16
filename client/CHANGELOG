@@ -2,6 +2,31 @@
 
 .. towncrier release notes start
 
+7.2.0 (2024-10-16)
+==================
+
+Features
+--------
+
+- Support ``--no-docs`` and ``--only-docs`` for ``push`` command with devpi-server >= 6.14.0.
+
+- Support ``--register-project`` for ``push`` command to external index with devpi-server >= 6.14.0.
+
+- Add support for ``uv.conf`` to ``devpi use --set-cfg``.
+
+
+
+Bug Fixes
+---------
+
+- fix #682: fixed encoding issues when decoding output of subprocesses.
+
+- Fix #1052: require pkginfo >= 1.10.0 which supports newer metadata versions.
+
+- Fix #1057: PermissionError during upload due to trying to copy a folder like a file.
+
+
+
 7.1.0 (2024-07-17)
 ==================
 

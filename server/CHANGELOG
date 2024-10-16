@@ -2,6 +2,27 @@
 
 .. towncrier release notes start
 
+6.14.0 (2024-10-16)
+===================
+
+Features
+--------
+
+- Allow pushing of versions which only have documentation and no releases.
+
+- Allow pushing of release files only with no documentation. Requires devpi-client 7.2.0.
+
+- Allow pushing of documentation only with no release files. Requires devpi-client 7.2.0.
+
+
+
+Bug Fixes
+---------
+
+- No longer automatically "register" a project when pushing releases to PyPI. The reply changed from HTTP status 410 to 400 breaking the upload. With devpi-client 7.2.0 there is a ``--register-project`` option if it is still required for some other package registry.
+
+
+
 6.13.0 (2024-09-19)
 ===================
 

@@ -1,1 +1,0 @@
-Add support for ``uv.conf`` to ``devpi use --set-cfg``.

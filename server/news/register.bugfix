@@ -1,1 +1,0 @@
-No longer automatically "register" a project when pushing releases to PyPI. The reply changed from HTTP status 410 to 400 breaking the upload. With devpi-client 7.2.0 there is a ``--register-project`` option if it is still required for some other package registry.
