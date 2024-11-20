@@ -17,6 +17,7 @@ extend-ignore = [
     "RUF012", # cleanup later
     "RSE102", # maybe cleanup later
     "S608", # cleanup soon - possible sql injection
+    "SIM115", # cleanup soon
     "UP020", # cleanup soon - use builtin 'open'
     "UP024", # maybe cleanup later - aliased errors
     "UP032", # cleanup later - f-string instead of format
