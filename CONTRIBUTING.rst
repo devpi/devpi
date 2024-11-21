@@ -17,9 +17,10 @@ Pull Requests
 - If you are unsure on how to write a test, please ask and we will point you to
   existing tests which should help you writing new ones.
 - Embrace ``git rebase`` to create "nice" commits and history.
-- We strive for PEP8 compliance. New code should comply, old code must only
-  comply when it's changed anyway. No unnecessary cleanups which would only
-  make the PR harder to read.
+- We strive for PEP8 compliance.
+  New code must comply and there are lint-tests in CI using flake8 and ruff.
+  Old code must only comply when it's changed.
+  No large unnecessary cleanups which would only make the PR harder to read.
 - Add a changelog entry in the ``news`` folder of touched packages as a new file.
   The filename should end with the type of the change as in: ``removal``, ``feature`` or ``bugfix``
   Try to follow the style of existing entries.
@@ -30,7 +31,8 @@ Pull Requests
 Running tests
 -------------
 
-Create and activate a virtualenv for devpi and use ``dev-bootstrap.sh`` to
+Use `UV <https://docs.astral.sh/uv>`_ or another tool to create a virtualenv.
+Activate the virtualenv for devpi and use the ``dev-bootstrap.sh`` script to
 install Python packages needed for development and testing.
 
 Run ``pytest <packagename>`` to run the tests of the package (client, common,
@@ -46,8 +48,6 @@ Automated Testing
 Every PR is automatically tested and the status will be visible on the PR once
 the tests ran.
 
-The Windows Tests are known to fail sometimes.
-
 
 Documentation
 -------------
@@ -58,9 +58,8 @@ The basic idea is that lightly-formatted plain-text documentation is
 transformed into HTML, PDF, and any other output format.
 
 To build the documentation locally, perform the following steps from the
-``doc`` directory::
+``doc`` directory with the virtualenv activated::
 
-$ pip install sphinx
 $ make html
 
 To get started contributing, you’ll want to read the `reStructuredText reference <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html#rst-index>`_.
