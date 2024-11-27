@@ -120,9 +120,9 @@ class IndexParser:
         appear later are ignored.
         """
         entry = self.basename2link.get(newlink.basename)
-        if entry is None or not entry.hash_spec and (newlink.hash_spec or (
+        if entry is None or (not entry.hash_spec and (newlink.hash_spec or (
             not entry.requires_python and newlink.requires_python
-        )):
+        ))):
             self.basename2link[newlink.basename] = newlink
             threadlog.debug("indexparser: adding link %s", newlink)
         else:

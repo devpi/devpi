@@ -319,7 +319,7 @@ def _filedefs_contains(base, filedefs, path):
         filedefs = filedefs.get(part, unknown)
         if filedefs is unknown:
             return False
-    return path_rel_parts or path == base and filedefs
+    return path_rel_parts or (path == base and filedefs)
 
 
 def create_files(base, filedefs):

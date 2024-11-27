@@ -1,9 +1,7 @@
 from requests import Session
 from requests.adapters import HTTPAdapter
-from requests.exceptions import ConnectionError
-from requests.exceptions import RequestException
-from requests.exceptions import SSLError
 from urllib3.exceptions import HTTPError as BaseHTTPError
+import requests.exceptions as request_exceptions
 import sys
 
 
@@ -24,7 +22,7 @@ def new_requests_session(agent=None, max_retries=None):
     session = RetrySession(max_retries)
     session.headers["user-agent"] = agent
     session.ConnectionError = ConnectionError  # type: ignore[attr-defined]
-    session.RequestException = RequestException  # type: ignore[attr-defined]
-    session.Errors = (RequestException, BaseHTTPError)  # type: ignore[attr-defined]
-    session.SSLError = SSLError  # type: ignore[attr-defined]
+    session.RequestException = request_exceptions.RequestException  # type: ignore[attr-defined]
+    session.Errors = (request_exceptions.RequestException, BaseHTTPError)  # type: ignore[attr-defined]
+    session.SSLError = request_exceptions.SSLError  # type: ignore[attr-defined]
     return session

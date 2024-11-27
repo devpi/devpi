@@ -1770,7 +1770,8 @@ class SimplelinkMeta:
     __slots__ = (
         '__basename', '__cmpval', '__ext', '__hash_spec',
         '__name', '__path', '__url', '__version',
-        'key', 'href', 'require_python', 'yanked')
+        'href', 'key', 'require_python', 'yanked',
+    )
 
     def __init__(self, link_info):
         self.__basename = notset

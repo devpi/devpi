@@ -43,7 +43,7 @@ class TerminalWriter:
 
     def markup(self, text, **kwargs):
         esc = []
-        for name in kwargs:
+        for name in kwargs:  # noqa: PLC0206
             if name not in _esctable:
                 raise ValueError(f"unknown markup: {name!r}")
             if kwargs[name]:
