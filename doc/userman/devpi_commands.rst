@@ -516,7 +516,8 @@ devpi command reference (server)
                         [--logger-cfg LOGGER_CFG] [--host HOST] [--port PORT]
                         [--listen LISTEN] [--unix-socket UNIX_SOCKET]
                         [--unix-socket-perms UNIX_SOCKET_PERMS]
-                        [--threads THREADS] [--trusted-proxy TRUSTED_PROXY]
+                        [--threads THREADS] [--connection-limit CONNECTION_LIMIT]
+                        [--trusted-proxy TRUSTED_PROXY]
                         [--trusted-proxy-count TRUSTED_PROXY_COUNT]
                         [--trusted-proxy-headers TRUSTED_PROXY_HEADERS]
                         [--max-request-body-size MAX_REQUEST_BODY_SIZE]
@@ -577,6 +578,9 @@ devpi command reference (server)
                             permissions for the unix socket if used, defaults to
                             '600'. [None]
       --threads THREADS     number of threads to start for serving clients. [50]
+      --connection-limit CONNECTION_LIMIT
+                            maximum number of simultaneous client connections.
+                            [100]
       --trusted-proxy TRUSTED_PROXY
                             IP address of proxy we trust. See waitress
                             documentation. [None]
