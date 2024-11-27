@@ -337,15 +337,23 @@ def test_init_server_directory(call_devpi_in_dir, tmpdir):
 
 
 def test_serve_threads(monkeypatch, tmpdir):
-    def check_threads(app, host, port, threads, max_request_body_size):
+    def check_threads(app, host, port, threads, connection_limit, max_request_body_size):
         assert threads == 100
     monkeypatch.setattr("waitress.serve", check_threads)
     from devpi_server.main import main
     main(["devpi-server", "--threads", "100"])
 
 
+def test_serve_connection_limit(monkeypatch, tmpdir):
+    def check_connection_limit(app, host, port, threads, connection_limit, max_request_body_size):
+        assert connection_limit == 200
+    monkeypatch.setattr("waitress.serve", check_connection_limit)
+    from devpi_server.main import main
+    main(["devpi-server", "--connection-limit", "200"])
+
+
 def test_serve_max_body(monkeypatch, tmpdir):
-    def check_max_body(app, host, port, threads, max_request_body_size):
+    def check_max_body(app, host, port, threads, connection_limit, max_request_body_size):
         assert max_request_body_size == 42
     monkeypatch.setattr("waitress.serve", check_max_body)
     from devpi_server.main import main
