@@ -156,6 +156,11 @@ def add_web_options(parser, pluginmanager):
         help="number of threads to start for serving clients.")
 
     parser.addoption(
+        "--connection-limit", type=int,
+        default=100,
+        help="maximum number of simultaneous client connections.")
+
+    parser.addoption(
         "--trusted-proxy", type=str,
         help="IP address of proxy we trust. See waitress documentation.")
 
@@ -680,6 +685,8 @@ class Config(object):
             kwargs["trusted_proxy_count"] = self.args.trusted_proxy_count
         if self.args.trusted_proxy_headers is not None:
             kwargs["trusted_proxy_headers"] = self.args.trusted_proxy_headers
+        if self.args.connection_limit is not None:
+            kwargs["connection_limit"] = self.args.connection_limit
         return dict(kwargs=kwargs, addresses=addresses)
 
     @cached_property
