@@ -286,7 +286,7 @@ class Connection:
         data = dumps(entry)
         self._sqlconn.run(q, serial=serial, data=pg8000.Binary(data))
 
-    def io_file_os_path(self, path):
+    def io_file_os_path(self, path):  # noqa: ARG002
         return None
 
     def io_file_exists(self, path):
@@ -317,7 +317,7 @@ class Connection:
             shutil.copyfileobj(content_or_file, f)
         self.dirty_files[path] = f
 
-    def io_file_new_open(self, path):
+    def io_file_new_open(self, path):  # noqa: ARG002
         return SpooledTemporaryFile(max_size=1048576)
 
     def _copy_io_file_open(self, path):
@@ -599,7 +599,10 @@ class Storage:
     def perform_crash_recovery(self):
         pass
 
-    def get_connection(self, closing=True, write=False):
+    def add_key(self, key):
+        pass
+
+    def get_connection(self, *, closing=True, write=False, timeout=30):  # noqa: ARG002
         sqlconn = pg8000.native.Connection(
             user=self.user,
             database=self.database,
@@ -608,7 +611,8 @@ class Storage:
             unix_sock=self.unix_sock,
             password=self.password,
             ssl_context=self.ssl_context,
-            timeout=60)
+            timeout=timeout,
+        )
         sqlconn.text_factory = bytes
         conn = Connection(sqlconn, self)
         if closing:

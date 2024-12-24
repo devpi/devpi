@@ -424,9 +424,9 @@ jobs:
       matrix:
         include:
           - project: "postgresql"
-            python-version: "3.7"
-            os: "ubuntu-22.04"
-            tox-envs: "py37-server680"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39-server680"
 
     env:
       PY_COLORS: 1
@@ -516,21 +516,21 @@ jobs:
       matrix:
         include:
           # - project: "postgresql"
-          #   python-version: "3.7"
-          #   os: "ubuntu-22.04"
-          #   tox-envs: "py37-postgresql"
+          #   python-version: "3.9"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py39-postgresql"
           - project: "postgresql"
-            python-version: "3.7"
-            os: "ubuntu-22.04"
-            tox-envs: "py37-server"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39-server"
           # - project: "postgresql"
-          #   python-version: "3.7"
-          #   os: "ubuntu-22.04"
-          #   tox-envs: "py37-server_postgresql_ssl"
+          #   python-version: "3.9"
+          #   os: "ubuntu-latest"
+          #   tox-envs: "py39-server_postgresql_ssl"
           - project: "postgresql"
-            python-version: "3.7"
-            os: "ubuntu-22.04"
-            tox-envs: "py37-dont_use_copy-server"
+            python-version: "3.9"
+            os: "ubuntu-latest"
+            tox-envs: "py39-dont_use_copy-server"
           # - project: "postgresql"
           #   python-version: "3.13"
           #   os: "ubuntu-latest"
@@ -595,7 +595,7 @@ jobs:
         include:
           - project: "postgresql"
             python-version: "3.9"
-            os: "ubuntu-22.04"
+            os: "ubuntu-latest"
             tox-envs: "py39-web"
           - project: "postgresql"
             python-version: "3.13"
@@ -607,7 +607,7 @@ jobs:
             tox-envs: "pypy3-web"
           - project: "postgresql"
             python-version: "3.9"
-            os: "ubuntu-22.04"
+            os: "ubuntu-latest"
             tox-envs: "py39-dont_use_copy-web"
 
     env:
@@ -870,8 +870,8 @@ jobs:
             python-version: "3.7"
             os: "ubuntu-22.04"
           - project: "postgresql"
-            python-version: "3.7"
-            os: "ubuntu-22.04"
+            python-version: "3.9"
+            os: "ubuntu-latest"
           - project: "server"
             python-version: "3.7"
             os: "ubuntu-22.04"

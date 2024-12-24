@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from contextlib import closing
-from contextlib import suppress
 from devpi_postgresql import main
 from pathlib import Path
 from pluggy import HookimplMarker
 from certauth.certauth import CertificateAuthority
 from shutil import rmtree
-from typing import Set
+from typing import TYPE_CHECKING
+import contextlib
 import sys
 import os
 import getpass
@@ -18,11 +17,14 @@ import tempfile
 import time
 
 
+if TYPE_CHECKING:
+    from typing import ClassVar
+
 devpiserver_hookimpl = HookimplMarker("devpiserver")
 
 
 def get_open_port(host):
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind((host, 0))
         s.listen(1)
         port = s.getsockname()[1]
@@ -31,7 +33,7 @@ def get_open_port(host):
 
 def wait_for_port(host, port, timeout=60):
     while timeout > 0:
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
             s.settimeout(1)
             if s.connect_ex((host, port)) == 0:
                 return
@@ -114,11 +116,11 @@ def devpipostgresql_postgresql(request):
                 cache_size=10000, settings=settings)
             yield settings
             for conn, _is_closing, _db, _ts in Storage._connections:
-                with suppress(AttributeError):
+                with contextlib.suppress(AttributeError):
                     conn.close()
             # use a copy of the set, as it might be changed in another thread
             for db in set(Storage._dbs_created):
-                with suppress(subprocess.CalledProcessError):
+                with contextlib.suppress(subprocess.CalledProcessError):
                     subprocess.check_call([
                         'dropdb', '--if-exists', '-h', Storage.host, '-p', str(Storage.port), db])
         finally:
@@ -129,8 +131,8 @@ def devpipostgresql_postgresql(request):
 
 
 class Storage(main.Storage):
-    _dbs_created: Set[str] = set()
-    _connections: list = []
+    _dbs_created: ClassVar[set[str]] = set()
+    _connections: ClassVar[list] = []
 
     @classmethod
     def _get_test_db(cls, basedir):
@@ -154,12 +156,16 @@ class Storage(main.Storage):
     def database(self):
         return self._get_test_db(self.basedir)
 
-    def get_connection(self, *args, **kwargs):
-        result = main.Storage.get_connection(self, *args, **kwargs)
-        is_closing = isinstance(result, closing)
-        conn = result.thing if is_closing else result
-        self._connections.append((conn, is_closing, conn.storage.database, time.monotonic()))
-        return result
+    def get_connection(self, *, closing=True, write=False, timeout=30):
+        conn = main.Storage.get_connection(
+            self, closing=False, write=write, timeout=timeout
+        )
+        self._connections.append(
+            (conn, closing, conn.storage.database, time.monotonic())
+        )
+        if closing:
+            return contextlib.closing(conn)
+        return conn
 
 
 @pytest.fixture(autouse=True, scope="class")

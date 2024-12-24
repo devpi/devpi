@@ -1,23 +1,67 @@
+[build-system]
+requires = ["setuptools", "setuptools_changelog_shortener", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+dynamic = ["version", "readme"]
+name = "devpi-postgresql"
+description = "devpi-postgresql: a PostgreSQL storage backend for devpi-server"
+dependencies = [
+    'devpi-server>=6.8.0',
+    'pg8000>=1.17.0',
+]
+license = "MIT"
+license-files = ["LICENSE"]
+maintainers = [
+    {name = "Florian Schulze", email = "mail@pyfidelity.com"}
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
+
+[project.entry-points.devpi_server]
+devpi-postgresql = "devpi_postgresql.main"
+
+
+[project.urls]
+"Bug Tracker" = "https://github.com/devpi/devpi/issues"
+"Changelog" = "https://github.com/devpi/devpi/blob/main/postgresql/CHANGELOG"
+"Documentation" = "https://doc.devpi.net"
+"Homepage" = "https://devpi.net"
+"Source Code" = "https://github.com/devpi/devpi"
+
+
 [tool.ruff]
 extend = "../pyproject.toml"
-target-version = "py37"
+target-version = "py39"
 
 
 [tool.ruff.format]
 exclude = [
-    "devpi_postgresql/__init__.py",
     "devpi_postgresql/main.py",
     "pytest_devpi_postgresql/__init__.py",
-    "setup.py",
 ]
 
 
 [tool.ruff.lint]
 extend-ignore = [
-    "ARG002", # maybe cleanup later - unused method argument
-    "FBT002", # cleanup soon - boolean positional argument
     "FLY002", # maybe cleanup later - f-string instead of join
-    "G002", # cleanup soon - logging statement uses %
     "I001", # maybe cleanup later - import block unsorted
     "PLR0912", # maybe cleanup later
     "PLW2901", # maybe cleanup later
@@ -26,11 +70,29 @@ extend-ignore = [
     "RUF012", # cleanup later
     "RSE102", # maybe cleanup later
     "S608", # cleanup soon - possible sql injection
-    "SIM115", # cleanup soon
-    "UP020", # cleanup soon - use builtin 'open'
     "UP024", # maybe cleanup later - aliased errors
     "UP032", # cleanup later - f-string instead of format
 ]
+
+
+[tool.setuptools]
+packages = [
+    'devpi_postgresql',
+    'pytest_devpi_postgresql'
+]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "devpi_postgresql.__version__"}
+readme = {file = ["README.rst", "CHANGELOG.short.rst"]}
+
+
+[tool.setuptools_changelog_shortener]
+read_from = "CHANGELOG"
+write_to = "CHANGELOG.short.rst"
+count = 5
+delimiter = "^==+"
+title = "=========\nChangelog\n========="
 
 
 [tool.towncrier]
