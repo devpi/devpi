@@ -12,7 +12,7 @@ jobs:
   packages:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "Create packages"
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-22.04"
     env:
       PY_COLORS: 1
 
@@ -87,7 +87,7 @@ jobs:
         include:
           - project: "common"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37"
           - project: "common"
             python-version: "3.12"
@@ -131,11 +131,11 @@ jobs:
         include:
           - project: "client"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-server520"
           - project: "client"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-setuptools6920"
           - project: "web"
             python-version: "3.6"
@@ -176,7 +176,7 @@ jobs:
         include:
           - project: "client"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37,py37-version"
           - project: "client"
             python-version: "3.12"
@@ -217,11 +217,11 @@ jobs:
         include:
           - project: "server"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37"
           - project: "server"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-keyfs_sqlite"
           - project: "server"
             python-version: "3.12"
@@ -262,11 +262,11 @@ jobs:
         include:
           - project: "web"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37"
           - project: "web"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-keyfs"
           - project: "web"
             python-version: "3.12"
@@ -408,7 +408,7 @@ jobs:
         include:
           - project: "postgresql"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-server680"
 
     env:
@@ -448,11 +448,11 @@ jobs:
         include:
           - project: "server"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37"
           - project: "web"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37"
 
     env:
@@ -496,19 +496,19 @@ jobs:
         include:
           # - project: "postgresql"
           #   python-version: "3.7"
-          #   os: "ubuntu-latest"
+          #   os: "ubuntu-22.04"
           #   tox-envs: "py37-postgresql"
           - project: "postgresql"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-server"
           # - project: "postgresql"
           #   python-version: "3.7"
-          #   os: "ubuntu-latest"
+          #   os: "ubuntu-22.04"
           #   tox-envs: "py37-server_postgresql_ssl"
           - project: "postgresql"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-dont_use_copy-server"
           # - project: "postgresql"
           #   python-version: "3.12"
@@ -572,7 +572,7 @@ jobs:
         include:
           - project: "postgresql"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-web"
           - project: "postgresql"
             python-version: "3.12"
@@ -584,7 +584,7 @@ jobs:
             tox-envs: "pypy3-web"
           - project: "postgresql"
             python-version: "3.7"
-            os: "ubuntu-latest"
+            os: "ubuntu-22.04"
             tox-envs: "py37-dont_use_copy-web"
 
     env:
@@ -830,7 +830,7 @@ jobs:
     env:
       PY_COLORS: 1
 
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-22.04"
     strategy:
       fail-fast: false
 
