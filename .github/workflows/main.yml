@@ -373,19 +373,19 @@ jobs:
       matrix:
         include:
           - project: "common"
-            python-version: "3.13-dev"
+            python-version: "3.13"
             os: "ubuntu-latest"
             tox-envs: "py313"
           - project: "client"
-            python-version: "3.13-dev"
+            python-version: "3.13"
             os: "ubuntu-latest"
             tox-envs: "py313"
           - project: "server"
-            python-version: "3.13-dev"
+            python-version: "3.13"
             os: "ubuntu-latest"
             tox-envs: "py313"
           - project: "web"
-            python-version: "3.13-dev"
+            python-version: "3.13"
             os: "ubuntu-latest"
             tox-envs: "py313"
 
