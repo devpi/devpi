@@ -1,4 +1,7 @@
-from contextlib import contextmanager
+from contextlib import contextmanager  # noqa: A005
+import os
+
+
 try:
     from contextlib import chdir  # type: ignore[attr-defined]
 except ImportError:
@@ -10,4 +13,3 @@ except ImportError:
             yield old
         finally:
             os.chdir(old)
-import os

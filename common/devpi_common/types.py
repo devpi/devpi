@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__ import annotations  # noqa: A005
 
 from lazy import lazy as cached_property  # noqa: F401 must be importable
 from types import FunctionType
