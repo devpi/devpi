@@ -99,6 +99,9 @@ class Current:
         # searches for longest match, so there can be multiple devpi instances
         # on the same domain with different paths
         url = URL(url)
+        # Strip the query part, if any, because otherwise a URL with parameters
+        # unexpectedly does not match the one stored in the auth mapping.
+        url = url.replace(query=None)
         while url:
             if url in d or url.path == '/':
                 break
