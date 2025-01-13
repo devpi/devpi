@@ -1,0 +1,2 @@
+The stored basic authentication credentials are now correctly applied to
+HTTP API URLs containing a query string.

@@ -442,6 +442,8 @@ class TestUnit:
         assert mock_http_api.called[0][2]['basic_auth'] == ('user', 'password')
         assert mock_http_api.called[1][1].path == '/foo/bar'
         assert mock_http_api.called[1][2]['basic_auth'] is None  # http_api should do the lookup
+        # previously, requesting a URL with query would yield no auth
+        assert hub.current.get_basic_auth(url="https://devpi/foo/bar?no_projects=") == ('user', 'password')
 
     def test_change_index(self, cmd_devpi, mock_http_api):
         mock_http_api.set("http://world.com/+api", result=dict(
