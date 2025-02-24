@@ -290,7 +290,16 @@ def get_pkginfo(archivepath):
         cls = pkginfo.BDist
     else:
         cls = pkginfo.SDist
-    return cls(str(archivepath))
+    result = cls(str(archivepath))
+    if result.name is None and result.metadata_version and sys.version_info < (3, 8):
+        # add rudimentary support for new metadata, as only newer
+        # versions of pkginfo not available for Python 3.7 support it
+        # and added automatic fallbacks
+        header_attrs = pkginfo.distribution.HEADER_ATTRS
+        newest_headers = header_attrs[max(header_attrs)]
+        header_attrs.setdefault(result.metadata_version, newest_headers)
+        result.extractMetadata()
+    return result
 
 
 def find_parent_subpath(startpath, relpath, *, raising=True):
