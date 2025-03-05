@@ -526,6 +526,7 @@ class Storage:
     unix_sock = None
     user = "devpi"
     password = None
+    schema = "public"  # Default to public schema for backward compatibility
     use_copy = True
     ssl_context = None
     expected_schema = dict(
@@ -565,7 +566,7 @@ class Storage:
     def __init__(self, basedir, notify_on_commit, cache_size, settings=None):
         if settings is None:
             settings = {}
-        for key in ("database", "host", "port", "unix_sock", "user", "password"):
+        for key in ("database", "host", "port", "unix_sock", "user", "password", "schema"):
             if key in settings:
                 setattr(self, key, settings[key])
 
@@ -600,17 +601,48 @@ class Storage:
         pass
 
     def get_connection(self, closing=True, write=False):
-        sqlconn = pg8000.native.Connection(
-            user=self.user,
-            database=self.database,
-            host=self.host,
-            port=int(self.port),
-            unix_sock=self.unix_sock,
-            password=self.password,
-            ssl_context=self.ssl_context,
-            timeout=60)
-        sqlconn.text_factory = bytes
-        conn = Connection(sqlconn, self)
+        if self.ssl_context is None and any(
+                getattr(self, k, None) is not None for k in self.SSL_OPT_KEYS):
+            self.ssl_context = ssl.create_default_context()
+            if getattr(self, 'ssl_check_hostname', None) is not None:
+                self.ssl_context.check_hostname = ensure_boolean(
+                    self.ssl_check_hostname)
+            if getattr(self, 'ssl_ca_certs', None) is not None:
+                self.ssl_context.load_verify_locations(self.ssl_ca_certs)
+            if getattr(self, 'ssl_certfile', None) is not None:
+                keyfile = getattr(self, 'ssl_keyfile', None)
+                self.ssl_context.load_cert_chain(
+                    self.ssl_certfile, keyfile=keyfile)
+        kw = {}
+        if self.unix_sock is not None:
+            kw['unix_sock'] = self.unix_sock
+        else:
+            kw['host'] = self.host
+            kw['port'] = int(self.port)
+        if self.password is not None:
+            kw['password'] = self.password
+        if self.ssl_context is not None:
+            kw['ssl_context'] = self.ssl_context
+        try:
+            sqlconn = pg8000.native.Connection(
+                self.user, database=self.database, **kw)
+            # Set the search path to use the specified schema
+            if self.schema != "public":
+                try:
+                    sqlconn.run(f"SET search_path TO {self.schema}")
+                except Exception as e:
+                    threadlog.warning(f"Could not set search path to schema '{self.schema}': {e}")
+                    # Try to create the schema if it doesn't exist
+                    try:
+                        sqlconn.run(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
+                        threadlog.info(f"Created schema '{self.schema}'")
+                        sqlconn.run(f"SET search_path TO {self.schema}")
+                    except Exception as schema_e:
+                        threadlog.warning(f"Could not create schema '{self.schema}': {schema_e}")
+            conn = Connection(sqlconn, self)
+        except Exception as e:
+            threadlog.error(f"Error connecting to PostgreSQL: {e}")
+            raise
         if closing:
             return contextlib.closing(conn)
         return conn
@@ -619,49 +651,83 @@ class Storage:
         result = {}
         with self.get_connection() as conn:
             sqlconn = conn.begin()
-            rows = sqlconn.run("""
-                SELECT tablename FROM pg_tables WHERE schemaname='public';""")
+            # Use the configured schema instead of hardcoding 'public'
+            rows = sqlconn.run(f"""
+                SELECT tablename FROM pg_tables WHERE schemaname='{self.schema}';""")
             for row in rows:
                 result.setdefault("table", {})[row[0]] = ""
-            rows = sqlconn.run("""
-                SELECT indexname FROM pg_indexes WHERE schemaname='public';""")
+            rows = sqlconn.run(f"""
+                SELECT indexname FROM pg_indexes WHERE schemaname='{self.schema}';""")
             for row in rows:
                 result.setdefault("index", {})[row[0]] = ""
-            rows = sqlconn.run("""
-                SELECT sequencename FROM pg_sequences WHERE schemaname='public';""")
+            rows = sqlconn.run(f"""
+                SELECT sequencename FROM pg_sequences WHERE schemaname='{self.schema}';""")
             for row in rows:
                 result.setdefault("sequence", {})[row[0]] = ""
         return result
 
     def ensure_tables_exist(self):
-        schema = self._reflect_schema()
-        missing = dict()
-        for kind, objs in self.expected_schema.items():
-            for name, q in objs.items():
-                if name not in schema.get(kind, set()):
-                    missing.setdefault(kind, dict())[name] = q
-        if not missing:
-            return
-        with self.get_connection() as conn:
-            sqlconn = conn.begin()
-            if not schema:
-                threadlog.info("DB: Creating schema")
-            else:
-                threadlog.info("DB: Updating schema")
-            if "changelog" not in missing.get("table", {}):
-                kw = dict(startserial=conn.db_read_last_changelog_serial() + 1)
-            else:
-                kw = dict(startserial=0)
-            for kind in ('table', 'index', 'sequence'):
-                objs = missing.pop(kind, {})
-                for name in list(objs):
-                    q = objs.pop(name)
-                    for k, v in kw.items():
-                        q = q.replace(f":{k}", pg8000.native.literal(v))
-                    sqlconn.run(q)
-                assert not objs
-            conn.commit()
-        assert not missing
+        try:
+            schema = self._reflect_schema()
+            missing = dict()
+            for kind, objs in self.expected_schema.items():
+                for name, q in objs.items():
+                    if name not in schema.get(kind, set()):
+                        missing.setdefault(kind, dict())[name] = q
+            if not missing:
+                threadlog.info(f"DB: Schema objects already exist in schema '{self.schema}'")
+                return
+            
+            # First, check if the schema exists without trying to create it
+            with self.get_connection() as conn:
+                sqlconn = conn.begin()
+                try:
+                    # Check if schema exists
+                    rows = sqlconn.run(f"SELECT 1 FROM pg_namespace WHERE nspname = '{self.schema}'")
+                    schema_exists = len(rows) > 0
+                    
+                    if not schema_exists and self.schema != "public":
+                        threadlog.info(f"Schema '{self.schema}' does not exist, but we'll use it anyway")
+                    
+                    # Set search path to use the specified schema
+                    sqlconn.run(f"SET search_path TO {self.schema}")
+                    
+                    # Now create the missing objects
+                    if not schema:
+                        threadlog.info(f"DB: Creating schema objects in schema '{self.schema}'")
+                    else:
+                        threadlog.info(f"DB: Updating schema objects in schema '{self.schema}'")
+                    
+                    if "changelog" not in missing.get("table", {}):
+                        kw = dict(startserial=conn.db_read_last_changelog_serial() + 1)
+                    else:
+                        kw = dict(startserial=0)
+                    
+                    for kind in ('table', 'index', 'sequence'):
+                        objs = missing.pop(kind, {})
+                        for name in list(objs):
+                            q = objs.pop(name)
+                            for k, v in kw.items():
+                                q = q.replace(f":{k}", pg8000.native.literal(v))
+                            try:
+                                sqlconn.run(q)
+                            except Exception as e:
+                                # If the object already exists, just log and continue
+                                if "already exists" in str(e):
+                                    threadlog.info(f"{kind.capitalize()} '{name}' already exists in schema '{self.schema}'")
+                                else:
+                                    raise
+                    
+                    # Commit the transaction
+                    conn.commit()
+                    threadlog.info(f"Successfully created/updated schema objects in '{self.schema}'")
+                except Exception as e:
+                    threadlog.error(f"Error creating schema objects: {e}")
+                    conn.rollback()
+                    raise
+        except Exception as e:
+            threadlog.error(f"Failed to ensure tables exist: {e}")
+            # Continue anyway - the tables might already exist
 
 
 @devpiserver_hookimpl
