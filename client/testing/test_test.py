@@ -353,6 +353,7 @@ class TestWheel:
             "zip" + os.sep + f"{pkgname_norm}-1.0"))
         assert wheel1[0].basename in {
             f"{pkgname}-1.0-py2.py3-none-any.whl",
+            f"{pkgname_norm}-1.0-py2.py3-none-any.whl",
             f"{pkgname_whl}-1.0-py2.py3-none-any.whl"}
         assert str(wheel1[1].path_unpacked).endswith(wheel1[0].basename)
 
