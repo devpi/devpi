@@ -772,27 +772,28 @@ class Index:
             fields.append((name, field_doc))
         fields_doc = "<dl>%s</dl>" % ''.join("<dt><code>%s</code></dt><dd>%s</dd>" % x for x in fields)
         return {
-            plugins.WhitespacePlugin:
-                None,
+            plugins.WhitespacePlugin: None,
             plugins.SingleQuotePlugin: """
                 To specify a term which contains spaces, use single quotes like this:
                 <code>'term with spaces'</code>""",
-            plugins.FieldsPlugin: """
+            plugins.FieldsPlugin: f"""
                 By using a search like <code>fieldname:term</code>,
-                you can search in the following fields:<br />%s""" % fields_doc,
+                you can search in the following fields:<br>
+                {fields_doc}""",
             plugins.PrefixPlugin: """
                 End a term with an asterisk to search by prefix like this: <code>path:/fschulze/*</code>""",
             plugins.GroupPlugin: """
                 Group query clauses with parentheses.""",
             plugins.OperatorsPlugin: """
                 Use the <code>AND</code>, <code>OR</code>,
-                <code>ANDNOT</code>, <code>ANDMAYBE</code>, and <code>NOT</code><br />
-                operators to further refine your search.<br />
-                Write them in all capital letters, otherwise they will be interpreted as search terms.<br />
+                <code>ANDNOT</code>, <code>ANDMAYBE</code>, and <code>NOT</code><br>
+                operators to further refine your search.<br>
+                Write them in all capital letters, otherwise they will be interpreted as search terms.<br>
                 An example search would be: <code>devpi ANDNOT client</code>""",
             plugins.BoostPlugin: """
                 Boost a term by adding a circumflex followed by the boost value like this:
-                <code>term^2</code>"""}
+                <code>term^2</code>""",
+        }
 
     def _query_parser_plugins(self):
         return [
@@ -905,8 +906,9 @@ class Index:
         for plugin in self._query_parser_plugins():
             if plugin.__class__ not in query_parser_help:
                 result.append(
-                    "Undocumented query plugin '%s'.<br />%s" % (
-                        plugin.__class__.__name__, plugin.__doc__))
+                    f"Undocumented query plugin '{plugin.__class__.__name__}'.<br>"
+                    f"{plugin.__doc__}"
+                )
                 continue
             docs = query_parser_help[plugin.__class__]
             if docs is None:

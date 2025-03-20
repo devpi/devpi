@@ -1,8 +1,8 @@
 <metal:main use-macro="main_template">
     <metal:body fill-slot="body">
         <form method="get" id="search" action="${request.route_url('keyfs')}">
-            <input type="text" size="60" name="query" autofocus tal:attributes="value query|None" />
-            <input type="submit" value="Search" />
+            <input type="text" size="60" name="query" autofocus tal:attributes="value query|None">
+            <input type="submit" value="Search">
         </form>
         <p>
             <span tal:repeat="serial serials">

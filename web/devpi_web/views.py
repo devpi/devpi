@@ -739,8 +739,8 @@ def _index_refresh_form(request, stage, project):
         if stage.ixconfig["type"] in {"mirror", "remote"}
         else "Refresh mirror links"
     )
-    submit = '<input name="refresh" type="submit" value="%s"/>' % title
-    return '<form action="%s" method="post">%s</form>' % (url, submit)
+    submit = f'<input name="refresh" type="submit" value="{title}">'
+    return f'<form action="{url}" method="post">{submit}</form>'
 
 
 @view_config(route_name="project_refresh", request_method="POST")
