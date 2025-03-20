@@ -189,6 +189,10 @@ form#search .help {
     right: 1em;
 }
 
+.docutils.literal {
+    font-family: monospace;
+}
+
 h1.index_title span:before,
 div.user_index_list dt span:before,
 div.user_index_list ul a span:before {
