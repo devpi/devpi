@@ -18,7 +18,12 @@ if sys.platform == "win32":
 else:
     vbin = "bin"
 
-devpi_endpoints = "index simpleindex pypisubmit login".split()
+devpi_endpoints = [
+    "index",
+    "login",
+    "pypisubmit",
+    "simpleindex",
+]
 devpi_data_keys = ["features"]
 
 

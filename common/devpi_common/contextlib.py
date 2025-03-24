@@ -1,4 +1,4 @@
-from contextlib import contextmanager  # noqa: A005
+from contextlib import contextmanager
 import os
 
 

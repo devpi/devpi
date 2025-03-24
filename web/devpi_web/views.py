@@ -1196,7 +1196,6 @@ class SearchView:
 
 def make_more_url_params(params, path):
     new_params = dict(params)
-    if 'page' in new_params:
-        del new_params['page']
+    new_params.pop('page', None)
     new_params['query'] = "%s path:%s" % (params['query'], path)
     return new_params

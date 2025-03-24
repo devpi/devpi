@@ -834,9 +834,9 @@ class TestUploadFunctional:
             "conf.py": "",
             "index.html": "<html/>"}})
         tmpdir = Path()
-        runproc(tmpdir, "python setup.py sdist --format=zip".split())
+        runproc(tmpdir, ["python", "setup.py", "sdist", "--format=zip"])
         initproj("hello-1.2")
-        runproc(tmpdir, "python setup.py sdist --format=zip".split())
+        runproc(tmpdir, ["python", "setup.py", "sdist", "--format=zip"])
         dist = tmpdir / "dist"
         assert len(list(dist.iterdir())) == 2
         hub = devpi("upload", "--no-isolation", "--from-dir", dist)
@@ -862,7 +862,7 @@ class TestUploadFunctional:
             "conf.py": "",
             "index.html": "<html/>"}})
         tmpdir = Path()
-        runproc(tmpdir, "python setup.py sdist --format=zip".split())
+        runproc(tmpdir, ["python", "setup.py", "sdist", "--format=zip"])
         dist = tmpdir / "dist"
         zip_dir(tmpdir / 'doc', dist / f"{name_version_str}.doc.zip")
         assert len(list(dist.iterdir())) == 2

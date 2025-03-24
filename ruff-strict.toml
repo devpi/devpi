@@ -79,6 +79,7 @@ order-by-type = false
 ]
 "setup.py" = [
     "INP001", # ignore - implicit namespace package
+    "SIM905", # cleanup later
 ]
 "test_*" = [
     "INP001", # ignore - implicit namespace package

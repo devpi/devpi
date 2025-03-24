@@ -14,9 +14,21 @@ if TYPE_CHECKING:
     from packaging_legacy.version import Version as PackagingVersion
 
 
-ALLOWED_ARCHIVE_EXTS = set(
-    ".dmg .deb .msi .rpm .exe .egg .whl .tar.gz "
-    ".tar.bz2 .tar .tgz .zip .doc.zip".split())
+ALLOWED_ARCHIVE_EXTS = {
+    ".deb",
+    ".dmg",
+    ".doc.zip",
+    ".egg",
+    ".exe",
+    ".msi",
+    ".rpm",
+    ".tar",
+    ".tar.bz2",
+    ".tar.gz",
+    ".tgz",
+    ".whl",
+    ".zip",
+}
 
 
 _releasefile_suffix_rx = re.compile(

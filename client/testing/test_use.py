@@ -999,7 +999,7 @@ def test_getparse_keyvalues_invalid():
         get_keyvalues(["hello123"])
 
 
-@pytest.mark.parametrize("input expected".split(), [
+@pytest.mark.parametrize(("input", "expected"), [
     (["hello=123", "world=42"], dict(hello="123", world="42")),
     (["hello=123=1"], dict(hello="123=1")),
     (["hello=1", "hello=2"], dict(hello="2")),

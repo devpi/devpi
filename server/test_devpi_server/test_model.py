@@ -1513,10 +1513,10 @@ class TestUsers:
         model.create_user("user2", password="password")
         model.create_user("user3", password="password")
         newusers = model.get_usernames().difference(baselist)
-        assert newusers == set("user1 user2 user3".split())
+        assert newusers == {"user1", "user2", "user3"}
         model.get_user("user3").delete()
         newusers = model.get_usernames().difference(baselist)
-        assert newusers == set("user1 user2".split())
+        assert newusers == {"user1", "user2"}
 
     def test_server_passwd(self, model, monkeypatch):
         monkeypatch.setattr(getpass, "getpass", lambda x: "123")

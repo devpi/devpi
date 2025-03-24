@@ -199,7 +199,15 @@ class Uploader:
         self.post("file_upload", path, meta=meta)
 
 
-ALLOWED_ARCHIVE_EXTS = ".egg .whl .tar.gz .tar.bz2 .tar .tgz .zip".split()
+ALLOWED_ARCHIVE_EXTS = [
+    ".egg",
+    ".tar",
+    ".tar.bz2",
+    ".tar.gz",
+    ".tgz",
+    ".whl",
+    ".zip",
+]
 
 
 def get_archive_files(path):

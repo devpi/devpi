@@ -469,8 +469,9 @@ def find_config_file():
             config_files.append(config_file)
     if len(config_files) > 1:
         log.warning("Multiple configuration files found:\n%s", "\n".join(config_files))
-    if len(config_files):
-        return config_files[-1]
+    if not config_files:
+        return None
+    return config_files[-1]
 
 
 class InvalidConfigError(ValueError):
