@@ -1980,7 +1980,7 @@ def test_delete_volatile_force(mapp, testapp):
 
 
 @pytest.mark.nomocking
-def test_mirror_use_external_urls(mapp, simpypi, testapp, xom):
+def test_mirror_use_external_urls(mapp, simpypi, testapp):
     indexconfig = dict(
         type="mirror",
         mirror_url=simpypi.simpleurl,
@@ -1989,18 +1989,18 @@ def test_mirror_use_external_urls(mapp, simpypi, testapp, xom):
         volatile=True)
     api = mapp.create_and_use(indexconfig=indexconfig)
     name = "pytest"
-    pkgver = "%s-2.6.zip" % name
+    pkgver = f"{name}-2.6.zip"
     simpypi.add_release(name, pkgver=pkgver)
-    simpypi.add_file('/%s/%s' % (name, pkgver), b'123')
-    r = testapp.get(api.index + '/+simple/%s' % name)
+    simpypi.add_file(f'/{name}/{pkgver}', b'123')
+    r = testapp.get(f'{api.index}/+simple/{name}')
     (link,) = sorted(
-        x.get('href').replace('../../', '/%s/' % api.stagename)
+        x.get('href').replace('../../', f'/{api.stagename}/')
         for x in getlinks(r.text))
     path = link[1:]
     assert '2.6' in path
     # we should get a redirect to the original URL
     r = testapp.xget(302, link, follow=False)
-    assert r.location == "%s/pytest/pytest-2.6.zip" % simpypi.baseurl
+    assert r.location == f"{simpypi.baseurl}/pytest/pytest-2.6.zip"
     with testapp.xom.keyfs.read_transaction():
         assert not getentry(testapp, path).file_exists()
     # now turn external urls off

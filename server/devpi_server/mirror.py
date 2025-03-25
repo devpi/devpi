@@ -334,6 +334,7 @@ class MirrorStage(BaseStage):
             return ensure_boolean(value)
         if key in ("custom_data", "description", "mirror_web_url_fmt", "title"):
             return value
+        return None
 
     def delete(self):
         # delete all projects on this index
