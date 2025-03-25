@@ -45,6 +45,9 @@ def pytest_addoption(parser):
     parser.addoption(
         "--backend-postgresql-ssl", action="store_true",
         help="make SSL connections to PostgreSQL")
+    parser.addoption(
+        "--backend-postgresql-schema", default="public",
+        help="PostgreSQL schema to use for tests (default: public)")
 
 
 @pytest.fixture(scope="session")
@@ -109,6 +112,11 @@ def devpipostgresql_postgresql(request):
                 settings['ssl_ca_certs'] = str(tmpdir / 'ca.pem')
                 settings['ssl_certfile'] = client_cert
 
+            # Get schema from command line option
+            schema = request.config.option.backend_postgresql_schema
+            if schema:
+                settings['schema'] = schema
+
             main.Storage(
                 tmpdir_path, notify_on_commit=False,
                 cache_size=10000, settings=settings)
@@ -131,6 +139,7 @@ def devpipostgresql_postgresql(request):
 class Storage(main.Storage):
     _dbs_created: Set[str] = set()
     _connections: list = []
+    schema = "public"  # Default schema for tests
 
     @classmethod
     def _get_test_db(cls, basedir):
@@ -147,8 +156,8 @@ class Storage(main.Storage):
     @classmethod
     def _get_test_storage_options(cls, basedir):
         db = cls._get_test_db(basedir)
-        return ":host=%s,port=%s,user=%s,database=%s" % (
-            cls.host, cls.port, cls.user, db)
+        return ":host=%s,port=%s,user=%s,database=%s,schema=%s" % (
+            cls.host, cls.port, cls.user, db, cls.schema)
 
     @property
     def database(self):
@@ -160,6 +169,12 @@ class Storage(main.Storage):
         conn = result.thing if is_closing else result
         self._connections.append((conn, is_closing, conn.storage.database, time.monotonic()))
         return result
+
+
+@pytest.fixture(scope="session")
+def devpipostgresql_schema(request):
+    """Fixture to provide the schema name for PostgreSQL tests."""
+    return request.config.option.backend_postgresql_schema
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -204,6 +219,12 @@ def devpipostgresql_devpiserver_storage_backend_mock(request, server_version):
         postgresql = request.getfixturevalue("devpipostgresql_postgresql")
         for k, v in postgresql.items():
             setattr(Storage, k, v)
+        # Set schema from fixture if available
+        try:
+            schema = request.getfixturevalue("devpipostgresql_schema")
+            Storage.schema = schema
+        except pytest.FixtureLookupError:
+            pass
         result['storage'] = Storage
         return result
 
