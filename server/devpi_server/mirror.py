@@ -324,9 +324,9 @@ class MirrorStage(BaseStage):
         if key == "mirror_cache_expiry":
             try:
                 value = int(value)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as e:
                 raise self.InvalidIndexconfig([
-                    "'mirror_cache_expiry' option must be an integer"])
+                    "'mirror_cache_expiry' option must be an integer"]) from e
             return value
         if key == "mirror_no_project_list":
             return ensure_boolean(value)
