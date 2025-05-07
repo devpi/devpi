@@ -55,7 +55,7 @@ def test_doc_unpack_cleanup(mapp, testapp):
         stage = mapp.xom.model.getstage(api.stagename)
         path = get_unpack_path(stage, 'pkg1', '2.6')
     testapp.xget(200, api.index + '/pkg1/2.6/+doc/foo.html')
-    assert path.join('foo.html').exists()
+    assert path.joinpath("foo.html").exists()
     content = zip_dict({
         "index.html": "<html><body>2.6</body></html>"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
@@ -64,7 +64,7 @@ def test_doc_unpack_cleanup(mapp, testapp):
         stage = mapp.xom.model.getstage(api.stagename)
         path = get_unpack_path(stage, 'pkg1', '2.6')
     testapp.xget(404, api.index + '/pkg1/2.6/+doc/foo.html')
-    assert not path.join('foo.html').exists()
+    assert not path.joinpath("foo.html").exists()
 
 
 @pytest.mark.with_notifier
@@ -86,8 +86,8 @@ def test_empty_doczip(mapp):
         (link,) = linkstore.get_links(rel='doczip')
         path = unpack_docs(stage, name, version, link.entry)
     assert not path.exists()
-    assert path.new(ext="hash").exists()
-    assert path.new(ext="hash").read() == empty_doczip_hash_spec
+    assert path.with_suffix(".hash").exists()
+    assert path.with_suffix(".hash").read_text() == empty_doczip_hash_spec
     with read_transaction(mapp.xom.keyfs):
         stage = mapp.xom.model.getstage(api.stagename)
         assert list(Docs(stage, name, version).items()) == []
@@ -95,4 +95,4 @@ def test_empty_doczip(mapp):
         stage = mapp.xom.model.getstage(api.stagename)
         remove_docs(stage, name, version)
     # the hash file should be removed
-    assert not path.new(ext="hash").exists()
+    assert not path.with_suffix(".hash").exists()

@@ -88,6 +88,9 @@ order-by-type = false
     "S603", # ignore - subprocess untrusted input
     "T201", # ignore - print found
 ]
+"web/**.py" = [
+    "COM812", # ignore - ruff format
+]
 "web/devpi_web/hookspecs.py" = [
     "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
 ]

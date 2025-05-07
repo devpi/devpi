@@ -23,7 +23,6 @@ from email.utils import parsedate
 from io import TextIOWrapper
 from html import escape
 from operator import attrgetter, itemgetter
-from py.xml import html
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPBadGateway, HTTPError
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
@@ -759,18 +758,19 @@ def version_get(context, request):
     infos = []
     skipped_keys = frozenset(
         ("description", "home_page", "name", "summary", "version"))
-    for key, value in sorted(verdata.items()):
+    for key, in_value in sorted(verdata.items()):
         if key in skipped_keys or key.startswith('+'):
             continue
-        if isinstance(value, seq_types):
-            if not len(value):
+        if isinstance(in_value, seq_types):
+            if not len(in_value):
                 continue
-            value = html.ul([html.li(x) for x in value]).unicode()
+            items = "\n".join(f"  <li>{escape(x)}</li>" for x in in_value)
+            out_value = f"<ul>\n{items}\n</ul>"
         else:
-            if not value:
+            if not in_value:
                 continue
-            value = escape(value)
-        infos.append((escape(key), value))
+            out_value = escape(in_value)
+        infos.append((escape(key), out_value))
     show_toxresults = (stage.ixconfig['type'] != 'mirror')
     linkstore = stage.get_linkstore_perstage(name, version)
     files = get_files_info(request, linkstore, show_toxresults=show_toxresults)
