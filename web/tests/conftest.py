@@ -1,3 +1,4 @@
+from textwrap import dedent
 import pytest
 
 
@@ -14,6 +15,19 @@ def xom(request, makexom):
     import devpi_web.main
     xom = makexom(plugins=[(devpi_web.main, None)])
     return xom
+
+
+@pytest.fixture
+def theme_path(request, tmp_path):
+    marker = request.node.get_closest_marker("theme_files")
+    files = {} if marker is None else marker.args[0]
+    path = tmp_path / "theme"
+    path.mkdir(parents=True, exist_ok=True)
+    path.joinpath("static").mkdir(parents=True, exist_ok=True)
+    path.joinpath("templates").mkdir(parents=True, exist_ok=True)
+    for filepath, content in files.items():
+        path.joinpath(*filepath).write_text(dedent(content))
+    return path
 
 
 @pytest.fixture(params=[None, "tox38"])

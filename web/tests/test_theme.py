@@ -5,43 +5,55 @@ pytestmark = [pytest.mark.notransaction]
 
 
 @pytest.fixture
-def themedir(tmpdir):
-    path = tmpdir.join('theme')
-    path.ensure_dir()
-    path.join('static').ensure_dir()
-    path.join('templates').ensure_dir()
-    return path
-
-
-@pytest.fixture
-def xom(request, xom, themedir):
-    xom.config.args.theme = themedir.strpath
+def xom(xom, theme_path):
+    xom.config.args.theme = str(theme_path)
     return xom
 
 
-def test_macro_overwrite(testapp, themedir):
-    from devpi_web import __version__
-    themedir.join('templates', 'macros.pt').write("""
+@pytest.mark.usefixtures("theme_path")
+@pytest.mark.theme_files(
+    {
+        ("templates", "macros.pt"): """
 <metal:head define-macro="headcss" use-macro="request.macros['original-headcss']">
     <metal:mycss fill-slot="headcss">
         <link rel="stylesheet" type="text/css" href="${request.theme_static_url('style.css')}" />
     </metal:mycss>
 </metal:head>
-    """)
+    """
+    }
+)
+def test_macro_overwrite(testapp):
+    from devpi_web import __version__
+
     r = testapp.get('/')
     styles = [x.attrs.get('href') for x in r.html.find_all('link')]
     assert 'http://localhost/+static-%s/style.css' % __version__ in styles
     assert 'http://localhost/+theme-static-%s/style.css' % __version__ in styles
 
 
-def test_template_overwrite(testapp, themedir):
-    themedir.join('templates', 'root.pt').write("Foo Template!")
+@pytest.mark.usefixtures("theme_path")
+@pytest.mark.theme_files(
+    {
+        ("templates", "root.pt"): """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><title>Root</title></head>
+            <body>
+                Foo Template!
+            </body>
+            </html>
+        """
+    }
+)
+def test_template_overwrite(testapp):
     r = testapp.get('/')
-    assert r.text == 'Foo Template!'
+    assert "Foo Template!" in r.text
 
 
-def test_theme_style(testapp, themedir):
+@pytest.mark.usefixtures("theme_path")
+@pytest.mark.theme_files({("static", "style.css"): "Foo Style!"})
+def test_theme_style(testapp):
     from devpi_web import __version__
-    themedir.join('static', 'style.css').write("Foo Style!")
-    r = testapp.get('/+theme-static-%s/style.css' % __version__)
+
+    r = testapp.get(f"/+theme-static-{__version__}/style.css")
     assert r.text == 'Foo Style!'
