@@ -22,7 +22,6 @@ exclude = [
     "server/test_devpi_server/test_keyfs.py",
     "server/test_devpi_server/test_mirror.py",
     "server/test_devpi_server/test_replica.py",
-    "web/setup.py",
 ]
 
 

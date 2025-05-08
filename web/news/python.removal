@@ -1,0 +1,1 @@
+Remove support for Python below 3.9. In the future end of life Python 3 versions aren't supported anymore.

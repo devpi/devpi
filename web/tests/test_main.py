@@ -14,16 +14,6 @@ def test_importable():
     assert devpi_web
 
 
-def test_pkgresources_version_matches_init():
-    import devpi_web
-    try:
-        import importlib.metadata as importlib_metadata
-    except ImportError:
-        import importlib_metadata
-    ver = devpi_web.__version__
-    assert importlib_metadata.version("devpi-web") == ver
-
-
 def test_devpi_mirror_initialnames(caplog, pypistage):
     import logging
     caplog.set_level(logging.NOTSET)

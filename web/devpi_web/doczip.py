@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from collections.abc import MutableMapping as DictMixin
+from collections.abc import MutableMapping
 from contextlib import contextmanager
 from devpi_common.archive import Archive
 from devpi_common.types import cached_property
@@ -125,7 +125,7 @@ class PackedEntry:
         return self.body
 
 
-class Docs(DictMixin):
+class Docs(MutableMapping):
     def __init__(self, stage, name, version):
         self.stage = stage
         self.keep_docs_packed = keep_docs_packed(self.stage.xom.config)
