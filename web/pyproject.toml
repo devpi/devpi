@@ -76,7 +76,6 @@ target-version = "py39"
 [tool.ruff.format]
 exclude = [
     "devpi_web/clear_index.py",
-    "devpi_web/compat.py",
     "devpi_web/config.py",
     "devpi_web/description.py",
     "devpi_web/doczip.py",

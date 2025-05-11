@@ -6,7 +6,6 @@ from devpi_common.archive import Archive
 from devpi_common.types import cached_property
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog
-from devpi_web.compat import get_entry_hash_spec
 from pathlib import Path
 import itertools
 import json
@@ -91,7 +90,7 @@ def unpack_docs(stage, name, version, entry):
     # we are not losing the original zip file anyway
     with locked_unpack_path(stage, name, version) as (hash_file, unpack_path):
         hash_file.seek(0)
-        if hash_file.read().strip() == get_entry_hash_spec(entry):
+        if hash_file.read().strip() == entry.best_available_hash_spec:
             return unpack_path
         if unpack_path.exists():
             with suppress(FileNotFoundError):
@@ -102,7 +101,7 @@ def unpack_docs(stage, name, version, entry):
         with entry.file_open_read() as f, Archive(f) as archive:
             archive.extract(unpack_path)
         hash_file.seek(0)
-        hash_file.write(get_entry_hash_spec(entry))
+        hash_file.write(entry.best_available_hash_spec)
         hash_file.truncate()
         threadlog.debug("%s: unpacked %s-%s docs to %s",
                         stage.name, name, version, unpack_path)

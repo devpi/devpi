@@ -23,10 +23,11 @@ def keep_docs_packed(keep_docs_packed):
 
 @pytest.mark.with_notifier
 def test_docs_raw_view(mapp, testapp):
-    from devpi_web.compat import get_default_hash_spec
+    from devpi_server.filestore import get_hashes
+
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})
-    etag = get_default_hash_spec(content).split('=')[1]
+    etag = get_hashes(content).get_default_value()
     mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
     mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
                     waithooks=True)

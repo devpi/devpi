@@ -2,10 +2,9 @@ from collections import defaultdict
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
 from devpi_server.log import thread_push_log
+from devpi_server.main import Fatal
 from devpi_server.readonly import get_mutable_deepcopy
 from devpi_server import mythread
-from devpi_web.compat import fatal
-from devpi_web.compat import read_transaction
 from devpi_web.indexing import iter_projects
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
@@ -401,7 +400,7 @@ class IndexerThread(object):
         writer = project_ix.writer()
         searcher = project_ix.searcher()
         try:
-            with read_transaction(self.xom.keyfs) as tx:
+            with self.xom.keyfs.read_transaction() as tx:
                 stage = self.xom.model.getstage(indexname)
                 if stage is not None:
                     for name in names:
@@ -472,7 +471,7 @@ class InitialQueueThread(object):
 
     def thread_run(self):
         thread_push_log("[IDXQ]")
-        with read_transaction(self.xom.keyfs) as tx:
+        with self.xom.keyfs.read_transaction() as tx:
             indexer = get_indexer(self.xom)
             searcher = indexer.get_project_ix().searcher()
             self.shared_data.queue_projects(
@@ -496,14 +495,11 @@ class Index:
 
     def __init__(self, config, settings):
         if 'path' not in settings:
-            if hasattr(config, "server_path"):
-                index_path = config.server_path / '.indices'
-            else:
-                index_path = Path(str(config.serverdir.join('.indices')))
+            index_path = config.server_path / ".indices"
         else:
             index_path = settings['path']
             if not os.path.isabs(index_path):
-                fatal("The path for Whoosh index files must be absolute.")
+                raise Fatal("The path for Whoosh index files must be absolute.")
             index_path = Path(index_path)
         index_path.mkdir(parents=True, exist_ok=True)
         log.info("Using %s for Whoosh index files.", index_path)

@@ -9,8 +9,6 @@ from devpi_server.log import threadlog as log
 from devpi_server.readonly import SeqViewReadonly
 from devpi_server.views import StatusView, url_for_entrypath
 from devpi_server.views import PyPIView
-from devpi_web.compat import get_entry_hash_spec
-from devpi_web.compat import get_entry_hash_value
 from devpi_web.description import get_description
 from devpi_web.doczip import Docs
 from devpi_web.doczip import docs_exist
@@ -153,10 +151,11 @@ def get_doc_info(context, request, version=None, check_content=True):
         if not relpath_exists:
             raise HTTPNotFound("File %s not found in documentation." % relpath)
     result = dict(
-        etag=get_entry_hash_value(entry),
+        etag=entry.best_available_hash_value,
         relpath=relpath,
         doc_version=doc_version,
-        version_mismatch=doc_version != navigation_version(context))
+        version_mismatch=doc_version != navigation_version(context),
+    )
     if check_content:
         result['body'] = docs_file_content(
             context.stage, name, doc_version, entry, relpath)
@@ -355,7 +354,7 @@ class FileInfo:
 
     @cached_property
     def hash_spec(self):
-        return get_entry_hash_spec(self.entry)
+        return self.entry.best_available_hash_spec
 
     @cached_property
     def history(self):
@@ -710,12 +709,7 @@ def project_get(context, request):
     versions = []
     for version in get_sorted_versions(version_info):
         versions.append(version_info[version])
-    if hasattr(context.stage, 'get_mirror_whitelist_info'):
-        whitelist_info = context.stage.get_mirror_whitelist_info(context.project)
-    else:
-        whitelist_info = dict(
-            has_mirror_base=context.stage.has_mirror_base(context.project),
-            blocked_by_mirror_whitelist=None)
+    whitelist_info = context.stage.get_mirror_whitelist_info(context.project)
     add_mirror_page_navlink(request, context, whitelist_info, nav_links)
     stage = context.stage
     latest_verdata = {}
@@ -786,12 +780,7 @@ def version_get(context, request):
             title="Homepage",
             url=home_page))
     add_simple_page_navlink(request, context, nav_links)
-    if hasattr(stage, 'get_mirror_whitelist_info'):
-        whitelist_info = stage.get_mirror_whitelist_info(name)
-    else:
-        whitelist_info = dict(
-            has_mirror_base=stage.has_mirror_base(name),
-            blocked_by_mirror_whitelist=False)
+    whitelist_info = stage.get_mirror_whitelist_info(name)
     add_mirror_page_navlink(request, context, whitelist_info, nav_links)
     cmp_version = Version(version)
     if context._stable_versions:
@@ -810,29 +799,38 @@ def version_get(context, request):
                 title="Newer version available",
                 css_class="severe",
                 url=url))
+    # metadata_list_fields is only available on private indexes
+    metadata_list_fields = getattr(stage, "metadata_list_fields", ())
     return dict(
         _context=context,
-        title="%s/: %s-%s metadata and description" % (stage.name, name, version),
+        title=f"{stage.name}/: {name}-{version} metadata and description",
         content=get_description(stage, name, version),
         summary=verdata.get("summary"),
         resolved_version=version,
         nav_links=nav_links,
         infos=infos,
-        metadata_list_fields=frozenset(
-            escape(x)
-            for x in getattr(stage, 'metadata_list_fields', ())),
+        metadata_list_fields=frozenset(escape(x) for x in metadata_list_fields),
         files=files,
-        blocked_by_mirror_whitelist=whitelist_info['blocked_by_mirror_whitelist'],
+        blocked_by_mirror_whitelist=whitelist_info["blocked_by_mirror_whitelist"],
         show_toxresults=show_toxresults,
         make_toxresults_url=functools.partial(
-            request.route_url, "toxresults",
-            user=context.username, index=context.index,
-            project=context.project, version=version),
+            request.route_url,
+            "toxresults",
+            user=context.username,
+            index=context.index,
+            project=context.project,
+            version=version,
+        ),
         make_toxresult_url=functools.partial(
-            request.route_url, "toxresult",
-            user=context.username, index=context.index,
-            project=context.project, version=version),
-        docs=docs)
+            request.route_url,
+            "toxresult",
+            user=context.username,
+            index=context.index,
+            project=context.project,
+            version=version,
+        ),
+        docs=docs,
+    )
 
 
 @view_config(

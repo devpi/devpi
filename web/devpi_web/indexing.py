@@ -34,6 +34,7 @@ def preprocess_project(project):
     if not stage.has_project_perstage(name):
         # project doesn't exist anymore
         return
+    # metadata_keys is only available on private indexes
     setuptools_metadata = frozenset(getattr(stage, 'metadata_keys', ()))
     versions = get_sorted_versions(stage.list_versions_perstage(name))
     result = dict(name=project.name)

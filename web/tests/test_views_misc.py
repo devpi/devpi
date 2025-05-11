@@ -453,10 +453,8 @@ class TestReplicaStatusView:
     def test_role(self, bs_text, dummyrequest, plugin, statusview, xom):
         from devpi_web.main import status_info
         assert xom.is_replica()
-        set_primary_uuid = getattr(xom.config, 'set_primary_uuid', getattr(xom.config, 'set_master_uuid', None))
-        set_primary_uuid('primary-uuid')
-        update_primary_serial = getattr(xom.replica_thread, 'update_primary_serial', getattr(xom.replica_thread, 'update_master_serial', None))
-        update_primary_serial(42)
+        xom.config.set_primary_uuid("primary-uuid")
+        xom.replica_thread.update_primary_serial(42)
         plugin.results = [[]]
         dummyrequest.status_info = status_info(dummyrequest)
         result = statusview(None, dummyrequest)

@@ -3,13 +3,13 @@ from chameleon.config import DEBUG_MODE
 from collections.abc import Mapping
 from devpi_common.metadata import get_latest_version
 from devpi_common.validation import normalize_name
-from devpi_web.compat import fatal
+from devpi_server.log import threadlog
+from devpi_server.main import Fatal
 from devpi_web.config import add_indexer_backend_option
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import remove_docs
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
-from devpi_server.log import threadlog
 from pluggy import HookimplMarker
 from pyramid_chameleon.renderer import ChameleonRendererLookup
 import os
@@ -284,7 +284,7 @@ def devpiserver_stage_created(stage):
 def devpiserver_cmdline_run(xom):
     docs_path = xom.config.args.documentation_path
     if docs_path is not None and not os.path.isabs(docs_path):
-        fatal("The path for unzipped documentation must be absolute.")
+        raise Fatal("The path for unzipped documentation must be absolute.")
     # return None to allow devpi-server to run
 
 
