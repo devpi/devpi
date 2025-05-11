@@ -357,6 +357,14 @@ class FileInfo:
         return self.entry.best_available_hash_spec
 
     @cached_property
+    def hash_type(self):
+        return self.entry.best_available_hash_type
+
+    @cached_property
+    def hash_value(self):
+        return self.entry.best_available_hash_value
+
+    @cached_property
     def history(self):
         try:
             return [
