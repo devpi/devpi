@@ -4,6 +4,9 @@ def test_macros(dummyrequest, pyramidconfig):
     pyramidconfig.scan("devpi_web.macros")
     macros = dummyrequest.registry["macros"]
     assert {k: macros.get_group(k) for k in macros.get_groups()} == {
+        "html_head": [
+            "favicon",
+        ],
         "main_footer": [
             "footer_versions",
         ],

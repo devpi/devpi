@@ -8,7 +8,7 @@
     <metal:headscript define-slot="headscript" />
 </metal:headscript>
 <metal:head define-macro="head">
-    <link rel="icon" type="image/x-icon" href="${request.static_url('devpi_web:static/favicon.ico')}"/>
+    <metal:favicon use-macro="macros.favicon" />
     <metal:headcss use-macro="request.macros['headcss']" />
     <metal:headscript use-macro="request.macros['headscript']" />
 </metal:head>

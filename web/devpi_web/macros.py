@@ -1,6 +1,11 @@
 from .macroregistry import macro_config
 
 
+@macro_config(template="templates/favicon.pt", groups="html_head")
+def favicon(request):  # noqa: ARG001
+    return dict()
+
+
 @macro_config(template="templates/footer.pt")
 def footer(request):  # noqa: ARG001
     return dict()

@@ -1,0 +1,1 @@
+<link rel="icon" type="image/x-icon" href="${request.static_url('devpi_web:static/favicon.ico')}" />
