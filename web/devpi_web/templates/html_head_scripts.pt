@@ -1,0 +1,4 @@
+<tal:scripts repeat="script scripts">
+    <script tal:attributes="src script.src"></script>
+</tal:scripts>
+<metal:headscript define-slot="headscript" />
