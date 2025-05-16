@@ -1,14 +1,3 @@
-<metal:search define-macro="navigation">
-    <div class="header">
-        <metal:search use-macro="request.macros['search']" />
-        <div id="navigation">
-            <metal:breadcrumbs use-macro="request.macros['header_breadcrumbs']" />
-            <metal:statusbadge use-macro="request.macros['statusbadge']" />
-        </div>
-        <metal:status use-macro="request.macros['status']" />
-        <metal:endofheader define-slot="endofheader" />
-    </div>
-</metal:search>
 <metal:rootaboveuserindexlist define-macro="rootaboveuserindexlist">
 </metal:rootaboveuserindexlist>
 <metal:rootbelowuserindexlist define-macro="rootbelowuserindexlist">
