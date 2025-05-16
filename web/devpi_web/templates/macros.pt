@@ -25,9 +25,6 @@
         </a>
     </div>
 </metal:status>
-<metal:search define-macro="logo">
-    <h1><a href="${request.route_url('root')}">devpi</a></h1>
-</metal:search>
 <metal:search define-macro="search">
     <form method="get" id="search" action="${request.route_url('search')}">
         <metal:search use-macro="request.macros['logo']" />

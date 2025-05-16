@@ -13,3 +13,8 @@ def footer(request):  # noqa: ARG001
 )
 def footer_versions(request):
     return dict(version_infos=request.registry.get("devpi_version_info"))
+
+
+@macro_config(template="templates/logo.pt", groups="main_header_top")
+def logo(request):  # noqa: ARG001
+    return dict()
