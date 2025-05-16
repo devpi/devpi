@@ -1,0 +1,1 @@
+macros.pt: Move ``query_doc`` macro to separate ``query_doc.pt`` template.

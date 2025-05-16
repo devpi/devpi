@@ -1,0 +1,1 @@
+<p tal:repeat="html query_docs_html" tal:content="structure html"></p>
