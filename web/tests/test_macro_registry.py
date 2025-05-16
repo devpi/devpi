@@ -23,4 +23,8 @@ def test_macros(dummyrequest, pyramidconfig):
             "header_breadcrumbs",
             "status_badge",
         ],
+        "root": [
+            "root_above_user_index_list",
+            "root_below_user_index_list",
+        ],
     }
