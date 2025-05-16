@@ -1,2 +1,10 @@
 [tool.ruff]
 extend = "ruff-strict.toml"
+
+
+[tool.ruff.format]
+exclude = [
+    ".ci/cleanup_devpi_indices.py",
+    ".ci/flake8-ignores.py",
+    ".ci/ruff-ignores.py",
+]

@@ -2,6 +2,34 @@
 extend = "../pyproject.toml"
 
 
+[tool.ruff.format]
+exclude = [
+    "devpi_web/__init__.py",
+    "devpi_web/clear_index.py",
+    "devpi_web/compat.py",
+    "devpi_web/config.py",
+    "devpi_web/description.py",
+    "devpi_web/doczip.py",
+    "devpi_web/hookspecs.py",
+    "devpi_web/indexing.py",
+    "devpi_web/main.py",
+    "devpi_web/null_index.py",
+    "devpi_web/views.py",
+    "devpi_web/whoosh_index.py",
+    "setup.py",
+    "tests/conftest.py",
+    "tests/test_indexing.py",
+    "tests/test_main.py",
+    "tests/test_theme.py",
+    "tests/test_views.py",
+    "tests/test_views_docs.py",
+    "tests/test_views_misc.py",
+    "tests/test_views_search.py",
+    "tests/test_views_toxresults.py",
+    "tests/test_whoosh_index.py",
+]
+
+
 [tool.ruff.lint]
 extend-ignore = [
     "A001", # cleanup later - variable name shadows builtin

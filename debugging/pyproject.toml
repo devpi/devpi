@@ -2,6 +2,14 @@
 extend = "../pyproject.toml"
 
 
+[tool.ruff.format]
+exclude = [
+    "devpi_debugging/main.py",
+    "devpi_debugging/views.py",
+    "setup.py",
+]
+
+
 [tool.ruff.lint]
 extend-ignore = [
     "ARG001", # maybe cleanup later - unused function argument

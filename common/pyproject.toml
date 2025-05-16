@@ -42,6 +42,27 @@ repository = "https://github.com/devpi/devpi"
 extend = "../pyproject.toml"
 
 
+[tool.ruff.format]
+exclude = [
+    "devpi_common/__init__.py",
+    "devpi_common/archive.py",
+    "devpi_common/contextlib.py",
+    "devpi_common/metadata.py",
+    "devpi_common/request.py",
+    "devpi_common/terminal.py",
+    "devpi_common/types.py",
+    "devpi_common/url.py",
+    "devpi_common/validation.py",
+    "devpi_common/viewhelp.py",
+    "testing/test_archive.py",
+    "testing/test_lazydecorator.py",
+    "testing/test_metadata.py",
+    "testing/test_request.py",
+    "testing/test_types.py",
+    "testing/test_url.py",
+]
+
+
 [tool.ruff.lint]
 extend-ignore = [
     "A001", # cleanup later - variable name shadows builtin

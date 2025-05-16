@@ -2,6 +2,15 @@
 extend = "../pyproject.toml"
 
 
+[tool.ruff.format]
+exclude = [
+    "devpi_postgresql/__init__.py",
+    "devpi_postgresql/main.py",
+    "pytest_devpi_postgresql/__init__.py",
+    "setup.py",
+]
+
+
 [tool.ruff.lint]
 extend-ignore = [
     "ARG002", # maybe cleanup later - unused method argument

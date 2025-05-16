@@ -1,7 +1,30 @@
 #!/bin/bash
 set -e -o nounset
+
 FORK_POINT=$(git merge-base origin/main HEAD)
 FILES=$(git diff --relative --name-only $FORK_POINT -- '*.py')
+GIT_DIFF=$(git diff --unified=0 --relative $FORK_POINT -- '*.py')
+
+RUFF_FORMAT=$(python .ci/ruff-format-diff.py <(echo "$GIT_DIFF"))
+if test -n "$RUFF_FORMAT"; then echo "${RUFF_FORMAT}"; fi
+
+RUFF_FORMAT_EXCLUDES=""
+RUFF_FORMAT_EXCLUDES_ROOT="$(python .ci/ruff-format-excludes.py .)"
+if test -n "$RUFF_FORMAT_EXCLUDES_ROOT"; then RUFF_FORMAT_EXCLUDES="$RUFF_FORMAT_EXCLUDES$RUFF_FORMAT_EXCLUDES_ROOT\n"; fi
+RUFF_FORMAT_EXCLUDES_CLIENT="$(python .ci/ruff-format-excludes.py client)"
+if test -n "$RUFF_FORMAT_EXCLUDES_CLIENT"; then RUFF_FORMAT_EXCLUDES="$RUFF_FORMAT_EXCLUDES$RUFF_FORMAT_EXCLUDES_CLIENT\n"; fi
+RUFF_FORMAT_EXCLUDES_COMMON="$(python .ci/ruff-format-excludes.py common)"
+if test -n "$RUFF_FORMAT_EXCLUDES_COMMON"; then RUFF_FORMAT_EXCLUDES="$RUFF_FORMAT_EXCLUDES$RUFF_FORMAT_EXCLUDES_COMMON\n"; fi
+RUFF_FORMAT_EXCLUDES_DEBUGGING="$(python .ci/ruff-format-excludes.py debugging)"
+if test -n "$RUFF_FORMAT_EXCLUDES_DEBUGGING"; then RUFF_FORMAT_EXCLUDES="$RUFF_FORMAT_EXCLUDES$RUFF_FORMAT_EXCLUDES_DEBUGGING\n"; fi
+RUFF_FORMAT_EXCLUDES_POSTGRESQL="$(python .ci/ruff-format-excludes.py postgresql)"
+if test -n "$RUFF_FORMAT_EXCLUDES_POSTGRESQL"; then RUFF_FORMAT_EXCLUDES="$RUFF_FORMAT_EXCLUDES$RUFF_FORMAT_EXCLUDES_POSTGRESQL\n"; fi
+RUFF_FORMAT_EXCLUDES_SERVER="$(python .ci/ruff-format-excludes.py server)"
+if test -n "$RUFF_FORMAT_EXCLUDES_SERVER"; then RUFF_FORMAT_EXCLUDES="$RUFF_FORMAT_EXCLUDES$RUFF_FORMAT_EXCLUDES_SERVER\n"; fi
+RUFF_FORMAT_EXCLUDES_WEB="$(python .ci/ruff-format-excludes.py web)"
+if test -n "$RUFF_FORMAT_EXCLUDES_WEB"; then RUFF_FORMAT_EXCLUDES="$RUFF_FORMAT_EXCLUDES$RUFF_FORMAT_EXCLUDES_WEB\n"; fi
+if test -n "$RUFF_FORMAT_EXCLUDES"; then echo -e "$RUFF_FORMAT_EXCLUDES"; fi
+
 RUFF_TARGET_VERSION_WEB=$(grep target-version web/pyproject.toml || echo "")
 RUFF_TARGET_VERSION_CLIENT=$(awk '/(target-version).*=.*(.*)$/ { print "--config=" $1 "=" $3 }' client/pyproject.toml)
 RUFF_TARGET_VERSION_COMMON=$(awk '/(target-version).*=.*(.*)$/ { print "--config=" $1 "=" $3 }' common/pyproject.toml)
@@ -23,7 +46,7 @@ FLAKE8_OUTPUT_POSTGRESQL=$(flake8 --ignore E501,E741,W503 postgresql/ --exit-zer
 FLAKE8_OUTPUT_SERVER=$(flake8 --ignore E501,E741,W503 server/ --exit-zero)
 FLAKE8_OUTPUT_WEB=$(flake8 --ignore E501,E741,W503 web/ --exit-zero)
 FLAKE8_OUTPUT="$FLAKE8_OUTPUT_CLIENT\n$FLAKE8_OUTPUT_COMMON\n$FLAKE8_OUTPUT_DEBUGGING\n$FLAKE8_OUTPUT_POSTGRESQL\n$FLAKE8_OUTPUT_SERVER\n$FLAKE8_OUTPUT_WEB"
-match-diff-lines <(git diff --unified=0 --relative $FORK_POINT -- '*.py') <(echo "$RUFF_OUTPUT" "$FLAKE8_OUTPUT")
+match-diff-lines <(echo "$GIT_DIFF") <(echo "$RUFF_OUTPUT" "$FLAKE8_OUTPUT")
 
 FLAKE8_UNUSED=""
 
@@ -89,4 +112,4 @@ RUFF_UNUSED_WEB=""
 for RULE in $RUFF_IGNORES_WEB; do grep -q $RULE <(echo "$RUFF_OUTPUT_WEB") || RUFF_UNUSED_WEB="$RUFF_UNUSED_WEB $RULE"; done
 if test -n "$RUFF_UNUSED_WEB"; then echo "The following ruff ignores for web no longer apply:$RUFF_UNUSED_WEB"; RUFF_UNUSED="$RUFF_UNUSED web"; fi
 
-if test -n "$FLAKE8_UNUSED$RUFF_UNUSED"; then exit 1; fi
+if test -n "$FLAKE8_UNUSED$RUFF_FORMAT$RUFF_FORMAT_EXCLUDES$RUFF_UNUSED"; then exit 1; fi

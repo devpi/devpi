@@ -62,6 +62,43 @@ devpi-client-subcommands = "devpi.main"
 extend = "../pyproject.toml"
 
 
+[tool.ruff.format]
+exclude = [
+    "devpi/__init__.py",
+    "devpi/__main__.py",
+    "devpi/getjson.py",
+    "devpi/hookspecs.py",
+    "devpi/index.py",
+    "devpi/install.py",
+    "devpi/list_remove.py",
+    "devpi/login.py",
+    "devpi/main.py",
+    "devpi/push.py",
+    "devpi/pypirc.py",
+    "devpi/refresh.py",
+    "devpi/test.py",
+    "devpi/upload.py",
+    "devpi/use.py",
+    "devpi/user.py",
+    "testing/conftest.py",
+    "testing/functional.py",
+    "testing/reqmock.py",
+    "testing/simpypi.py",
+    "testing/test_functional.py",
+    "testing/test_index.py",
+    "testing/test_install.py",
+    "testing/test_list_remove.py",
+    "testing/test_login.py",
+    "testing/test_main.py",
+    "testing/test_push.py",
+    "testing/test_pypirc.py",
+    "testing/test_test.py",
+    "testing/test_upload.py",
+    "testing/test_use.py",
+    "testing/test_user.py",
+]
+
+
 [tool.ruff.lint]
 extend-ignore = [
     "A001", # cleanup later - variable name shadows builtin
