@@ -18,3 +18,12 @@ def footer_versions(request):
 @macro_config(template="templates/logo.pt", groups="main_header_top")
 def logo(request):  # noqa: ARG001
     return dict()
+
+
+@macro_config(
+    template="templates/status_badge.pt",
+    groups="main_navigation",
+    legacy_name="statusbadge",
+)
+def status_badge(request):
+    return dict(status_info=request.status_info)

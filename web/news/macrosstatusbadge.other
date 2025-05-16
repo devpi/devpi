@@ -1,0 +1,1 @@
+macros.pt: Move ``statusbadge`` macro to separate ``status_badge.pt`` template.

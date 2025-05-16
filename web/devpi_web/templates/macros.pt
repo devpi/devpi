@@ -86,12 +86,6 @@
 <metal:query_doc define-macro="query_doc">
     <p tal:repeat="html request.query_docs_html" tal:content="structure html"></p>
 </metal:query_doc>
-<metal:statusbadge define-macro="statusbadge">
-    <a class="statusbadge ${request.status_info.status}"
-       href="${request.status_info.url}">
-        ${request.status_info.short_msg}
-    </a>
-</metal:statusbadge>
 <metal:rootaboveuserindexlist define-macro="rootaboveuserindexlist">
 </metal:rootaboveuserindexlist>
 <metal:rootbelowuserindexlist define-macro="rootbelowuserindexlist">

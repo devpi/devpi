@@ -1,0 +1,4 @@
+<a class="statusbadge ${status_info.status}"
+   href="${status_info.url}">
+    ${status_info.short_msg}
+</a>

@@ -10,4 +10,7 @@ def test_macros(dummyrequest, pyramidconfig):
         "main_header_top": [
             "logo",
         ],
+        "main_navigation": [
+            "status_badge",
+        ],
     }
