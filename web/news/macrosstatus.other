@@ -1,0 +1,1 @@
+macros.pt: Move ``status`` macro to separate ``header_status.pt`` template.

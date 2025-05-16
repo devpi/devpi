@@ -1,0 +1,11 @@
+<div id="serverstatus" class="${status_info.status}"
+     tal:condition="status_info.status == 'fatal'">
+    <ul>
+        <tal:msgs repeat="msg status_info.msgs">
+            <li tal:condition="msg.status == 'fatal'">${msg.msg}</li>
+        </tal:msgs>
+    </ul>
+    <a href="${status_info.url}">
+        Server status ...
+    </a>
+</div>

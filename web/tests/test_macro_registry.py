@@ -10,6 +10,9 @@ def test_macros(dummyrequest, pyramidconfig):
         "main_footer": [
             "footer_versions",
         ],
+        "main_header": [
+            "header_status",
+        ],
         "main_header_top": [
             "logo",
         ],
