@@ -95,12 +95,6 @@
         ${request.status_info.short_msg}
     </a>
 </metal:statusbadge>
-<metal:footer define-macro="footer">
-    <footer>
-        <metal:footer define-slot="footer" />
-        <metal:versions use-macro="request.macros['versions']" />
-    </footer>
-</metal:footer>
 <metal:rootaboveuserindexlist define-macro="rootaboveuserindexlist">
 </metal:rootaboveuserindexlist>
 <metal:rootbelowuserindexlist define-macro="rootbelowuserindexlist">

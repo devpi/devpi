@@ -1,0 +1,4 @@
+<footer>
+    <metal:footer define-slot="footer" />
+    <metal:macros use-macro="request.macros['versions']" />
+</footer>

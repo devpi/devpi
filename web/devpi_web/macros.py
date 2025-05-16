@@ -1,6 +1,11 @@
 from .macroregistry import macro_config
 
 
+@macro_config(template="templates/footer.pt")
+def footer(request):  # noqa: ARG001
+    return dict()
+
+
 @macro_config(
     template="templates/footer_versions.pt",
     groups="main_footer",
