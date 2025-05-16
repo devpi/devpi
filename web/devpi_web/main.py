@@ -56,11 +56,12 @@ def navigation_version(context):
 
 def navigation_info(request):
     context = request.context
+    matchdict = request.matchdict
     path = [dict(
         url=request.route_url("root"),
         title="devpi")]
     result = dict(path=path)
-    if context.matchdict and 'user' in context.matchdict:
+    if matchdict and "user" in matchdict:
         user = context.username
         path.append(dict(
             url=request.route_url(
@@ -68,14 +69,14 @@ def navigation_info(request):
             title="%s" % user))
     else:
         return result
-    if 'index' in context.matchdict:
+    if "index" in matchdict:
         index = context.index
         path.append(dict(
             url=request.stage_url(user, index),
             title="%s" % index))
     else:
         return result
-    if 'project' in context.matchdict:
+    if "project" in matchdict:
         project = context.matchdict['project']
         name = normalize_name(project)
         path.append(dict(
@@ -84,7 +85,7 @@ def navigation_info(request):
             title=name))
     else:
         return result
-    if 'version' in context.matchdict:
+    if "version" in matchdict:
         version = navigation_version(context)
         path.append(dict(
             url=request.route_url(

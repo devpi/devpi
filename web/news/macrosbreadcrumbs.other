@@ -1,0 +1,1 @@
+macros.pt (``navigation`` macro): Move ``breadcrumbs`` out of ``navigation`` macro to separate ``header_breadcrumbs.pt`` template.

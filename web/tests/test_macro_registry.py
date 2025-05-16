@@ -20,6 +20,7 @@ def test_macros(dummyrequest, pyramidconfig):
             "header_search",
         ],
         "main_navigation": [
+            "header_breadcrumbs",
             "status_badge",
         ],
     }

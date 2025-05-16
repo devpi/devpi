@@ -2,9 +2,7 @@
     <div class="header">
         <metal:search use-macro="request.macros['search']" />
         <div id="navigation">
-            <span tal:repeat="part request.navigation_info.path">
-                <a href="${part.url}">${part.title}</a>
-            </span>
+            <metal:breadcrumbs use-macro="request.macros['header_breadcrumbs']" />
             <metal:statusbadge use-macro="request.macros['statusbadge']" />
         </div>
         <metal:status use-macro="request.macros['status']" />

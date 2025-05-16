@@ -27,6 +27,11 @@ def head(request):  # noqa: ARG001
     return dict()
 
 
+@macro_config(template="templates/header_breadcrumbs.pt", groups="main_navigation")
+def header_breadcrumbs(request):
+    return dict(path=request.navigation_info["path"])
+
+
 @macro_config(
     template="templates/header_search.pt",
     groups=GroupDef("main_header_top", after="logo"),
