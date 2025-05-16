@@ -1,3 +1,4 @@
+from .macroregistry import GroupDef
 from .macroregistry import macro_config
 import os
 
@@ -23,6 +24,15 @@ def footer_versions(request):
 
 @macro_config(template="templates/head.pt")
 def head(request):  # noqa: ARG001
+    return dict()
+
+
+@macro_config(
+    template="templates/header_search.pt",
+    groups=GroupDef("main_header_top", after="logo"),
+    legacy_name="search",
+)
+def header_search(request):  # noqa: ARG001
     return dict()
 
 
@@ -55,6 +65,7 @@ def html_head_css(request):
 def html_head_scripts(request):
     request.add_static_script("devpi_web:static/jquery-3.6.0.min.js")
     request.add_static_script("devpi_web:static/common.js")
+    request.add_static_script("devpi_web:static/search.js")
     scripts = request.environ.setdefault("devpiweb.head_scripts", [])
     return dict(scripts=scripts)
 
