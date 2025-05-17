@@ -47,7 +47,7 @@ index
     $ devpi index -h
     usage: devpi index [-h] [--debug] [-y] [-v] [--clientdir DIR]
                        [-c | --delete | -l | --no-projects]
-                       [indexname] [keyvalues [keyvalues ...]]
+                       [indexname] [keyvalues ...]
 
     create, delete and manage indexes. This is the central command to create and
     manipulate indexes. The index is always created under the currently logged in
@@ -86,7 +86,7 @@ install
     $ devpi install -h
     usage: devpi install [-h] [--debug] [-y] [-v] [--clientdir DIR]
                          [--index INDEX] [-l] [-e ARG] [--venv DIR] [-r]
-                         [pkg [pkg ...]]
+                         [pkg ...]
 
     install packages through current devpi index. This is convenience wrapper
     which configures and invokes ``pip install`` commands for you, using the
@@ -350,7 +350,7 @@ upload
                         [--no-vcs] [--setupdir-only] [--formats FORMATS] [--sdist]
                         [--wheel] [--no-isolation] [--with-docs] [--only-docs]
                         [--index INDEX] [--from-dir] [--only-latest] [--dry-run]
-                        [path [path ...]]
+                        [path ...]
 
     (build and) upload packages to the current devpi-server index. You can
     directly upload existing release files by specifying their file system path as
@@ -476,7 +476,7 @@ user
     $ devpi user -h
     usage: devpi user [-h] [--debug] [-y] [-v] [--clientdir DIR]
                       [-c | --delete | -m | -l]
-                      [username] [keyvalues [keyvalues ...]]
+                      [username] [keyvalues ...]
 
     add, remove, modify, list user configuration. This is the central command for
     performing remote user configuration and manipulation. Each indexes (created
