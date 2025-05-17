@@ -17,7 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    6.15.0
+    6.16.0
 
 .. note::
 
@@ -129,6 +129,10 @@ and then start the server again::
 
     $ supervisorctl -c gen-config/supervisord.conf start devpi-server
     devpi-server: started
+
+..
+    $ waitforports -t 60 3141
+    Waiting for 127.0.0.1:3141
 
 ..
     $ sleep 10

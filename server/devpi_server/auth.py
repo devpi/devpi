@@ -141,7 +141,7 @@ class Auth:
                 username,
                 result.get("groups", []),
                 result.get("from_user_object", False)])
-            assert not isinstance(pseudopass, str) or pseudopass.encode('ascii')  # type: ignore[attr-defined]
+            assert not isinstance(pseudopass, str) or pseudopass.encode("ascii")
             return {"password": pseudopass,
                     "expiration": self.LOGIN_EXPIRATION}
 

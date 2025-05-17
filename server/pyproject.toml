@@ -1,11 +1,105 @@
+[build-system]
+requires = ["setuptools", "setuptools_changelog_shortener", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+dynamic = ["version", "readme"]
+name = "devpi-server"
+description = "devpi-server: reliable, private, and pypi.org caching server"
+dependencies = [
+    "argon2-cffi",
+    "attrs>=22.2.0",
+    "defusedxml",
+    "devpi_common<5,>3.6.0",
+    "httpx",
+    "itsdangerous>=0.24",
+    "lazy",
+    "legacy-cgi;python_version>='3.13'",
+    "passlib[argon2]",
+    "platformdirs",
+    "pluggy>=0.6.0,<2.0",
+    "py>=1.4.23",
+    "pyramid>=2",
+    "repoze.lru>=0.6",
+    "strictyaml",
+    "waitress>=1.0.1",
+    'ruamel.yaml',
+]
+keywords = ["pypi", "realtime", "cache", "server"]
+license = "MIT"
+license-files = ["LICENSE"]
+maintainers = [
+    {name = "Florian Schulze", email = "mail@pyfidelity.com"}
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
+
+[project.urls]
+"Bug Tracker" = "https://github.com/devpi/devpi/issues"
+"Changelog" = "https://github.com/devpi/devpi/blob/main/server/CHANGELOG"
+"Documentation" = "https://doc.devpi.net"
+"Funding" = "https://github.com/sponsors/devpi"
+"Homepage" = "https://devpi.net"
+"Source Code" = "https://github.com/devpi/devpi"
+
+
+[project.scripts]
+devpi-export = "devpi_server.importexport:export"
+devpi-fsck = "devpi_server.fsck:fsck"
+devpi-gen-config = "devpi_server.genconfig:genconfig"
+devpi-gen-secret = "devpi_server.config:gensecret"
+devpi-import = "devpi_server.importexport:import_"
+devpi-init = "devpi_server.init:init"
+devpi-passwd = "devpi_server.passwd:passwd"
+devpi-server = "devpi_server.main:main"
+
+
+[project.entry-points.devpi_server]
+devpi-server-auth-basic = "devpi_server.auth_basic"
+devpi-server-auth-devpi = "devpi_server.auth_devpi"
+devpi-server-genconfig = "devpi_server.genconfig"
+devpi-server-mirror = "devpi_server.mirror"
+devpi-server-model = "devpi_server.model"
+devpi-server-replica = "devpi_server.replica"
+devpi-server-view-auth = "devpi_server.view_auth"
+devpi-server-views = "devpi_server.views"
+devpi-server-sqlite = "devpi_server.keyfs_sqlite"
+devpi-server-sqlite-fs = "devpi_server.keyfs_sqlite_fs"
+
+
+[project.entry-points.devpi_web]
+devpi-server-replica-status = "devpi_server.replica"
+devpi-server-status = "devpi_server.views"
+
+
+[project.entry-points.pytest11]
+pytest_devpi_server = "pytest_devpi_server"
+
+
 [tool.ruff]
 extend = "../pyproject.toml"
-target-version = "py37"
+target-version = "py39"
 
 
 [tool.ruff.format]
 exclude = [
-    "devpi_server/__init__.py",
     "devpi_server/auth.py",
     "devpi_server/auth_basic.py",
     "devpi_server/auth_devpi.py",
@@ -39,7 +133,6 @@ exclude = [
     "devpi_server/view_auth.py",
     "devpi_server/views.py",
     "pytest_devpi_server/__init__.py",
-    "setup.py",
     "test_devpi_server/conftest.py",
     "test_devpi_server/example.py",
     "test_devpi_server/functional.py",
@@ -141,13 +234,37 @@ extend-ignore = [
     "TRY004", # maybe cleanup later
     "TRY301", # maybe cleanup later
     "UP004", # cleanup later - inherit from 'object'
+    "UP006", # cleanup later - typing
     "UP008", # cleanup later - super
     "UP012", # false positives (bug in ruff?) - unnecessary utf-8 encode
-    "UP020", # cleanup soon - use builtin 'open'
     "UP024", # maybe cleanup later - aliased errors
     "UP025", # maybe cleanup later - unicode literals
     "UP032", # cleanup later - f-string instead of format
+    "UP035", # cleanup later - typing imports
 ]
+
+
+[tool.setuptools]
+packages = [
+    'devpi_server',
+    'devpi_server.cfg',
+    'devpi_server.vendor',
+    'pytest_devpi_server',
+    'test_devpi_server',
+]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "devpi_server.__version__"}
+readme = {file = ["README.rst", "CHANGELOG.short.rst"]}
+
+
+[tool.setuptools_changelog_shortener]
+read_from = "CHANGELOG"
+write_to = "CHANGELOG.short.rst"
+count = 5
+delimiter = "^==+"
+title = "=========\nChangelog\n========="
 
 
 [tool.towncrier]

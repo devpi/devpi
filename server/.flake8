@@ -5,6 +5,5 @@ per-file-ignores =
     plugin.py:E127,E128,E225,E231
     importexport.py:E127
     model.py:E128,E225,E231
-    setup.py:E121,E126
     test_importexport.py:E121
     test*.py:E126,E127,E128,E225,E226,E231,E251

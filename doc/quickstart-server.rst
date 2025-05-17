@@ -29,7 +29,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    6.15.0
+    6.16.0
 
 .. _genconfig:
 
@@ -343,6 +343,10 @@ generated configuration. For this tutorial it looks like this:
 Now we can start supervisor which will manage our server::
 
     $ supervisord -c gen-config/supervisord.conf
+
+..
+    $ waitforports -t 60 4040
+    Waiting for 127.0.0.1:4040
 
 The server will listen on ``http://localhost:4040`` and also serve
 the devpi web interface if you have ``devpi-web`` installed.

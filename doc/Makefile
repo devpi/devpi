@@ -223,6 +223,7 @@ regen.server-fresh: regen.server-clean
 	devpi-init --serverdir=$(TESTHOME)/.devpi/server
 	devpi-gen-config --serverdir=$(TESTHOME)/.devpi/server --argon2-memory-cost 8 --argon2-parallelism 1 --argon2-time-cost 1
 	supervisord -c gen-config/supervisord.conf
+	waitforports -t 60 3141
 
 regen.server-stop:
 	@echo stopping supervisord
