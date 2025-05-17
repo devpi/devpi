@@ -146,7 +146,7 @@ install`` of a pypi package using the index from our already running server::
       Downloading http://localhost:3141/root/pypi/%2Bf/607/c53218732647d/py-1.11.0-py2.py3-none-any.whl (98 kB)
     Collecting toml==0.10.2
       Downloading http://localhost:3141/root/pypi/%2Bf/806/143ae5bfb6a3c/toml-0.10.2-py2.py3-none-any.whl (16 kB)
-    Requirement already satisfied: packaging in /tmp/docenv/lib/python3.8/site-packages (from pytest==6.2.4) (24.1)
+    Requirement already satisfied: packaging in /tmp/docenv/lib/python3.8/site-packages (from pytest==6.2.4) (25.0)
     Installing collected packages: toml, py, pluggy, iniconfig, attrs, pytest
     Successfully installed attrs-23.1.0 iniconfig-2.0.0 pluggy-0.13.1 py-1.11.0 pytest-6.2.4 toml-0.10.2
 
@@ -244,7 +244,7 @@ If you have a package which uses tox_ for testing you may now invoke::
     unpacking /tmp/devpi-test0/downloads/example-1.0.tar.gz to /tmp/devpi-test0/targz
     --> .$ /home/devpi/devpi/bin/tox --installpkg /tmp/devpi-test0/downloads/example-1.0.tar.gz --recreate --result-json /tmp/devpi-test0/targz/toxreport.json -c /tmp/devpi-test0/targz/example-1.0/tox.ini -q  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/')]
     ============================= test session starts ==============================
-    platform linux -- Python 3.8.12, pytest-8.3.2, pluggy-1.5.0
+    platform linux -- Python 3.8.12, pytest-8.3.5, pluggy-1.5.0
     cachedir: .tox/py/.pytest_cache
     rootdir: /home/runner/work/devpi/devpi
     configfile: pyproject.toml

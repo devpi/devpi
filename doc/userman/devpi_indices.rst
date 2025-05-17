@@ -70,9 +70,9 @@ and then issue::
 
    $ devpi use --urls
    current devpi index: http://localhost:3141/root/pypi (logged in as emilie)
-           simpleindex: http://localhost:3141/root/pypi/+simple/
-            pypisubmit: None
                  login: http://localhost:3141/+login
+            pypisubmit: None
+           simpleindex: http://localhost:3141/root/pypi/+simple/
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip/uv config, no global configuration changed
@@ -228,9 +228,9 @@ And from there, the urls should be set to::
 
    $ devpi use --urls
    current devpi index: http://localhost:3141/emilie/prod (logged in as emilie)
-           simpleindex: http://localhost:3141/emilie/prod/+simple/
-            pypisubmit: http://localhost:3141/emilie/prod/
                  login: http://localhost:3141/+login
+            pypisubmit: http://localhost:3141/emilie/prod/
+           simpleindex: http://localhost:3141/emilie/prod/+simple/
    supported features: push-no-docs, push-only-docs, push-register-project, server-keyvalue-parsing
    venv for install/set commands: /tmp/docenv
    only setting venv pip/uv config, no global configuration changed
