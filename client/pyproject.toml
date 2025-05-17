@@ -84,7 +84,6 @@ exclude = [
     "devpi/user.py",
     "testing/conftest.py",
     "testing/functional.py",
-    "testing/reqmock.py",
     "testing/simpypi.py",
     "testing/test_functional.py",
     "testing/test_index.py",
