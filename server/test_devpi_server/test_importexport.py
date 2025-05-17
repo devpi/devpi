@@ -1008,7 +1008,7 @@ class TestImportExport:
             assert verdata["version"] == "1.0"
             (link,) = stage.get_releaselinks("he_llo")
             assert link.entry.file_get_content() == b'content'
-            # assert os.stat(link.entry.file_os_path()).st_nlink == 2
+            assert os.stat(link.entry.file_os_path()).st_nlink == 2
             doczip = stage.get_doczip("he_llo", "1.0")
             archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()
