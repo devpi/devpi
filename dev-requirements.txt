@@ -27,6 +27,10 @@ setuptools_changelog_shortener
 supervisor
 towncrier>=21.9.0
 tox
+types-WebOb
+types-beautifulsoup4
+types-defusedxml
+types-passlib
 types-requests
 types-urllib3
 types-waitress

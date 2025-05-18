@@ -44,7 +44,6 @@ if __name__ == "__main__":
                         "strictyaml",
                         "lazy",
                         ]
-    extras_require = {}
 
     setup(
       name="devpi-server",
@@ -86,7 +85,6 @@ if __name__ == "__main__":
             ("Programming Language :: Python :: %s" % x)
             for x in "3.7 3.8 3.9 3.10 3.11 3.12 3.13".split()],
       install_requires=install_requires,
-      extras_require=extras_require,
       python_requires='>=3.7',
       entry_points={
         'console_scripts': [

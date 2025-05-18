@@ -3,7 +3,7 @@ from devpi_common.archive import zip_dict
 from io import BytesIO
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.response import HTTPResponse
-from webob.request import cgi_FieldStorage
+from webob.request import cgi_FieldStorage  # type: ignore[attr-defined]
 import json
 import pytest
 

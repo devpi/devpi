@@ -860,13 +860,31 @@ jobs:
   mypy-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     needs: "packages"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: "client"
+            python-version: "3.7"
+            os: "ubuntu-22.04"
+          - project: "common"
+            python-version: "3.7"
+            os: "ubuntu-22.04"
+          - project: "postgresql"
+            python-version: "3.7"
+            os: "ubuntu-22.04"
+          - project: "server"
+            python-version: "3.7"
+            os: "ubuntu-22.04"
+          - project: "web"
+            python-version: "3.7"
+            os: "ubuntu-22.04"
 
     env:
       PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
 
-    runs-on: "ubuntu-22.04"
-    strategy:
-      fail-fast: false
+    runs-on: "${{ matrix.os }}"
 
     steps:
       - uses: "actions/checkout@v4"
@@ -874,7 +892,7 @@ jobs:
           persist-credentials: false
       - uses: "actions/setup-python@v5"
         with:
-          python-version: "3.7"
+          python-version: "${{ matrix.python-version }}"
       - name: "Install dependencies"
         shell: "bash"
         run: |
@@ -882,14 +900,17 @@ jobs:
           source .ci/set-index-env.sh
           python -VV
           python -m site
-          python -m pip install --upgrade pip setuptools wheel -r dev-requirements.txt
+          python -m pip install --upgrade pip setuptools wheel tox
       - name: "Run mypy"
         shell: "bash"
         run: |
           set -xe -o nounset
-          python -m mypy --no-incremental 2> >(tee mypy-stderr.txt >&2)
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          PIP_PRE=1 python -m tox -v -e mypy -- --no-incremental 2> >(tee mypy-stderr.txt >&2)
           test ! "$(grep -ci warning mypy-stderr.txt || true)" != "0" || echo "::error::mypy reported warnings"
-          python -m mypy
+          PIP_PRE=1 python -m tox -v -e mypy
           test ! "$(grep -ci warning mypy-stderr.txt || true)" != "0"
 
   lint-tests:

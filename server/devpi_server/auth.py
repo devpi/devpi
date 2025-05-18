@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import hashlib
 import itertools
@@ -6,6 +8,12 @@ import secrets
 from .log import threadlog
 from passlib.context import CryptContext
 from passlib.utils.handlers import MinimalHandler
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from typing import Any
+    from typing import Union
 
 
 notset = object()
@@ -175,7 +183,7 @@ class DevpiHandler(MinimalHandler):
         return "%s:%s" % (salt, hash)
 
     @classmethod
-    def verify(cls, secret, hash):
+    def verify(cls, secret: Union[str, bytes], hash: Union[str, bytes], **context_kwds: Any) -> Any:  # noqa: A002, ARG003
         (salt, hash) = cls._get_salt_and_hash(hash)
         return salt and hash and (getpwhash(secret, salt) == hash)
 
