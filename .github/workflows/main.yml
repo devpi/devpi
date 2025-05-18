@@ -12,7 +12,7 @@ jobs:
   packages:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "Create packages"
-    runs-on: "ubuntu-22.04"
+    runs-on: "ubuntu-latest"
     env:
       PY_COLORS: 1
 
@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
       - uses: "actions/setup-python@v5"
         with:
-          python-version: "3.7"
+          python-version: "3.9"
       - name: "Install dependencies"
         run: |
           set -xe -o nounset
