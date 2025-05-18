@@ -8,7 +8,7 @@ fi
 
 if which uv; then
     UNINSTALL_COMMAND="uv pip uninstall"
-    INSTALL_COMMAND="uv pip install --reinstall"
+    INSTALL_COMMAND="uv pip install --reinstall --config-setting editable_mode=compat"
 else
     UNINSTALL_COMMAND="pip uninstall -y"
     INSTALL_COMMAND="pip install --upgrade-strategy eager"

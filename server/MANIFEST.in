@@ -1,4 +1,6 @@
 include .flake8 CHANGELOG *.ini *.rst LICENSE
-recursive-include devpi_server *.template 
+recursive-include devpi_server py.typed
+recursive-include devpi_server *.template
+recursive-include test_devpi_server py.typed
 recursive-include test_devpi_server *.py
 recursive-include test_devpi_server/importexportdata *.gz* *.json
