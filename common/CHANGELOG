@@ -2,6 +2,16 @@
 
 .. towncrier release notes start
 
+4.1.0 (2025-05-18)
+==================
+
+Other Changes
+-------------
+
+- Use ``__slots__`` to reduce memory usage of ``Version``.
+
+
+
 4.0.4 (2024-04-20)
 ==================
 

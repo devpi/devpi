@@ -29,7 +29,7 @@ Install or upgrade ``devpi-server``::
 And let's check the version::
 
     $ devpi-server --version
-    6.14.0
+    6.15.0
 
 .. _genconfig:
 

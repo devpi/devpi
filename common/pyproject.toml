@@ -44,7 +44,6 @@ extend = "../pyproject.toml"
 
 [tool.ruff.format]
 exclude = [
-    "devpi_common/__init__.py",
     "devpi_common/archive.py",
     "devpi_common/contextlib.py",
     "devpi_common/metadata.py",

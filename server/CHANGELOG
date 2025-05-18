@@ -2,6 +2,16 @@
 
 .. towncrier release notes start
 
+6.15.0 (2025-05-18)
+===================
+
+Features
+--------
+
+- Add ``--connection-limit`` option to devpi-server passed on to waitress.
+
+
+
 6.14.0 (2024-10-16)
 ===================
 
