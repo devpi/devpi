@@ -623,6 +623,7 @@ class Importer:
                 hashes=hashes, last_modified=last_modified)
         else:
             msg = f"unknown file type: {type}"
+            f.close()
             raise Fatal(msg)
         if link is not None:
             history_log = filedesc.get('log')
