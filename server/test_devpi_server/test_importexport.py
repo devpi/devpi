@@ -92,7 +92,7 @@ def test_export_empty_serverdir(tmpdir, capfd, monkeypatch, storage_args):
     assert ("The path '%s' contains no devpi-server data" % empty) in err
 
 
-def test_export_import(tmpdir, capfd, monkeypatch, storage_args):
+def test_export_import(tmpdir, capfd, monkeypatch, sorted_serverdir, storage_args):
     from devpi_server.importexport import export
     from devpi_server.importexport import import_
     from devpi_server.init import init
@@ -119,12 +119,14 @@ def test_export_import(tmpdir, capfd, monkeypatch, storage_args):
         export_dir.strpath])
     assert ret == 0
     out, err = capfd.readouterr()
-    assert sorted(os.listdir(clean.strpath)) == sorted(os.listdir(import_dir.strpath))
+    assert sorted_serverdir(clean) == sorted_serverdir(import_dir)
     assert 'import_all: importing finished' in out
     assert err == ''
 
 
-def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch, storage_args):
+def test_export_import_no_root_pypi(
+    tmpdir, capfd, monkeypatch, sorted_serverdir, storage_args
+):
     from devpi_server.importexport import export
     from devpi_server.importexport import import_
     from devpi_server.init import init
@@ -153,7 +155,7 @@ def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch, storage_args):
         export_dir.strpath])
     assert ret == 0
     out, err = capfd.readouterr()
-    assert sorted(os.listdir(clean.strpath)) == sorted(os.listdir(import_dir.strpath))
+    assert sorted_serverdir(clean) == sorted_serverdir(import_dir)
     assert 'import_all: importing finished' in out
     assert err == ''
     # now we add --no-root-pypi
@@ -167,7 +169,7 @@ def test_export_import_no_root_pypi(tmpdir, capfd, monkeypatch, storage_args):
         export_dir.strpath])
     assert ret == 0
     out, err = capfd.readouterr()
-    assert sorted(os.listdir(clean.strpath)) == sorted(os.listdir(import_dir.strpath))
+    assert sorted_serverdir(clean) == sorted_serverdir(import_dir)
     assert 'import_all: importing finished' in out
     assert err == ''
 

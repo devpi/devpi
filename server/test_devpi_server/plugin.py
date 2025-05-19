@@ -1462,3 +1462,15 @@ def _default_hash_type():
             assert ht not in filestore.DEFAULT_HASH_TYPES
             filestore.DEFAULT_HASH_TYPES += (ht,)
         warnings.warn(f"ADDITIONAL_HASH_TYPES {hash_types!r}", stacklevel=1)
+
+
+@pytest.fixture
+def sorted_serverdir():
+    def sorted_serverdir(path):
+        return sorted(
+            name
+            for x in Path(path).iterdir()
+            if not (name := x.name).endswith(("-shm", "-wal"))
+        )
+
+    return sorted_serverdir
