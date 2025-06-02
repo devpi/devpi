@@ -201,7 +201,8 @@ def server_executable(request, tmpdir_factory):
 @pytest.fixture(scope="session")
 def server_version(request, server_executable):
     output = check_output(request, [server_executable, "--version"])
-    return parse_version(output.decode('ascii').strip())
+    version_line = [l for l in output.splitlines() if l.strip()][-1]
+    return parse_version(version_line.decode('ascii').strip())
 
 
 @pytest.fixture(scope="session")
