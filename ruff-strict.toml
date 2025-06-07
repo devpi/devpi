@@ -94,6 +94,9 @@ order-by-type = false
 "web/devpi_web/hookspecs.py" = [
     "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
 ]
+"web/devpi_web/macroregistry.py" = [
+    "COM812", # ignore - ruff format
+]
 "web/tests/conftest.py" = [
     "INP001", # ignore - implicit namespace package
 ]

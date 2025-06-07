@@ -532,7 +532,7 @@ devpi command reference (server)
                         [--request-timeout NUM] [--offline-mode] [--serverdir DIR]
                         [--storage NAME] [--keyfs-cache-size NUM]
                         [--secretfile path] [--requests-only]
-                        [--restrict-modify SPEC] [--theme THEME]
+                        [--restrict-modify SPEC] [--theme THEME] [--debug-macros]
                         [--documentation-path DOCUMENTATION_PATH]
                         [--keep-docs-packed] [--indexer-backend NAME]
 
@@ -684,6 +684,8 @@ devpi command reference (server)
     devpi-web theme options:
       --theme THEME         folder with template and resource overwrites for the
                             web interface [None]
+      --debug-macros        add html comments at start and end of macros, and log
+                            deprecation warnings [False]
 
     devpi-web doczip options:
       --documentation-path DOCUMENTATION_PATH

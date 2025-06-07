@@ -102,6 +102,9 @@ used on the devpi-server root page and are empty by default. They are provided
 as convenience, so you don't have to overwrite the whole root template to add
 some infos.
 
+If you start devpi-server with the ``--debug-macros`` option,
+then you can inspect the HTML of every page and look for the included comments to see where and which macros are used.
+
 To change the logo, you
 would put your ``logo.gif`` into the ``static`` folder and create a
 ``macros.pt`` template with the following content:

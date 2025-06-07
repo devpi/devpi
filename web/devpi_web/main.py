@@ -11,7 +11,6 @@ from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
 from devpi_server.log import threadlog
 from pluggy import HookimplMarker
-from pyramid.renderers import get_renderer
 from pyramid_chameleon.renderer import ChameleonRendererLookup
 import os
 import sys
@@ -24,22 +23,6 @@ devpiserver_hookimpl = HookimplMarker("devpiserver")
 def theme_static_url(request, path):
     return request.static_url(
         os.path.join(request.registry['theme_path'], 'static', path))
-
-
-def macros(request):
-    # returns macros which may partially be overwritten in a theme
-    result = {}
-    paths = [
-        "devpi_web:templates/macros.pt",
-        "templates/macros.pt"]
-    for path in paths:
-        renderer = get_renderer(path)
-        macros = renderer.implementation().macros
-        for name in macros.names:
-            if name in result:
-                result['original-%s' % name] = result[name]
-            result[name] = macros[name]
-    return result
 
 
 def navigation_version(context):
@@ -123,12 +106,12 @@ def query_docs_html(request):
 class ThemeChameleonRendererLookup(ChameleonRendererLookup):
     auto_reload = AUTO_RELOAD
     debug = DEBUG_MODE
+    theme_path = None
 
     def __call__(self, info):
         # if the template exists in the theme, we will use it instead of the
         # original template
-        theme_path = getattr(self, 'theme_path', None)
-        if theme_path:
+        if "devpi_web:" not in info.name and (theme_path := self.theme_path):
             theme_file = os.path.join(theme_path, info.name)
             if os.path.exists(theme_file):
                 info.name = theme_file
@@ -154,6 +137,7 @@ def includeme(config):
         if os.path.exists(static_path):
             config.add_static_view('+theme-static-%s' % __version__, static_path)
             config.add_request_method(theme_static_url)
+    config.include("devpi_web.macroregistry")
     config.add_route('root', '/', accept='text/html')
     config.add_route('search', '/+search', accept='text/html')
     config.add_route('search_help', '/+searchhelp', accept='text/html')
@@ -175,7 +159,6 @@ def includeme(config):
         "/{user}/",
         "/{user:[^+/]+}/")
     config.add_tween("devpi_web.views.tween_trailing_slash_redirect")
-    config.add_request_method(macros, reify=True)
     config.add_request_method(navigation_info, reify=True)
     config.add_request_method(status_info, reify=True)
     config.add_request_method(query_docs_html, reify=True)
@@ -234,6 +217,7 @@ def devpiserver_pyramid_configure(config, pyramid_config):
                 "The theme path '%s' is not a directory." % theme_path)
             sys.exit(1)
     pyramid_config.registry['theme_path'] = theme_path
+    pyramid_config.registry["debug_macros"] = config.args.debug_macros
     # by using include, the package name doesn't need to be set explicitly
     # for registrations of static views etc
     pyramid_config.include('devpi_web.main')
@@ -248,6 +232,11 @@ def devpiserver_add_parser_options(parser):
     theme.addoption(
         "--theme", action="store",
         help="folder with template and resource overwrites for the web interface")
+    theme.addoption(
+        "--debug-macros",
+        action="store_true",
+        help="add html comments at start and end of macros, and log deprecation warnings",
+    )
     doczip = parser.addgroup("devpi-web doczip options")
     doczip.addoption(
         "--documentation-path", action="store",
