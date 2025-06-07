@@ -741,8 +741,7 @@ class PyPIView:
                 yanked = "" if link.yanked is True else link.yanked
                 attribs += ' data-yanked="%s"' % escape(yanked)
             data = dict(stage=stage, attribs=attribs, key=link.key)
-            yield '{stage} <a {attribs}>{key}</a><br/>\n'.format(
-                **data).encode('utf-8')
+            yield "{stage} <a {attribs}>{key}</a><br>\n".format(**data).encode("utf-8")
 
         yield "</body></html>".encode("utf-8")
 
@@ -837,7 +836,7 @@ class PyPIView:
             yield f"<h2>{h2}</h2>".encode("utf-8")
             for name in sorted(names):
                 if name not in seen:
-                    yield f'<a href="{name}/">{name}</a><br/>\n'.encode("utf-8")
+                    yield f'<a href="{name}/">{name}</a><br>\n'.encode()
                     if index != last_index:
                         seen.add(name)
         yield "</body></html>".encode("utf-8")
