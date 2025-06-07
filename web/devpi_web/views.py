@@ -1197,7 +1197,7 @@ class SearchView:
         except Exception as e:
             log.exception("Error in xmlrpc_search")
             response = dumps(Fault(1, repr(e)), encoding='utf-8')
-        return Response(response)
+        return Response(response, content_type="text/xml")
 
 
 def make_more_url_params(params, path):
