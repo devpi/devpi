@@ -321,21 +321,21 @@ jobs:
       matrix:
         include:
           - project: "common"
-            python-version: "3.13.0-alpha - 3.13.99"
+            python-version: "3.14.0-alpha - 3.14.99"
             os: "ubuntu-latest"
-            tox-envs: "py313"
+            tox-envs: "py314"
           - project: "client"
-            python-version: "3.13.0-alpha - 3.13.99"
+            python-version: "3.14.0-alpha - 3.14.99"
             os: "ubuntu-latest"
-            tox-envs: "py313"
+            tox-envs: "py314"
           - project: "server"
-            python-version: "3.13.0-alpha - 3.13.99"
+            python-version: "3.14.0-alpha - 3.14.99"
             os: "ubuntu-latest"
-            tox-envs: "py313"
+            tox-envs: "py314"
           - project: "web"
-            python-version: "3.13.0-alpha - 3.13.99"
+            python-version: "3.14.0-alpha - 3.14.99"
             os: "ubuntu-latest"
-            tox-envs: "py313"
+            tox-envs: "py314"
 
     env:
       PY_COLORS: 1
@@ -697,21 +697,21 @@ jobs:
       matrix:
         include:
           # - project: "postgresql"
-          #   python-version: "3.13.0-alpha - 3.13.99"
+          #   python-version: "3.14.0-alpha - 3.14.99"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py313-postgresql"
+          #   tox-envs: "py314-postgresql"
           - project: "postgresql"
-            python-version: "3.13.0-alpha - 3.13.99"
+            python-version: "3.14.0-alpha - 3.14.99"
             os: "ubuntu-latest"
-            tox-envs: "py313-server"
+            tox-envs: "py314-server"
           - project: "postgresql"
-            python-version: "3.13.0-alpha - 3.13.99"
+            python-version: "3.14.0-alpha - 3.14.99"
             os: "ubuntu-latest"
-            tox-envs: "py313-web"
+            tox-envs: "py314-web"
           # - project: "postgresql"
-          #   python-version: "3.13.0-alpha - 3.13.99"
+          #   python-version: "3.14.0-alpha - 3.14.99"
           #   os: "ubuntu-latest"
-          #   tox-envs: "py313-server_postgresql_ssl"
+          #   tox-envs: "py314-server_postgresql_ssl"
 
     env:
       PY_COLORS: 1
