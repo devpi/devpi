@@ -775,7 +775,7 @@ class PyPIView:
             user=self.context.username, index=self.context.index,
             project=project)
         title = "Refresh" if stage.ixconfig["type"] == "mirror" else "Refresh mirror links"
-        submit = '<input name="refresh" type="submit" value="%s"/>' % title
+        submit = '<input name="refresh" type="submit" value="%s">' % title
         return '<form action="%s" method="post">%s</form>' % (url, submit)
 
     @view_config(route_name="/{user}/{index}/+simple")
