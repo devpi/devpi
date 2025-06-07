@@ -716,8 +716,10 @@ class PyPIView:
 
     def _simple_list_project(self, stage, project, result, embed_form, blocked_index):
         title = "%s: links for %s" % (stage.name, project)
-        yield ("<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1>\n" %
-               (title, title)).encode("utf-8")
+        yield (
+            '<!DOCTYPE html><html lang="en"><head><title>%s</title></head><body><h1>%s</h1>\n'
+            % (title, title)
+        ).encode("utf-8")
 
         if embed_form:
             yield self._index_refresh_form(stage, project).encode("utf-8")
@@ -824,7 +826,7 @@ class PyPIView:
 
     def _simple_list_all(self, stage_name, stage_results):
         title = f"{stage_name}: simple list (including inherited indices)"
-        yield f"<!DOCTYPE html><html><head><title>{title}</title></head><body><h1>{title}</h1>".encode("utf-8")
+        yield f'<!DOCTYPE html><html lang="en"><head><title>{title}</title></head><body><h1>{title}</h1>'.encode()
         last_index = len(stage_results) - 1
         seen = set()
         for index, (stage, names) in enumerate(stage_results):
@@ -841,7 +843,7 @@ class PyPIView:
         yield "</body></html>".encode("utf-8")
 
     def _simple_list_all_installer(self, stage_results):
-        yield "<!DOCTYPE html><html><body>".encode("utf-8")
+        yield b'<!DOCTYPE html><html lang="en"><body>'
         last_index = len(stage_results) - 1
         seen = set()
         for index, (stage, names) in enumerate(stage_results):
