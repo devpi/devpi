@@ -142,7 +142,8 @@ class DevIndex:
                 ret = e.args[0]
 
         if ret != 2 and upload_tox_results:
-            jsondata = json.load(jsonreport.open("r"))
+            with jsonreport.open("r") as f:
+                jsondata = json.load(f)
             url = URL(link.href)
             post_tox_json_report(self.hub, url.url_nofrag, jsondata)
         if ret != 0:
