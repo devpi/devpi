@@ -18,7 +18,6 @@ exclude = [
     "client/devpi/push.py",
     "client/devpi/pypirc.py",
     "client/devpi/refresh.py",
-    "client/devpi/upload.py",
     "client/devpi/use.py",
     "client/devpi/user.py",
     "client/testing/conftest.py",
