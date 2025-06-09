@@ -1154,6 +1154,35 @@ def test_requests_httpget_error(exc, xom, monkeypatch):
     assert r.status_code == -1
 
 
+@pytest.mark.nomocking
+@pytest.mark.notransaction
+def test_http_user_agent(monkeypatch, server_version, simpypi, xom):
+    from .simpypi import SimPyPIRequestHandler
+    import contextlib
+
+    def do_POST(self):
+        simpypi = self.server.simpypi
+        simpypi.requests.append((self.path, self.headers))
+        self.send_response(200)
+        self.end_headers()
+
+    monkeypatch.setattr(SimPyPIRequestHandler, "do_POST", do_POST, raising=False)
+    simpypi.add_release("pkg", pkgver="pkg-1.0.zip")
+    xom.http.get(simpypi.simpleurl, allow_redirects=False)
+    ((_, headers), *_) = simpypi.requests
+    assert headers["User-Agent"].startswith(f"devpi-server/{server_version}")
+    simpypi.requests.clear()
+    xom.http.post(simpypi.simpleurl)
+    ((_, headers), *_) = simpypi.requests
+    assert headers["User-Agent"] == f"devpi-server/{server_version}"
+    simpypi.requests.clear()
+    with contextlib.ExitStack() as cstack:
+        xom.http.stream(cstack, "GET", simpypi.simpleurl, allow_redirects=False).read()
+    ((_, headers), *_) = simpypi.requests
+    assert headers["User-Agent"] == f"devpi-server/{server_version}"
+    simpypi.requests.clear()
+
+
 @pytest.mark.asyncio
 @pytest.mark.nomocking
 @pytest.mark.parametrize("exc", [OSError(), httpx.RequestError(message="fail")])
@@ -1164,6 +1193,17 @@ async def test_async_get_error(exc, xom, monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "get", async_get)
     r = await xom.http.async_get("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.nomocking
+@pytest.mark.notransaction
+async def test_http_async_user_agent(server_version, simpypi, xom):
+    simpypi.add_release("pkg", pkgver="pkg-1.0.zip")
+    await xom.http.async_get(simpypi.simpleurl, allow_redirects=False)
+    ((_, headers), *_) = simpypi.requests
+    assert headers["User-Agent"] == f"devpi-server/{server_version}"
+    simpypi.requests.clear()
 
 
 @pytest.mark.filterwarnings("ignore:The async_httpget")
