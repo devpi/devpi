@@ -18,6 +18,7 @@ def main():
     with Path(sys.argv[1]).open() as f:
         diff = parse_unified_diff(f)
     for path, lines in diff.items():
+        diffs = set()
         if not lines:
             continue
         if not Path(path).exists():
@@ -45,7 +46,9 @@ def main():
             out = result.stdout
             if not result.returncode or not out:
                 continue
-            print(out)  # noqa: T201
+            if out not in diffs:
+                print(out)  # noqa: T201
+                diffs.add(out)
 
 
 if __name__ == "__main__":
