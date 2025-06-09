@@ -1,6 +1,6 @@
 from devpi_server.log import threadlog
 from devpi_server.log import thread_push_log
-from devpi_server.main import fatal
+from devpi_server.main import Fatal
 from pluggy import HookimplMarker
 from pyramid.events import NewRequest
 from pyramid.events import subscriber
@@ -48,7 +48,9 @@ def devpiserver_cmdline_run(xom):
         if current_handler == signal.SIG_DFL:
             signal.signal(signal.SIGUSR1, show_stacks)
         else:
-            fatal(f"Couldn't install USR1 signal handler, because another one is already active: {current_handler}")
+            raise Fatal(
+                f"Couldn't install USR1 signal handler, because another one is already active: {current_handler}"
+            )
 
 
 @hookimpl
