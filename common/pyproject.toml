@@ -72,7 +72,6 @@ extend-ignore = [
     "B007", # maybe cleanup later
     "B904", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
-    "COM812", # cleanup later
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx
     "G002", # cleanup soon - logging statement uses %

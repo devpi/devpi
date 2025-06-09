@@ -14,7 +14,6 @@ exclude = [
 [tool.ruff.lint]
 extend-ignore = [
     "ARG002", # maybe cleanup later - unused method argument
-    "COM812", # cleanup later
     "FBT002", # cleanup soon - boolean positional argument
     "FLY002", # maybe cleanup later - f-string instead of join
     "G002", # cleanup soon - logging statement uses %

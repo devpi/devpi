@@ -111,7 +111,6 @@ extend-ignore = [
     "BLE001", # cleanup soon - blind exception
     "C402", # maybe cleanup later - rewrite as dict comprehension
     "C405", # cleanup soon - set literal instead of set call
-    "COM812", # cleanup later
     "ERA001", # cleanup soon
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx

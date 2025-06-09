@@ -146,6 +146,7 @@ ignore = [
     "ANN", # maybe cleanup later - annotations
     "C408", # ignore - dict call
     "C901", # ignore - complex structure
+    "COM812", # ignore - ruff format
     "D", # ignore - docstrings
     "E501", # ignore - line too long
     "E741", # ignore - ambiguous variable name
@@ -185,9 +186,6 @@ order-by-type = false
     "S603", # ignore - subprocess untrusted input
     "S607", # ignore - subprocess partial executable path
     "T201", # ignore - print found
-]
-".ci/ruff-format-diff.py" = [
-    "COM812", # ignore - ruff format
 ]
 "client/devpi/hookspecs.py" = [
     "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
