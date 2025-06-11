@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from devpi_common.types import cached_property
 from devpi_server.log import threadlog as log
+from pathlib import Path
 from pyramid.events import BeforeRender
 from pyramid.exceptions import ConfigurationError
 from pyramid.interfaces import IRendererFactory
@@ -107,11 +108,6 @@ class MacroRegistry:
         self._groups = {}
         self.groups = {}
         self.macros = {}
-
-    def add_legacy_macro(self, name, macro):
-        if name in self.macros:
-            raise ValueError(f"Duplicate macro name {name!r}")
-        self.macros[name] = macro
 
     def add_legacy_overwrite(self, name, macro):
         if name in self.macros:
@@ -266,15 +262,10 @@ def add_macro(
 def add_macros(config):
     def register():
         macro_registry = config.registry["macros"]
-        renderer = get_renderer("devpi_web:templates/macros.pt")
-        original_path = renderer.path
-        original_macros = renderer.implementation().macros
-        original_macro_names = frozenset(original_macros.names)
-        for macro_name in original_macro_names:
-            macro_registry.add_legacy_macro(macro_name, original_macros[macro_name])
-        renderer = get_renderer("templates/macros.pt")
-        if renderer.path == original_path:
-            # no theme, so we got the original again
+        try:
+            renderer = get_renderer("templates/macros.pt")
+        except ValueError:
+            # no macros in theme
             return
         theme_macros = renderer.implementation().macros
         for theme_macro_name in theme_macros.names:
@@ -283,6 +274,11 @@ def add_macros(config):
             )
 
     config.action(("macros"), register, order=1)
+
+
+def add_theme(config, _theme_path):
+    # add deprecated macros.pt
+    config.add_macros()
 
 
 def add_renderer_globals(event):
@@ -300,7 +296,8 @@ def includeme(config):
     config.registry["macros"] = MacroRegistry(
         debug=config.registry.get("debug_macros", False)
     )
-    config.add_macros()
+    if (theme_path := config.registry.get("theme_path")) is not None:
+        add_theme(config, Path(theme_path))
 
 
 def macro_config(
