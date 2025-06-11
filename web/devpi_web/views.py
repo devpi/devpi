@@ -1,3 +1,4 @@
+from attrs import define
 from defusedxml.xmlrpc import DefusedExpatParser
 from devpi_common.metadata import Version
 from devpi_common.metadata import get_pyversion_filetype
@@ -30,6 +31,7 @@ from pyramid.interfaces import IRoutesMapper
 from pyramid.response import FileResponse, Response
 from pyramid.view import notfound_view_config, view_config
 from time import gmtime
+from typing import Any
 from xmlrpc.client import Fault, Unmarshaller, dumps
 import functools
 import json
@@ -742,6 +744,14 @@ def project_get(context, request):
         versions=versions)
 
 
+@define
+class MetadataItem:
+    name: str
+    value: Any
+    is_list: bool
+    count: int
+
+
 @view_config(
     route_name="/{user}/{index}/{project}/{version}",
     accept="text/html", request_method="GET",
@@ -758,6 +768,7 @@ def version_get(context, request):
         log.error(e.msg)
         raise HTTPBadGateway(e.msg)
     infos = []
+    metadata = []
     skipped_keys = frozenset(
         ("description", "home_page", "name", "summary", "version"))
     for key, in_value in sorted(verdata.items()):
@@ -766,11 +777,20 @@ def version_get(context, request):
         if isinstance(in_value, seq_types):
             if not len(in_value):
                 continue
+            out_value = list(in_value)
+            metadata.append(
+                MetadataItem(
+                    name=key, value=out_value, is_list=True, count=len(out_value)
+                )
+            )
             items = "\n".join(f"  <li>{escape(x)}</li>" for x in in_value)
             out_value = f"<ul>\n{items}\n</ul>"
         else:
             if not in_value:
                 continue
+            metadata.append(
+                MetadataItem(name=key, value=in_value, is_list=False, count=1)
+            )
             out_value = escape(in_value)
         infos.append((escape(key), out_value))
     show_toxresults = (stage.ixconfig['type'] != 'mirror')
@@ -817,6 +837,7 @@ def version_get(context, request):
         resolved_version=version,
         nav_links=nav_links,
         infos=infos,
+        metadata=metadata,
         metadata_list_fields=frozenset(escape(x) for x in metadata_list_fields),
         files=files,
         blocked_by_mirror_whitelist=whitelist_info["blocked_by_mirror_whitelist"],
