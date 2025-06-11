@@ -1199,19 +1199,44 @@ class BaseStage(object):
 
 class PrivateStage(BaseStage):
     metadata_keys = (
-        'name', 'version',
+        "name",
+        "version",
         # additional meta-data
-        'metadata_version', 'summary', 'home_page', 'author', 'author_email',
-        'maintainer', 'maintainer_email', 'license', 'description',
-        'keywords', 'platform', 'classifiers', 'download_url',
-        'supported_platform', 'comment',
+        "metadata_version",
+        "summary",
+        "home_page",
+        "author",
+        "author_email",
+        "maintainer",
+        "maintainer_email",
+        "license",
+        "description",
+        "keywords",
+        "platform",
+        "classifiers",
+        "download_url",
+        "supported_platform",
+        "comment",
         # PEP 314
-        'provides', 'requires', 'obsoletes',
+        "provides",
+        "requires",
+        "obsoletes",
         # Metadata 1.2
-        'project_urls', 'provides_dist', 'obsoletes_dist',
-        'requires_dist', 'requires_external', 'requires_python',
+        "project_urls",
+        "provides_dist",
+        "obsoletes_dist",
+        "requires_dist",
+        "requires_external",
+        "requires_python",
         # Metadata 2.1
-        'description_content_type', 'provides_extras')
+        "description_content_type",
+        "provides_extras",
+        # Metadata 2.2
+        "dynamic",
+        # Metadata 2.4
+        "license_expression",
+        "license_file",
+    )
     metadata_list_fields = (
         'platform', 'classifiers', 'obsoletes',
         'requires', 'provides', 'obsoletes_dist',

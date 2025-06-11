@@ -234,6 +234,43 @@ def test_upload_and_push_external_metadata21(mapp, reqmock, testapp):
     assert fs.getvalue('description_content_type') == "text/plain"
 
 
+def test_upload_and_push_external_metadata24(mapp, reqmock, testapp):
+    api = mapp.create_and_use()
+    mapp.upload_file_pypi("pkg1-2.6.tgz", b"123", "pkg1", "2.6")
+    mapp.set_versiondata(
+        dict(
+            name="pkg1",
+            version="2.6",
+            metadata_version="2.4",
+            description="foo",
+            license_expression="MIT",
+        )
+    )
+    result = mapp.getjson(api.index + "/pkg1", code=200)
+    verdata = result["result"]["2.6"]
+    assert "license_expression" in verdata
+    assert verdata["license_expression"] == "MIT"
+    posturl = "http://whatever.com/"
+    req = dict(
+        name="pkg1",
+        version="2.6",
+        posturl=posturl,
+        username="user",
+        password="password",
+    )
+    rep = reqmock.mockresponse(url=posturl, code=200, method="POST", data="msg")
+    body = json.dumps(req).encode()
+    r = testapp.request(api.index, method="POST", body=body, expect_errors=True)
+    assert r.status_code == 200
+    (rec,) = rep.requests
+    assert rec.url == req["posturl"]
+    fs = cgi_FieldStorage(
+        fp=BytesIO(rec.body), headers=rec.headers, environ={"REQUEST_METHOD": "POST"}
+    )
+    assert fs.getvalue("metadata_version") == "2.4"
+    assert fs.getvalue("license_expression") == "MIT"
+
+
 def test_upload_and_push_warehouse(mapp, testapp, reqmock):
     from devpi_server.filestore import get_hashes
     # the new PyPI backend "warehouse" changes some things and they already

@@ -1,0 +1,1 @@
+Update stored package metadata fields to version 2.4 for license expressions (PEP 639).
