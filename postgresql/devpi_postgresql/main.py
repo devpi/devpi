@@ -130,7 +130,7 @@ class FileIn(RawIOBase):
                 elif self._data_size != -1:
                     raise RuntimeError("More than one tuple")
                 else:
-                    raise RuntimeError("Invalid tuple count {tuplecount!r}")
+                    raise RuntimeError(f"Invalid tuple count {tuplecount!r}")
             elif self._state == "datasize":
                 self._data_size = int.from_bytes(self._read_buffer[:self._to_read], "big")
                 self._set_state("data", 0)
