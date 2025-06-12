@@ -1,1 +1,0 @@
-macros.pt (``head`` macro): Move ``favicon`` out of ``head`` macro to separate ``favicon.pt`` template.

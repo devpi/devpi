@@ -2,6 +2,64 @@
 
 .. towncrier release notes start
 
+5.0.0 (2025-06-12)
+==================
+
+Deprecations and Removals
+-------------------------
+
+- Removed ``macros.pt``, the contained macros have all been moved to separate templates. See other news entries for details.
+
+- Remove support for Python below 3.9. In the future end of life Python 3 versions aren't supported anymore.
+
+- Future releases will more often require newer devpi-server than before.
+
+
+
+Bug Fixes
+---------
+
+- Fix #930: remove remaining uses of unmaintained py library.
+
+
+
+Other Changes
+-------------
+
+- style.css: Added styling for readme/description code block / literals.
+
+- macros.pt (``navigation`` macro): Move ``breadcrumbs`` out of ``navigation`` macro to separate ``header_breadcrumbs.pt`` template.
+
+- macros.pt (``head`` macro): Move ``favicon`` out of ``head`` macro to separate ``favicon.pt`` template.
+
+- macros.pt: Move ``footer`` macro to separate ``footer.pt`` template.
+
+- macros.pt: Move ``head`` macro to separate ``head.pt`` template.
+
+- macros.pt: Move ``headcss`` macro to separate ``html_head_css.pt`` template.
+
+- macros.pt: Move ``headscript`` macro to separate ``html_head_scripts.pt`` template.
+
+- macros.pt: Move ``logo`` macro to separate ``logo.pt`` template.
+
+- macros.pt: Move ``navigation`` macro to separate ``header.pt`` template.
+
+- macros.pt: Move ``query_doc`` macro to separate ``query_doc.pt`` template.
+
+- macros.pt: Move ``rootaboveuserindexlist`` macro to separate ``root_above_user_index_list.pt`` template.
+
+- macros.pt: Move ``rootbelowuserindexlist`` macro to separate ``root_below_user_index_list.pt`` template.
+
+- macros.pt: Move ``search`` macro to separate ``header_search.pt`` template.
+
+- macros.pt: Move ``status`` macro to separate ``header_status.pt`` template.
+
+- macros.pt: Move ``statusbadge`` macro to separate ``status_badge.pt`` template.
+
+- macros.pt: Move ``versions`` macro to separate ``footer_versions.pt`` template.
+
+
+
 4.3.0 (2024-10-16)
 ==================
 
