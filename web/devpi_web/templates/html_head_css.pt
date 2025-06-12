@@ -1,0 +1,4 @@
+<tal:links repeat="link css">
+    <link tal:attributes="rel link.rel; type link.type; href link.href" />
+</tal:links>
+<metal:headcss define-slot="headcss" />

@@ -1,7 +1,3 @@
-<metal:headcss define-macro="headcss">
-    <link rel="stylesheet" type="text/css" href="${request.static_url('devpi_web:static/style.css')}" />
-    <metal:headcss define-slot="headcss" />
-</metal:headcss>
 <metal:head define-macro="head">
     <metal:favicon use-macro="macros.favicon" />
     <metal:headcss use-macro="request.macros['headcss']" />

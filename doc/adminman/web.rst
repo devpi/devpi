@@ -114,15 +114,7 @@ would put your ``logo.gif`` into the ``static`` folder and create a
   <h1><a href="${request.route_url('root')}"><img src="${request.theme_static_url('logo.gif')}" /></a></h1>
 
 To add your own CSS you would create a ``style.css`` in your ``static`` folder
-and add the following macro in ``macros.pt``:
-
-.. code-block:: xml
-
-  <metal:head define-macro="headcss" use-macro="request.macros['original-headcss']">
-      <metal:mycss fill-slot="headcss">
-          <link rel="stylesheet" type="text/css" href="${request.theme_static_url('style.css')}" />
-      </metal:mycss>
-  </metal:head>
+and it will automatically be added in the HTML ``<head>`` of every page.
 
 The folder structure should now look like this::
 

@@ -19,14 +19,14 @@ def xom(xom, theme_path):
             </metal:versions>
         """,
         ("templates", "root.pt"): """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head><title>Root</title></head>
-            <body>
-              <metal:head use-macro="request.macros['versions']" />
-            </body>
-            </html>
-        """,
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><title>Root</title></head>
+        <body>
+          <metal:head use-macro="request.macros['versions']" />
+        </body>
+        </html>
+    """,
     }
 )
 def test_legacy_macro_overwrite(testapp):
@@ -89,22 +89,19 @@ def test_macro_overwrite(testapp):
 @pytest.mark.usefixtures("theme_path")
 @pytest.mark.theme_files(
     {
-        ("templates", "macros.pt"): """
-<metal:head define-macro="headcss" use-macro="request.macros['original-headcss']">
-    <metal:mycss fill-slot="headcss">
-        <link rel="stylesheet" type="text/css" href="${request.theme_static_url('style.css')}" />
-    </metal:mycss>
-</metal:head>
-    """
+        ("templates", "html_head_css.pt"): """
+            <metal:head use-macro="macros.original_html_head_css">
+                <metal:mycss fill-slot="headcss">
+                    <style></style>
+                </metal:mycss>
+            </metal:head>
+        """
     }
 )
 def test_macro_overwrite_reuse(testapp):
-    from devpi_web import __version__
-
     r = testapp.get('/')
-    styles = [x.attrs.get('href') for x in r.html.find_all('link')]
-    assert 'http://localhost/+static-%s/style.css' % __version__ in styles
-    assert 'http://localhost/+theme-static-%s/style.css' % __version__ in styles
+    assert "<style></style>" in r.text
+    assert "/style.css" in r.text
 
 
 @pytest.mark.usefixtures("theme_path")
@@ -150,10 +147,33 @@ def test_template_overwrite(testapp):
     assert "Foo Template!" in r.text
 
 
-@pytest.mark.usefixtures("theme_path")
 @pytest.mark.theme_files({("static", "style.css"): "Foo Style!"})
-def test_theme_style(testapp):
+def test_theme_style(dummyrequest, pyramidconfig, testapp, theme_path):
     from devpi_web import __version__
+    from devpi_web.macros import html_head_css
+    from devpi_web.main import add_href_css
+    from devpi_web.main import add_static_css
+    from devpi_web.main import theme_static_url
 
     r = testapp.get(f"/+theme-static-{__version__}/style.css")
     assert r.text == 'Foo Style!'
+    pyramidconfig.add_static_view("+static", "devpi_web:static")
+    pyramidconfig.add_static_view("+theme-static", str(theme_path))
+    dummyrequest.registry["theme_path"] = str(theme_path)
+    dummyrequest.add_href_css = add_href_css.__get__(dummyrequest)
+    dummyrequest.add_static_css = add_static_css.__get__(dummyrequest)
+    dummyrequest.theme_static_url = theme_static_url.__get__(dummyrequest)
+    assert html_head_css(dummyrequest) == dict(
+        css=[
+            dict(
+                href="http://example.com/%2Bstatic/style.css",
+                rel="stylesheet",
+                type="text/css",
+            ),
+            dict(
+                href="http://example.com/%2Btheme-static/static/style.css",
+                rel="stylesheet",
+                type="text/css",
+            ),
+        ]
+    )

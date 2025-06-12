@@ -1,4 +1,5 @@
 from .macroregistry import macro_config
+import os
 
 
 @macro_config(template="templates/favicon.pt", groups="html_head")
@@ -25,6 +26,20 @@ def footer_versions(request):
 )
 def header_status(request):
     return dict(status_info=request.status_info)
+
+
+@macro_config(
+    template="templates/html_head_css.pt", groups="html_head", legacy_name="headcss"
+)
+def html_head_css(request):
+    request.add_static_css("devpi_web:static/style.css")
+    theme_path = request.registry.get("theme_path")
+    if theme_path:
+        style_css = os.path.join(theme_path, "static", "style.css")
+        if os.path.exists(style_css):
+            request.add_href_css(request.theme_static_url(style_css))
+    css = request.environ.setdefault("devpiweb.head_css", [])
+    return dict(css=css)
 
 
 @macro_config(

@@ -6,6 +6,7 @@ def test_macros(dummyrequest, pyramidconfig):
     assert {k: macros.get_group(k) for k in macros.get_groups()} == {
         "html_head": [
             "favicon",
+            "html_head_css",
             "html_head_scripts",
         ],
         "main_footer": [
