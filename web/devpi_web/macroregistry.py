@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from devpi_common.types import cached_property
 from devpi_server.log import threadlog as log
+from devpi_web.compat import tomllib
 from pathlib import Path
 from pyramid.events import BeforeRender
 from pyramid.exceptions import ConfigurationError
@@ -276,7 +277,10 @@ def add_macros(config):
     config.action(("macros"), register, order=1)
 
 
-def add_theme(config, _theme_path):
+def add_theme(config, theme_path):
+    theme_toml = theme_path.joinpath("theme.toml")
+    if theme_toml.exists():
+        process_theme_toml(config, theme_path, theme_toml)
     # add deprecated macros.pt
     config.add_macros()
 
@@ -337,3 +341,22 @@ def macro_config(
 def macros(request):
     # returns macros which may partially be overwritten in a theme
     return request.registry["macros"]
+
+
+def _empty_macro(request):  # noqa: ARG001
+    return {}
+
+
+def process_theme_toml(config, theme_path, theme_toml):
+    with theme_toml.open("rb") as f:
+        cfg = tomllib.load(f)
+    for name, macro_cfg in cfg.get("macros", {}).items():
+        template = macro_cfg.get("template")
+        if template is None:
+            msg = f"The {name!r} macro from your theme.toml is missing the 'template' setting."
+            raise ValueError(msg)
+        template_path = theme_path / "templates" / template
+        if not template_path.exists():
+            msg = f"The template {template_path.relative_to(theme_path)} for the {name!r} macro from your theme.toml does not exist."
+            raise ValueError(msg)
+        config.add_macro(_empty_macro, name=name, template=str(template_path))

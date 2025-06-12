@@ -21,6 +21,7 @@ dependencies = [
     "pyramid>=2",
     "pyramid-chameleon",
     "readme-renderer[md]>=23.0",
+    "tomli; python_version < '3.11'"
 ]
 license = "MIT"
 license-files = ["LICENSE"]

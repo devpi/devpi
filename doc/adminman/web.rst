@@ -139,6 +139,19 @@ As an example with ``root_above_user_index_list``:
 Any other template has to be copied verbatim and then modified. If they change
 in a future devpi-web release, you have to adjust your modified copy accordingly.
 
+To add your own macro you need to provide a template and a ``theme.toml`` file::
+
+  /path/to/your/theme
+  ├── static
+  ├── templates
+  │    └── mymacro.pt
+  └── theme.toml
+
+The ``theme.toml`` file needs to provide a section for your macro and point to the template::
+
+  [macros.mymacro]
+  template = "mymacro.pt"
+
 For reference you can see all current template files here:
 https://github.com/devpi/devpi/tree/main/web/devpi_web/templates
 

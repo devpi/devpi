@@ -19,14 +19,14 @@ def xom(xom, theme_path):
             </metal:versions>
         """,
         ("templates", "root.pt"): """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head><title>Root</title></head>
-        <body>
-          <metal:head use-macro="request.macros['versions']" />
-        </body>
-        </html>
-    """,
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><title>Root</title></head>
+            <body>
+              <metal:head use-macro="request.macros['versions']" />
+            </body>
+            </html>
+        """,
     }
 )
 def test_legacy_macro_overwrite(testapp):
@@ -177,3 +177,28 @@ def test_theme_style(dummyrequest, pyramidconfig, testapp, theme_path):
             ),
         ]
     )
+
+
+@pytest.mark.theme_files(
+    {
+        ("theme.toml",): """
+            [macros.mymacro]
+            template = "mymacro.pt"
+        """,
+        ("templates", "mymacro.pt"): """
+            MyMacro
+        """,
+        ("templates", "root.pt"): """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><title>Root</title></head>
+            <body>
+              <metal:macro use-macro="request.macros.mymacro" />
+            </body>
+            </html>
+        """,
+    }
+)
+def test_theme_toml_macro(testapp):
+    r = testapp.get("/")
+    assert "MyMacro" in r.text
