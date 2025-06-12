@@ -370,3 +370,15 @@ def devpiserver_on_replicated_file(stage, project, version, link, serial, back_s
         return
     elif link.rel == "doczip":
         index_project(stage, project)
+
+
+@devpiserver_hookimpl
+def devpiserver_authcheck_always_ok(request):
+    route = request.matched_route
+    if not route:
+        return None
+    if "+static" in route.name and "/+static" in request.url:
+        return True
+    if "+theme-static" in route.name and "/+theme-static" in request.url:
+        return True
+    return None

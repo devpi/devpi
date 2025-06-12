@@ -186,3 +186,37 @@ class TestConfig:
         indexer = main.get_indexer_from_config(config)
         assert isinstance(indexer, Index)
         assert indexer.settings == {"bar": "ham"}
+
+
+class TestAuthCheck:
+    @pytest.fixture
+    def xom(self, xom, theme_path):
+        xom.config.args.theme = str(theme_path)
+        return xom
+
+    @pytest.mark.theme_files({("static", "style.css"): "Foo Style!"})
+    def test_authcheck_always_ok(self, blank_request, testapp):
+        from pyramid.interfaces import IRequestExtensions
+        from pyramid.request import apply_request_extensions
+        from webob.headers import ResponseHeaders
+
+        app = testapp
+        while not hasattr(app, "registry"):
+            app = app.app
+        request = blank_request()
+        request.registry = app.registry
+        apply_request_extensions(
+            request, extensions=request.registry.queryUtility(IRequestExtensions)
+        )
+        url = request.static_url("devpi_web:static/style.css")
+        testapp.xget(
+            200,
+            "http://localhost/+authcheck",
+            headers=ResponseHeaders({"X-Original-URI": url}),
+        )
+        url = request.theme_static_url("style.css")
+        testapp.xget(
+            200,
+            "http://localhost/+authcheck",
+            headers=ResponseHeaders({"X-Original-URI": url}),
+        )
