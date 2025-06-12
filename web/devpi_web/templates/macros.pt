@@ -95,13 +95,6 @@
         ${request.status_info.short_msg}
     </a>
 </metal:statusbadge>
-<metal:versions define-macro="versions">
-    <ul class="footer-versions"
-        tal:define="version_infos request.registry.get('devpi_version_info')"
-        tal:condition="version_infos">
-        <li tal:repeat="vi version_infos">${vi[0]}-${vi[1]}</li>
-    </ul>
-</metal:versions>
 <metal:footer define-macro="footer">
     <footer>
         <metal:footer define-slot="footer" />

@@ -14,6 +14,82 @@ def xom(xom, theme_path):
 @pytest.mark.theme_files(
     {
         ("templates", "macros.pt"): """
+            <metal:versions define-macro="versions">
+                MyVersions
+            </metal:versions>
+        """,
+        ("templates", "root.pt"): """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><title>Root</title></head>
+            <body>
+              <metal:head use-macro="request.macros['versions']" />
+            </body>
+            </html>
+        """,
+    }
+)
+def test_legacy_macro_overwrite(testapp):
+    with pytest.warns(
+        DeprecationWarning,
+        match="The macro 'versions' has been moved to separate 'footer_versions.pt' template.",
+    ):
+        r = testapp.get("/")
+    assert "MyVersions" in r.text
+
+
+@pytest.mark.usefixtures("theme_path")
+@pytest.mark.theme_files(
+    {
+        ("templates", "macros.pt"): """
+            <metal:versions define-macro="versions">
+                MyVersions
+            </metal:versions>
+        """,
+        ("templates", "root.pt"): """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><title>Root</title></head>
+            <body>
+              <metal:head use-macro="macros.versions" />
+            </body>
+            </html>
+        """,
+    }
+)
+def test_legacy_macro_overwrite_attribute(testapp):
+    with pytest.warns(
+        DeprecationWarning,
+        match="The macro 'versions' has been moved to separate 'footer_versions.pt' template.",
+    ):
+        r = testapp.get("/")
+    assert "MyVersions" in r.text
+
+
+@pytest.mark.usefixtures("theme_path")
+@pytest.mark.theme_files(
+    {
+        ("templates", "footer_versions.pt"): "MyVersions",
+        ("templates", "root.pt"): """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><title>Root</title></head>
+            <body>
+              <metal:head use-macro="macros.footer_versions" />
+            </body>
+            </html>
+        """,
+    }
+)
+def test_macro_overwrite(testapp):
+    r = testapp.get("/")
+    assert "MyVersions" in r.text
+
+
+@pytest.mark.usefixtures("theme_path")
+@pytest.mark.theme_files(
+    {
+        ("templates", "macros.pt"): """
 <metal:head define-macro="headcss" use-macro="request.macros['original-headcss']">
     <metal:mycss fill-slot="headcss">
         <link rel="stylesheet" type="text/css" href="${request.theme_static_url('style.css')}" />

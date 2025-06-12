@@ -1,0 +1,3 @@
+<ul class="footer-versions" tal:condition="version_infos">
+    <li tal:repeat="vi version_infos">${vi[0]}-${vi[1]}</li>
+</ul>

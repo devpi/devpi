@@ -1,0 +1,1 @@
+macros.pt: Move ``versions`` macro to separate ``footer_versions.pt`` template.
