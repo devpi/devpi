@@ -49,7 +49,7 @@ classifiers = [
 
 [project.urls]
 "Bug Tracker" = "https://github.com/devpi/devpi/issues"
-"Changelog" = "github.com/devpi/devpi/blob/main/web/CHANGELOG"
+"Changelog" = "https://github.com/devpi/devpi/blob/main/web/CHANGELOG"
 "Documentation" = "https://doc.devpi.net"
 "Homepage" = "https://devpi.net"
 "Source Code" = "https://github.com/devpi/devpi"
