@@ -393,10 +393,12 @@ def test_clean_response_headers(mock):
 
 
 class TestProxyViewToMaster:
-    def test_write_proxies(self, makexom, blank_request, reqmock, monkeypatch):
+    def test_write_proxies(self, makexom, blank_request, monkeypatch):
         xom = makexom(["--primary-url", "http://localhost"])
-        reqmock.mock("http://localhost/blankpath",
-                     code=200, headers={"X-DEVPI-SERIAL": "10"})
+        monkeypatch.setattr(xom, "_http", xom.http)
+        xom.http.mockresponse(
+            "http://localhost/blankpath", content=b"", headers={"X-DEVPI-SERIAL": "10"}
+        )
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -408,10 +410,15 @@ class TestProxyViewToMaster:
         assert response.headers.get("X-DEVPI-SERIAL") == "10"
         assert l == [10]
 
-    def test_preserve_reason(self, makexom, blank_request, reqmock, monkeypatch):
+    def test_preserve_reason(self, makexom, blank_request, monkeypatch):
         xom = makexom(["--primary-url", "http://localhost"])
-        reqmock.mock("http://localhost/blankpath",
-                     code=200, reason="GOOD", headers={"X-DEVPI-SERIAL": "10"})
+        monkeypatch.setattr(xom, "_http", xom.http)
+        xom.http.mockresponse(
+            "http://localhost/blankpath",
+            reason="GOOD",
+            content=b"",
+            headers={"X-DEVPI-SERIAL": "10"},
+        )
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -422,12 +429,16 @@ class TestProxyViewToMaster:
         list(response.app_iter)
         assert response.status == "200 GOOD"
 
-    def test_write_proxies_redirect(self, makexom, blank_request, reqmock, monkeypatch):
+    def test_write_proxies_redirect(self, makexom, blank_request, monkeypatch):
         xom = makexom(["--primary-url", "http://localhost",
                        "--outside-url=http://my.domain"])
-        reqmock.mock("http://localhost/blankpath",
-                     code=302, headers={"X-DEVPI-SERIAL": "10",
-                                        "location": "http://localhost/hello"})
+        monkeypatch.setattr(xom, "_http", xom.http)
+        xom.http.mockresponse(
+            "http://localhost/blankpath",
+            code=302,
+            content=b"",
+            headers={"X-DEVPI-SERIAL": "10", "location": "http://localhost/hello"},
+        )
         l = []
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: l.append(x))
@@ -442,15 +453,20 @@ class TestProxyViewToMaster:
         assert response.headers.get("location") == "http://my.domain/hello"
         assert l == [10]
 
-    def test_hop_headers(self, makexom, blank_request, reqmock, monkeypatch):
+    def test_hop_headers(self, makexom, blank_request, monkeypatch):
         xom = makexom(["--primary-url", "http://localhost"])
-        reqmock.mock(
+        monkeypatch.setattr(xom, "_http", xom.http)
+        xom.http.mockresponse(
             "http://localhost/blankpath",
-            code=200, headers={
+            code=200,
+            content=b"",
+            headers={
                 "Connection": "Keep-Alive, Foo",
                 "Foo": "abc",
                 "Keep-Alive": "timeout=30",
-                "X-DEVPI-SERIAL": "0"})
+                "X-DEVPI-SERIAL": "0",
+            },
+        )
         monkeypatch.setattr(xom.keyfs, "wait_tx_serial",
                             lambda x: x)
         request = blank_request(method="PUT")

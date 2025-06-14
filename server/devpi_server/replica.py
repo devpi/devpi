@@ -3,10 +3,10 @@ import contextlib
 import io
 import itsdangerous
 import secrets
+import sys
 import threading
 import time
 import traceback
-from contextlib import suppress
 import warnings
 from pluggy import HookimplMarker
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
@@ -1236,7 +1236,7 @@ class BodyFileWrapper:
         self.len = length
 
 
-def proxy_request_to_primary(xom, request, *, stream=False):
+def proxy_request_to_primary(xom, request, cstack):
     primary_url = xom.config.primary_url
     request_url = URL(request.url)
     url = (
@@ -1245,43 +1245,45 @@ def proxy_request_to_primary(xom, request, *, stream=False):
         .replace(query=request_url.query)
         .url)
     assert url.startswith(primary_url.url)
-    http = xom._httpsession
-    with threadlog.around("info", "relaying: %s %s", request.method, url):
-        try:
-            headers = clean_request_headers(request)
-            length = None
-            with suppress(ValueError, TypeError):
-                length = int(headers.get('Content-Length'))
-            if length:
-                body = BodyFileWrapper(request.body_file, length)
-            else:
-                body = request.body
-            return http.request(request.method, url,
-                                data=body,
-                                headers=headers,
-                                stream=stream,
-                                allow_redirects=False,
-                                timeout=xom.config.args.proxy_timeout)
-        except http.Errors as e:
-            msg = f"proxy-write-to-primary {url}: {e}"
-            raise UpstreamError(msg) from e
+    http = xom._http
+    cstack.enter_context(
+        threadlog.around("info", "relaying: %s %s", request.method, url)
+    )
+    try:
+        headers = clean_request_headers(request)
+
+        def body():
+            yield request.body_file.read(65536)
+
+        return http.stream(
+            cstack,
+            request.method,
+            url,
+            content=body(),
+            extra_headers=headers,
+            allow_redirects=False,
+            timeout=xom.config.args.proxy_timeout,
+        )
+    except http.Errors as e:
+        msg = f"proxy-write-to-primary {url}: {e}"
+        raise UpstreamError(msg) from e
 
 
 def proxy_write_to_primary(xom, request):
     """ relay modifying http requests to primary and wait until
     the change is replicated back.
     """
-    r = proxy_request_to_primary(xom, request, stream=True)
-    # for redirects, the body is already read and stored in the ``next``
-    # attribute (see requests.sessions.send)
-    if r.raw.closed and r.next:
-        def app_iter():
-            with contextlib.closing(r):
-                yield r.next.body
-    else:
-        def app_iter():
-            with contextlib.closing(r):
-                yield from r.raw.stream()
+    cstack = contextlib.ExitStack().__enter__()
+    r = proxy_request_to_primary(xom, request, cstack)
+
+    def app_iter():
+        try:
+            yield from r.iter_raw()
+        except Exception:  # noqa: BLE001
+            cstack.__exit__(*sys.exc_info())
+        else:
+            cstack.__exit__(None, None, None)
+
     if r.status_code < 400:
         commit_serial = int(r.headers["X-DEVPI-SERIAL"])
         xom.keyfs.wait_tx_serial(commit_serial)
@@ -1293,9 +1295,11 @@ def proxy_write_to_primary(xom, request):
         outside_url = request.application_url
         headers["location"] = str(
             primary_location.replace(xom.config.primary_url.url, outside_url))
-    return Response(status="%s %s" % (r.status_code, r.reason),
-                    app_iter=app_iter(),
-                    headers=headers)
+    return Response(
+        status=f"{r.status_code} {r.reason_phrase}",
+        app_iter=app_iter(),
+        headers=headers,
+    )
 
 
 def proxy_view_to_primary(_context, request):
