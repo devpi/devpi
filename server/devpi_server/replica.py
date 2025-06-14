@@ -981,61 +981,62 @@ class FileReplicationThread:
         # we perform the request with a special header so that
         # the primary can avoid getting "volatile" links
         token = self.auth_serializer.dumps(self.uuid)
-        r = self.http.get(
-            url,
-            allow_redirects=False,
-            extra_headers={
-                H_REPLICA_FILEREPL: "YES",
-                H_REPLICA_UUID: self.uuid,
-                "Authorization": f"Bearer {token}",
-            },
-            timeout=self.xom.config.args.request_timeout,
-        )
-        if r.status_code == 302:
-            r.close()
-            # mirrors might redirect to external file when
-            # mirror_use_external_urls is set
-            threadlog.info(
-                "ignoring because of redirection to external URL: %s",
-                relpath)
-            self.shared_data.errors.remove(entry)
-            return
-        if r.status_code == 410:
-            # primary indicates Gone for files which were later deleted
-            r.close()
-            threadlog.info(
-                "ignoring because of later deletion: %s",
-                relpath)
-            self.shared_data.errors.remove(entry)
-            return
-
-        if r.status_code in (404, 502):
-            r.close()
-            stagename = '/'.join(relpath.split('/')[:2])
-            with self.xom.keyfs.read_transaction(at_serial=serial):
-                stage = self.xom.model.getstage(stagename)
-            if stage.ixconfig['type'] == 'mirror':
-                threadlog.warn(
-                    "ignoring file which couldn't be retrieved from mirror index '%s': %s",
-                    stagename, relpath)
+        with contextlib.ExitStack() as cstack:
+            r = self.http.stream(
+                cstack,
+                "GET",
+                url,
+                allow_redirects=False,
+                extra_headers={
+                    H_REPLICA_FILEREPL: "YES",
+                    H_REPLICA_UUID: self.uuid,
+                    "Authorization": f"Bearer {token}",
+                },
+                timeout=self.xom.config.args.request_timeout,
+            )
+            if r.status_code == 302:
+                r.close()
+                # mirrors might redirect to external file when
+                # mirror_use_external_urls is set
+                threadlog.info(
+                    "ignoring because of redirection to external URL: %s", relpath
+                )
+                self.shared_data.errors.remove(entry)
+                return
+            if r.status_code == 410:
+                # primary indicates Gone for files which were later deleted
+                r.close()
+                threadlog.info("ignoring because of later deletion: %s", relpath)
                 self.shared_data.errors.remove(entry)
                 return
 
-        if r.status_code != 200:
-            r.close()
-            threadlog.error(
-                "error downloading '%s' from primary, will be retried later: %s",
-                relpath, r.reason)
-            # add the error for the UI
-            self.shared_data.errors.add(dict(
-                url=r.url,
-                message=r.reason,
-                relpath=entry.relpath))
-            # and raise for retrying later
-            raise FileReplicationError(r, relpath)
+            if r.status_code in (404, 502):
+                r.close()
+                stagename = "/".join(relpath.split("/")[:2])
+                with self.xom.keyfs.read_transaction(at_serial=serial):
+                    stage = self.xom.model.getstage(stagename)
+                if stage.ixconfig["type"] == "mirror":
+                    threadlog.warn(
+                        "ignoring file which couldn't be retrieved from mirror index '%s': %s",
+                        stagename,
+                        relpath,
+                    )
+                    self.shared_data.errors.remove(entry)
+                    return
 
-        with contextlib.ExitStack() as cstack:
-            cstack.callback(r.close)
+            if r.status_code != 200:
+                r.close()
+                threadlog.error(
+                    "error downloading '%s' from primary, will be retried later: %s",
+                    relpath,
+                    r.reason,
+                )
+                # add the error for the UI
+                self.shared_data.errors.add(
+                    dict(url=r.url, message=r.reason, relpath=entry.relpath)
+                )
+                # and raise for retrying later
+                raise FileReplicationError(r, relpath)
 
             with keyfs.filestore_transaction():
                 # get a new file, but close the transaction again
