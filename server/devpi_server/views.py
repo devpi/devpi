@@ -1080,7 +1080,6 @@ class PyPIView:
             pypiauth = (username, password)
             # prepare metadata for submission
             metadata[":action"] = "submit"
-            metadata["metadata_version"] = "2.1"
             session = new_requests_session(agent=("server", server_version))
             with contextlib.closing(session):
                 ok_codes = {HTTPStatus.OK, HTTPStatus.CREATED}

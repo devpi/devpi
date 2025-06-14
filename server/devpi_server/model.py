@@ -1280,7 +1280,8 @@ class PrivateStage(BaseStage):
         errors. """
         if self.customizer.readonly:
             raise ReadonlyIndex("index is marked read only")
-        validate_metadata(metadata)
+        # use a copy, as validate_metadata actually removes metadata_version
+        validate_metadata(dict(metadata))
         self._set_versiondata(metadata)
 
     def key_projversions(self, project):
