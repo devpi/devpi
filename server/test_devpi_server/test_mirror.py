@@ -1030,6 +1030,21 @@ class TestMirrorStageprojects:
 
 
 @pytest.mark.nomocking
+def test_requests_http_get_negative_status_code(xom, monkeypatch):
+    l = []
+
+    def r(*_a, **_k):
+        l.append(1)
+        raise httpx.RequestError(message="fail")
+
+    monkeypatch.setattr(xom._http.client, "get", r)
+    r = xom.http.get("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
+    assert l
+
+
+@pytest.mark.filterwarnings("ignore:The httpget")
+@pytest.mark.nomocking
 def test_requests_httpget_negative_status_code(xom, monkeypatch):
     l = []
 
@@ -1044,6 +1059,18 @@ def test_requests_httpget_negative_status_code(xom, monkeypatch):
 
 
 @pytest.mark.nomocking
+def test_requests_http_get_timeout(xom, monkeypatch):
+    def http_get(_url, **kw):
+        assert kw["timeout"] == 1.2
+        raise requests.exceptions.Timeout
+
+    monkeypatch.setattr(xom._http.client, "get", http_get)
+    r = xom.http.get("http://notexists.qwe", allow_redirects=False, timeout=1.2)
+    assert r.status_code == -1
+
+
+@pytest.mark.filterwarnings("ignore:The httpget")
+@pytest.mark.nomocking
 def test_requests_httpget_timeout(xom, monkeypatch):
     def httpget(url, **kw):
         assert kw["timeout"] == 1.2
@@ -1055,6 +1082,18 @@ def test_requests_httpget_timeout(xom, monkeypatch):
     assert r.status_code == -1
 
 
+@pytest.mark.nomocking
+@pytest.mark.parametrize("exc", [OSError, requests.exceptions.ConnectionError])
+def test_requests_http_get_error(exc, xom, monkeypatch):
+    def http_get(_url, **_kw):
+        raise exc()
+
+    monkeypatch.setattr(xom._http.client, "get", http_get)
+    r = xom.http.get("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
+
+
+@pytest.mark.filterwarnings("ignore:The httpget")
 @pytest.mark.nomocking
 @pytest.mark.parametrize("exc", [
     OSError,
@@ -1068,6 +1107,19 @@ def test_requests_httpget_error(exc, xom, monkeypatch):
     assert r.status_code == -1
 
 
+@pytest.mark.asyncio
+@pytest.mark.nomocking
+@pytest.mark.parametrize("exc", [OSError(), httpx.RequestError(message="fail")])
+async def test_async_get_error(exc, xom, monkeypatch):
+    async def async_get(_self, _url, **_kw):
+        raise exc
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", async_get)
+    r = await xom.http.async_get("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
+
+
+@pytest.mark.filterwarnings("ignore:The async_httpget")
 @pytest.mark.asyncio
 @pytest.mark.nomocking
 @pytest.mark.parametrize("exc", [

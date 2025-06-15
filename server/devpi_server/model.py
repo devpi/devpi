@@ -1246,11 +1246,11 @@ class PrivateStage(BaseStage):
     use_external_url = False
 
     def __init__(self, xom, username, index, ixconfig, customizer_cls):
-        super(PrivateStage, self).__init__(
-            xom, username, index, ixconfig, customizer_cls)
+        super().__init__(xom, username, index, ixconfig, customizer_cls)
         self.key_projects = self.keyfs.PROJNAMES(user=username, index=index)
         self.httpget = xom.httpget
         self.async_httpget = xom.async_httpget
+        self.http = xom.http
 
     def get_possible_indexconfig_keys(self):
         return tuple(dict(self.get_default_config_items())) + (

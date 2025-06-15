@@ -284,8 +284,10 @@ def storage(storage_info):
 
 
 @pytest.fixture
-def makexom(request, gen_path, httpget, monkeypatch, storage_args, storage_plugin):
-    def makexom(opts=(), httpget=httpget, plugins=()):  # noqa: PLR0912
+def makexom(
+    request, gen_path, http, httpget, monkeypatch, storage_args, storage_plugin
+):
+    def makexom(opts=(), http=http, httpget=httpget, plugins=()):  # noqa: PLR0912
         from devpi_server import auth_basic
         from devpi_server import auth_devpi
         from devpi_server import model
@@ -324,8 +326,8 @@ def makexom(request, gen_path, httpget, monkeypatch, storage_args, storage_plugi
         if request.node.get_closest_marker("nomocking"):
             xom = XOM(config)
         else:
-            xom = XOM(config, httpget=httpget)
-            add_pypistage_mocks(monkeypatch, httpget)
+            xom = XOM(config, http=http, httpget=httpget)
+            add_pypistage_mocks(monkeypatch, http, httpget)
         request.addfinalizer(xom.thread_pool.kill)
         request.addfinalizer(xom._close_sessions)
         if not request.node.get_closest_marker("no_storage_option"):
@@ -386,6 +388,205 @@ def makemapp(request, maketestapp, makexom):
         m.xom = testapp.xom
         return m
     return makemapp
+
+
+@pytest.fixture
+def http(pypiurls):
+    from .simpypi import make_simple_pkg_info
+    import httpx
+
+    class MockHTTPClient:
+        def __init__(self):
+            self.url2response = {}
+            self.call_log = []
+            self.Errors = (
+                OSError,
+                httpx.HTTPError,
+                httpx.RequestError,
+                httpx.StreamError,
+            )
+
+        async def async_get(
+            self, url, *, allow_redirects, timeout=None, extra_headers=None
+        ):
+            response = self.__call__(
+                url,
+                allow_redirects=allow_redirects,
+                extra_headers=extra_headers,
+                timeout=timeout,
+            )
+            text = response.text if response.status_code < 300 else None
+            return (response, text)
+
+        def close(self):
+            pass
+
+        def get(self, url, *, allow_redirects, timeout=None, extra_headers=None):
+            return self.__call__(
+                url,
+                allow_redirects=allow_redirects,
+                extra_headers=extra_headers,
+                timeout=timeout,
+            )
+
+        def post(self, url, *, data=None, files=None, extra_headers=None):
+            return self.__call__(
+                url, data=data, files=files, extra_headers=extra_headers
+            )
+
+        def stream(
+            self,
+            _cstack,
+            _method,
+            url,
+            *,
+            allow_redirects,
+            content=None,
+            timeout=None,
+            extra_headers=None,
+        ):
+            return self.__call__(
+                url,
+                allow_redirects=allow_redirects,
+                content=content,
+                extra_headers=extra_headers,
+                timeout=timeout,
+            )
+
+        def __call__(self, url, *, allow_redirects=False, extra_headers=None, **kw):
+            class mockresponse:
+                def __init__(xself, url):
+                    fakeresponse = self.url2response.get(url)
+                    from_list = False
+                    if isinstance(fakeresponse, list):
+                        if not fakeresponse:
+                            pytest.fail(
+                                f"http_api call to {url} has no further replies"
+                            )
+                        from_list = True
+                        fakeresponse = fakeresponse.pop(0)
+                    if fakeresponse is None:
+                        fakeresponse = dict(status_code=404, reason="Not Found")
+                    if "exception" in fakeresponse:
+                        assert set(fakeresponse.keys()) == {"exception"}
+                        raise fakeresponse["exception"]
+                    fakeresponse["headers"] = httpx.Headers(
+                        {
+                            k: str(v)
+                            for k, v in fakeresponse.setdefault("headers", {}).items()
+                            if v is not None
+                        }
+                    )
+                    xself.__dict__.update(fakeresponse)
+                    if "url" not in fakeresponse:
+                        xself.url = url
+                    xself.allow_redirects = allow_redirects
+                    if "content" in fakeresponse:
+                        xself.raw = BytesIO(fakeresponse["content"])
+
+                        def stream(self):
+                            yield self.read()
+
+                        xself.raw.stream = stream.__get__(xself.raw)
+                    xself.headers.setdefault(
+                        "content-type", fakeresponse.get("content_type", "text/html")
+                    )
+                    if "etag" in fakeresponse:
+                        # add follow up response
+                        new_response = dict(fakeresponse, status_code=304)
+                        new_response.pop("etag")
+                        if from_list:
+                            self.url2response[url].append(new_response)
+                        else:
+                            self.url2response[url] = new_response
+                        fakeresponse["headers"]["ETag"] = fakeresponse["etag"]
+
+                def close(xself):
+                    return
+
+                def iter_raw(xself, chunk_size):
+                    yield xself.raw.read(chunk_size)
+
+                def json(xself):
+                    return json.loads(xself.text)
+
+                @property
+                def reason_phrase(xself):
+                    return xself.reason
+
+                @property
+                def status(xself):
+                    return xself.status_code
+
+                def __repr__(xself):
+                    return f"<mockresponse {xself.status_code} url={xself.url}>"
+
+            r = mockresponse(url)
+            log.debug("returning %s", r)
+            self.call_log.append(
+                dict(
+                    url=url,
+                    allow_redirects=allow_redirects,
+                    extra_headers=extra_headers,
+                    kw=kw,
+                    response=r,
+                )
+            )
+            return r
+
+        def _prepare_kw(self, kw):
+            if "exception" in kw:
+                return
+            kw.setdefault("status_code", kw.pop("code", 200))
+            kw.setdefault(
+                "reason",
+                getattr(status_map.get(kw["status_code"]), "title", "Devpi Mock Error"),
+            )
+
+        def set(self, url, **kw):
+            """Set a reply for all future uses."""
+            self._prepare_kw(kw)
+            log.debug("set mocking response %s %s", url, kw)
+            self.url2response[url] = kw
+
+        def add(self, url, **kw):
+            """Add a one time use reply to the url."""
+            self._prepare_kw(kw)
+            log.debug("add mocking response %s %s", url, kw)
+            self.url2response.setdefault(url, []).append(kw)
+
+        def mockresponse(self, url, **kw):
+            self.set(url, **kw)
+
+        def mock_simple(
+            self,
+            name,
+            text="",
+            pkgver=None,
+            hash_type=None,
+            pypiserial=10000,
+            remoteurl=None,
+            requires_python=None,
+            **kw,
+        ):
+            ret, text = make_simple_pkg_info(
+                name,
+                text=text,
+                pkgver=pkgver,
+                hash_type=hash_type,
+                pypiserial=pypiserial,
+                requires_python=requires_python,
+            )
+            if remoteurl is None:
+                remoteurl = pypiurls.simple
+            headers = kw.setdefault("headers", {})
+            if pypiserial is not None:
+                headers["X-PYPI-LAST-SERIAL"] = str(pypiserial)
+            kw.setdefault("url", URL(remoteurl).joinpath(name).asdir().url)
+            self.mockresponse(text=text, **kw)
+            return ret
+
+    return MockHTTPClient()
 
 
 @pytest.fixture
@@ -530,7 +731,11 @@ def pypistage(devpiserver_makepypistage, xom):
     return devpiserver_makepypistage(xom)
 
 
-def add_pypistage_mocks(monkeypatch, httpget):
+def add_pypistage_mocks(
+    monkeypatch,
+    http,  # noqa: ARG001
+    httpget,
+):
     _projects = set()
 
     # add some mocking helpers
