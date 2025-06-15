@@ -549,7 +549,7 @@ class MirrorStage(BaseStage):
         etag = self.cache_projectnames.get_etag()
         if etag is not None:
             headers["If-None-Match"] = etag
-        response = self.httpget(
+        response = self.http.get(
             self.mirror_url_without_auth,
             allow_redirects=True,
             extra_headers=headers,

@@ -1007,8 +1007,10 @@ def test_get_simplelinks_perstage(monkeypatch, pypistage, replica_pypistage,
     assert ret[0].relpath == 'root/pypi/+e/https_pypi.org_pytest/pytest-1.0.zip'
     # there should be one get
     (call_log_entry,) = [
-        x for x in replica_pypistage.xom.httpget.call_log
-        if x['url'].startswith(pypiurls.simple)]
+        x
+        for x in replica_pypistage.xom.http.call_log
+        if x["url"].startswith(pypiurls.simple)
+    ]
     # and it should have an authorization header
     assert call_log_entry['extra_headers']['Authorization'].startswith('Bearer')
     # and UUID header

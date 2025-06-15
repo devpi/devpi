@@ -765,7 +765,7 @@ def add_pypistage_mocks(
             '<a href="%s">%s</a>\n' % (normalize_name(name), name)
             for name in projectlist)
         threadlog.debug("patching simple page with: %s" % t)
-        self.xom.httpget.mockresponse(self.mirror_url, code=200, text=t)
+        self.xom.http.mockresponse(self.mirror_url, code=200, text=t)
 
     monkeypatch.setattr(
         mirror.MirrorStage, "mock_simple_projects",

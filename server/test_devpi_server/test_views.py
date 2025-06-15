@@ -348,7 +348,7 @@ def test_projects_pep_691(pypistage, testapp, url):
                 {"name": "Django"},
                 {"name": "ploy_ansible"}
             ]}""")
-    pypistage.xom.httpget.mockresponse(pypistage.mirror_url, **mockkw)
+    pypistage.xom.http.mockresponse(pypistage.mirror_url, **mockkw)
     content_types = [
         "application/vnd.pypi.simple.v1+json",
         "application/vnd.pypi.simple.v1+html;q=0.2",

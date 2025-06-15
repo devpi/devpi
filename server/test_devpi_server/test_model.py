@@ -137,9 +137,7 @@ def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
             assert info["has_mirror_base"] is unknown
             assert info['blocked_by_mirror_whitelist'] == "root/pypi"
     mapp.use("root/pypi")
-    mapp.xom.httpget.mockresponse(
-        "https://pypi.org/simple/", text='<a href="pkg1"></a>'
-    )
+    mapp.xom.http.mockresponse("https://pypi.org/simple/", text='<a href="pkg1"></a>')
     mapp.xom.http.mock_simple("pkg1", text="")
     mapp.get_simple("pkg1")
     with mapp.xom.keyfs.read_transaction():
@@ -612,20 +610,18 @@ class TestStage:
             'someproject-1.0.zip',
             'someproject-1.1-py2.py3-none-any.whl']
 
-    def test_whitelist_intersection_two_mirrors(self, http, httpget, stage, user):
+    def test_whitelist_intersection_two_mirrors(self, http, stage, user):
         mirror1 = user.create_stage("mirror1", **udict(
             mirror_url="http://pypi.org/simple", type="mirror"))
         mirror2 = user.create_stage("mirror2", **udict(
             mirror_url="http://example.com/simple", type="mirror"))
-        httpget.mockresponse(
-            "http://pypi.org/simple/", text='<a href="someproject"></a>'
-        )
+        http.mockresponse("http://pypi.org/simple/", text='<a href="someproject"></a>')
         http.mock_simple(
             "someproject",
             "<a href='someproject-1.1.zip' /a>",
             remoteurl=mirror1.mirror_url,
         )
-        httpget.mockresponse(
+        http.mockresponse(
             "http://example.com/simple/", text='<a href="someproject"></a>'
         )
         http.mock_simple(
@@ -698,20 +694,18 @@ class TestStage:
             'someproject-1.1-py2.py3-none-any.whl',
             'someproject-1.1.zip']
 
-    def test_whitelist_union_two_mirrors(self, http, httpget, stage, user):
+    def test_whitelist_union_two_mirrors(self, http, stage, user):
         mirror1 = user.create_stage("mirror1", **udict(
             mirror_url="http://pypi.org/simple", type="mirror"))
         mirror2 = user.create_stage("mirror2", **udict(
             mirror_url="http://example.com/simple", type="mirror"))
-        httpget.mockresponse(
-            "http://pypi.org/simple/", text='<a href="someproject"></a>'
-        )
+        http.mockresponse("http://pypi.org/simple/", text='<a href="someproject"></a>')
         http.mock_simple(
             "someproject",
             "<a href='someproject-1.1.zip' /a>",
             remoteurl=mirror1.mirror_url,
         )
-        httpget.mockresponse(
+        http.mockresponse(
             "http://example.com/simple/", text='<a href="someproject"></a>'
         )
         http.mock_simple(

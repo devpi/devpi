@@ -522,13 +522,16 @@ class TestExtPYPIDB:
 
     def test_basic_auth_mirror(self, pypistage):
         pypistage.ixconfig["mirror_url"] = "https://foo:bar@example.com/simple/"
-        pypistage.xom.httpget.mockresponse(
-            pypistage.mirror_url_without_auth, code=200, text="""
+        pypistage.xom.http.mockresponse(
+            pypistage.mirror_url_without_auth,
+            code=200,
+            text="""
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
                 <a href="https://example.com/simple/pkg">Pkg</a><br/>
-            </body></html>""")
+            </body></html>""",
+        )
         assert pypistage._get_remote_projects() == (dict(pkg='Pkg'), None)
 
     def test_pypi_mirror_redirect_to_canonical_issue139(self, pypistage):
@@ -558,7 +561,7 @@ class TestExtPYPIDB:
             (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
         # make sure we get the cached data, if not throw an error
-        monkeypatch.setattr(pypistage, "httpget", None)
+        monkeypatch.setattr(pypistage, "http", None)
         with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
@@ -570,7 +573,7 @@ class TestExtPYPIDB:
             (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked == ""
         # make sure we get the cached data, if not throw an error
-        monkeypatch.setattr(pypistage, "httpget", None)
+        monkeypatch.setattr(pypistage, "http", None)
         with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked == ""
@@ -686,15 +689,18 @@ class TestExtPYPIDB:
 
 class TestMirrorStageprojects:
     def test_get_remote_projects(self, pypistage):
-        pypistage.xom.httpget.mockresponse(
-            pypistage.mirror_url, code=200, text="""
+        pypistage.xom.http.mockresponse(
+            pypistage.mirror_url,
+            code=200,
+            text="""
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
                 <a href='devpi-server'>devpi-server</a><br/>
                 <a href='django'>Django</a><br/>
                 <a href='ploy-ansible/'>ploy_ansible</a><br/>
-            </body></html>""")
+            </body></html>""",
+        )
         (projects, etag) = pypistage._get_remote_projects()
         assert projects == {
             "ploy-ansible": "ploy_ansible",
@@ -707,8 +713,9 @@ class TestMirrorStageprojects:
             "django": "Django"}
 
     def test_get_remote_projects_pep691_json(self, pypistage):
-        pypistage.xom.httpget.mockresponse(
-            pypistage.mirror_url, code=200,
+        pypistage.xom.http.mockresponse(
+            pypistage.mirror_url,
+            code=200,
             content_type="application/vnd.pypi.simple.v1+json",
             text="""{
                 "meta": {"api-version": "1.0"},
@@ -716,7 +723,8 @@ class TestMirrorStageprojects:
                     {"name": "devpi-server"},
                     {"name": "Django"},
                     {"name": "ploy_ansible"}
-                ]}""")
+                ]}""",
+        )
         (projects, etag) = pypistage._get_remote_projects()
         assert projects == {
             "ploy-ansible": "ploy_ansible",
@@ -729,41 +737,52 @@ class TestMirrorStageprojects:
             "django": "Django"}
 
     def test_get_remote_projects_doctype(self, pypistage):
-        pypistage.xom.httpget.mockresponse(
-            pypistage.mirror_url, code=200, text="""
+        pypistage.xom.http.mockresponse(
+            pypistage.mirror_url,
+            code=200,
+            text="""
             <!DOCTYPE html>
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
                 <a href='devpi-server'>devpi-server</a><br/>
-            </body></html>""")
+            </body></html>""",
+        )
         (projects, etag) = pypistage._get_remote_projects()
         assert projects == {"devpi-server": "devpi-server"}
 
     def test_get_remote_projects_etag(self, pypistage):
         orig_etag = '"foo"'
         changed_etag = '"bar"'
-        pypistage.xom.httpget.add(
-            pypistage.mirror_url, status_code=200, text="""
+        pypistage.xom.http.add(
+            pypistage.mirror_url,
+            status_code=200,
+            text="""
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
                 <a href='devpi-server'>devpi-server</a><br/>
                 <a href='django'>Django</a><br/>
                 <a href='ploy-ansible/'>ploy_ansible</a><br/>
-            </body></html>""", headers={"ETag": orig_etag})
-        pypistage.xom.httpget.add(
-            pypistage.mirror_url, status_code=304,
-            text="", headers={"ETag": orig_etag})
-        pypistage.xom.httpget.add(
-            pypistage.mirror_url, status_code=200, text="""
+            </body></html>""",
+            headers={"ETag": orig_etag},
+        )
+        pypistage.xom.http.add(
+            pypistage.mirror_url, status_code=304, text="", headers={"ETag": orig_etag}
+        )
+        pypistage.xom.http.add(
+            pypistage.mirror_url,
+            status_code=200,
+            text="""
             <html><head><title>Simple Index</title>
             <meta name="api-version" value="2" /></head>
             <body>
                 <a href='devpi-server'>devpi-server</a><br/>
                 <a href='django'>Django</a><br/>
                 <a href='ploy/'>ploy</a><br/>
-            </body></html>""", headers={"ETag": changed_etag})
+            </body></html>""",
+            headers={"ETag": changed_etag},
+        )
         (projects, etag) = pypistage._get_remote_projects()
         pypistage.cache_projectnames.set(projects, etag)
         assert etag == orig_etag
@@ -771,7 +790,7 @@ class TestMirrorStageprojects:
             "ploy-ansible": "ploy_ansible",
             "devpi-server": "devpi-server",
             "django": "Django"}
-        call = pypistage.xom.httpget.call_log.pop()
+        call = pypistage.xom.http.call_log.pop()
         assert 'If-None-Match' not in call['extra_headers']
         (projects, etag) = pypistage._get_remote_projects()
         pypistage.cache_projectnames.set(projects, etag)
@@ -780,7 +799,7 @@ class TestMirrorStageprojects:
             "ploy-ansible": "ploy_ansible",
             "devpi-server": "devpi-server",
             "django": "Django"}
-        call = pypistage.xom.httpget.call_log.pop()
+        call = pypistage.xom.http.call_log.pop()
         assert call['extra_headers']['If-None-Match'] == orig_etag
         (projects, etag) = pypistage._get_remote_projects()
         pypistage.cache_projectnames.set(projects, etag)
@@ -789,7 +808,7 @@ class TestMirrorStageprojects:
             "ploy": "ploy",
             "devpi-server": "devpi-server",
             "django": "Django"}
-        (call,) = pypistage.xom.httpget.call_log
+        (call,) = pypistage.xom.http.call_log
         assert call['extra_headers']['If-None-Match'] == orig_etag
 
     def test_no_mirror_access_for_invalid_packages(self, pypistage):
@@ -808,7 +827,7 @@ class TestMirrorStageprojects:
                 name, text="", status_code=500, add_to_projects=False)
 
         assert set(pypistage.list_projects_perstage()) == VALID
-        call = pypistage.xom.httpget.call_log.pop()
+        call = pypistage.xom.http.call_log.pop()
         assert call['url'] == pypistage.mirror_url
 
         for p in VALID:
@@ -840,11 +859,14 @@ class TestMirrorStageprojects:
                 "proj1": "proj1", "proj2": "proj2", "django": "Django"}
 
     def test_name_cache_expiration_updated_when_no_names_changed(self, pypistage):
-        pypistage.xom.httpget.mockresponse(
-            pypistage.mirror_url, code=200, text="""
+        pypistage.xom.http.mockresponse(
+            pypistage.mirror_url,
+            code=200,
+            text="""
             <body>
                 <a href='django'>Django</a><br/>
-            </body>""")
+            </body>""",
+        )
         pypistage.ixconfig['mirror_cache_expiry'] = 0
         projectnames = pypistage.cache_projectnames
         assert not projectnames.exists()
@@ -1001,7 +1023,7 @@ class TestMirrorStageprojects:
         assert not [x for x in msgs if "/:bar" in x and "mockresponse" not in x]
         assert [x for x in msgs if "/:***" in x]
 
-    def test_auth_mirror_plugin(self, httpget, makemapp, maketestapp, makexom):
+    def test_auth_mirror_plugin(self, http, makemapp, maketestapp, makexom):
         from devpi_server.config import hookimpl
         plugin_calls = []
 
@@ -1015,15 +1037,18 @@ class TestMirrorStageprojects:
         xom = makexom(plugins=[plugin])
         testapp = maketestapp(xom)
         mapp = makemapp(testapp)
-        httpget.add('https://pypi.org/simple/', status_code=401, headers={
-            'WWW-Authenticate': 'Basic realm=pypi'})
-        httpget.add('https://pypi.org/simple/', text='')
+        http.add(
+            "https://pypi.org/simple/",
+            status_code=401,
+            headers={"WWW-Authenticate": "Basic realm=pypi"},
+        )
+        http.add("https://pypi.org/simple/", text="")
         mapp.getpkglist(indexname="root/pypi")
         ((call_url, call_header),) = plugin_calls
         assert call_header == 'Basic realm=pypi'
         assert call_url.hostname == 'pypi.org'
         assert len(plugin_calls) == 1
-        (call1, call2) = httpget.call_log
+        (call1, call2) = http.call_log
         assert 'Authorization' not in call1['extra_headers']
         assert call2['extra_headers']['Authorization'] == 'Bearer token'
 
