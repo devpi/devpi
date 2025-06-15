@@ -17,7 +17,7 @@ Install the ``devpi-server`` package on our machine::
 Show version::
 
     $ devpi-server --version
-    6.16.0
+    6.17.0
 
 .. note::
 
