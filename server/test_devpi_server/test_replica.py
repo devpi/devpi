@@ -743,7 +743,7 @@ class TestFileReplication:
             assert not r_entry.file_exists()
 
     @pytest.mark.usefixtures("reqmock")
-    def test_fetch_later_deleted(self, gen, xom, replica_xom):
+    def test_fetch_later_deleted(self, caplog, gen, patch_reqsessionmock, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'
         md5 = hashlib.md5(content1).hexdigest()
@@ -766,10 +766,15 @@ class TestFileReplication:
         assert not xom.config.server_path.joinpath(entry._storepath).exists()
 
         # and simulate what the primary will respond
-        xom.httpget.mockresponse(primary_file_path, status_code=410)
+        (frthread,) = replica_xom.replica_thread.file_replication_threads
+        frt_reqmock = patch_reqsessionmock(frthread.session)
+        frt_reqmock.mockresponse(primary_file_path, code=410)
 
         # and then we try to see if we can replicate the create and del changes
+        caplog.clear()
         replay(xom, replica_xom)
+        (rec,) = caplog.getrecords("ignoring because of later deletion")
+        assert rec.args == (entry.relpath,)
 
         with replica_xom.keyfs.read_transaction():
             r_entry = replica_xom.filestore.get_file_entry(entry.relpath)
