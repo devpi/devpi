@@ -2,6 +2,16 @@
 
 .. towncrier release notes start
 
+5.0.1 (2025-06-15)
+==================
+
+Bug Fixes
+---------
+
+- Fix traceback during unpacking of documentation in some cases.
+
+
+
 5.0.0 (2025-06-12)
 ==================
 
