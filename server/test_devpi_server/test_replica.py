@@ -890,7 +890,7 @@ class TestFileReplication:
         with replica_xom.keyfs.read_transaction():
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.primary_url.joinpath(entry.relpath).url
-            pypistage.xom.httpget.mockresponse(url, status_code=500)
+            pypistage.xom.http.mockresponse(url, status_code=500)
             stage = replica_xom.model.getstage('root/pypi')
             with pytest.raises(BadGateway) as e:
                 list(iter_remote_file_replica(stage, entry, entry.url))
@@ -918,16 +918,15 @@ class TestFileReplication:
                 "content-type": ("application/zip", None)}
             entry = replica_xom.filestore.get_file_entry(entry.relpath)
             url = replica_xom.config.primary_url.joinpath(entry.relpath).url
-            pypistage.xom.httpget.mockresponse(url, status_code=500)
-            pypistage.xom.httpget.mockresponse(
-                entry.url, headers=headers, content=b'123')
+            pypistage.xom.http.mockresponse(url, status_code=500)
+            pypistage.xom.http.mockresponse(entry.url, headers=headers, content=b"123")
             stage = replica_xom.model.getstage('root/pypi')
             result = iter_remote_file_replica(stage, entry, entry.url)
             headers = next(result)
             # there should be one get
             (call_log_entry,) = [
-                x for x in pypistage.xom.httpget.call_log
-                if x['url'] == url]
+                x for x in pypistage.xom.http.call_log if x["url"] == url
+            ]
             # and it should have an authorization header
             assert call_log_entry['extra_headers']['Authorization'].startswith('Bearer')
             # and UUID header
@@ -966,7 +965,9 @@ class TestFileReplication:
                    "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                    "content-type": "application/zip",
                    "X-DEVPI-SERIAL": str(xom.keyfs.get_current_serial())}
-        replica_xom.httpget.mockresponse(primary_file_url, code=200, content=content1, headers=headers)
+        replica_xom.http.mockresponse(
+            primary_file_url, code=200, content=content1, headers=headers
+        )
         with replica_xom.keyfs.read_transaction() as tx:
             assert not tx.conn.io_file_exists(file_relpath)
         r = r_app.get(path)

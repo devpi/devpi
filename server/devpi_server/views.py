@@ -1748,9 +1748,10 @@ class FileStreamer:
 
         yield _headers_from_response(self.response)
 
+        data_iter = self.response.iter_raw(10240)
         while 1:
-            data = self.response.raw.read(10240)
-            if not data:
+            data = next(data_iter, None)
+            if data is None:
                 break
             filesize += len(data)
             for rh in running_hashes._running_hashes:
@@ -1774,15 +1775,14 @@ def iter_cache_remote_file(stage, entry, url):
     # we get and cache the file and some http headers from remote
     xom = stage.xom
     url = URL(url)
-    r = stage.httpget(url, allow_redirects=True)
-    if r.status_code != 200:
-        r.close()
-        msg = "error %s getting %r" % (r.status_code, url)
-        threadlog.error(msg)
-        raise BadGateway(msg, code=r.status_code, url=url)
 
     with contextlib.ExitStack() as cstack:
-        cstack.callback(r.close)
+        r = stage.http.stream(cstack, "GET", url, allow_redirects=True)
+        if r.status_code != 200:
+            r.close()
+            msg = f"error {r.status_code} getting {url}"
+            threadlog.error(msg)
+            raise BadGateway(msg, code=r.status_code, url=url)
         f = cstack.enter_context(entry.file_new_open())
         file_streamer = FileStreamer(f, entry, r)
         threadlog.info("reading remote: %r, target %s", URL(r.url), entry.relpath)
@@ -1831,32 +1831,38 @@ def iter_remote_file_replica(stage, entry, url):
         threadlog.warn("missing private file: %s" % entry.relpath)
     else:
         threadlog.info("replica doesn't have file: %s", entry.relpath)
-    r = stage.httpget(
-        primary_url, allow_redirects=True,
-        extra_headers={xom.replica_thread.H_REPLICA_FILEREPL: "YES"})
-    if r.status_code != 200:
-        r.close()
-        msg = "%s: received %s from primary" % (primary_url, r.status_code)
-        if not url:
-            threadlog.error(msg)
-            raise BadGateway(msg)
-        # try to get from original location
-        headers = {}
-        url = URL(url)
-        username = url.username or ''
-        password = url.password or ''
-        if username or password:
-            url = url.replace(username=None, password=None)
-            auth = f"{username}:{password}".encode()
-            headers["Authorization"] = f"Basic {b64encode(auth).decode()}"
-        r = xom.httpget(url, allow_redirects=True, extra_headers=headers)
-        if r.status_code != 200:
-            r.close()
-            msg = "%s\n%s: received %s" % (msg, url, r.status_code)
-            threadlog.error(msg)
-            raise BadGateway(msg)
 
     with contextlib.ExitStack() as cstack:
+        r = stage.http.stream(
+            cstack,
+            "GET",
+            primary_url,
+            allow_redirects=True,
+            extra_headers={xom.replica_thread.H_REPLICA_FILEREPL: "YES"},
+        )
+        if r.status_code != 200:
+            r.close()
+            msg = f"{primary_url}: received {r.status_code} from primary"
+            if not url:
+                threadlog.error(msg)
+                raise BadGateway(msg)
+            # try to get from original location
+            headers = {}
+            url = URL(url)
+            username = url.username or ""
+            password = url.password or ""
+            if username or password:
+                url = url.replace(username=None, password=None)
+                auth = f"{username}:{password}".encode()
+                headers["Authorization"] = f"Basic {b64encode(auth).decode()}"
+            r = xom.http.stream(
+                cstack, "GET", url, allow_redirects=True, extra_headers=headers
+            )
+            if r.status_code != 200:
+                r.close()
+                msg = f"{msg}\n{url}: received {r.status_code}"
+                threadlog.error(msg)
+                raise BadGateway(msg)
         cstack.callback(r.close)
         f = cstack.enter_context(entry.file_new_open())
         file_streamer = FileStreamer(f, entry, r)
