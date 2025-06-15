@@ -1022,6 +1022,9 @@ def test_requests_httpget_negative_status_code(xom, monkeypatch):
         raise requests.exceptions.RequestException()
 
     monkeypatch.setattr(xom._httpsession, "get", r)
+    r = xom.httpget("http://notexists.qwe", allow_redirects=False)
+    assert r.status_code == -1
+    assert l
 
 
 @pytest.mark.nomocking
