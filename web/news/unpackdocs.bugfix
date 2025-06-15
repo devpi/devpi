@@ -1,0 +1,1 @@
+Fix traceback during unpacking of documentation in some cases.

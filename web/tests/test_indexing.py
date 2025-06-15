@@ -66,6 +66,57 @@ def test_doc_unpack_cleanup(mapp, testapp):
 
 
 @pytest.mark.with_notifier
+def test_doc_unpack_hash_mismatch(caplog, mapp):
+    from devpi_web.doczip import get_unpack_path
+    from devpi_web.doczip import locked_unpack_path
+    from devpi_web.doczip import unpack_docs
+    api = mapp.create_and_use()
+    content = zip_dict({
+        "index.html": "<html><body>2.6</body></html>"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200,
+                    waithooks=True)
+    with mapp.xom.keyfs.read_transaction():
+        stage = mapp.xom.model.getstage(api.stagename)
+        linkstore = stage.get_linkstore_perstage("pkg1", "2.6")
+        (link,) = linkstore.get_links(rel='doczip')
+        path = unpack_docs(stage, 'pkg1', '2.6', link.entry)
+    assert path.exists()
+    # make sure there is a path that is not existing in the zip,
+    # so we can test for its removal
+    foo_path = path.joinpath("foo.html")
+    assert not foo_path.exists()
+    foo_path.touch()
+    assert foo_path.exists()
+    with mapp.xom.keyfs.read_transaction():
+        # now mess with the hash file and make it bigger than the hash_spec,
+        # as there was a problem with writing the file correctly before
+        bad_hash = "foo" * 300
+        with locked_unpack_path(stage, "pkg1", "2.6") as (hash_file, _unpack_path):
+            hash_file.seek(0)
+            hash_file.write(bad_hash)
+        hash_path = get_unpack_path(stage, "pkg1", "2.6").with_suffix(".hash")
+        # make sure it is set correctly to the bad value
+        assert hash_path.read_text() == bad_hash
+        stage = mapp.xom.model.getstage(api.stagename)
+        linkstore = stage.get_linkstore_perstage("pkg1", "2.6")
+        (link,) = linkstore.get_links(rel='doczip')
+        caplog.clear()
+        unpack_docs(stage, 'pkg1', '2.6', link.entry)
+        assert len(caplog.getrecords("unpacked")) == 1
+        assert hash_path.read_text() == link.entry.best_available_hash_spec
+        # unpack again
+        new_path = unpack_docs(stage, 'pkg1', '2.6', link.entry)
+        assert len(caplog.getrecords("unpacked")) == 1
+        assert new_path == path
+        assert new_path.exists()
+        assert "2.6" in new_path.joinpath("index.html").read_text()
+        # the hash was written more than once
+        assert new_path.with_suffix(".hash").read_text() == link.entry.best_available_hash_spec
+    assert not foo_path.exists()
+
+
+@pytest.mark.with_notifier
 def test_empty_doczip(mapp):
     from devpi_server.filestore import get_hashes
     from devpi_web.doczip import Docs

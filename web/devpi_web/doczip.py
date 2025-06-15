@@ -33,7 +33,9 @@ def locked_unpack_path(stage, name, version, *, remove_lock_file=False):
     hash_path = unpack_path.with_suffix(".hash")
     try:
         hash_path.parent.mkdir(parents=True, exist_ok=True)
-        with hash_path.open("a+") as hash_file:
+        with suppress(FileExistsError), hash_path.open("x"):
+            pass
+        with hash_path.open("r+") as hash_file:
             if fcntl:
                 fcntl.flock(hash_file, fcntl.LOCK_EX)
             try:
@@ -90,12 +92,13 @@ def unpack_docs(stage, name, version, entry):
     # we are not losing the original zip file anyway
     with locked_unpack_path(stage, name, version) as (hash_file, unpack_path):
         hash_file.seek(0)
-        if hash_file.read().strip() == entry.best_available_hash_spec:
+        hash_spec = hash_file.read().strip()
+        if hash_spec == entry.best_available_hash_spec:
             return unpack_path
         if unpack_path.exists():
             with suppress(FileNotFoundError):
                 # there is a rare possibility of a race condition here
-                unpack_path.unlink()
+                shutil.rmtree(unpack_path)
         if not entry.file_exists():
             return unpack_path
         with entry.file_open_read() as f, Archive(f) as archive:
