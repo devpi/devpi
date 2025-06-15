@@ -372,7 +372,7 @@ class ReplicaThread:
         self.update_from_primary_at = None
         # set whenever the primary serial and current replication serial match
         self.replica_in_sync_at = None
-        self.session = self.xom.new_http_session("replica")
+        self.http = self.xom.new_http_client("replica")
         self.initial_fetch = True
 
     @cached_property
@@ -477,18 +477,20 @@ class ReplicaThread:
                 H_REPLICA_UUID: uuid,
                 H_EXPECTED_MASTER_ID: primary_uuid,
                 H_EXPECTED_PRIMARY_ID: primary_uuid,
-                H_REPLICA_OUTSIDE_URL: config.args.outside_url,
-                'Authorization': 'Bearer %s' % token}
+                "Authorization": f"Bearer {token}",
+            }
+            if config.args.outside_url:
+                headers[H_REPLICA_OUTSIDE_URL] = config.args.outside_url
             if self.use_streaming:
                 headers["Accept"] = REPLICA_ACCEPT_STREAMING
-            r = self.session.get(
+            r = self.http.get(
                 url,
                 allow_redirects=False,
-                headers=headers,
-                stream=self.use_streaming,
-                timeout=self.REPLICA_REQUEST_TIMEOUT)
-        except Exception as e:
-            msg = ''.join(traceback.format_exception_only(e.__class__, e)).strip()
+                extra_headers=headers,
+                timeout=self.REPLICA_REQUEST_TIMEOUT,
+            )
+        except Exception as e:  # noqa: BLE001
+            msg = "".join(traceback.format_exception_only(e.__class__, e)).strip()
             log.error("error fetching %s: %s", url, msg)  # noqa: TRY400
             return False
 
@@ -574,8 +576,7 @@ class ReplicaThread:
     def handler_multi(self, response):
         if response.headers.get("content-type", "") == REPLICA_CONTENT_TYPE:
             with contextlib.closing(response):
-                readableiterable = ReadableIterabel(
-                    response.iter_content(chunk_size=None))
+                readableiterable = ReadableIterabel(response.iter_bytes(65536))
                 stream = io.BufferedReader(readableiterable, buffer_size=65536)
                 try:
                     while True:
@@ -629,7 +630,7 @@ class ReplicaThread:
                 self.thread.sleep(1.0)
 
     def thread_shutdown(self):
-        self.session.close()
+        self.http.close()
 
     def wait(self, error_queue=False):
         self.shared_data.wait(error_queue=error_queue)
@@ -883,7 +884,7 @@ class FileReplicationThread:
     def __init__(self, xom, shared_data):
         self.xom = xom
         self.shared_data = shared_data
-        self.session = self.xom.new_http_session("replica")
+        self.http = self.xom.new_http_client("replica")
         self.file_search_path = None
         if self.xom.config.replica_file_search_path is not None:
             search_path = os.path.join(
@@ -936,7 +937,7 @@ class FileReplicationThread:
             f.devpi_srcpath = path
         return (f, entry.hashes)
 
-    def importer(self, serial, key, val, back_serial, session):
+    def importer(self, serial, key, val, back_serial):  # noqa: PLR0911, PLR0912
         threadlog.debug("FileReplicationThread.importer for %s, %s", key, val)
         keyfs = self.xom.keyfs
         relpath = key.relpath
@@ -978,14 +979,16 @@ class FileReplicationThread:
         # we perform the request with a special header so that
         # the primary can avoid getting "volatile" links
         token = self.auth_serializer.dumps(self.uuid)
-        r = session.get(
-            url, allow_redirects=False,
-            headers={
+        r = self.http.get(
+            url,
+            allow_redirects=False,
+            extra_headers={
                 H_REPLICA_FILEREPL: "YES",
                 H_REPLICA_UUID: self.uuid,
-                'Authorization': 'Bearer %s' % token},
-            stream=True,
-            timeout=self.xom.config.args.request_timeout)
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=self.xom.config.args.request_timeout,
+        )
         if r.status_code == 302:
             r.close()
             # mirrors might redirect to external file when
@@ -1042,15 +1045,16 @@ class FileReplicationThread:
                 for _chunk in file_streamer:
                     # we only need the data to be written to the file
                     pass
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001
                 if isinstance(err, ChecksumError):
                     threadlog.error(
                         "checksum mismatch for '%s', will be retried later: %s",
-                        relpath, r.reason)
-                self.shared_data.errors.add(dict(
-                    url=r.url,
-                    message=str(err),
-                    relpath=entry.relpath))
+                        relpath,
+                        r.reason,
+                    )
+                self.shared_data.errors.add(
+                    dict(url=r.url, message=str(err), relpath=entry.relpath)
+                )
                 return
 
             # in case there were errors before, we can now remove them
@@ -1073,8 +1077,7 @@ class FileReplicationThread:
                 else:
                     self.shared_data.deleted.invalidate(key)
         typedkey = keyfs.get_key_instance(keyname, key)
-        self.importer(
-            serial, typedkey, value, back_serial, self.session)
+        self.importer(serial, typedkey, value, back_serial)
         entry = self.xom.filestore.get_file_entry_from_key(typedkey, meta=value)
         if not entry.project or not entry.version:
             return
@@ -1109,9 +1112,8 @@ class FileReplicationThread:
                 self.tick()
             except mythread.Shutdown:
                 raise
-            except Exception:
-                threadlog.exception(
-                    "Unhandled exception in file replication thread.")
+            except Exception:  # noqa: BLE001
+                threadlog.exception("Unhandled exception in file replication thread.")
                 self.thread.sleep(1.0)
 
 

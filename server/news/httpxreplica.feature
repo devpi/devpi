@@ -1,0 +1,1 @@
+Use httpx for all requests from replicas to primary.
