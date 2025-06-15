@@ -545,25 +545,25 @@ class TestExtPYPIDB:
         assert pypistage.has_project_perstage("foo")
 
     @pytest.mark.notransaction
-    def test_requires_python_caching(self, pypistage):
+    def test_requires_python_caching(self, monkeypatch, pypistage):
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-requires-python="&lt;3"></a>')
         with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
         # make sure we get the cached data, if not throw an error
-        pypistage.httpget = None
+        monkeypatch.setattr(pypistage, "httpget", None)
         with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.require_python == '<3'
 
     @pytest.mark.notransaction
-    def test_yanked_caching(self, pypistage):
+    def test_yanked_caching(self, monkeypatch, pypistage):
         pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz" data-yanked=""></a>')
         with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked == ""
         # make sure we get the cached data, if not throw an error
-        pypistage.httpget = None
+        monkeypatch.setattr(pypistage, "httpget", None)
         with pypistage.keyfs.read_transaction():
             (link,) = pypistage.get_releaselinks("foo")
         assert link.yanked == ""
