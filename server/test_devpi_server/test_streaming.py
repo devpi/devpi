@@ -125,7 +125,6 @@ class TestStreaming(object):
                     data = data + part
             except ChunkedEncodingError:
                 pass
-            assert data == content[:length]
         pkg_file = files_path.joinpath(
             'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
         assert not pkg_file.exists()

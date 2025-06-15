@@ -131,20 +131,21 @@ def test_get_mirror_whitelist_info_private_package(mapp, monkeypatch, testapp):
     with mapp.xom.keyfs.read_transaction():
         with monkeypatch.context() as m:
             # make sure we get an error if data is fetched
-            m.setattr(mapp.xom, 'httpget', None)
+            m.setattr(mapp.xom.http, "get", None)
             stage = mapp.xom.model.getstage(api.stagename)
             info = stage.get_mirror_whitelist_info("pkg1")
             assert info["has_mirror_base"] is unknown
             assert info['blocked_by_mirror_whitelist'] == "root/pypi"
     mapp.use("root/pypi")
     mapp.xom.httpget.mockresponse(
-        "https://pypi.org/simple/", text='<a href="pkg1"></a>')
-    mapp.xom.httpget.mock_simple("pkg1", text="")
+        "https://pypi.org/simple/", text='<a href="pkg1"></a>'
+    )
+    mapp.xom.http.mock_simple("pkg1", text="")
     mapp.get_simple("pkg1")
     with mapp.xom.keyfs.read_transaction():
         with monkeypatch.context() as m:
             # make sure we get an error if data is fetched
-            m.setattr(mapp.xom, 'httpget', None)
+            m.setattr(mapp.xom.http, "get", None)
             pypistage = mapp.xom.model.getstage("root/pypi")
             # expire the project data, otherwise we wouldn't fetch data
             # by accident
@@ -611,21 +612,27 @@ class TestStage:
             'someproject-1.0.zip',
             'someproject-1.1-py2.py3-none-any.whl']
 
-    def test_whitelist_intersection_two_mirrors(self, httpget, stage, user):
+    def test_whitelist_intersection_two_mirrors(self, http, httpget, stage, user):
         mirror1 = user.create_stage("mirror1", **udict(
             mirror_url="http://pypi.org/simple", type="mirror"))
         mirror2 = user.create_stage("mirror2", **udict(
             mirror_url="http://example.com/simple", type="mirror"))
         httpget.mockresponse(
-            "http://pypi.org/simple/", text='<a href="someproject"></a>')
-        httpget.mock_simple(
-            "someproject", "<a href='someproject-1.1.zip' /a>",
-            remoteurl=mirror1.mirror_url)
+            "http://pypi.org/simple/", text='<a href="someproject"></a>'
+        )
+        http.mock_simple(
+            "someproject",
+            "<a href='someproject-1.1.zip' /a>",
+            remoteurl=mirror1.mirror_url,
+        )
         httpget.mockresponse(
-            "http://example.com/simple/", text='<a href="someproject"></a>')
-        httpget.mock_simple(
-            "someproject", "<a href='someproject-1.1-py2.py3-none-any.whl' /a>",
-            remoteurl=mirror2.mirror_url)
+            "http://example.com/simple/", text='<a href="someproject"></a>'
+        )
+        http.mock_simple(
+            "someproject",
+            "<a href='someproject-1.1-py2.py3-none-any.whl' /a>",
+            remoteurl=mirror2.mirror_url,
+        )
         stage.modify(
             bases=(mirror1.name, mirror2.name),
             mirror_whitelist='*')
@@ -691,21 +698,27 @@ class TestStage:
             'someproject-1.1-py2.py3-none-any.whl',
             'someproject-1.1.zip']
 
-    def test_whitelist_union_two_mirrors(self, httpget, stage, user):
+    def test_whitelist_union_two_mirrors(self, http, httpget, stage, user):
         mirror1 = user.create_stage("mirror1", **udict(
             mirror_url="http://pypi.org/simple", type="mirror"))
         mirror2 = user.create_stage("mirror2", **udict(
             mirror_url="http://example.com/simple", type="mirror"))
         httpget.mockresponse(
-            "http://pypi.org/simple/", text='<a href="someproject"></a>')
-        httpget.mock_simple(
-            "someproject", "<a href='someproject-1.1.zip' /a>",
-            remoteurl=mirror1.mirror_url)
+            "http://pypi.org/simple/", text='<a href="someproject"></a>'
+        )
+        http.mock_simple(
+            "someproject",
+            "<a href='someproject-1.1.zip' /a>",
+            remoteurl=mirror1.mirror_url,
+        )
         httpget.mockresponse(
-            "http://example.com/simple/", text='<a href="someproject"></a>')
-        httpget.mock_simple(
-            "someproject", "<a href='someproject-1.1-py2.py3-none-any.whl' /a>",
-            remoteurl=mirror2.mirror_url)
+            "http://example.com/simple/", text='<a href="someproject"></a>'
+        )
+        http.mock_simple(
+            "someproject",
+            "<a href='someproject-1.1-py2.py3-none-any.whl' /a>",
+            remoteurl=mirror2.mirror_url,
+        )
         stage.modify(
             bases=(mirror1.name, mirror2.name),
             mirror_whitelist='*')

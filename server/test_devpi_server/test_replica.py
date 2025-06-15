@@ -992,7 +992,7 @@ def test_get_simplelinks_perstage(monkeypatch, pypistage, replica_pypistage,
 
     # replicate the state
     replay(xom, replica_xom)
-    replica_pypistage.xom.httpget.call_log.clear()
+    replica_pypistage.xom.http.call_log.clear()
 
     # now check
     pypiurls.simple = 'http://localhost:3111/root/pypi/+simple/'

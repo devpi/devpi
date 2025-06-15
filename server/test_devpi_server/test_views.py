@@ -789,7 +789,7 @@ def test_upstream_not_reachable_but_cache_still_returned(pypistage, mapp, testap
     assert set(r.json['result']) == set(['1.0', '1.1'])
 
 
-def test_pkgserv(httpget, pypistage, testapp):
+def test_pkgserv(pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
     pypistage.mock_extfile("/package-1.0.zip", b"123")
     r = testapp.get("/root/pypi/+simple/package/")
@@ -814,7 +814,7 @@ def test_pkgserv_caching(mapp, testapp):
     assert r.cache_control.private is None
 
 
-def test_pkgserv_remote_failure(httpget, pypistage, testapp):
+def test_pkgserv_remote_failure(pypistage, testapp):
     pypistage.mock_simple("package", '<a href="/package-1.0.zip" />')
     r = testapp.get("/root/pypi/+simple/package/")
     assert r.status_code == 200
@@ -1340,7 +1340,7 @@ def test_push_from_base_error(mapp, testapp, monkeypatch, pypistage):
     assert "no files for" in r.json["message"]
 
 
-def test_push_from_pypi(httpget, mapp, pypistage, testapp):
+def test_push_from_pypi(mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     content = b"123"
     hash_spec = get_hashes(content).get_default_spec()
@@ -1360,7 +1360,7 @@ def test_push_from_pypi(httpget, mapp, pypistage, testapp):
         'type': 'actionlog'}
 
 
-def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
+def test_push_from_pypi_fail(mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", b"123", status_code=502)
     mapp.create_and_login_user("foo")
@@ -1373,7 +1373,7 @@ def test_push_from_pypi_fail(httpget, mapp, pypistage, testapp):
     assert "https://pypi.org/simple/hello/hello-1.0.tar.gz" in r.json["message"]
 
 
-def test_push_from_pypi_mirror_switch_to_use_external_urls(httpget, mapp, pypistage, testapp):
+def test_push_from_pypi_mirror_switch_to_use_external_urls(mapp, pypistage, testapp):
     pypistage.mock_simple("hello", text='<a href="hello-1.0.tar.gz"/>')
     content = b"123"
     pypistage.mock_extfile("/simple/hello/hello-1.0.tar.gz", content)
@@ -1851,14 +1851,14 @@ def test_delete_mirror(mapp, monkeypatch, simpypi, testapp, xom):
         key = testapp.xom.filestore.get_key_from_relpath(path.strip("/"))
         assert not key.exists()
 
-    # patch async_httpget to simulate broken PyPI
-    async def async_httpget(url, **kwargs):  # noqa: ARG001 - testing
+    # patch async_get to simulate broken PyPI
+    async def async_get(url, **kwargs):  # noqa: ARG001 - testing
         class Response:
             status_code = 503
             reason = "Service Unavailable"
         return (Response(), None)
 
-    monkeypatch.setattr(xom, "async_httpget", async_httpget)
+    monkeypatch.setattr(xom.http, "async_get", async_get)
 
     # to prove that all metadata is gone when deleting the stage,
     # we recreate the stage, block access to PyPI

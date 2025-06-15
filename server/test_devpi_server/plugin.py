@@ -734,13 +734,13 @@ def pypistage(devpiserver_makepypistage, xom):
 
 def add_pypistage_mocks(
     monkeypatch,
-    http,  # noqa: ARG001
-    httpget,
+    http,
+    httpget,  # noqa: ARG001
 ):
     _projects = set()
 
     # add some mocking helpers
-    mirror.MirrorStage.url2response = httpget.url2response
+    mirror.MirrorStage.url2response = http.url2response
 
     def mock_simple(self, name, text=None, pypiserial=10000, **kw):
         cache_expire = kw.pop("cache_expire", True)
@@ -751,8 +751,8 @@ def add_pypistage_mocks(
         if add_to_projects:
             self.mock_simple_projects(
                 _projects.union([name]), cache_expire=cache_expire)
-        return self.xom.httpget.mock_simple(
-            name, text=text, pypiserial=pypiserial, **kw)
+        return self.xom.http.mock_simple(name, text=text, pypiserial=pypiserial, **kw)
+
     monkeypatch.setattr(
         mirror.MirrorStage, "mock_simple", mock_simple, raising=False)
 
@@ -766,6 +766,7 @@ def add_pypistage_mocks(
             for name in projectlist)
         threadlog.debug("patching simple page with: %s" % t)
         self.xom.httpget.mockresponse(self.mirror_url, code=200, text=t)
+
     monkeypatch.setattr(
         mirror.MirrorStage, "mock_simple_projects",
         mock_simple_projects, raising=False)
@@ -777,6 +778,7 @@ def add_pypistage_mocks(
         url = URL(self.mirror_url).joinpath(path)
         return self.xom.httpget.mockresponse(
             url.url, content=content, headers=headers, **kw)
+
     monkeypatch.setattr(
         mirror.MirrorStage, "mock_extfile", mock_extfile, raising=False)
 

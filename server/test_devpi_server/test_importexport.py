@@ -1113,7 +1113,7 @@ class TestImportExport:
             assert "foo_plugin" in stage2.ixconfig
             assert stage2.ixconfig["foo_plugin"] == "bar"
 
-    def test_mirror_settings_preserved(self, httpget, impexp, pypiurls):
+    def test_mirror_settings_preserved(self, http, impexp, pypiurls):
         mapp1 = impexp.mapp1
         indexconfig = dict(
             type="mirror",
@@ -1123,8 +1123,8 @@ class TestImportExport:
 
         impexp.export()
 
-        httpget.mockresponse(pypiurls.simple, code=200, text="")
-        httpget.mockresponse(indexconfig["mirror_url"], code=200, text="")
+        http.mockresponse(pypiurls.simple, code=200, text="")
+        http.mockresponse(indexconfig["mirror_url"], code=200, text="")
 
         mapp2 = impexp.new_import()
         result = mapp2.getjson(api.index)
@@ -1136,26 +1136,24 @@ class TestImportExport:
             mirror_cache_expiry=600,
             projects=[])
 
-    def test_no_mirror_releases_touched(self, httpget, impexp, pypiurls):
+    def test_no_mirror_releases_touched(self, http, impexp, pypiurls):
         mapp1 = impexp.mapp1
         indexconfig = dict(
             type="mirror",
             mirror_url="http://localhost:6543/index/")
         api = mapp1.create_and_use(indexconfig=indexconfig)
 
-        httpget.mockresponse(
-            pypiurls.simple, code=200,
-            text='<a href="pytest">pytest</a>')
-        httpget.mockresponse(
-            indexconfig["mirror_url"], code=200,
-            text='<a href="devpi">devpi</a>')
+        http.mockresponse(pypiurls.simple, code=200, text='<a href="pytest">pytest</a>')
+        http.mockresponse(
+            indexconfig["mirror_url"], code=200, text='<a href="devpi">devpi</a>'
+        )
 
         impexp.export()
 
         assert [x.name for x in impexp.exportdir.iterdir()] == ['dataindex.json']
 
-        httpget.mockresponse(pypiurls.simple, code=200, text="")
-        httpget.mockresponse(indexconfig["mirror_url"], code=200, text="")
+        http.mockresponse(pypiurls.simple, code=200, text="")
+        http.mockresponse(indexconfig["mirror_url"], code=200, text="")
 
         mapp2 = impexp.new_import()
         result = mapp2.getjson(api.index)

@@ -283,7 +283,7 @@ class MirrorStage(BaseStage):
     @cached_property
     def http(self):
         if self.xom.is_replica():
-            (uuid, primary_uuid) = self.xom.config.nodeinfo.make_uuid_headers()
+            (uuid, primary_uuid) = make_uuid_headers(self.xom.config.nodeinfo)
             rt = self.xom.replica_thread
             dumps = rt.auth_serializer.dumps
 
@@ -706,8 +706,9 @@ class MirrorStage(BaseStage):
         etag = self.cache_retrieve_times.get_etag(project)
         if etag is not None:
             headers["If-None-Match"] = etag
-        (response, text) = await self.async_httpget(
-            get_url, allow_redirects=True, extra_headers=headers)
+        (response, text) = await self.http.async_get(
+            get_url, allow_redirects=True, extra_headers=headers
+        )
         if response.status_code == 304:
             raise self.UpstreamNotModified(
                 "%s status on GET %r" % (response.status_code, url),
