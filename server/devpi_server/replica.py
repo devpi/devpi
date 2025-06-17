@@ -8,7 +8,6 @@ import time
 import traceback
 from contextlib import suppress
 import warnings
-from functools import partial
 from pluggy import HookimplMarker
 from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
 from pyramid.httpexceptions import HTTPForbidden
@@ -582,18 +581,8 @@ class ReplicaThread:
                 return True
             return False
 
-    def handler_single(self, response, serial):
-        changes, rel_renames = loads(response.content)
-        self.xom.keyfs.import_changes(serial, changes)
-
-    def fetch_single(self, serial):
-        url = self.primary_url.joinpath("+changelog", str(serial)).url
-        return self.fetch(
-            partial(self.handler_single, serial=serial),
-            url)
-
     def handler_multi(self, response):
-        if response.headers["content-type"] == REPLICA_CONTENT_TYPE:
+        if response.headers.get("content-type", "") == REPLICA_CONTENT_TYPE:
             with contextlib.closing(response):
                 readableiterable = ReadableIterabel(
                     response.iter_content(chunk_size=None))
@@ -622,10 +611,6 @@ class ReplicaThread:
         self.thread.exit_if_shutdown()
         serial = self.xom.keyfs.get_next_serial()
         result = self.fetch_multi(serial)
-        if not result:
-            serial = self.xom.keyfs.get_next_serial()
-            # BBB remove with 6.0.0
-            result = self.fetch_single(serial)
         if not result:
             # we got an error, let's wait a bit
             self.thread.sleep(5.0)

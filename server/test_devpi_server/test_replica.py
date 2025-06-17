@@ -3,6 +3,8 @@ import os
 import pytest
 from devpi_server.log import thread_pop_log
 from devpi_server.filestore import get_hashes
+from devpi_server.fileutil import LoadError
+from devpi_server.fileutil import dumps
 from devpi_server.fileutil import loads
 from devpi_server.keyfs import MissingFileException
 from devpi_server.log import threadlog, thread_push_log
@@ -185,28 +187,33 @@ class TestReplicaThread:
                           uuid="123", headers=None):
             if headers is None:
                 headers = {}
-            headers = dict((k.lower(), v) for k, v in headers.items())
+            headers = {k.lower(): v for k, v in headers.items()}
             if uuid is not None:
                 headers.setdefault(H_MASTER_UUID.lower(), uuid)
                 headers.setdefault(H_PRIMARY_UUID.lower(), uuid)
             headers.setdefault("x-devpi-serial", str(2))
             if headers["x-devpi-serial"] is None:
                 del headers["x-devpi-serial"]
-            url = "http://localhost/+changelog/%s" % num
+            url = f"http://localhost/+changelog/{num}-"
             if num == 0:
                 url = url + '?initial_fetch'
+            try:
+                data = loads(data)
+                data = dumps([(num, data[0])])
+            except (EOFError, LoadError):
+                pass
             reqmock.mockresponse(url, code=code, data=data, headers=headers)
         return mockchangelog
 
     def test_thread_run_fail(self, rt, mockchangelog, caplog):
-        rt.thread.sleep = lambda x: 0/0
+        rt.thread.sleep = lambda _x: 0 / 0
         mockchangelog(0, code=404)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
         assert caplog.getrecords("404.*failed fetching*")
 
     def test_thread_run_decode_error(self, rt, mockchangelog, caplog):
-        rt.thread.sleep = lambda x: 0/0
+        rt.thread.sleep = lambda _x: 0 / 0
         mockchangelog(0, code=200, data=b'qwelk')
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
@@ -218,7 +225,9 @@ class TestReplicaThread:
         data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         # get the result
-        orig_req = reqmock.url2reply[("http://localhost/+changelog/0?initial_fetch", None)]
+        orig_req = reqmock.url2reply[
+            ("http://localhost/+changelog/0-?initial_fetch", None)
+        ]
         # setup so the first attempt fails, then the second succeeds
         reqmock.url2reply = mock.Mock()
         reqmock.url2reply.get.side_effect = [socket.error(), orig_req]
@@ -240,7 +249,7 @@ class TestReplicaThread:
             '[REP] fetching %s']
 
     def test_thread_run_ok(self, rt, mockchangelog, caplog, xom):
-        rt.thread.sleep = lambda *x: 0/0
+        rt.thread.sleep = lambda *_x: 0 / 0
         data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         mockchangelog(1, code=404, data=data)
@@ -249,7 +258,7 @@ class TestReplicaThread:
         assert caplog.getrecords("committed")
 
     def test_thread_run_no_uuid(self, rt, mockchangelog, caplog):
-        rt.thread.sleep = lambda x: 0/0
+        rt.thread.sleep = lambda _x: 0 / 0
         mockchangelog(0, code=200, data=b'123', uuid=None)
         with pytest.raises(ZeroDivisionError):
             rt.thread_run()
@@ -257,7 +266,7 @@ class TestReplicaThread:
 
     def test_thread_run_ok_uuid_change(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
-        rt.thread.sleep = lambda *x: 0/0
+        rt.thread.sleep = lambda *_x: 0 / 0
         data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         mockchangelog(1, code=200, data=data, uuid="001")
@@ -303,7 +312,7 @@ class TestReplicaThread:
 
     def test_thread_run_serial_mismatch(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
-        rt.thread.sleep = lambda *x: 0/0
+        rt.thread.sleep = lambda *_x: 0 / 0
 
         # we need to have at least two commits
         with xom.keyfs.write_transaction():
@@ -321,7 +330,7 @@ class TestReplicaThread:
 
     def test_thread_run_invalid_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
-        rt.thread.sleep = lambda *x: 0/0
+        rt.thread.sleep = lambda *_x: 0 / 0
         data = get_raw_changelog_entry(xom, 0)
         assert data
         mockchangelog(0, code=200, data=data)
@@ -334,7 +343,7 @@ class TestReplicaThread:
 
     def test_thread_run_missing_serial(self, rt, mockchangelog, caplog, xom, monkeypatch):
         monkeypatch.setattr("os._exit", lambda n: 0/0)
-        rt.thread.sleep = lambda *x: 0/0
+        rt.thread.sleep = lambda *_x: 0 / 0
         data = get_raw_changelog_entry(xom, 0)
         mockchangelog(0, code=200, data=data)
         data = get_raw_changelog_entry(xom, 1)
