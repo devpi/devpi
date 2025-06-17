@@ -470,31 +470,33 @@ class ReplicaThread:
         log.info("fetching %s", url)
         uuid, primary_uuid = make_uuid_headers(config.nodeinfo)
         assert uuid != primary_uuid
-        try:
-            self.primary_contacted_at = time.time()
-            token = self.auth_serializer.dumps(uuid)
-            headers = {
-                H_REPLICA_UUID: uuid,
-                H_EXPECTED_MASTER_ID: primary_uuid,
-                H_EXPECTED_PRIMARY_ID: primary_uuid,
-                "Authorization": f"Bearer {token}",
-            }
-            if config.args.outside_url:
-                headers[H_REPLICA_OUTSIDE_URL] = config.args.outside_url
-            if self.use_streaming:
-                headers["Accept"] = REPLICA_ACCEPT_STREAMING
-            r = self.http.get(
-                url,
-                allow_redirects=False,
-                extra_headers=headers,
-                timeout=self.REPLICA_REQUEST_TIMEOUT,
-            )
-        except Exception as e:  # noqa: BLE001
-            msg = "".join(traceback.format_exception_only(e.__class__, e)).strip()
-            log.error("error fetching %s: %s", url, msg)  # noqa: TRY400
-            return False
+        with contextlib.ExitStack() as cstack:
+            try:
+                self.primary_contacted_at = time.time()
+                token = self.auth_serializer.dumps(uuid)
+                headers = {
+                    H_REPLICA_UUID: uuid,
+                    H_EXPECTED_MASTER_ID: primary_uuid,
+                    H_EXPECTED_PRIMARY_ID: primary_uuid,
+                    "Authorization": f"Bearer {token}",
+                }
+                if config.args.outside_url:
+                    headers[H_REPLICA_OUTSIDE_URL] = config.args.outside_url
+                if self.use_streaming:
+                    headers["Accept"] = REPLICA_ACCEPT_STREAMING
+                r = self.http.stream(
+                    cstack,
+                    "GET",
+                    url,
+                    allow_redirects=False,
+                    extra_headers=headers,
+                    timeout=self.REPLICA_REQUEST_TIMEOUT,
+                )
+            except Exception as e:  # noqa: BLE001
+                msg = "".join(traceback.format_exception_only(e.__class__, e)).strip()
+                log.error("error fetching %s: %s", url, msg)  # noqa: TRY400
+                return False
 
-        with contextlib.closing(r):
             if r.status_code in (301, 302):
                 log.error(
                     "%s %s: redirect detected at %s to %s",
