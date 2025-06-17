@@ -2,9 +2,6 @@ exclude = [
     "doc/",
 ]
 
-target-version = "py37"
-
-
 [format]
 exclude = [
     "postgresql/setup.py",
@@ -40,6 +37,7 @@ ignore = [
     "EM102", # ignore - f-string in exception
     "N", # ignore - naming
     "PERF203", # ignore (false positive?) - try-except in loop
+    "PLC0415", # ignore - import at top-level of file
     "PLR0913", # ignore - too many arguments
     "PLR0915", # maybe cleanup later
     "PLR2004", # ignore - magic value comparison

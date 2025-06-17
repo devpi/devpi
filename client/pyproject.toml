@@ -61,6 +61,7 @@ devpi-client-subcommands = "devpi.main"
 
 [tool.ruff]
 extend = "../pyproject.toml"
+target-version = "py37"
 
 
 [tool.ruff.format]
