@@ -153,6 +153,9 @@ class Version(str):
     _cmpstr: str
     _cmpval: LegacyVersion | PackagingVersion
 
+    def __hash__(self):
+        return hash(self.cmpval)
+
     def __eq__(self, other):
         if not isinstance(other, Version):
             raise NotImplementedError

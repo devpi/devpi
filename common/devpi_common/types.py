@@ -36,6 +36,9 @@ def canraise(Error):
 class CompareMixin:
     cmpval: Any
 
+    def __hash__(self):
+        return hash(self.cmpval)
+
     def _cmp(self, other, op):
         return op(self.cmpval, other.cmpval)
 
