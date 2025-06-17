@@ -1062,29 +1062,11 @@ def test_auth_status_primary_down(maketestapp, replica_xom, mock):
     assert r.json['result']['authstatus'] == ['noauth', '', []]
 
 
-def test_primary_url_auth(makexom, monkeypatch):
-    from devpi_server.mythread import Shutdown
-    replica_xom = makexom(opts=["--primary-url=http://foo:pass@localhost"])
-    assert replica_xom.config.primary_auth == ("foo", "pass")
-    assert replica_xom.config.primary_url.url == "http://localhost"
-    replica_xom.create_app()
+def test_primary_url_auth(makexom):
+    from devpi_server.main import Fatal
 
-    results = []
-
-    def get(*args, **kwargs):
-        results.append((args, kwargs))
-        replica_xom.thread_pool.kill()
-
-    monkeypatch.setattr(replica_xom.replica_thread.session, "get", get)
-    with pytest.raises(Shutdown):
-        replica_xom.replica_thread.thread_run()
-    assert results[0][1]['auth'] == ("foo", "pass")
-
-
-def test_primary_url_auth_with_port(makexom):
-    replica_xom = makexom(opts=["--primary-url=http://foo:pass@localhost:3140"])
-    assert replica_xom.config.primary_auth == ("foo", "pass")
-    assert replica_xom.config.primary_url.url == "http://localhost:3140"
+    with pytest.raises(Fatal, match="basic auth.* not supported"):
+        makexom(opts=["--primary-url=http://foo:pass@localhost"])
 
 
 def test_replica_user_auth_before_other_plugins(makexom):

@@ -282,11 +282,15 @@ class TestConfig:
         assert "--master-url option is deprecated" in record.message
         assert record.levelno == logging.WARNING
         caplog.clear()
-        config = make_config([
-            "devpi-server", "--primary-url=http://foo:pass@localhost", "--role=replica",
-            "--serverdir", str(tmpdir)])
-        with pytest.deprecated_call():
-            assert config.master_auth == ('foo', 'pass')
+        config = make_config(
+            [
+                "devpi-server",
+                "--primary-url=http://localhost",
+                "--role=replica",
+                "--serverdir",
+                str(tmpdir),
+            ]
+        )
         with pytest.deprecated_call():
             assert config.master_url.url == "http://localhost"
         assert caplog.getrecords('--master-url') == []

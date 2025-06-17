@@ -807,25 +807,12 @@ class Config(object):
         threadlog.info("wrote nodeinfo to: %s", self.nodeinfo_path)
 
     @property
-    def master_auth(self):
-        warnings.warn(
-            "master_auth is deprecated, use primary_auth instead",
-            DeprecationWarning,
-            stacklevel=2)
-        return self.primary_auth
-
-    @property
     def master_url(self):
         warnings.warn(
             "master_url is deprecated, use primary_url instead",
             DeprecationWarning,
             stacklevel=2)
         return self.primary_url
-
-    @property
-    def primary_auth(self):
-        # trigger setting of _primary_auth
-        return self._primary_auth if self.primary_url else None
 
     @property
     def primary_url(self):
@@ -853,18 +840,17 @@ class Config(object):
         return self.primary_url
 
     @primary_url.setter
-    def primary_url(self, value):
-        auth = (None, None)
-        if value is not None:
-            auth = (value.username, value.password)
-            netloc = value.hostname
-            if value.port:
-                netloc = "%s:%s" % (netloc, value.port)
-            value = value.replace(netloc=netloc)
-        if auth == (None, None):
-            auth = None
-        self._primary_auth = auth
-        self._primary_url = value
+    def primary_url(self, url):
+        if url is not None:
+            assert isinstance(url, URL)
+            if url.username is not None or url.password is not None:
+                from .main import Fatal
+
+                raise Fatal(
+                    "configuration error, "
+                    "basic authorization in primary URL is not supported"
+                )
+        self._primary_url = url
 
     @property
     def include_mirrored_files(self):

@@ -361,7 +361,6 @@ class ReplicaThread:
             xom.thread_pool.register(frt)
         self.initial_queue_thread = InitialQueueThread(xom, self.shared_data)
         xom.thread_pool.register(self.initial_queue_thread)
-        self.primary_auth = xom.config.primary_auth
         self.primary_url = xom.config.primary_url
         self.use_streaming = xom.config.replica_streaming
         self._primary_serial = None
@@ -409,14 +408,6 @@ class ReplicaThread:
             DeprecationWarning,
             stacklevel=2)
         return self._primary_serial_timestamp
-
-    @property
-    def master_auth(self):
-        warnings.warn(
-            "master_auth is deprecated, use primary_auth instead",
-            DeprecationWarning,
-            stacklevel=2)
-        return self.primary_auth
 
     @property
     def master_contacted_at(self):
@@ -493,7 +484,6 @@ class ReplicaThread:
             r = self.session.get(
                 url,
                 allow_redirects=False,
-                auth=self.primary_auth,
                 headers=headers,
                 stream=self.use_streaming,
                 timeout=self.REPLICA_REQUEST_TIMEOUT)
