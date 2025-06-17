@@ -5,6 +5,7 @@ import re
 import traceback
 import warnings
 from time import time
+from collections import defaultdict
 from devpi_common.types import ensure_unicode
 from devpi_common.url import URL
 from devpi_common.metadata import get_pyversion_filetype
@@ -1016,14 +1017,17 @@ class PyPIView:
             name = pushdata.pop("name")
             version = pushdata.pop("version")
         except KeyError:
-            apireturn(400, message="no name/version specified in json")
+            return apiresult(
+                400, f"there are no files for {name} {version} on stage {stage.name}"
+            )
 
         # first, get all the links related to the source "to push" release
         try:
             linkstore = stage.get_linkstore_perstage(name, version)
         except stage.MissesRegistration:
-            apireturn(400, "there are no files for %s-%s on stage %s" % (
-                name, version, stage.name))
+            return apiresult(
+                400, f"there are no files for {name} {version} on stage {stage.name}"
+            )
         rels = {'releasefile', 'doczip', 'toxresult'}
         no_docs = pushdata.pop("no_docs", False)
         only_docs = pushdata.pop("only_docs", False)
@@ -1033,12 +1037,16 @@ class PyPIView:
             rels.remove('doczip')
         elif only_docs:
             rels = {'doczip'}
-        links = {
-            rel: sorted(linkstore.get_links(rel=rel), key=attrgetter('basename'))
-            for rel in rels}
+        links = defaultdict(list)
+        for link in linkstore.get_links():
+            if link.rel not in rels:
+                continue
+            links[link.rel].append(link)
+        for rel in links:
+            links[rel] = sorted(links[rel], key=attrgetter("basename"))
         if not any(links.values()):
             self.log.info("%s: no files for version %s %s", stage.name, name, version)
-            apireturn(404, f"no release/files found for {name} {version}")
+            return apiresult(404, f"no release/files found for {name} {version}")
 
         if not request.has_permission("pkg_read"):
             abort(request, 403, "package read forbidden")
