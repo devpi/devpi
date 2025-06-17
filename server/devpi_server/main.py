@@ -454,15 +454,12 @@ class XOM:
             self.thread_pool.register(keyfs.notifier)
         return keyfs
 
-    def new_http_session(self, component_name, max_retries=None):
-        return new_requests_session(
-            agent=(component_name, server_version), max_retries=max_retries
-        )
+    def new_http_session(self, component_name):
+        return new_requests_session(agent=(component_name, server_version))
 
     @cached_property
     def _httpsession(self):
-        max_retries = self.config.replica_max_retries
-        return self.new_http_session("server", max_retries=max_retries)
+        return self.new_http_session("server")
 
     @cached_property
     def _ssl_context(self):

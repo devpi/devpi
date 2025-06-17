@@ -525,7 +525,6 @@ devpi command reference (server)
                         [--profile-requests NUM] [--mirror-cache-expiry SECS]
                         [--primary-url PRIMARY_URL]
                         [--master-url DEPRECATED_MASTER_URL]
-                        [--replica-max-retries NUM]
                         [--replica-file-search-path PATH] [--hard-links]
                         [--file-replication-threads NUM] [--proxy-timeout NUM]
                         [--no-replica-streaming] [--request-timeout NUM]
@@ -615,9 +614,6 @@ devpi command reference (server)
                             [None]
       --master-url DEPRECATED_MASTER_URL
                             DEPRECATED, use --primary-url instead [None]
-      --replica-max-retries NUM
-                            Number of retry attempts for replica connection
-                            failures (such as aborted connections to pypi). [0]
       --replica-file-search-path PATH
                             path to existing files to try before downloading from
                             primary. These could be from a previous replication
