@@ -39,6 +39,9 @@ class ProjectNameTokenizer(Tokenizer):
     def __init__(self):
         self.expression = rcompile(r'(\W|_)')
 
+    def __hash__(self):
+        return hash(self.expression.pattern)
+
     def __eq__(self, other):
         if self.__class__ is other.__class__:
             if self.expression.pattern == other.expression.pattern:
@@ -131,6 +134,9 @@ class NgramFilter(Filter):
 
         self.min = 2
         self.max = 4
+
+    def __hash__(self):
+        return hash((self.min, self.max))
 
     def __eq__(self, other):
         return other and self.__class__ is other.__class__\

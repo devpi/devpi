@@ -621,6 +621,9 @@ class SimpleLinks:
             self._links = [SimplelinkMeta(x) for x in links]
             self.stale = stale
 
+    def __hash__(self):
+        return hash((self._links, self.stale))
+
     def __iter__(self):
         return self._links.__iter__()
 
@@ -1783,6 +1786,24 @@ class SimplelinkMeta:
         self.__url = notset
         self.__version = notset
         (self.key, self.href, self.require_python, self.yanked) = link_info
+
+    def __hash__(self):
+        return hash(
+            (
+                self.__basename,
+                self.__cmpval,
+                self.__ext,
+                self.__hash_spec,
+                self.__name,
+                self.__path,
+                self.__url,
+                self.__version,
+                self.href,
+                self.key,
+                self.require_python,
+                self.yanked,
+            )
+        )
 
     def __eq__(self, other):
         if isinstance(other, type(self)):

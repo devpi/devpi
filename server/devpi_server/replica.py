@@ -65,6 +65,9 @@ class IndexType:
             index_type = index_type._index_type
         self._index_type = index_type
 
+    def __hash__(self):
+        return hash(self._index_type)
+
     def __repr__(self):
         return f"<IndexType {self._index_type!r}>"
 

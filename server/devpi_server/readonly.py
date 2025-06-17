@@ -4,7 +4,9 @@ basic mechanics for turning a mutable dict/list/seq/tuple
 into a readonly view.
 """
 from __future__ import annotations
-from abc import ABC, abstractmethod
+
+from abc import ABC
+from abc import abstractmethod
 from functools import singledispatch
 from functools import total_ordering
 from typing import AbstractSet
@@ -14,9 +16,9 @@ from typing import ItemsView
 from typing import Iterator
 from typing import KeysView
 from typing import Mapping
-from typing import Union
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 from typing import ValuesView
 from typing import overload
 
@@ -31,6 +33,9 @@ class ReadonlyView(ABC):
     @abstractmethod
     def __init__(self) -> None:
         raise NotImplementedError
+
+    def __hash__(self) -> int:
+        return hash(self._data)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, ReadonlyView):
