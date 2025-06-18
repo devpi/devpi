@@ -38,12 +38,12 @@ RUFF_OUTPUT_POSTGRESQL=$(ruff check ${RUFF_TARGET_VERSION_POSTGRESQL:+ --config 
 RUFF_OUTPUT_SERVER=$(ruff check ${RUFF_TARGET_VERSION_SERVER:+ --config "$RUFF_TARGET_VERSION_SERVER"} --config ruff-strict.toml --extend-ignore=I001 --exit-zero --output-format concise server)
 RUFF_OUTPUT_WEB=$(ruff check ${RUFF_TARGET_VERSION_WEB:+ --config "$RUFF_TARGET_VERSION_WEB"} --config ruff-strict.toml --extend-ignore=I001 --exit-zero --output-format concise web)
 RUFF_OUTPUT="$RUFF_OUTPUT_CLIENT\n$RUFF_OUTPUT_COMMON\n$RUFF_OUTPUT_DEBUGGING\n$RUFF_OUTPUT_POSTGRESQL\n$RUFF_OUTPUT_SERVER\n$RUFF_OUTPUT_WEB"
-FLAKE8_OUTPUT_CLIENT=$(flake8 --ignore E501,E741,W503 client/ --exit-zero)
-FLAKE8_OUTPUT_COMMON=$(flake8 --ignore E501,E741,W503 common/ --exit-zero)
-FLAKE8_OUTPUT_DEBUGGING=$(flake8 --ignore E501,E741,W503 debugging/ --exit-zero)
-FLAKE8_OUTPUT_POSTGRESQL=$(flake8 --ignore E501,E741,W503 postgresql/ --exit-zero)
-FLAKE8_OUTPUT_SERVER=$(flake8 --ignore E501,E741,W503 server/ --exit-zero)
-FLAKE8_OUTPUT_WEB=$(flake8 --ignore E501,E741,W503 web/ --exit-zero)
+FLAKE8_OUTPUT_CLIENT=$(flake8 --ignore E203,E501,E704,E741,W503 client/ --exit-zero)
+FLAKE8_OUTPUT_COMMON=$(flake8 --ignore E203,E501,E704,E741,W503 common/ --exit-zero)
+FLAKE8_OUTPUT_DEBUGGING=$(flake8 --ignore E203,E501,E704,E741,W503 debugging/ --exit-zero)
+FLAKE8_OUTPUT_POSTGRESQL=$(flake8 --ignore E203,E501,E704,E741,W503 postgresql/ --exit-zero)
+FLAKE8_OUTPUT_SERVER=$(flake8 --ignore E203,E501,E704,E741,W503 server/ --exit-zero)
+FLAKE8_OUTPUT_WEB=$(flake8 --ignore E203,E501,E704,E741,W503 web/ --exit-zero)
 FLAKE8_OUTPUT="$FLAKE8_OUTPUT_CLIENT\n$FLAKE8_OUTPUT_COMMON\n$FLAKE8_OUTPUT_DEBUGGING\n$FLAKE8_OUTPUT_POSTGRESQL\n$FLAKE8_OUTPUT_SERVER\n$FLAKE8_OUTPUT_WEB"
 match-diff-lines <(echo "$GIT_DIFF") <(echo "$RUFF_OUTPUT" "$FLAKE8_OUTPUT")
 

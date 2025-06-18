@@ -1,2 +1,3 @@
 [flake8]
-ignore = E501,E741,W503
+# E203 is ignored because we enforce ruff format which contradicts it
+ignore = E203,E501,E704,E741,W503

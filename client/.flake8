@@ -1,5 +1,6 @@
 [flake8]
-ignore = E501,E741,W503
+# E203 is ignored because we enforce ruff format which contradicts it
+ignore = E203,E501,E704,E741,W503
 per-file-ignores =
     *.py:E225,E226
     main.py:E128,E225,E226
