@@ -2,25 +2,6 @@ exclude = [
     "doc/",
 ]
 
-[format]
-exclude = [
-    "postgresql/setup.py",
-    "server/devpi_server/filestore.py",
-    "server/devpi_server/interfaces.py",
-    "server/devpi_server/keyfs.py",
-    "server/devpi_server/keyfs_sqlite.py",
-    "server/devpi_server/keyfs_sqlite_fs.py",
-    "server/devpi_server/keyfs_types.py",
-    "server/devpi_server/mirror.py",
-    "server/devpi_server/model.py",
-    "server/devpi_server/replica.py",
-    "server/setup.py",
-    "server/test_devpi_server/test_fileutil.py",
-    "server/test_devpi_server/test_keyfs.py",
-    "server/test_devpi_server/test_mirror.py",
-    "server/test_devpi_server/test_replica.py",
-]
-
 
 [lint]
 select = ["ALL"]
