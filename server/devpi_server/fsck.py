@@ -41,7 +41,7 @@ def fsck():
         missing_files = 0
         got_errors = False
         with xom.keyfs.read_transaction() as tx:
-            log.info("Checking at serial %s" % tx.at_serial)
+            log.info("Checking at serial %s", tx.at_serial)
             relpaths = tx.iter_relpaths_at(keys, tx.at_serial)
             for item in relpaths:
                 if item.value is None:
@@ -49,8 +49,11 @@ def fsck():
                 if time.time() - last_time > 5:
                     last_time = time.time()
                     log.info(
-                        "Processed a total of %s files (serial %s/%s) so far."
-                        % (processed, tx.at_serial - item.serial, tx.at_serial))
+                        "Processed a total of %s files (serial %s/%s) so far.",
+                        processed,
+                        tx.at_serial - item.serial,
+                        tx.at_serial,
+                    )
                 processed = processed + 1
                 key = keyfs.get_key_instance(item.keyname, item.relpath)
                 entry = FileEntry(key, item.value)
@@ -60,7 +63,7 @@ def fsck():
                     missing_files += 1
                     if missing_files < 10:
                         got_errors = True
-                        log.error("Missing file %s" % entry.relpath)
+                        log.error("Missing file %s", entry.relpath)
                     elif missing_files == 10:
                         log.error("Further missing files will be omitted.")
                     continue
@@ -70,13 +73,9 @@ def fsck():
                 if msg is not None:
                     got_errors = True
                     log.error("%s - %s", entry.relpath, msg)
-            log.info(
-                "Finished with a total of %s files."
-                % processed)
+            log.info("Finished with a total of %s files.", processed)
             if missing_files:
-                log.error(
-                    "A total of %s files are missing."
-                    % missing_files)
+                log.error("A total of %s files are missing.", missing_files)
             if got_errors:
                 msg = "There have been errors during consistency check."
                 raise Fatal(msg)

@@ -363,7 +363,9 @@ class Importer:
                 continue
             self.xom.log.error(
                 "username '%s' contains characters that aren't allowed. "
-                "Any ascii symbol besides -.@_ is blocked." % name)
+                "Any ascii symbol besides -.@_ is blocked.",
+                name,
+            )
             errors = True
         for index in self.import_indexes:
             config = self.import_indexes[index]['indexconfig']
@@ -383,11 +385,15 @@ class Importer:
                 continue
             self.xom.log.error(
                 "indexname '%s' contains characters that aren't allowed. "
-                "Any ascii symbol besides -.@_ is blocked." % index)
+                "Any ascii symbol besides -.@_ is blocked.",
+                index,
+            )
             errors = True
         if errors:
             self.xom.log.warning(
-                "You could also try to edit %s manually to fix the above errors." % json_path)
+                "You could also try to edit %s manually to fix the above errors.",
+                json_path,
+            )
             raise SystemExit(1)
 
     def iter_projects_normalized(self, projects):

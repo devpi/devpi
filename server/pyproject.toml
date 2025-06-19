@@ -186,7 +186,6 @@ extend-ignore = [
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx
     "FLY002", # maybe cleanup later - f-string instead of join
-    "G002", # cleanup soon - logging statement uses %
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0911", # cleanup later
     "PLR0912", # maybe cleanup later

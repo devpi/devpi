@@ -55,7 +55,7 @@ def run_passwd(root, username):
     user = root.get_user(username)
     log = threadlog
     if user is None:
-        log.error("user %r not found" % username)
+        log.error("user %r not found", username)
         return 1
     for i in range(3):
         pwd = getpass.getpass("enter password for %s: " % user.name)
