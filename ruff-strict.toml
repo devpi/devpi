@@ -36,6 +36,10 @@ ignore = [
 pyupgrade.keep-runtime-typing = true
 
 
+[lint.flake8-type-checking]
+strict = true
+
+
 [lint.isort]
 case-sensitive = true
 force-single-line = true
