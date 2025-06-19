@@ -619,9 +619,12 @@ class BaseFileEntry:
     def __hash__(self):
         return hash(self.relpath)
 
-    def delete(self, **kw):
+    def delete(self):
+        self.delete_file_only()
         self.key.delete()
         self._meta = {}
+
+    def delete_file_only(self):
         self.file_delete()
 
     def has_existing_metadata(self):

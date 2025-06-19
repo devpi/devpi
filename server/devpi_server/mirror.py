@@ -500,7 +500,7 @@ class MirrorStage(BaseStage):
             entries = list(self._entry_from_href(x[1]) for x in links)
             entries = list(x for x in entries if x.version == version and x.file_exists())
             for entry in entries:
-                entry.file_delete()
+                entry.delete_file_only()
 
     def del_entry(self, entry, cleanup=True):
         project = entry.project

@@ -93,7 +93,10 @@ def test_testdata_missing(mapp, testapp, tox_result_data):
         linkstore = stage.get_linkstore_perstage(link.project, link.version)
         toxresult_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
         # delete the tox result file
-        toxresult_link.entry.file_delete()
+        if hasattr(link.entry, "delete_file_only"):
+            toxresult_link.entry.delete_file_only()
+        else:
+            toxresult_link.entry.file_delete()
     r = testapp.xget(200, api.index, headers=dict(accept="text/html"))
     assert '.toxresult' not in r.unicode_body
 
