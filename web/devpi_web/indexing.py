@@ -65,7 +65,7 @@ def preprocess_project(project):
 
 
 @attr.s(slots=True)
-class ProjectIndexingInfo(object):
+class ProjectIndexingInfo:  # type: ignore[no-untyped-def]
     stage = attr.ib()
     name = attr.ib(type=str)
 
