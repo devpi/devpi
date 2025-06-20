@@ -17,14 +17,16 @@ def ranges(numbers):
 def main():
     with Path(sys.argv[1]).open() as f:
         diff = parse_unified_diff(f)
-    for path, lines in diff.items():
+    for fn, lines_nums in diff.items():
+        path = Path(fn)
         diffs = set()
-        if not lines:
+        if not lines_nums:
             continue
-        if not Path(path).exists():
+        if not path.exists():
             continue
-        for start, end in ranges(lines):
-            line_range = f"{start}:1-{end + 1}:1"
+        for start, end in ranges(lines_nums):
+            lines = path.read_text().splitlines()[start - 1 : end]
+            line_range = f"{start}:1-{end}:{len(lines[-1]) + 1}"
             result = subprocess.run(  # noqa: S603
                 [  # noqa: S607
                     "ruff",
