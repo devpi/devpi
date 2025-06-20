@@ -9,7 +9,7 @@ version = "0.3.0"
 description = "devpi-debugging: a debugging view for devpi-server"
 dependencies = [
     'devpi-common',
-    'devpi-server>=7dev',
+    'devpi-server',
     'devpi-web',
     'pyramid-debugtoolbar',
 ]
