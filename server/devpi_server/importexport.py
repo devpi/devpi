@@ -98,6 +98,8 @@ def do_import(path, tw, xom):
     importer = Importer(tw, xom)
     importer.import_all(path)
     if xom.config.args.wait_for_events:
+        xom.thread_pool.start_one(xom.async_thread)
+        xom.thread_pool.start_one(xom.keyfs.notifier)
         importer.wait_for_events()
     else:
         importer.warn(
@@ -136,8 +138,6 @@ def import_(pluginmanager=None, argv=None):
         if not (sdir.exists() and len(list(sdir.iterdir())) >= 2):
             set_state_version(config, DATABASE_VERSION)
         xom = xom_from_config(config, init=True)
-        if config.args.wait_for_events:
-            xom.thread_pool.start_one(xom.keyfs.notifier)
         init_default_indexes(xom)
         do_import(config.args.directory, runner.tw, xom)
     return runner.return_code or 0
@@ -523,15 +523,14 @@ class Importer:
     def wait_for_events(self):
         keyfs = self.xom.keyfs
         while True:
-            event_serial = keyfs.notifier.read_event_serial()
+            event_serial = max(0, keyfs.notifier.read_event_serial())
             latest_serial = keyfs.get_current_serial()
             if event_serial == latest_serial:
                 break
-            self.tw.line(
-                "waiting for events until latest_serial %s" % latest_serial)
-            keyfs.notifier.wait_event_serial(latest_serial)
-        self.tw.line("wait_for_events: importing finished"
-                     "; latest_serial = %s" % latest_serial)
+            wait_serial = min(event_serial + 100, latest_serial)
+            self.tw.line(f"waiting for events until {wait_serial}/{latest_serial}")
+            keyfs.notifier.wait_event_serial(wait_serial)
+        self.tw.line(f"wait_for_events: importing finished; {latest_serial=}")
 
     def import_filedesc(self, stage, filedesc, versions):
         rel = filedesc["relpath"]

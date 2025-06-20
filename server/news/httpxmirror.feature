@@ -1,1 +1,1 @@
-Use httpx when fetching project list for mirrors.
+Fetch projects list on mirrors asynchronously using httpx to allow update in background even after a timeout.
