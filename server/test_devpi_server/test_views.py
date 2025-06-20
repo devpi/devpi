@@ -2549,7 +2549,7 @@ class TestOfflineMode:
         r = testapp.xget(200, "/%s/+simple/package/" % stagename)
         assert getlinks(r.text) == []
         with xom.keyfs.read_transaction():
-            is_expired, links, serial = pypistage._load_cache_links("package")
+            (is_expired, links, serial, etag) = pypistage._load_cache_links("package")
 
         assert len(links) == 0
 
@@ -2558,7 +2558,7 @@ class TestOfflineMode:
         (link,) = getlinks(r.text)
         assert '/package-1.0.zip' in link.get("href")
         with xom.keyfs.read_transaction():
-            is_expired, links, serial = pypistage._load_cache_links("package")
+            (is_expired, links, serial, etag) = pypistage._load_cache_links("package")
 
         assert links[0][0] == "package-1.0.zip"
 

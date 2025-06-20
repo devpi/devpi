@@ -639,8 +639,13 @@ class TestExtPYPIDB:
             pypistage.get_simplelinks_perstage("foo")
             # call twice
             pypistage.get_simplelinks_perstage("foo")
-        call = pypistage.xom.http.call_log.pop()
-        assert 'If-None-Match' not in call['extra_headers']
+        # the second call has the etag from the persistent cache info in the transaction
+        call2 = pypistage.xom.http.call_log.pop()
+        assert call2["url"] == "https://pypi.org/simple/foo/"
+        assert call2["extra_headers"]["If-None-Match"] == '"foo"'
+        call1 = pypistage.xom.http.call_log.pop()
+        assert call1["url"] == "https://pypi.org/simple/foo/"
+        assert "If-None-Match" not in call1["extra_headers"]
         assert pypistage.cache_retrieve_times.get_etag("foo") == '"foo"'
         pypistage.cache_retrieve_times.expire("foo", etag='"foo"')
         with pypistage.keyfs.read_transaction():
@@ -661,6 +666,11 @@ class TestExtPYPIDB:
         call = pypistage.xom.http.call_log.pop()
         assert call['extra_headers']['If-None-Match'] == '"foo"'
         assert pypistage.cache_retrieve_times.get_etag("foo") == '"bar"'
+        del pypistage.cache_retrieve_times._project2time["foo"]
+        with pypistage.keyfs.read_transaction():
+            pypistage.get_simplelinks_perstage("foo")
+        call = pypistage.xom.http.call_log.pop()
+        assert call["extra_headers"]["If-None-Match"] == '"foo"'
 
     @pytest.mark.notransaction
     def test_stale_nocache(self, pypistage, testapp):
@@ -1234,7 +1244,7 @@ async def test_get_simplelinks_perstage_when_http_error(exc, pypistage, monkeypa
     links = [("key", "href", "req_py", "yanked")]
 
     def mock_load_cache_links(project):
-        return (True, links, 42)
+        return (True, links, 42, '"foo"')
 
     monkeypatch.setattr(pypistage, "_load_cache_links", mock_load_cache_links)
 

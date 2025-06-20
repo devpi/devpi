@@ -578,7 +578,7 @@ class Importer:
                     url, stage.username, stage.index, project)
                 entry.file_set_content(
                     f, hashes=hashes, last_modified=mapping["last_modified"])
-                (_, links_with_data, serial) = stage._load_cache_links(project)
+                (_, links_with_data, serial, etag) = stage._load_cache_links(project)
                 if links_with_data is None:
                     links_with_data = []
                 entrypath = entry.relpath
