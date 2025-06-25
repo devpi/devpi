@@ -2,6 +2,32 @@
 
 .. towncrier release notes start
 
+6.16.0 (2025-06-25)
+===================
+
+Deprecations and Removals
+-------------------------
+
+- Dropped support for Python 3.7 and 3.8.
+
+
+
+Features
+--------
+
+- Update stored package metadata fields to version 2.4 for license expressions (PEP 639).
+
+
+
+Bug Fixes
+---------
+
+- Preserve hash when importing mirror data to prevent unnecessary updates later on.
+
+- Keep original metadata_version in database.
+
+
+
 6.15.0 (2025-05-18)
 ===================
 
