@@ -934,7 +934,7 @@ jobs:
           set -xe -o nounset
           python -VV
           python -m site
-          python -m pip install --upgrade pip flake8 match-diff-lines ruff setuptools wheel
+          python -m pip install --upgrade pip flake8 match-diff-lines ruff setuptools wcmatch wheel
       - name: "Run lint commands"
         shell: "bash"
         run: |

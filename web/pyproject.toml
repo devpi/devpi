@@ -119,7 +119,6 @@ extend-ignore = [
     "FIX002", # cleanup later - todo
     "FLY002", # maybe cleanup later - f-string instead of join
     "G002", # cleanup soon - logging statement uses %
-    "I001", # maybe cleanup later - import block unsorted
     "PERF401", # maybe cleanup later - list comprehension
     "PERF402", # maybe cleanup later - list copy
     "PIE804", # cleanup later
@@ -147,6 +146,32 @@ extend-ignore = [
     "UP032", # cleanup later - f-string instead of format
 ]
 
+
+[tool.ruff.lint.extend-per-file-ignores]
+"devpi_web/hookspecs.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"devpi_web/indexing.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"devpi_web/views.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"devpi_web/whoosh_index.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"tests/test_indexing.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"tests/test_main.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"tests/test_views_search.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"tests/test_whoosh_index.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
 
 [tool.setuptools]
 packages = [

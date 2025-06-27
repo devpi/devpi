@@ -62,7 +62,6 @@ exclude = [
 [tool.ruff.lint]
 extend-ignore = [
     "FLY002", # maybe cleanup later - f-string instead of join
-    "I001", # maybe cleanup later - import block unsorted
     "PLR0912", # maybe cleanup later
     "PLW2901", # maybe cleanup later
     "RET504", # maybe cleanup later - unnecessary assignment before return
@@ -72,6 +71,12 @@ extend-ignore = [
     "S608", # cleanup soon - possible sql injection
     "UP024", # maybe cleanup later - aliased errors
     "UP032", # cleanup later - f-string instead of format
+]
+
+
+[tool.ruff.lint.extend-per-file-ignores]
+"pytest_devpi_postgresql/__init__.py" = [
+    "I001", # maybe cleanup later - import block unsorted
 ]
 
 

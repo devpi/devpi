@@ -75,7 +75,6 @@ extend-ignore = [
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx
     "G002", # cleanup soon - logging statement uses %
-    "I001", # maybe cleanup later - import block unsorted
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0912", # maybe cleanup later
     "PLW2901", # maybe cleanup later
@@ -91,6 +90,27 @@ extend-ignore = [
     "TRY004", # maybe cleanup later
     "UP008", # cleanup later - super
     "UP024", # maybe cleanup later - aliased errors
+]
+
+
+[tool.ruff.lint.extend-per-file-ignores]
+"devpi_common/validation.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_archive.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_metadata.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_request.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_url.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_validation.py" = [
+    "I001", # maybe cleanup later - import block unsorted
 ]
 
 

@@ -115,7 +115,6 @@ extend-ignore = [
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx
     "G002", # cleanup soon - logging statement uses %
-    "I001", # maybe cleanup later - import block unsorted
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0912", # maybe cleanup later
     "PLW2901", # maybe cleanup later
@@ -142,6 +141,54 @@ extend-ignore = [
     "UP015", # cleanup later - open mode parameters
     "UP025", # maybe cleanup later - unicode literals
     "UP032", # cleanup later - f-string instead of format
+]
+
+
+[tool.ruff.lint.extend-per-file-ignores]
+"devpi/list_remove.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"devpi/main.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"devpi/test.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"devpi/upload.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"devpi/use.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/conftest.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_functional.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_index.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_list_remove.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_login.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_main.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_push.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_test.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_upload.py" = [
+    "I001", # maybe cleanup later - import block unsorted
+]
+"testing/test_use.py" = [
+    "I001", # maybe cleanup later - import block unsorted
 ]
 
 

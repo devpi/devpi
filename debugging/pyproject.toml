@@ -38,12 +38,17 @@ extend-ignore = [
     "ARG001", # maybe cleanup later - unused function argument
     "B007", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
-    "I001", # maybe cleanup later - import block unsorted
     "PERF401", # maybe cleanup later - list comprehension
     "PIE808", # maybe cleanup later
     "PLR0912", # maybe cleanup later
     "SIM102", # maybe cleanup later
     "SIM114", # maybe cleanup later
+]
+
+
+[tool.ruff.lint.extend-per-file-ignores]
+"devpi_debugging/main.py" = [
+    "I001", # maybe cleanup later - import block unsorted
 ]
 
 

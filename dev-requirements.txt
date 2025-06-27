@@ -34,5 +34,6 @@ types-passlib
 types-requests
 types-urllib3
 types-waitress
+wcmatch
 webtest
 wheel

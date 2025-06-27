@@ -31,6 +31,7 @@ ignore = [
     "TD", # ignore - todos
     "TRY003", # ignore - raise vanilla args
     "UP031", # maybe cleanup later - printf string formatting
+    "UP036", # maybe cleanup later - version check obsolete for target version
 ]
 
 pyupgrade.keep-runtime-typing = true
