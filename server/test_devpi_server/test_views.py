@@ -1729,6 +1729,10 @@ class TestPluginPermissions:
         mapp.create_index("pluginuser/dev")
         assert "pluginuser" in mapp.getuserlist()
         assert sorted(mapp.getindexlist("pluginuser")) == ['pluginuser/dev']
+        # the plugin passes through if the password doesn't match
+        # that case failed, because there is no password hash stored
+        mapp.login("pluginuser", "bad", code=401)
+        mapp.login("pluginuser", "pluginpassword")
 
 
 def test_upload_trigger(mapp):

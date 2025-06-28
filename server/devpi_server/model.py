@@ -397,8 +397,10 @@ class User:
         userconfig = self.key.get()
         if not userconfig:
             return False
+        pwhash = userconfig.get("pwhash")
+        if pwhash is None:
+            return False
         salt = userconfig.get("pwsalt")
-        pwhash = userconfig["pwhash"]
         valid, newhash = verify_and_update_password_hash(password, pwhash, salt)
         if valid:
             if newhash and self.keyfs.tx.write:
