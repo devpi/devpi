@@ -1,0 +1,1 @@
+Added ``mirror_ignore_serial_header`` mirror index option, which allows switching from PyPI to a mirror without serials header when set to ``True``, otherwise only stale links will be served and no updates be stored.

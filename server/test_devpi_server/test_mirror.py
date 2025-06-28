@@ -462,18 +462,37 @@ class TestExtPYPIDB:
         (link,) = ret
         assert link.yanked == "brownbag"
 
+    @pytest.mark.notransaction
     def test_get_releaselinks_cache_refresh_on_lower_serial(self, pypistage, caplog):
         pypistage.mock_simple("pytest", text='''
                 <a href="../../pkg/pytest-1.0.zip#md5={md5}" />
                 <a rel="download" href="https://download.com/index.html" />
             ''', pypiserial=10)
 
-        ret = pypistage.get_releaselinks("pytest")
-        assert len(ret) == 1
+        with pypistage.keyfs.read_transaction():
+            assert "mirror_ignore_serial_header" not in pypistage.get()
+            assert pypistage.key_projsimplelinks("pytest").get() == {}
+            assert len(pypistage.get_releaselinks("pytest")) == 1
+            assert pypistage.key_projsimplelinks("pytest").get()["serial"] == 10
         pypistage.mock_simple("pytest", text="", pypiserial=9)
-        (link,) = pypistage.get_releaselinks("pytest")
+        with pypistage.keyfs.read_transaction():
+            assert "mirror_ignore_serial_header" not in pypistage.get()
+            assert pypistage.key_projsimplelinks("pytest").get()["serial"] == 10
+            assert len(pypistage.get_releaselinks("pytest")) == 1
+            assert pypistage.key_projsimplelinks("pytest").get()["serial"] == 10
         recs = caplog.getrecords(".*serving stale links.*")
         assert len(recs) >= 1
+        with pypistage.keyfs.write_transaction():
+            assert "mirror_ignore_serial_header" not in pypistage.get()
+            assert (
+                pypistage.modify(mirror_ignore_serial_header=True)[
+                    "mirror_ignore_serial_header"
+                ]
+                is True
+            )
+            assert pypistage.key_projsimplelinks("pytest").get()["serial"] == 10
+            assert len(pypistage.get_releaselinks("pytest")) == 0
+            assert pypistage.key_projsimplelinks("pytest").get()["serial"] == -1
 
     def test_get_releaselinks_cache_no_fresh_write(self, pypistage):
         pypistage.mock_simple("pytest", text='''

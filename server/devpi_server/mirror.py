@@ -374,6 +374,10 @@ class MirrorStage(BaseStage):
             'mirror_cache_expiry', self.xom.config.mirror_cache_expiry)
 
     @property
+    def ignore_serial_header(self):
+        return self.ixconfig.get("mirror_ignore_serial_header", False)
+
+    @property
     def mirror_url(self):
         if self.xom.is_replica():
             url = self.xom.config.primary_url.joinpath(self.name, "+simple")
@@ -413,15 +417,18 @@ class MirrorStage(BaseStage):
         return self.ixconfig.get('mirror_use_external_urls', False)
 
     def get_possible_indexconfig_keys(self):
-        return tuple(dict(self.get_default_config_items())) + (
+        return (
+            *(k for k, v in self.get_default_config_items()),
             "custom_data",
             "description",
             "mirror_cache_expiry",
+            "mirror_ignore_serial_header",
             "mirror_no_project_list",
             "mirror_url",
             "mirror_use_external_urls",
             "mirror_web_url_fmt",
-            "title")
+            "title",
+        )
 
     def get_default_config_items(self):
         return [("volatile", True)]
@@ -441,6 +448,8 @@ class MirrorStage(BaseStage):
                 raise self.InvalidIndexconfig([
                     "'mirror_cache_expiry' option must be an integer"]) from e
             return value
+        if key == "mirror_ignore_serial_header":
+            return ensure_boolean(value)
         if key == "mirror_no_project_list":
             return ensure_boolean(value)
         if key == "mirror_use_external_urls":
@@ -759,10 +768,14 @@ class MirrorStage(BaseStage):
             serial = -1
 
         if serial < cache_serial:
-            raise self.UpstreamError(
-                "serial mismatch on GET %r, "
-                "cache_serial %s is newer than returned serial %s" % (
-                    url, cache_serial, serial))
+            if not self.ignore_serial_header:
+                msg = (
+                    f"serial mismatch on GET {url!r}, "
+                    f"cache_serial {cache_serial} is newer than returned serial {serial}"
+                )
+                raise self.UpstreamError(msg)
+            # reset serial, so when switching back we get correct data
+            serial = -1
 
         threadlog.debug("%s: got response with serial %s", project, serial)
 
