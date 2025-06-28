@@ -1,10 +1,9 @@
-import itsdangerous
-import pytest
-from devpi_server.auth import getpwhash
 from devpi_server.auth import hash_password
-from devpi_server.auth import newsalt
 from devpi_server.auth import verify_and_update_password_hash
 from devpi_server.config import hookimpl
+import itsdangerous
+import pytest
+
 
 pytestmark = [pytest.mark.writetransaction]
 
@@ -88,24 +87,10 @@ class TestAuth:
             from_user_object=True)
 
 
-def test_newsalt():
-    assert newsalt() != newsalt()
-
-
 def test_hash_verification():
     hash = hash_password("hello")
     assert verify_and_update_password_hash("hello", hash) == (True, None)
     assert verify_and_update_password_hash("xy", hash) == (False, None)
-
-
-def test_hash_migration():
-    secret = "hello"
-    salt = newsalt()
-    hash = getpwhash(secret, salt)
-    (valid, newhash) = verify_and_update_password_hash(secret, hash, salt=salt)
-    assert valid
-    assert newhash != hash
-    assert newhash.startswith('$argon2')
 
 
 class TestAuthPlugin:

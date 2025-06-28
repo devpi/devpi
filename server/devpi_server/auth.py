@@ -1,20 +1,9 @@
 from __future__ import annotations
 
-import base64
-import hashlib
+from .log import threadlog
+from passlib.context import CryptContext
 import itertools
 import itsdangerous
-import secrets
-from .log import threadlog
-from contextlib import suppress
-from passlib.context import CryptContext
-from passlib.utils.handlers import MinimalHandler
-from typing import TYPE_CHECKING
-
-
-if TYPE_CHECKING:
-    from typing import Any
-    from typing import Union
 
 
 notset = object()
@@ -147,61 +136,7 @@ class Auth:
                     "expiration": self.LOGIN_EXPIRATION}
 
 
-def getpwhash(password, salt):
-    hash = hashlib.sha256()
-    hash.update(salt.encode("ascii"))
-    hash.update(password.encode("utf-8"))
-    return hash.hexdigest()
-
-
-def newsalt():
-    return base64.b64encode(secrets.token_bytes(16)).decode("ascii")
-
-
-class DevpiHandler(MinimalHandler):
-    name = "devpi"
-    setting_kwds = ()
-    context_kwds = ()
-
-    @classmethod
-    def _get_salt_and_hash(
-        cls,
-        hash,  # noqa: A002 - need to comply with interface
-    ):
-        salt = None
-        with suppress(ValueError):
-            (salt, hash_value) = hash.split(":", 1)
-        return (salt, hash_value)
-
-    @classmethod
-    def identify(
-        cls,
-        hash,  # noqa: A002 - need to comply with interface
-    ):
-        (salt, hash_value) = cls._get_salt_and_hash(hash)
-        return salt and hash_value
-
-    @classmethod
-    def hash(
-        cls,
-        secret,
-        **kwds,  # noqa: ARG003 - need to comply with interface
-    ):
-        salt = newsalt()
-        return f"{salt}:{getpwhash(secret, salt)}"
-
-    @classmethod
-    def verify(
-        cls,
-        secret: Union[str, bytes],
-        hash: Union[str, bytes],  # noqa: A002 - need to comply with interface
-        **context_kwds: Any,  # noqa: ARG003 - need to comply with interface
-    ) -> Any:
-        (salt, hash_value) = cls._get_salt_and_hash(hash)
-        return salt and hash_value and (getpwhash(secret, salt) == hash_value)
-
-
-pwd_context = CryptContext(schemes=["argon2", DevpiHandler], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 def verify_and_update_password_hash(password, pwhash, salt=None):

@@ -1468,29 +1468,6 @@ class TestUsers:
         assert userconfig["modified"] == strftime("%Y-%m-%dT%H:%M:%SZ", modification_time2)
         assert "dev" in userconfig["indexes"]
 
-    def test_migrate_hash(self, caplog, model):
-        from devpi_server.auth import newsalt, getpwhash
-        user = model.create_user("user", "password", email="some@email.com")
-        userconfig = user.get(credentials=True)
-        assert 'pwsalt' not in userconfig
-        assert 'pwhash' in userconfig
-        salt = newsalt()
-        hash = getpwhash("password", salt)
-        with user.key.update() as userconfig:
-            # modify directly, because the modify method doesn't allow this
-            userconfig["pwsalt"] = salt
-            userconfig["pwhash"] = hash
-        userconfig = user.get(credentials=True)
-        assert userconfig['pwsalt'] == salt
-        assert userconfig['pwhash'] == hash
-        # now validate and check for migration
-        assert user.validate("password")
-        (rec,) = caplog.getrecords(".*modified user .*")
-        assert "pwsalt=None" in rec.getMessage()
-        userconfig = user.get(credentials=True)
-        assert 'pwsalt' not in userconfig
-        assert userconfig['pwhash'].startswith("$argon2")
-
     def test_create_with_hash(self, model):
         user = model.get_user("user")
         assert not user
@@ -1521,23 +1498,6 @@ class TestUsers:
         monkeypatch.setattr(getpass, "getpass", lambda x: "123")
         run_passwd(model, "root")
         assert model.get_user("root").validate("123")
-
-    def test_server_passwd_with_old_salt_hash(self, model, monkeypatch):
-        from devpi_server.auth import newsalt, getpwhash
-        secret = "hello"
-        new_secret = "123"
-        salt = newsalt()
-        hash = getpwhash(secret, salt)
-        user = model.get_user("root")
-        with user.key.update() as userconfig:
-            userconfig['pwsalt'] = salt
-            userconfig['pwhash'] = hash
-        userconfig = user.get(credentials=True)
-        assert userconfig['pwsalt'] is not None
-        assert userconfig['pwhash'] is not None
-        monkeypatch.setattr(getpass, "getpass", lambda x: new_secret)
-        run_passwd(model, "root")
-        assert model.get_user("root").validate(new_secret)
 
     def test_server_email(self, model):
         email_address = "root_" + str(id) + "@mydomain"

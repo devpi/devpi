@@ -232,9 +232,6 @@ extend-ignore = [
 "devpi_server/__main__.py" = [
     "I001", # maybe cleanup later - import block unsorted
 ]
-"devpi_server/auth.py" = [
-    "I001", # maybe cleanup later - import block unsorted
-]
 "devpi_server/config.py" = [
     "I001", # maybe cleanup later - import block unsorted
 ]
@@ -290,9 +287,6 @@ extend-ignore = [
     "I001", # maybe cleanup later - import block unsorted
 ]
 "test_devpi_server/plugin.py" = [
-    "I001", # maybe cleanup later - import block unsorted
-]
-"test_devpi_server/test_auth.py" = [
     "I001", # maybe cleanup later - import block unsorted
 ]
 "test_devpi_server/test_config.py" = [

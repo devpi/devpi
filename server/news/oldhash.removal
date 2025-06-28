@@ -1,0 +1,1 @@
+Dropped support for migrating old password hashes that were replaced in devpi-server 4.2.0.
