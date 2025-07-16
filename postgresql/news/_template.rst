@@ -23,7 +23,6 @@
 - {{ text }}
 
 {% endfor %}
-
 {% else %}
 - {{ sections[section][category]['']|join(', ') }}
 
@@ -33,11 +32,9 @@ No significant changes.
 
 {% else %}
 {% endif %}
-
 {% endfor %}
 {% else %}
 No significant changes.
-
 
 {% endif %}
 {% endfor %}

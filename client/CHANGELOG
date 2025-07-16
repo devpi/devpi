@@ -14,8 +14,6 @@ Features
 
 - Add support for ``uv.conf`` to ``devpi use --set-cfg``.
 
-
-
 Bug Fixes
 ---------
 
@@ -24,7 +22,6 @@ Bug Fixes
 - Fix #1052: require pkginfo >= 1.10.0 which supports newer metadata versions.
 
 - Fix #1057: PermissionError during upload due to trying to copy a folder like a file.
-
 
 
 7.1.0 (2024-07-17)
@@ -41,13 +38,10 @@ Features
 
 - Add detection of tox configs in pyproject.toml and setup.cfg for ``devpi test``.
 
-
-
 Bug Fixes
 ---------
 
 - In ``setup.cfg`` any value for upload settings was interpreted as True, now a warning is printed if it looks like False was meant and how to fix that. For backward compatibility the behavior wasn't changed.
-
 
 
 7.0.3 (2024-04-20)
@@ -65,7 +59,6 @@ Bug Fixes
 - Provide proper error message if the API request for ``devpi use`` fails.
 
 - Fix #1011: change HTTP status codes >=400 to use self.fatal instead of raw SystemExit, protect 403 and 404 errors from SystemExit
-
 
 
 7.0.2 (2023-10-19)
@@ -100,8 +93,6 @@ Deprecations and Removals
   Plugins which expect py.path.local need to be adjusted to work with pathlib.Path.
 
 - Dropped support for Python <= 3.6.
-
-
 
 Other Changes
 -------------
@@ -200,7 +191,6 @@ Deprecations and Removals
 
 - The ``--venv`` option will abort when no virtualenv exists at the location, it will not create a virtualenv anymore.
 
-
 Features
 --------
 
@@ -236,7 +226,6 @@ Features
 
 - Existing authentication data is validated on ``devpi use`` and removed if expired.
 
-
 Bug Fixes
 ---------
 
@@ -249,7 +238,6 @@ Bug Fixes
 - Fix #831: only download matching wheels if ``--select`` is in use.
 
 - Give helpful error message when specified/configured virtualenv is missing.
-
 
 Other Changes
 -------------
@@ -285,7 +273,6 @@ Deprecations and Removals
 
 - Support for basic authentication and client side certificates is deprecated now. Take a look at devpi-lockdown instead.
 
-
 Bug Fixes
 ---------
 
@@ -299,7 +286,6 @@ Features
 --------
 
 - fix #140: support ``-f/--force`` option for deletion on non-volatile indexes with devpi-server >= 6.0.0.
-
 
 Bug Fixes
 ---------
@@ -326,7 +312,6 @@ Features
 
 - Add keyring support for ``devpi push`` to external repositories like pypi.org. This is compatible with ``twine``, see https://twine.readthedocs.io/en/latest/#keyring-support
 
-
 Bug Fixes
 ---------
 
@@ -343,7 +328,6 @@ Deprecations and Removals
 
 - removed deprecated "quickstart" command.
 
-
 Features
 --------
 
@@ -354,7 +338,6 @@ Features
 - support ``--no-projects`` option when showing indexes and use it automatically when creating and modifying and index. Requires devpi-server >= 5.0.0 to work, older versions will still receive and show the projects.
 
 - sort output of ``index -l``, ``use -l`` and ``user -l``.
-
 
 Other Changes
 -------------
@@ -370,7 +353,6 @@ Features
 
 - implement #93: support setting password hash with devpi-server 4.9.0.
 
-
 Bug Fixes
 ---------
 
@@ -384,7 +366,6 @@ Features
 --------
 
 - support for additional commands added by plugins via ``devpiclient_subcommands`` hook.
-
 
 Bug Fixes
 ---------
@@ -410,7 +391,6 @@ Features
 - implement #565: To show toxresults with ``devpi list`` the new ``-t/--toxresults`` option is now required, the toxresults aren't shown by default anymore.
 
 - implement #579: client can remove specific file with ``devpi remove url_to_file``. This requires at least devpi-server 4.6.0
-
 
 Bug Fixes
 ---------
@@ -464,7 +444,6 @@ Features
 - CHANGED BEHAVIOR! If an activated virtualenv is detected, it is used by
   default for ``devpi install`` and ``devpi use --set-cfg`` now.
 
-
 Bug Fixes
 ---------
 
@@ -495,7 +474,6 @@ Features
   select release files for which tests will be run. With this option it's
   possible to select wheels that aren't universal, or run tests only for one
   specific release file.
-
 
 Bug Fixes
 ---------

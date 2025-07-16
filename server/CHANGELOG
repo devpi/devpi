@@ -10,14 +10,10 @@ Deprecations and Removals
 
 - Dropped support for Python 3.7 and 3.8.
 
-
-
 Features
 --------
 
 - Update stored package metadata fields to version 2.4 for license expressions (PEP 639).
-
-
 
 Bug Fixes
 ---------
@@ -27,7 +23,6 @@ Bug Fixes
 - Keep original metadata_version in database.
 
 
-
 6.15.0 (2025-05-18)
 ===================
 
@@ -35,7 +30,6 @@ Features
 --------
 
 - Add ``--connection-limit`` option to devpi-server passed on to waitress.
-
 
 
 6.14.0 (2024-10-16)
@@ -50,13 +44,10 @@ Features
 
 - Allow pushing of documentation only with no release files. Requires devpi-client 7.2.0.
 
-
-
 Bug Fixes
 ---------
 
 - No longer automatically "register" a project when pushing releases to PyPI. The reply changed from HTTP status 410 to 400 breaking the upload. With devpi-client 7.2.0 there is a ``--register-project`` option if it is still required for some other package registry.
-
 
 
 6.13.0 (2024-09-19)
@@ -70,16 +61,12 @@ Deprecations and Removals
   Using the old terms will now output warnings.
   The ``+status`` API has additional fields and the ``role`` field content will change with 7.0.0.
 
-
-
 Features
 --------
 
 - Enable logging command line options for all commands.
 
 - Added support uv pip as an installer.
-
-
 
 Bug Fixes
 ---------
@@ -91,7 +78,6 @@ Bug Fixes
 - Don't store file data in memory when fetching a release while pushing from a mirror.
 
 - Only warn about replica not being in sync instead of fatal status while still replicating.
-
 
 
 6.12.1 (2024-07-24)
@@ -107,7 +93,6 @@ Bug Fixes
 - Fix #1044: Correctly update cache expiry time when mirrored server returns 304 Not Modified.
 
 
-
 6.12.0 (2024-06-25)
 ===================
 
@@ -118,13 +103,10 @@ Features
 
 - Added ``devpiserver_on_toxresult_upload_forbidden`` hook to allow returning a custom message and result (403 or 200).
 
-
-
 Bug Fixes
 ---------
 
 - Return json data if toxresult upload is forbidden.
-
 
 
 6.11.0 (2024-04-20)
@@ -137,15 +119,12 @@ Features
 
 - Fix #983: Add plugin hook for mirror authentication header.
 
-
-
 Bug Fixes
 ---------
 
 - Preserve last modified of docs and toxresults during export/import.
 
 - Fix #1033: Use ``int`` for ``--mirror-cache-expiry`` to fix value of ``proxy_cache_valid`` in nginx caching config.
-
 
 
 6.10.0 (2023-12-19)
@@ -158,15 +137,12 @@ Features
 
 - Fix #998: Use the pure Python httpx library instead of aiohttp to prevent delays in supporting newest Python releases.
 
-
-
 Bug Fixes
 ---------
 
 - Fix #996: support hashes other than sha256 in application/vnd.pypi.simple.v1+json responses.
 
 - Only compare hostname instead of full URL prefix when parsing mirror packages to fix mirrors with basic authentication and absolute URLs. See #1006
-
 
 
 6.9.2 (2023-08-06)
@@ -199,7 +175,6 @@ Features
 
 - Fix #931: Add ``mirror_no_project_list`` setting for mirror indexes that have no full project list like google cloud artifacts or if you want to prevent downloading the full list for huge indexes like PyPI.
 
-
 Bug Fixes
 ---------
 
@@ -222,7 +197,6 @@ Features
 
 - Fix #929: Cache normalized project names per transaction on mirror index instances.
 
-
 Bug Fixes
 ---------
 
@@ -244,7 +218,6 @@ Features
 - Automatically check for ``+files`` when using ``--replica-file-search-path``.
 
 - Set headers to prevent caching for simple links with stale results.
-
 
 Bug Fixes
 ---------
@@ -282,7 +255,6 @@ Features
 - Prevent concurrent updates of simple links on mirrors with a short lived lock.
 
 - Support `PEP-691 <https://peps.python.org/pep-0691/>`_ conformant fetching for mirrors, and requests with JSON result for installers. Proxy servers should add compression support for the ``application/vnd.pypi.simple.v1+json`` content type (``gzip_types`` for nginx).
-
 
 Bug Fixes
 ---------
@@ -325,7 +297,6 @@ Features
 
 - Better logging and handling if a thread unexpectedly dies.
 
-
 Bug Fixes
 ---------
 
@@ -346,12 +317,10 @@ Deprecations and Removals
 
 - As announced with 6.0.0, support for Python 3.6 has been dropped, because it has reached its end of life.
 
-
 Features
 --------
 
 - When an installer user agent is detected the full list of projects is returned unsorted and with less info to improve performance and reduce memory usage.
-
 
 Bug Fixes
 ---------
@@ -377,7 +346,6 @@ Features
 --------
 
 - Use aiohttp (asyncio) for fetching release links from mirrors to return stale links immediately in case of a timeout, but update the database in the background for the next request.
-
 
 Bug Fixes
 ---------
@@ -412,14 +380,12 @@ Deprecations and Removals
 
 - Renamed 'pypi_submit' permission to 'upload'. The old permission still works, but will be removed in a later major release.
 
-
 Features
 --------
 
 - Allow patching index with same json layout as the output of fetching json for an index.
 
 - Allow user and index URLs to work with a trailing slash.
-
 
 Bug Fixes
 ---------
@@ -447,7 +413,6 @@ Deprecations and Removals
 - Dropped support for Python 2.7, 3.4 and 3.5. Python 3.x versions will be supported until their EOL (see https://devguide.python.org/#status-of-python-branches). After that, any release might break support for EOLed versions.
 
 - Removed deprecated ``--start``, ``--stop`` and ``--status`` options.
-
 
 Features
 --------
@@ -480,7 +445,6 @@ Features
 
 - The user creation and modification time is now stored. Adding or removing an index doesn't count as a modification.
 
-
 Bug Fixes
 ---------
 
@@ -491,7 +455,6 @@ Bug Fixes
 - fix #680: indexes with multiple mirror bases now work correctly with default secure whitelist settings.
 
 - Handle cases where the ``Content-Type`` header from a mirror can be an empty string.
-
 
 Other Changes
 -------------
@@ -559,7 +522,6 @@ Features
 
 - On import files for mirror indexes are now imported when they were included in the dump (see ``--include-mirrored-files``).
 
-
 Bug Fixes
 ---------
 
@@ -587,7 +549,6 @@ Features
 
 - proxy requests from the replica to the master will use number of seconds from the new ``--proxy-timeout`` option as their timeout value.
 
-
 Bug Fixes
 ---------
 
@@ -610,7 +571,6 @@ Deprecations and Removals
 
 - The ``--passwd`` option is deprecated, use the new ``devpi-passwd`` command instead.
 
-
 Features
 --------
 
@@ -623,7 +583,6 @@ Features
 - Metrics for the sqlite storage cache are exposed in the JSON output of the +status view.
 
 - Storage options can now be specified as a dict in yaml config files.
-
 
 Bug Fixes
 ---------
@@ -645,7 +604,6 @@ Bug Fixes
 - Files created in a transaction are written directly to temporary files instead of being kept in memory until commit.
 
 - Unnecessary database writes where the final value didn't change are now prevented.
-
 
 Other Changes
 -------------
@@ -680,7 +638,6 @@ Deprecations and Removals
 
 - deprecated Python 2.7 support. This is the last major version supporting Python 2.7. For upgrading to Python 3.x you have to export your data using your current setup with Python 2.7 and import it in a new installation with Python 3.x.
 
-
 Features
 --------
 
@@ -697,7 +654,6 @@ Features
 - support no_projects argument for index json requests. The list of projects will not be added to the result.
 
 - when credentials for the user are rejected, the error message now says so instead of claiming the user could not be found.
-
 
 Other Changes
 -------------
@@ -733,7 +689,6 @@ Features
 
 - add ``--hard-links`` support for replicas together with the ``--replica-file-search-path`` option. When a matching file is found it's hard linked instead of writing a copy.
 
-
 Bug Fixes
 ---------
 
@@ -742,7 +697,6 @@ Bug Fixes
 - fix updating time stamp of mirror project name cache when no project names have changed. This makes subsequent fetches actually use the cache instead of always fetching the data again from the mirror.
 
 - use timeout when waiting for data from master in replica on mirror simple pages.
-
 
 Other Changes
 -------------
@@ -775,7 +729,6 @@ Features
 
 - The PATCH method of indexes supports a list of arguments with operations in the form of ``key=value`` for setting values and for lists in the form of ``key+=value`` and ``key-=value`` to add and remove items. This prevents undoing changes sent in concurrent PATCH requests.
 
-
 Bug Fixes
 ---------
 
@@ -805,7 +758,6 @@ Deprecations and Removals
 
 - Deprecated DEVPI_SERVERDIR environment variable in favor of DEVPISERVER_SERVERDIR to be consistent with the other option overwrites.
 
-
 Features
 --------
 
@@ -824,7 +776,6 @@ Features
 - Allow deletion of specific package versions on a mirror. Only the downloaded files will be removed. The file will be fetched again from the mirror source on request.
 
 - Better handling of 404s in mirror indexes. Every project not found would create an entry in the database which would grow it unnecessarily.
-
 
 Bug Fixes
 ---------
@@ -863,7 +814,6 @@ Features
 
 - add `--request-timeout` option to provide adjustable request timeout
 
-
 Bug Fixes
 ---------
 
@@ -889,7 +839,6 @@ Features
 
 - Use ``pypi.org`` as new default for ``root/pypi`` mirror index.
 
-
 Bug Fixes
 ---------
 
@@ -908,7 +857,6 @@ Features
 --------
 
 - fix issue469: Add ``acl_toxresult_upload`` to index configuration.
-
 
 Bug Fixes
 ---------

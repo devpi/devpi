@@ -11,7 +11,6 @@ Other Changes
 - Use ``__slots__`` to reduce memory usage of ``Version``.
 
 
-
 4.0.4 (2024-04-20)
 ==================
 
@@ -21,7 +20,6 @@ Bug Fixes
 - Use ``filter='data'`` for ``extractall`` call on supported Python versions as additional guard to the existing out of path checks against malicious tar files.
 
 - Remove custom ``LegacyVersion`` and use ``packaging-legacy`` instead, which is also used by pypi.org.
-
 
 
 4.0.3 (2023-11-23)
@@ -61,8 +59,6 @@ Deprecations and Removals
 
 - Dropped support for Python <= 3.6.
 
-
-
 Features
 --------
 
@@ -72,8 +68,6 @@ Features
 
 - Added stripped down TerminalWriter from ``py`` library which only supports coloring.
 
-
-
 Bug Fixes
 ---------
 
@@ -82,10 +76,6 @@ Bug Fixes
 
 3.7.2 (2023-01-24)
 ==================
-
-
-
-
 
 Bug Fixes
 ---------
@@ -113,7 +103,6 @@ Features
 - Add ``hash_type`` and ``fragment`` attributes to URL class.
 
 - Replace ``pkg_resources`` usage with ``packaging``.
-
 
 Bug Fixes
 ---------

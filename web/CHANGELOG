@@ -11,7 +11,6 @@ Bug Fixes
 - Fix traceback during unpacking of documentation in some cases.
 
 
-
 5.0.0 (2025-06-12)
 ==================
 
@@ -24,14 +23,10 @@ Deprecations and Removals
 
 - Future releases will more often require newer devpi-server than before.
 
-
-
 Bug Fixes
 ---------
 
 - Fix #930: remove remaining uses of unmaintained py library.
-
-
 
 Other Changes
 -------------
@@ -69,7 +64,6 @@ Other Changes
 - macros.pt: Move ``versions`` macro to separate ``footer_versions.pt`` template.
 
 
-
 4.3.0 (2024-10-16)
 ==================
 
@@ -77,7 +71,6 @@ Features
 --------
 
 - index.pt, project.pt, version.pt: Fix #1062: Added a link to download the documentation as zip-file to the index, project and version view.
-
 
 
 4.2.3 (2024-09-19)
@@ -95,7 +88,6 @@ Bug Fixes
 - Increase threshold for index status from 60 s to 300 s for warnings and from 300 s to 3600 s for fatal.
 
 
-
 4.2.2 (2024-04-20)
 ==================
 
@@ -107,7 +99,6 @@ Bug Fixes
 - style.css: set ``scrollbar-gutter: stable`` on ``body`` to prevent jumping content in documentation iframe.
 
 - Fix #970: overwrite fixed html/body heights like ``100%`` in documentation iframe content.
-
 
 
 4.2.1 (2023-07-02)
@@ -131,7 +122,6 @@ Features
 
 - Add ``--keep-docs-packed`` option.
 
-
 Bug Fixes
 ---------
 
@@ -151,7 +141,6 @@ Bug Fixes
 4.1.1 (2022-09-28)
 ==================
 
-
 Bug Fixes
 ---------
 
@@ -169,7 +158,6 @@ Features
 - project.pt: Fix #601: add refresh button to project page.
 
 - project.pt: add navigation links to original project page for mirrors and to "Simple page" of projects.
-
 
 Bug Fixes
 ---------
@@ -215,7 +203,6 @@ Bug Fixes
 - Empty documentation zip files are now handled gracefully instead of causing exceptions in views and during indexing.
 
 - Use a lock file to prevent concurrent unpacking of documentation.
-
 
 Other Changes
 -------------
@@ -277,7 +264,6 @@ Deprecations and Removals
 
 - Dropped support for Python 2.7.
 
-
 Features
 --------
 
@@ -317,14 +303,12 @@ Features
 
 - Indexer backend options can now be specified as a dict in yaml config files.
 
-
 Bug Fixes
 ---------
 
 - Fix #567: the ``pip search`` view is no longer proxied to the master.
 
 - Pass query string on to documentation iframe, this fixes Sphinx search among other things.
-
 
 Other Changes
 -------------
@@ -364,7 +348,6 @@ Features
 
 - feature #193: adding support for using markdown in package descriptions.
 
-
 Bug Fixes
 ---------
 
@@ -403,7 +386,6 @@ Features
   unpacked documentation. Thanks to Dr Colin Kong for the PR.
 
 - Use ``mirror_web_url_fmt`` in ``get_description`` for mirror indexes.
-
 
 Bug Fixes
 ---------
@@ -627,7 +609,6 @@ Bug Fixes
   parsed as packages with version number
 
 - fix notfound-redirect when serving under an outside URL with a sub path
-
 
 
 2.2.0

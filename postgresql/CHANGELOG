@@ -20,7 +20,6 @@ Deprecations and Removals
 
 - Require at least devpi-server 6.2.0.
 
-
 Features
 --------
 
@@ -36,7 +35,6 @@ Features
 
 - Stream files directly through database connection using ``COPY``.
 
-
 Bug Fixes
 ---------
 
@@ -50,7 +48,6 @@ Deprecations and Removals
 -------------------------
 
 - Python 3.4 isn't supported anymore, Python 3.5 support will be dropped at its EOL in September 2020.
-
 
 Features
 --------
