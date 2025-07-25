@@ -5,6 +5,7 @@
 -e web
 PdbEditorSupport
 Sphinx
+furo
 beautifulsoup4 != 4.12.1
 certauth
 execnet
