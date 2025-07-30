@@ -1,0 +1,1 @@
+Correctly handle lists for ``Provides-Extra`` and ``License-File`` metadata in database.

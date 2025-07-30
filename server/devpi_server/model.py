@@ -1239,11 +1239,26 @@ class PrivateStage(BaseStage):
         "license_file",
     )
     metadata_list_fields = (
-        'platform', 'classifiers', 'obsoletes',
-        'requires', 'provides', 'obsoletes_dist',
-        'provides_dist', 'requires_dist', 'requires_external',
-        'project_urls', 'supported_platform', 'setup_requires_dist',
-        'provides_extra', 'extension')
+        "platform",
+        "classifiers",
+        "supported_platform",
+        # PEP 314
+        "provides",
+        "requires",
+        "obsoletes",
+        # Metadata 1.2
+        "project_urls",
+        "provides_dist",
+        "obsoletes_dist",
+        "requires_dist",
+        "requires_external",
+        # Metadata 2.1
+        "provides_extras",
+        # Metadata 2.2
+        "dynamic",
+        # Metadata 2.4
+        "license_file",
+    )
 
     use_external_url = False
 
