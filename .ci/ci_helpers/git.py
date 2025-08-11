@@ -71,7 +71,14 @@ class Git:
         return output.decode().strip()
 
     async def python_diff(self, commit):
-        return await self.diff("--unified=0", "--relative", commit, "--", "*.py")
+        return await self.diff(
+            "--unified=0",
+            "--relative",
+            "--diff-algorithm=histogram",
+            commit,
+            "--",
+            "*.py",
+        )
 
     @property
     def python_files(self):
