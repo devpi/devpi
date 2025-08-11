@@ -15,6 +15,13 @@ async def main(args):  # noqa: PLR0912
     failed = False
     all_python_files = ci.git.python_files
     full_python_diff = await ci.git.python_diff(args.commit or ci.git.fork_point)
+    if args.verbose:
+        if args.verbose > 1:
+            print(full_python_diff)
+        else:
+            for fn, _ranges in sorted(full_python_diff.ranges.items()):
+                ranges = ", ".join(f"{s}" if s == e else f"{s}-{e}" for s, e in _ranges)
+                print(f"{fn}: {ranges}")
     if not args.no_format:
         async for start, format_diff, check_lines in ci.ruff.format_diffs(
             full_python_diff
@@ -97,6 +104,6 @@ if __name__ == "__main__":
     parser.add_argument("commit", nargs="?", type=str, default=None)
     parser.add_argument("--no-flake8", action="store_true")
     parser.add_argument("--no-format", action="store_true")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-v", "--verbose", action="count", default=0)
     args = parser.parse_args()
     asyncio.run(main(args))

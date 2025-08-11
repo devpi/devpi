@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu -o nounset -o pipefail
-exec .ci/lint_strict.py
+exec .ci/lint_strict.py -vv
