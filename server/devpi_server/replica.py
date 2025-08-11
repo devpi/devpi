@@ -74,6 +74,9 @@ class IndexType:
     def __repr__(self):
         return f"<IndexType {self._index_type!r}>"
 
+    def __str__(self):
+        return self._index_type
+
     def __lt__(self, other):
         if self._index_type == other._index_type:
             return False
@@ -411,6 +414,7 @@ class ReplicaThread:
         self.file_replication_threads = []
         num_threads = xom.config.file_replication_threads
         self.shared_data.num_threads = num_threads
+        self.shared_data.skip_indexes = set(xom.config.file_replication_skip_indexes)
         threadlog.info("Using %s file download threads.", num_threads)
         for i in range(num_threads):
             frt = FileReplicationThread(xom, self.shared_data)
@@ -685,7 +689,7 @@ def register_key_subscribers(xom):
     xom.keyfs.PROJSIMPLELINKS.on_key_change(SimpleLinksChanged(xom))
 
 
-class FileReplicationSharedData(object):
+class FileReplicationSharedData:
     QUEUE_TIMEOUT = 1
     ERROR_QUEUE_DELAY_MULTIPLIER = 1.5
     ERROR_QUEUE_REPORT_DELAY = 2 * 60
@@ -705,6 +709,7 @@ class FileReplicationSharedData(object):
         self.last_added = None
         self.last_errored = None
         self.last_processed = None
+        self.skip_indexes = set()
 
     def on_import(self, serial, changes):
         keyfs = self.xom.keyfs
@@ -719,18 +724,31 @@ class FileReplicationSharedData(object):
                 self.on_import_file(keyfs, serial, key, *changes[key])
 
     def on_import_file(self, keyfs, serial, key, val, back_serial):
+        skip_indexes = self.skip_indexes
+        if "all" in skip_indexes:
+            threadlog.debug("Skipping %s because 'all' in %s.", key, skip_indexes)
+            return
+        index_name = self.get_index_name_for(key)
+        if index_name in skip_indexes:
+            threadlog.debug(
+                "Skipping %s because %r in %s.", key, index_name, skip_indexes
+            )
+            return
         try:
             index_type = self.get_index_type_for(key)
         except KeyError:
-            stage = self.xom.model.getstage(
-                key.params['user'], key.params['index'])
+            stage = self.xom.model.getstage(index_name)
             if stage is None:
                 # deleted stage
-                stagename = f"{key.params['user']}/{key.params['index']}"
-                self.set_index_type_for(stagename, None)
+                self.set_index_type_for(index_name, None)
             else:
                 self.set_index_type_for(stage.name, stage.ixconfig['type'])
             index_type = self.get_index_type_for(key)
+        if index_type != IndexType(None) and str(index_type) in skip_indexes:
+            threadlog.debug(
+                "Skipping %s because %r in %s.", key, index_type, skip_indexes
+            )
+            return
         if self.xom.replica_thread.replica_in_sync_at is None:
             # Don't queue files from mirrors until we have been in sync first.
             # The InitialQueueThread will queue in one go on initial sync
@@ -783,9 +801,11 @@ class FileReplicationSharedData(object):
             (ts, delay, index_type, serial, key, keyname, value, back_serial))
         self.last_errored = time.time()
 
+    def get_index_name_for(self, key):
+        return f"{key.params['user']}/{key.params['index']}"
+
     def get_index_type_for(self, key, default=notset):
-        index_name = "%s/%s" % (key.params['user'], key.params['index'])
-        result = self.index_types.get(index_name, notset)
+        result = self.index_types.get(self.get_index_name_for(key), notset)
         if result is notset:
             if default is notset:
                 raise KeyError
@@ -1153,7 +1173,7 @@ class FileReplicationThread:
                 self.thread.sleep(1.0)
 
 
-class InitialQueueThread(object):
+class InitialQueueThread:
     def __init__(self, xom, shared_data):
         self.xom = xom
         self.shared_data = shared_data
@@ -1169,6 +1189,9 @@ class InitialQueueThread(object):
         # wait until we are in sync for the first time
         with self.shared_data._replica_in_sync_cv:
             self.shared_data._replica_in_sync_cv.wait()
+        skip_indexes = self.shared_data.skip_indexes
+        if "all" in skip_indexes:
+            return
         with keyfs.read_transaction() as tx:
             for user in self.xom.model.get_userlist():
                 for stage in user.getstages():
@@ -1189,10 +1212,21 @@ class InitialQueueThread(object):
                         processed, tx.at_serial - item.serial, tx.at_serial, queued)
                 processed = processed + 1
                 key = keyfs.get_key_instance(item.keyname, item.relpath)
+                index_name = self.shared_data.get_index_name_for(key)
+                if index_name in skip_indexes:
+                    threadlog.debug(
+                        "Skipping %s because %r in %s.", key, index_name, skip_indexes
+                    )
+                    continue
+                index_type = self.shared_data.get_index_type_for(key, None)
+                if index_type != IndexType(None) and str(index_type) in skip_indexes:
+                    threadlog.debug(
+                        "Skipping %s because %r in %s.", key, index_type, skip_indexes
+                    )
+                    continue
                 entry = FileEntry(key, item.value)
                 if entry.file_exists() or not entry.last_modified:
                     continue
-                index_type = self.shared_data.get_index_type_for(key, None)
                 # note the negated serial for the PriorityQueue
                 # the index_type boolean will prioritize non mirrors
                 self.shared_data.queue.put((

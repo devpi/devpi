@@ -243,6 +243,21 @@ def add_replica_options(parser, pluginmanager):
         help="number of threads for file download from primary")
 
     parser.addoption(
+        "--file-replication-skip-indexes",
+        action="store",
+        default=None,
+        help=(
+            "Comma separated list of index names in username/indexname form "
+            "or index type (i.e. 'mirror') for which files aren't replicated. "
+            "This can also be set to 'all' to replicate no files. "
+            "If the file is requested directly during runtime, "
+            "it will still be fetched and stored."
+        ),
+        metavar="INDEXES",
+        type=str,
+    )
+
+    parser.addoption(
         "--proxy-timeout", type=int, metavar="NUM",
         default=DEFAULT_PROXY_TIMEOUT,
         help="Number of seconds to wait before proxied requests from "
@@ -863,6 +878,22 @@ class Config:
         return getattr(
             self.args,
             'file_replication_threads', DEFAULT_FILE_REPLICATION_THREADS)
+
+    @property
+    def file_replication_skip_indexes(self):
+        from .main import Fatal
+
+        arg = getattr(self.args, "file_replication_skip_indexes", None)
+        if arg is None:
+            arg = ""
+        result = {x.strip() for x in arg.split(",")}
+        if "all" in result and result != {"all"}:
+            raise Fatal(
+                "--file-replication-skip-indexes must be 'all', "
+                "or a comma separated list of index names or types, "
+                "not a mix of both."
+            )
+        return result
 
     @property
     def hard_links(self):

@@ -535,6 +535,68 @@ def make_replica_xom(http, makexom, monkeypatch, secretfile):
     return make_replica_xom
 
 
+class TestSkipIndexes:
+    def test_skip_indexes_option(self, make_replica_xom):
+        from devpi_server.main import Fatal
+
+        replica_xom = make_replica_xom(
+            options=["--file-replication-skip-indexes", "mirror, root/pypi"]
+        )
+        assert replica_xom.config.file_replication_skip_indexes == {
+            "mirror",
+            "root/pypi",
+        }
+        with pytest.raises(Fatal, match="or a comma"):
+            make_replica_xom(
+                options=["--file-replication-skip-indexes", "all, root/pypi"]
+            )
+
+    def test_skip_all_indexes(self, caplog, mapp, make_replica_xom, xom):
+        # prepare data on primary
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        replica_xom = make_replica_xom(
+            options=["--file-replication-skip-indexes", "all"]
+        )
+        assert replica_xom.config.file_replication_skip_indexes == {"all"}
+        caplog.clear()
+        replay(xom, replica_xom, events=False)
+        replica_xom.replica_thread.wait()
+        (record,) = caplog.getrecords("Skipping")
+        assert "because 'all' in" in record.message
+
+    def test_skip_indexes_by_name(self, caplog, mapp, make_replica_xom, xom):
+        # prepare data on primary
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        replica_xom = make_replica_xom(
+            options=["--file-replication-skip-indexes", mapp.api.stagename]
+        )
+        assert replica_xom.config.file_replication_skip_indexes == {mapp.api.stagename}
+        caplog.clear()
+        replay(xom, replica_xom, events=False)
+        replica_xom.replica_thread.wait()
+        (record,) = caplog.getrecords("Skipping")
+        assert f"because {mapp.api.stagename!r} in" in record.message
+
+    def test_skip_indexes_by_type(self, caplog, mapp, make_replica_xom, xom):
+        # prepare data on primary
+        mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        replica_xom = make_replica_xom(
+            options=["--file-replication-skip-indexes", "stage"]
+        )
+        assert replica_xom.config.file_replication_skip_indexes == {"stage"}
+        caplog.clear()
+        replay(xom, replica_xom, events=False)
+        replica_xom.replica_thread.wait()
+        (record,) = caplog.getrecords("Skipping")
+        assert "because <IndexType 'stage'> in" in record.message
+
+
 class TestUseExistingFiles:
     def test_missing_search_path(self, make_replica_xom, tmpdir):
         from devpi_server.main import Fatal
@@ -1275,7 +1337,7 @@ class TestFileReplicationSharedData:
         l = []
 
         class RootModel:
-            def getstage(self, user, index):
+            def getstage(self, user, index=None):
                 l.append((user, index))
 
         class Transaction:
