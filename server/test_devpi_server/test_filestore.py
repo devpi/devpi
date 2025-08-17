@@ -160,7 +160,7 @@ class TestFileStore:
         assert entry.url == link.url
         assert not entry.file_exists()
         hashes = get_hashes(b"")
-        entry.hash_spec = hash_spec = hashes.get_default_spec()
+        entry._hash_spec = hash_spec = hashes.get_default_spec()
         assert not entry.file_exists()
         entry.file_set_content(b"")
         assert entry.file_exists()

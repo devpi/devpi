@@ -336,7 +336,7 @@ class FileStore:
         key = key_from_link(self.keyfs, link, user, index)
         entry = MutableFileEntry(key)
         entry.url = link.geturl_nofragment().url
-        entry.hash_spec = unicode_if_bytes(link.hash_spec)
+        entry._hash_spec = unicode_if_bytes(link.hash_spec)
         entry.project = project
         version = None
         try:
@@ -470,10 +470,6 @@ class BaseFileEntry:
             stacklevel=2)
         return self._hash_spec
 
-    @hash_spec.setter
-    def hash_spec(self, hash_spec):
-        self._hash_spec = hash_spec
-
     @property
     def hash_value(self):
         warnings.warn(
@@ -557,7 +553,7 @@ class BaseFileEntry:
             hashes.update(get_hashes(content_or_file, hash_types=missing_hash_types))
         if not hash_spec:
             hash_spec = hashes.get_default_spec()
-        self.hash_spec = hash_spec
+        self._hash_spec = hash_spec
         self.tx.conn.io_file_set(self._storepath, content_or_file)
         # we make sure we always refresh the meta information
         # when we set the file content. Otherwise we might
