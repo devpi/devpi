@@ -899,6 +899,7 @@ class TestFileReplication:
             entry = xom.filestore.maplink(link, "root", "pypi", "some")
             assert not entry.file_exists()
             assert entry.best_available_hash_spec is None
+            assert not entry.hashes
 
         replay(xom, replica_xom)
         with replica_xom.keyfs.read_transaction():
@@ -906,6 +907,7 @@ class TestFileReplication:
             assert not r_entry.file_exists()
             assert r_entry.meta
             assert r_entry.best_available_hash_spec is None
+            assert not r_entry.hashes
 
         with xom.keyfs.write_transaction():
             entry.file_set_content(content1)
@@ -951,6 +953,7 @@ class TestFileReplication:
             link = gen.pypi_package_link("pytest-1.8.zip", md5=True)
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert entry.best_available_hash_value is not None
+            assert entry.hashes
             assert not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.read_transaction():

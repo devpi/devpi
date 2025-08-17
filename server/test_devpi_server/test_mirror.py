@@ -387,6 +387,10 @@ class TestExtPYPIDB:
             elink.best_available_hash_spec
             == "sha256=53ebe3d9e4253a63b3cd26f817eec3f5aeb606bcc8264b2b9b6f104d7d267205"
         )
+        assert (
+            elink.hashes.best_available_spec
+            == "sha256=53ebe3d9e4253a63b3cd26f817eec3f5aeb606bcc8264b2b9b6f104d7d267205"
+        )
         assert data["name"] == "Pytest"
         assert data["version"] == "1.0"
         assert pypistage.has_project_perstage("pytest")

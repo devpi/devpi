@@ -277,11 +277,12 @@ class TestImportExport:
         mapp1 = impexp.mapp1
         api1 = mapp1.create_and_use()
         content = b'content1'
+        hashes = get_hashes(content)
         mapp1.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         impexp.export()
         data = json.loads(impexp.exportdir.joinpath('dataindex.json').read_bytes())
         (filedata,) = data['indexes'][api1.stagename]['files']
-        filedata['entrymapping'].pop('hash_spec')
+        assert filedata["entrymapping"].pop("hash_spec") == hashes.get_default_spec()
         filedata['entrymapping']['md5'] = 'foo'
         impexp.exportdir.joinpath('dataindex.json').write_text(json.dumps(data))
         with pytest.raises(Fatal, match="has bad checksum 7e55db001d319a94b0b713529a756623, expected foo"):
@@ -602,7 +603,6 @@ class TestImportExport:
 
     @pytest.mark.slow
     def test_upload_releasefile_with_toxresult(self, impexp, tox_result_data):
-        from devpi_server.filestore import get_hashes
         from time import sleep
         mapp1 = impexp.mapp1
         api = mapp1.create_and_use()
@@ -611,7 +611,8 @@ class TestImportExport:
         path, = mapp1.get_release_paths("hello")
         path = path.strip("/")
         toxresult_dump = json.dumps(tox_result_data)
-        toxresult_hash = get_hashes(toxresult_dump.encode()).get_default_value()
+        toxresult_hashes = get_hashes(toxresult_dump.encode())
+        toxresult_hash = toxresult_hashes.get_default_value()
         r = mapp1.upload_toxresult("/%s" % path, toxresult_dump)
         toxresult_link = mapp1.getjson(f'/{r.json["result"]}')["result"]
         last_modified = toxresult_link["last_modified"]
@@ -633,7 +634,7 @@ class TestImportExport:
             assert result == tox_result_data
             linkstore = stage.get_linkstore_perstage(
                 link.project, link.version)
-            tox_link, = linkstore.get_links(rel="toxresult", for_entrypath=link)
+            (tox_link,) = linkstore.get_links(rel="toxresult", for_entrypath=link)
             assert tox_link.best_available_hash_value == toxresult_hash
             assert tox_link.entry.last_modified == last_modified
             (history_log,) = tox_link.get_logs()
