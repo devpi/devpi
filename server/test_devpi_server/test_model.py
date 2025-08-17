@@ -42,8 +42,9 @@ def register_and_store(stage, basename, content=b"123", name=None):
     if name is None:
         name = n
     stage.set_versiondata(udict(name=name, version=version))
-    res = stage.store_releasefile(name, version, basename, content)
-    return res
+    return stage.store_releasefile(
+        name, version, basename, content, hashes=get_hashes(content)
+    )
 
 
 @pytest.fixture
@@ -394,9 +395,15 @@ class TestStage:
         assert links[0]["entrypath"].endswith("some-1.0.zip")
 
     def test_store_releasefile_fails_if_not_registered(self, stage):
+        content = b"123"
         with pytest.raises(stage.MissesRegistration):
-            stage.store_releasefile("someproject", "1.0",
-                                    "someproject-1.0.zip", b"123")
+            stage.store_releasefile(
+                "someproject",
+                "1.0",
+                "someproject-1.0.zip",
+                content,
+                hashes=get_hashes(content),
+            )
 
     @pytest.mark.xfail(reason="fix tx in-place key get semantics")
     def test_store_releasefile_and_linkstore_same_tx(self, stage):
@@ -829,9 +836,10 @@ class TestStage:
     def test_getdoczip(self, stage, tmpdir):
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
         assert not stage.get_doczip("pkg1", "1.0")
-        content = zip_dict({"index.html": "<html/>",
-            "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", "1.0", content)
+        content = zip_dict(
+            {"index.html": "<html/>", "_static": {}, "_templ": {"x.css": ""}}
+        )
+        stage.store_doczip("pkg1", "1.0", content, hashes=get_hashes(content))
         doczip = stage.get_doczip("pkg1", "1.0")
         assert doczip
         with Archive(BytesIO(doczip)) as archive:
@@ -845,9 +853,10 @@ class TestStage:
         # check that two store_doczip calls with slightly
         # different names will not lead to two doczip entries
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
-        stage.store_doczip("pkg1", "1.0", zip_dict({}))
+        content1 = zip_dict({})
+        stage.store_doczip("pkg1", "1.0", content1, hashes=get_hashes(content1))
         content2 = zip_dict({"index.html": "<html/>"})
-        stage.store_doczip("Pkg1", "1.0", content2)
+        stage.store_doczip("Pkg1", "1.0", content2, hashes=get_hashes(content2))
 
         # check we have only have one doczip link
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
@@ -863,7 +872,8 @@ class TestStage:
     @pytest.mark.usefixtures("bases")
     def test_simulate_multiple_doczip_entries(self, stage):
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
-        stage.store_doczip("pkg1", "1.0", zip_dict({}))
+        content1 = zip_dict({})
+        stage.store_doczip("pkg1", "1.0", content1, hashes=get_hashes(content1))
 
         # simulate a second entry with a slightly different name
         # (XXX not clear if this test is really necessary. hpk thinks for
@@ -877,7 +887,9 @@ class TestStage:
         linkstore.create_linked_entry(
             rel="doczip",
             basename="Pkg1-1.0.doc.zip",
-            content_or_file=content)
+            content_or_file=content,
+            hashes=get_hashes(content),
+        )
 
         # check we have two doczip links
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
@@ -892,14 +904,15 @@ class TestStage:
     def test_storedoczipfile(self, stage):
         from devpi_common.archive import Archive
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
-        content = zip_dict({"index.html": "<html/>",
-            "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", "1.0", content)
+        content = zip_dict(
+            {"index.html": "<html/>", "_static": {}, "_templ": {"x.css": ""}}
+        )
+        stage.store_doczip("pkg1", "1.0", content, hashes=get_hashes(content))
         archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         assert 'index.html' in archive.namelist()
 
         content = zip_dict({"nothing": "hello"})
-        stage.store_doczip("pkg1", "1.0", content)
+        stage.store_doczip("pkg1", "1.0", content, hashes=get_hashes(content))
         archive = Archive(BytesIO(stage.get_doczip("pkg1", "1.0")))
         namelist = archive.namelist()
         assert 'nothing' in namelist
@@ -915,7 +928,8 @@ class TestStage:
         assert entry.project == "pkg1"
         assert entry.version == "1.0"
         toxresultdata = {'hello': 'world'}
-        tlink = stage.store_toxresult(link, json.dumps(toxresultdata).encode())
+        content = json.dumps(toxresultdata).encode()
+        tlink = stage.store_toxresult(link, content, hashes=get_hashes(content))
         assert tlink.entry.file_exists()
         linkstore = stage.get_linkstore_perstage("pkg1", "1.0")
         tox_links = list(linkstore.get_links(rel="toxresult"))
@@ -944,12 +958,15 @@ class TestStage:
 
         # rewrite  fails because index is non-volatile
         with pytest.raises(stage.NonVolatile):
-            stage.store_releasefile("some", "1.0", "some-1.0.zip", content2)
+            stage.store_releasefile(
+                "some", "1.0", "some-1.0.zip", content2, hashes=get_hashes(content2)
+            )
 
         # rewrite succeeds with volatile
         stage.modify(volatile=True)
-        entry = stage.store_releasefile("some", "1.0",
-                                        "some-1.0.zip", content2)
+        entry = stage.store_releasefile(
+            "some", "1.0", "some-1.0.zip", content2, hashes=get_hashes(content2)
+        )
         assert not isinstance(entry, int), entry
         links = stage.get_releaselinks("some")
         assert len(links) == 1
@@ -966,8 +983,14 @@ class TestStage:
         assert not stage.get_versiondata("hello", "1.0")
         metadata = udict(name="hello", version="1.0-test")
         stage.set_versiondata(metadata)
-        stage.store_releasefile("hello", "1.0-test",
-                            "hello-1.0_test.whl", b"")
+        content = b""
+        stage.store_releasefile(
+            "hello",
+            "1.0-test",
+            "hello-1.0_test.whl",
+            content,
+            hashes=get_hashes(content),
+        )
         ver = stage.get_latest_version_perstage("hello")
         assert ver == "1.0-test"
 
@@ -1050,9 +1073,10 @@ class TestStage:
                 queue.put((stage, project, version, link))
         stage.xom.config.pluginmanager.register(Plugin())
         stage.set_versiondata(udict(name="pkg1", version="1.0"))
-        content = zip_dict({"index.html": "<html/>",
-            "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg1", "1.0", content)
+        content = zip_dict(
+            {"index.html": "<html/>", "_static": {}, "_templ": {"x.css": ""}}
+        )
+        stage.store_doczip("pkg1", "1.0", content, hashes=get_hashes(content))
         stage.xom.keyfs.commit_transaction_in_thread()
         nstage, name, version, link = queue.get()
         assert name == "pkg1"
@@ -1066,9 +1090,10 @@ class TestStage:
 
         # now write again and check that we get something from the queue
         with stage.xom.keyfs.write_transaction():
-            stage.store_doczip("pkg1", "1.0", content)
+            stage.store_doczip("pkg1", "1.0", content, hashes=get_hashes(content))
         nstage, name, version, link = queue.get()
-        assert name == "pkg1" and version == "1.0"
+        assert name == "pkg1"
+        assert version == "1.0"
         with stage.xom.keyfs.read_transaction():
             assert link.entry.file_exists()
 
@@ -1089,9 +1114,10 @@ class TestStage:
 
         # upload, should trigger devpiserver_on_upload
         stage.set_versiondata(udict(name="pkg2", version="1.0"))
-        content = zip_dict({"index.html": "<html/>",
-            "_static": {}, "_templ": {"x.css": ""}})
-        stage.store_doczip("pkg2", "1.0", content)
+        content = zip_dict(
+            {"index.html": "<html/>", "_static": {}, "_templ": {"x.css": ""}}
+        )
+        stage.store_doczip("pkg2", "1.0", content, hashes=get_hashes(content))
         stage.xom.keyfs.commit_transaction_in_thread()
         nstage, name, version, link = queue.get()
         assert name == "pkg2"
@@ -1131,16 +1157,31 @@ class TestStage:
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.read_transaction():
             assert stage.get_last_change_serial_perstage() == current_serial
+        content = b""
+        hashes = get_hashes(content)
         actions = [
-            ('set_versiondata', udict(name="pkg", version="1.0")),
-            ('store_releasefile', "pkg", "1.0", "pkg-1.0.zip", b""),
-            ('store_doczip', "pkg", "1.0", b""),
-            ('set_versiondata', udict(name="hello", version="1.0")),
-            ('store_releasefile', "hello", "1.0", "hello-1.0.zip", b""),
-            ('store_releasefile', "pkg", "1.0", "pkg-1.0.tar.gz", b"")]
-        for action in actions:
+            ("set_versiondata", (dict(name="pkg", version="1.0"),), {}),
+            (
+                "store_releasefile",
+                ("pkg", "1.0", "pkg-1.0.zip", content),
+                dict(hashes=hashes),
+            ),
+            ("store_doczip", ("pkg", "1.0", content), dict(hashes=hashes)),
+            ("set_versiondata", (dict(name="hello", version="1.0"),), {}),
+            (
+                "store_releasefile",
+                ("hello", "1.0", "hello-1.0.zip", content),
+                dict(hashes=hashes),
+            ),
+            (
+                "store_releasefile",
+                ("pkg", "1.0", "pkg-1.0.tar.gz", content),
+                dict(hashes=hashes),
+            ),
+        ]
+        for action, args, kwargs in actions:
             with xom.keyfs.write_transaction():
-                getattr(stage, action[0])(*action[1:])
+                getattr(stage, action)(*args, **kwargs)
                 # inside the transaction there is no change yet
                 assert stage.get_last_change_serial_perstage() == current_serial
             assert current_serial == xom.keyfs.get_current_serial() - 1
@@ -1150,7 +1191,7 @@ class TestStage:
         # create a toxresult
         with xom.keyfs.write_transaction():
             (link,) = stage.get_releaselinks_perstage('hello')
-            stage.store_toxresult(link, b"{}")
+            stage.store_toxresult(link, b"{}", hashes=get_hashes(b"{}"))
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
         with xom.keyfs.read_transaction():
@@ -1162,9 +1203,9 @@ class TestStage:
                 index="world2", bases=(), type="stage", volatile=True))
         assert current_serial == xom.keyfs.get_current_serial() - 1
         current_serial = xom.keyfs.get_current_serial()
-        for action in actions:
+        for action, args, kwargs in actions:
             with xom.keyfs.write_transaction():
-                getattr(stage2, action[0])(*action[1:])
+                getattr(stage2, action)(*args, **kwargs)
                 # inside the transaction there is no change yet
                 assert stage2.get_last_change_serial_perstage() == current_serial
             assert current_serial == xom.keyfs.get_current_serial() - 1
@@ -1285,7 +1326,10 @@ class TestStage:
         with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 6)
-            link = stage.store_releasefile('pkg', '1.0', 'pkg-1.0.zip', b'123')
+            content = b"123"
+            link = stage.store_releasefile(
+                "pkg", "1.0", "pkg-1.0.zip", content, hashes=get_hashes(content)
+            )
         with xom.keyfs.read_transaction() as tx:
             # the upload of the release updated the db
             assert tx.at_serial == (first_serial + 7)
@@ -1293,7 +1337,10 @@ class TestStage:
         with xom.keyfs.write_transaction() as tx:
             # no change in db yet
             assert tx.at_serial == (first_serial + 7)
-            other_link = stage.store_releasefile('other', '1.1', 'other-1.1.zip', b'123')
+            content = b"123"
+            other_link = stage.store_releasefile(
+                "other", "1.1", "other-1.1.zip", content, hashes=get_hashes(content)
+            )
         with xom.keyfs.read_transaction() as tx:
             # the upload of the other release updated the db
             assert tx.at_serial == (first_serial + 8)
@@ -1356,31 +1403,56 @@ class TestLinkStore:
         return stage.get_mutable_linkstore_perstage("proj1", "1.0")
 
     def test_store_file(self, linkstore):
+        content = b"123"
         linkstore.create_linked_entry(
-            rel="releasefile", basename="proj1-1.0.zip",
-            content_or_file=b'123')
+            rel="releasefile",
+            basename="proj1-1.0.zip",
+            content_or_file=content,
+            hashes=get_hashes(content),
+        )
         linkstore.create_linked_entry(
-            rel="doczip", basename="proj1-1.0.doc.zip",
-            content_or_file=b'123')
+            rel="doczip",
+            basename="proj1-1.0.doc.zip",
+            content_or_file=content,
+            hashes=get_hashes(content),
+        )
         link, = linkstore.get_links(rel="releasefile")
         assert link.relpath.endswith("proj1-1.0.zip")
 
     def test_toxresult_create_remove(self, linkstore):
+        content1 = b"123"
         linkstore.create_linked_entry(
-            rel="releasefile", basename="proj1-1.0.zip",
-            content_or_file=b'123')
+            rel="releasefile",
+            basename="proj1-1.0.zip",
+            content_or_file=content1,
+            hashes=get_hashes(content1),
+        )
+        content2 = b"456"
         linkstore.create_linked_entry(
-            rel="releasefile", basename="proj1-1.1.zip",
-            content_or_file=b'456')
+            rel="releasefile",
+            basename="proj1-1.1.zip",
+            content_or_file=content2,
+            hashes=get_hashes(content2),
+        )
         (link1, link2) = linkstore.get_links(rel="releasefile")
         assert link1.relpath.endswith("proj1-1.0.zip")
 
         tox_content1 = b'tox123'
         hash_spec1 = get_hashes(tox_content1).get_default_spec()
-        linkstore.new_reflink(rel="toxresult", content_or_file=tox_content1, for_entrypath=link1)
+        linkstore.new_reflink(
+            rel="toxresult",
+            content_or_file=tox_content1,
+            for_entrypath=link1,
+            hashes=get_hashes(tox_content1),
+        )
         tox_content2 = b'tox456'
         hash_spec2 = get_hashes(tox_content2).get_default_spec()
-        linkstore.new_reflink(rel="toxresult", content_or_file=tox_content2, for_entrypath=link2)
+        linkstore.new_reflink(
+            rel="toxresult",
+            content_or_file=tox_content2,
+            for_entrypath=link2,
+            hashes=get_hashes(tox_content2),
+        )
         rlink, = linkstore.get_links(rel="toxresult", for_entrypath=link1)
         assert rlink.best_available_hash_spec == hash_spec1
         assert rlink.for_entrypath == link1.relpath

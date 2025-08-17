@@ -373,6 +373,11 @@ class FileStore:
         # dir_hash_spec is set for toxresult files
         if dir_hash_spec is None:
             if hashes is None:
+                warnings.warn(
+                    "Storing data without supplying hashes is deprecated.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
                 hashes = get_hashes(content_or_file)
             dir_hash_spec = hashes.get_default_spec()
         hashdir_a, hashdir_b = make_splitdir(dir_hash_spec)
@@ -558,6 +563,11 @@ class BaseFileEntry:
             hashes.add_spec(hash_spec)
         missing_hash_types = hashes.get_missing_hash_types()
         if missing_hash_types:
+            warnings.warn(
+                "Setting file content without supplying hashes is deprecated.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             hashes.update(get_hashes(content_or_file, hash_types=missing_hash_types))
         if not hash_spec:
             hash_spec = hashes.get_default_spec()
@@ -570,7 +580,14 @@ class BaseFileEntry:
         # changed which will not replay correctly at a replica.
         self.key.set(self.meta)
 
-    def file_set_content_no_meta(self, content_or_file, *, hashes=None):  # noqa: ARG002
+    def file_set_content_no_meta(self, content_or_file, *, hashes=None):
+        missing_hash_types = hashes.get_missing_hash_types()
+        if missing_hash_types:
+            warnings.warn(
+                "Setting file content without supplying hashes is deprecated.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.tx.conn.io_file_set(self._storepath, content_or_file)
 
     def gethttpheaders(self):
