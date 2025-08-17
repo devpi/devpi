@@ -1,0 +1,1 @@
+Store all available hashes of files.

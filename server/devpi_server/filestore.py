@@ -337,6 +337,8 @@ class FileStore:
         entry = MutableFileEntry(key)
         entry.url = link.geturl_nofragment().url
         entry._hash_spec = unicode_if_bytes(link.hash_spec)
+        if digest := link.hash_value:
+            entry._hashes = Digests({link.hash_type: digest})
         entry.project = project
         version = None
         try:
@@ -407,6 +409,7 @@ class BaseFileEntry:
 
     BadGateway = BadGateway
     _hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
+    _hashes = metaprop("hashes")  # e.g. dict(md5="120938012")
     last_modified = metaprop("last_modified")
     url = metaprop("url")
     project = metaprop("project")
@@ -448,7 +451,16 @@ class BaseFileEntry:
 
     @property
     def hashes(self):
-        return Digests.from_spec(self._hash_spec)
+        digests = Digests() if self._hashes is None else Digests(self._hashes)
+        if hash_spec := self._hash_spec:
+            (hash_algo, hash_value) = parse_hash_spec(hash_spec)
+            hash_type = hash_algo().name
+            if digests.get(hash_type, _nodefault) != hash_value:
+                # the stored hash_spec takes precedence,
+                # because there may have been a downgrade with content change
+                # we also need to get rid of other hash types in that case
+                return Digests.from_spec(self._hash_spec)
+        return digests
 
     @property
     def hash_algo(self):
@@ -456,10 +468,9 @@ class BaseFileEntry:
             "The hash_algo property is deprecated.",
             DeprecationWarning,
             stacklevel=2)
-        if self._hash_spec:
-            return parse_hash_spec(self.hash_spec)[0]
-        else:
-            return get_default_hash_algo()
+        if hash_spec := self.hashes.best_available_spec:
+            return parse_hash_spec(hash_spec)[0]
+        return get_default_hash_algo()
 
     @property
     def hash_spec(self):
@@ -468,7 +479,7 @@ class BaseFileEntry:
             "use best_available_hash_spec instead",
             DeprecationWarning,
             stacklevel=2)
-        return self._hash_spec
+        return self.hashes.best_available_spec
 
     @property
     def hash_value(self):
@@ -477,10 +488,7 @@ class BaseFileEntry:
             "use best_available_hash_value instead",
             DeprecationWarning,
             stacklevel=2)
-        if self._hash_spec:
-            return self._hash_spec.split("=", 1)[1]
-        else:
-            return self._hash_spec
+        return self.hashes.best_available_value
 
     @property
     def hash_type(self):
@@ -489,7 +497,7 @@ class BaseFileEntry:
             "use best_available_hash_type instead",
             DeprecationWarning,
             stacklevel=2)
-        return self._hash_spec.split("=")[0]
+        return self.hashes.best_available_type
 
     def file_get_checksum(self, hash_type):
         warnings.warn(
@@ -554,6 +562,7 @@ class BaseFileEntry:
         if not hash_spec:
             hash_spec = hashes.get_default_spec()
         self._hash_spec = hash_spec
+        self._hashes = self.hashes | hashes
         self.tx.conn.io_file_set(self._storepath, content_or_file)
         # we make sure we always refresh the meta information
         # when we set the file content. Otherwise we might

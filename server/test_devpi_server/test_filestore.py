@@ -112,7 +112,7 @@ class TestFileStore:
         assert entry1.file_exists()
         # make sure the entry has the same hash_spec as the external link
         assert entry1.best_available_hash_spec is not None
-        assert entry1.best_available_hash_spec == link1.hash_spec
+        assert entry1.hashes.get_spec("md5") == link1.hash_spec
         assert entry1.hashes.get_spec("md5") == link1.hash_spec
 
         # now replace the hash of the link and check again
@@ -156,12 +156,65 @@ class TestFileStore:
         entry1.file_delete()
         assert not entry1.file_exists()
 
+    def test_hash_spec_takes_precedence_over_hashes(self, filestore, gen):
+        link = gen.pypi_package_link("pytest-1.7.zip")
+        other_md5_value = hashlib.md5().hexdigest()
+        other_md5_spec = f"md5={other_md5_value}"
+        assert link.hash_spec != other_md5_spec
+        entry = filestore.maplink(link, "root", "pypi", "pytest")
+        assert entry._hash_spec == link.hash_spec
+        assert entry._hash_spec != other_md5_spec
+        assert entry._hashes == dict(md5=link.hash_value)
+        assert entry.hashes == dict(md5=link.hash_value)
+        assert entry.best_available_hash_spec == link.hash_spec
+        assert entry.best_available_hash_value != other_md5_value
+        entry._hash_spec = other_md5_spec
+        assert entry._hash_spec != link.hash_spec
+        assert entry._hash_spec == other_md5_spec
+        assert entry._hashes == dict(md5=link.hash_value)
+        assert entry.hashes == dict(md5=other_md5_value)
+        assert entry.best_available_hash_spec == other_md5_spec
+        assert entry.best_available_hash_value == other_md5_value
+
+    def test_hash_spec_takes_precedence_over_hashes_others_dropped(
+        self, filestore, gen
+    ):
+        link = gen.pypi_package_link("pytest-1.7.zip")
+        sha256_value = hashlib.sha256(
+            link.replace(fragment=None).url.encode()
+        ).hexdigest()
+        other_md5_value = hashlib.md5().hexdigest()
+        other_md5_spec = f"md5={other_md5_value}"
+        assert link.hash_spec != other_md5_spec
+        entry = filestore.maplink(link, "root", "pypi", "pytest")
+        entry._hashes["sha256"] = sha256_value
+        assert entry._hash_spec == link.hash_spec
+        assert entry._hash_spec != other_md5_spec
+        assert entry._hashes == dict(
+            md5=link.hash_value,
+            sha256=sha256_value,
+        )
+        assert entry.hashes == dict(
+            md5=link.hash_value,
+            sha256=sha256_value,
+        )
+        entry._hash_spec = other_md5_spec
+        assert entry._hash_spec != link.hash_spec
+        assert entry._hash_spec == other_md5_spec
+        assert entry._hashes == dict(
+            md5=link.hash_value,
+            sha256=sha256_value,
+        )
+        assert entry.hashes == dict(md5=other_md5_value)
+        assert entry.best_available_hash_spec == other_md5_spec
+        assert entry.best_available_hash_value == other_md5_value
+
     def test_relpathentry(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.7.zip", md5=False)
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry.url == link.url
         assert not entry.file_exists()
-        hashes = get_hashes(b"")
+        entry._hashes = hashes = get_hashes(b"")
         entry._hash_spec = hash_spec = hashes.get_default_spec()
         assert not entry.file_exists()
         entry.file_set_content(b"")
@@ -174,6 +227,7 @@ class TestFileStore:
         assert entry.file_exists()
         assert entry.url == link.url
         assert entry.best_available_hash_spec == hash_spec
+        assert entry.hashes == hashes
         entry.delete()
         assert not entry.file_exists()
 

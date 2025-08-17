@@ -795,12 +795,17 @@ class BaseStage(object):
 
     def _make_elink(self, project, link_meta):
         return ELink(
-            self.filestore, dict(
+            self.filestore,
+            dict(
                 entrypath=link_meta.path,
                 hash_spec=link_meta.hash_spec,
+                hashes=link_meta.hashes,
                 require_python=link_meta.require_python,
-                yanked=link_meta.yanked),
-            project, link_meta.version)
+                yanked=link_meta.yanked,
+            ),
+            project,
+            link_meta.version,
+        )
 
     def get_linkstore_perstage(self, name, version, readonly=None):
         if readonly is None:
@@ -1606,6 +1611,7 @@ class ELink:
     relpath = linkdictprop("entrypath")
     for_entrypath = linkdictprop("for_entrypath", default=None)
     _hash_spec = linkdictprop("hash_spec", default="")
+    _hashes = linkdictprop("hashes", default=None)
     rel = linkdictprop("rel", default=None)
     require_python = linkdictprop("require_python")
     yanked = linkdictprop("yanked")
@@ -1641,7 +1647,16 @@ class ELink:
 
     @property
     def hashes(self):
-        return Digests.from_spec(self._hash_spec)
+        digests = Digests() if self._hashes is None else Digests(self._hashes)
+        if hash_spec := self._hash_spec:
+            (hash_algo, hash_value) = parse_hash_spec(hash_spec)
+            hash_type = hash_algo().name
+            if digests.get(hash_type, notset) != hash_value:
+                # the stored hash_spec takes precedence,
+                # because there may have been a downgrade with content change
+                # we also need to get rid of other hash types in that case
+                return Digests.from_spec(self._hash_spec)
+        return digests
 
     @property
     def hash_spec(self):
@@ -1650,7 +1665,7 @@ class ELink:
             "use best_available_hash_spec instead",
             DeprecationWarning,
             stacklevel=2)
-        return self._hash_spec
+        return self.hashes.best_available_spec
 
     @property
     def hash_value(self):
@@ -1659,7 +1674,7 @@ class ELink:
             "use best_available_hash_value instead",
             DeprecationWarning,
             stacklevel=2)
-        return self._hash_spec.split("=")[1]
+        return self.hashes.best_available_value
 
     @property
     def hash_type(self):
@@ -1668,7 +1683,7 @@ class ELink:
             "use best_available_hash_type instead",
             DeprecationWarning,
             stacklevel=2)
-        return self._hash_spec.split("=")[0]
+        return self.hashes.best_available_type
 
     @property
     def basename(self):
@@ -1836,16 +1851,20 @@ class LinkStore:
             for_entrypath = for_entrypath.relpath
         elif for_entrypath is not None:
             assert "#" not in for_entrypath
-        new_linkdict = {"rel": rel, "entrypath": file_entry.relpath,
-                        "hash_spec": file_entry._hash_spec, "_log": []}
+        new_linkdict = {
+            "rel": rel,
+            "entrypath": file_entry.relpath,
+            "hash_spec": file_entry._hash_spec,
+            "hashes": file_entry.hashes,
+            "_log": [],
+        }
         if for_entrypath:
             new_linkdict["for_entrypath"] = for_entrypath
         linkdicts = self._get_inplace_linkdicts()
         linkdicts.append(new_linkdict)
         threadlog.info("added %r link %s", rel, file_entry.relpath)
         self._mark_dirty()
-        return ELink(self.filestore, new_linkdict, self.project,
-                     self.version)
+        return ELink(self.filestore, new_linkdict, self.project, self.version)
 
 
 class MutableLinkStore(LinkStore):

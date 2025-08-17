@@ -283,6 +283,7 @@ class TestImportExport:
         data = json.loads(impexp.exportdir.joinpath('dataindex.json').read_bytes())
         (filedata,) = data['indexes'][api1.stagename]['files']
         assert filedata["entrymapping"].pop("hash_spec") == hashes.get_default_spec()
+        filedata["entrymapping"].pop("hashes")
         filedata['entrymapping']['md5'] = 'foo'
         impexp.exportdir.joinpath('dataindex.json').write_text(json.dumps(data))
         with pytest.raises(Fatal, match="has bad checksum 7e55db001d319a94b0b713529a756623, expected foo"):
@@ -529,7 +530,7 @@ class TestImportExport:
                 ('package-2.0.zip', f'root/pypi/+f/{hashdir3}/package-2.0.zip', '>=3.5', None)]
 
     def test_mirrordata(self, impexp):
-        hashes = get_hashes(b"content")
+        hashes = get_hashes(b"content", additional_hash_types=("sha256",))
         hashdir = "/".join(make_splitdir(hashes.get_default_spec()))
         mapp = impexp.import_testdata('mirrordata')
         with mapp.xom.keyfs.read_transaction():
@@ -544,7 +545,7 @@ class TestImportExport:
                 link.entrypath
                 == f"root/pypi/+f/{hashdir}/dddttt-0.1.dev1.tar.gz#{hashes.best_available_spec}"
             )
-            assert link.entry.hashes.best_available_spec == hashes.best_available_spec
+            assert link.entry.hashes == hashes
 
     def test_modifiedpypi(self, impexp):
         mapp = impexp.import_testdata('modifiedpypi')
@@ -617,6 +618,7 @@ class TestImportExport:
         toxresult_link = mapp1.getjson(f'/{r.json["result"]}')["result"]
         last_modified = toxresult_link["last_modified"]
         (hash_algo, hash_value) = parse_hash_spec(toxresult_link["hash_spec"])
+        assert toxresult_link["hashes"] == toxresult_hashes
         assert hash_value == toxresult_hash
         sleep(1.5)
         impexp.export()
@@ -636,6 +638,7 @@ class TestImportExport:
                 link.project, link.version)
             (tox_link,) = linkstore.get_links(rel="toxresult", for_entrypath=link)
             assert tox_link.best_available_hash_value == toxresult_hash
+            assert tox_link.hashes == toxresult_hashes
             assert tox_link.entry.last_modified == last_modified
             (history_log,) = tox_link.get_logs()
             assert history_log['what'] == 'upload'
