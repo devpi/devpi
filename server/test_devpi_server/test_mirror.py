@@ -381,6 +381,14 @@ class TestExtPYPIDB:
     def test_get_versiondata_hash_spec(self, pypistage):
         pypistage.mock_simple("pytest", pkgver="pytest-1.0.zip", hash_type="sha256")
         data = pypistage.get_versiondata("Pytest", "1.0")
+        (elink,) = data["+elinks"]
+        assert (
+            elink["hash_spec"]
+            == "sha256=53ebe3d9e4253a63b3cd26f817eec3f5aeb606bcc8264b2b9b6f104d7d267205"
+        )
+        assert elink["hashes"] == dict(
+            sha256="53ebe3d9e4253a63b3cd26f817eec3f5aeb606bcc8264b2b9b6f104d7d267205"
+        )
         (elink,) = pypistage.get_linkstore_perstage("pytest", "1.0").get_links()
         assert elink.rel == "releasefile"
         assert (
