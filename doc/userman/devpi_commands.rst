@@ -28,7 +28,7 @@ getjson
       path_or_url      path or url of a resource to show information on. examples:
                        '/', '/user', '/user/index'.
 
-    optionals:
+    options:
       -h, --help       show this help message and exit
 
     generic options:
@@ -63,7 +63,7 @@ index
       keyvalues        key=value configuration item. Possible key=value are
                        bases=CSV, volatile=True|False, acl_upload=CSV)
 
-    optionals:
+    options:
       -h, --help       show this help message and exit
       -c, --create     create an index
       --delete         delete an index
@@ -95,7 +95,7 @@ install
     positional arguments:
       pkg                uri or package file for installation from current index.
 
-    optionals:
+    options:
       -h, --help         show this help message and exit
       --index INDEX      index to get package from (defaults to current index)
       -l                 print list of currently installed packages.
@@ -133,7 +133,7 @@ list
                         specs: pytest or 'pytest>=2.3.5' (Quotes are needed to
                         prevent shell redirection)
 
-    optionals:
+    options:
       -h, --help        show this help message and exit
       -f, --failures    show test setup/failure logs (implies -t)
       --all             show all versions instead of just the newest
@@ -168,7 +168,7 @@ login
     positional arguments:
       username             username to use for login
 
-    optionals:
+    options:
       -h, --help           show this help message and exit
       --password PASSWORD  password to use for login (prompt if not set)
 
@@ -192,7 +192,7 @@ logoff
     log out of the current devpi-server. This will erase the client-side login
     token (see "devpi login").
 
-    optionals:
+    options:
       -h, --help       show this help message and exit
 
     generic options:
@@ -228,7 +228,7 @@ push
                           index. remote targets are of form 'REPO:' where REPO
                           must be an existing entry in the pypirc file.
 
-    optionals:
+    options:
       -h, --help          show this help message and exit
       --index INDEX       index to push from (defaults to current index)
       --no-docs           Do not push documentation zips, only release files.
@@ -270,7 +270,7 @@ remove
                        'https://', it is considered as a request to delete a
                        single file.
 
-    optionals:
+    options:
       -h, --help       show this help message and exit
       --index INDEX    index to remove from (defaults to current index)
       -f, --force      remove even on non-volatile index (with devpi-server >=
@@ -310,7 +310,7 @@ test
       pkgspec               package specification in pip/setuptools requirement-
                             syntax, e.g. 'pytest' or 'pytest==2.4.2'
 
-    optionals:
+    options:
       -h, --help            show this help message and exit
       -e ENVNAME            tox test environment to run from the tox.ini
       -c PATH               tox configuration file to use with unpacked package
@@ -361,7 +361,7 @@ upload
     ``no-vcs = 1``, and ``setupdir-only = 1`` settings providing defaults for the
     respective command line options.
 
-    optionals:
+    options:
       -h, --help            show this help message and exit
 
     generic options:
@@ -428,7 +428,7 @@ use
                             then use a url like this:
                             https://username:password@example.com/USER/INDEXNAME
 
-    optionals:
+    options:
       -h, --help            show this help message and exit
       --local               create devpi settings in active virtualenv. All future
                             invocations will use that location instead of the
@@ -489,7 +489,7 @@ user
       keyvalues        key=value configuration item. Possible keys: email,
                        password and pwhash.
 
-    optionals:
+    options:
       -h, --help       show this help message and exit
       -c, --create     create a user
       --delete         delete a user
@@ -541,7 +541,7 @@ devpi command reference (server)
     are suitable for pip or easy_install usage and setup.py upload ...
     invocations.
 
-    optionals:
+    options:
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
@@ -712,7 +712,7 @@ devpi command reference (server)
     positional arguments:
       directory
 
-    optionals:
+    options:
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
@@ -753,7 +753,7 @@ devpi command reference (server)
     positional arguments:
       directory
 
-    optionals:
+    options:
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
@@ -806,7 +806,7 @@ devpi command reference (server)
 
     Initialize new devpi-server instance.
 
-    optionals:
+    options:
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
@@ -857,7 +857,7 @@ devpi command reference (server)
     positional arguments:
       user
 
-    optionals:
+    options:
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
@@ -884,7 +884,7 @@ devpi command reference (server)
 
     Clear project search index.
 
-    optionals:
+    options:
       -h, --help            Show this help message and exit.
       -c CONFIGFILE, --configfile CONFIGFILE
                             Config file to use. [None]
