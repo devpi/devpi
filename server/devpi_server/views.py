@@ -1294,7 +1294,7 @@ class PyPIView:
                     project, version,
                     content_filename, content_file, hashes=hashes)
             except stage.NonVolatile as e:
-                if e.link.matches_checksum(content_file):
+                if e.link.matches_hashes(hashes):
                     abort_submit(
                         request, 200,
                         "Upload of identical file to non volatile index.",
@@ -1322,7 +1322,7 @@ class PyPIView:
                     request, 400,
                     "%s" % e)
             except stage.NonVolatile as e:
-                if e.link.matches_checksum(content_file):
+                if e.link.matches_hashes(hashes):
                     abort_submit(
                         request, 200,
                         "Upload of identical file to non volatile index.",

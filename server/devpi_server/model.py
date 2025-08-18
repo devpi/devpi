@@ -1705,11 +1705,20 @@ class ELink:
         return entrypath
 
     def matches_checksum(self, content_or_file):
+        warnings.warn(
+            "The 'matches_checksum' method is deprecated. "
+            "Use 'matches_hashes' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         hash_algo, hash_value = parse_hash_spec(self._hash_spec)
         if not hash_algo:
             return True
         return get_hash_spec(
             content_or_file, hash_algo().name) == self._hash_spec
+
+    def matches_hashes(self, hashes):
+        return self.hashes == hashes
 
     def __repr__(self):
         return "<ELink rel=%r entrypath=%r>" % (self.rel, self.entrypath)
