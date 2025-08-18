@@ -154,7 +154,6 @@ class Ruff:
         cmd = [
             self._ruff,
             "format",
-            "-q",
             "--config",
             "ruff-strict.toml",
             "--force-exclude",
@@ -164,11 +163,13 @@ class Ruff:
             "--range",
             f"{start[0]}:{start[1]}-{end[0]}:{end[1]}",
         ]
-        p = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)
+        p = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
         (out, err) = await p.communicate()
         rc = await p.wait()
         if rc not in (0, 1):
-            raise subprocess.CalledProcessError(rc, out, err)
+            raise subprocess.CalledProcessError(rc, cmd, out, err)
         return None if not rc or not out else out.decode()
 
     async def _format_range_worker(self, queue, results, exceptions):
@@ -197,22 +198,23 @@ class Ruff:
         return load_toml(self.base / "ruff-strict.toml")
 
     def check_format_excludes(self, *projects):
+        cmd = [
+            self._ruff,
+            "format",
+            "-q",
+            "--config",
+            "ruff-strict.toml",
+            "--force-exclude",
+            "--check",
+        ]
         result = subprocess.run(  # noqa: S603
-            [
-                self._ruff,
-                "format",
-                "-q",
-                "--config",
-                "ruff-strict.toml",
-                "--force-exclude",
-                "--check",
-            ],
+            cmd,
             check=False,
             stdout=subprocess.PIPE,
             text=True,
         )
         if (rc := result.returncode) not in (0, 1):
-            raise subprocess.CalledProcessError(rc, result.stdout, result.stderr)
+            raise subprocess.CalledProcessError(rc, cmd, result.stdout, result.stderr)
         paths = {p: self.base / p for p in projects if p is not None}
         paths[None] = self.base
         results = defaultdict(set)
@@ -252,6 +254,8 @@ class Ruff:
         del workers
         del queue
         for e in exceptions:
+            if isinstance(e, subprocess.CalledProcessError):
+                print(f"{e!r}")  # noqa: T201
             raise e
         format_diffs = set()
         for _, start, _, format_diff, check_lines in sorted(results):
@@ -275,7 +279,7 @@ class Ruff:
         (out, err) = await p.communicate()
         rc = await p.wait()
         if rc not in (0, 1):
-            raise subprocess.CalledProcessError(rc, out, err)
+            raise subprocess.CalledProcessError(rc, cmd, out, err)
         paths = {p: self.base / p for p in projects if p is not None}
         paths[None] = self.base
         results = defaultdict(list)
