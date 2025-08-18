@@ -177,7 +177,6 @@ exclude = [
 extend-ignore = [
     "A001", # cleanup later - variable name shadows builtin
     "A002", # cleanup later - argument name shadows builtin
-    "A003", # ignore - class attribute name shadows builtin
     "ARG001", # maybe cleanup later - unused function argument
     "ARG002", # maybe cleanup later - unused method argument
     "ARG003", # cleanup soon - unused method argument

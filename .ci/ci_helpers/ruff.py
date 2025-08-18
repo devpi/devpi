@@ -74,6 +74,22 @@ class RuffConfig:
         return result
 
     @cached_property
+    def extend_ignore(self):
+        if extend_ignore := frozenset(
+            self.lint_section.get("extend-ignore", frozenset())
+        ):
+            return extend_ignore
+        return frozenset()
+
+    @cached_property
+    def extend_select(self):
+        if extend_select := frozenset(
+            self.lint_section.get("extend-select", frozenset())
+        ):
+            return extend_select
+        return frozenset()
+
+    @cached_property
     def format_excludes(self):
         return {Path(p) for p in self.format_section.get("exclude", [])}
 
@@ -96,7 +112,7 @@ class RuffConfig:
         lint_section = self.lint_section
         if ignore := set(lint_section.get("ignore", set())):
             results = ignore
-        if extend_ignore := set(lint_section.get("extend-ignore", set())):
+        if extend_ignore := self.extend_ignore:
             results.update(extend_ignore)
         return frozenset(results)
 

@@ -41,13 +41,20 @@ async def main(args):  # noqa: PLR0912
         for msg in ci.ruff.check_format_excludes(None, *ci.PROJECTS):
             print(msg)
             failed = True
-    flake8_results = (
-        {} if args.no_flake8 else await ci.flake8.strict_output(*ci.PROJECTS)
-    )
-    ruff_results = await ci.ruff.strict_output(*ci.PROJECTS)
+    tasks = []
+    if not args.no_flake8:
+        tasks.append(asyncio.create_task(ci.flake8.strict_output(*ci.PROJECTS)))
+    if not args.no_ruff:
+        tasks.append(asyncio.create_task(ci.ruff.strict_output(*ci.PROJECTS)))
     results = sorted(
-        (*flake8_results.items(), *ruff_results.items()), key=lambda i: i[0] or ""
+        (
+            item
+            for l in [(await x).items() for x in asyncio.as_completed(tasks)]
+            for item in l
+        ),
+        key=lambda i: i[0] or "",
     )
+    seen_ruff_rules = set()
     for project, result in results:
         rules = result.rules
         linter = result.linter()
@@ -91,10 +98,25 @@ async def main(args):  # noqa: PLR0912
         for info in result.results:
             line = info["line"]
             rule = info["rule"]
+            if linter.tool_name == "ruff":
+                seen_ruff_rules.add(rule)
             if line in seen or rule in ignore or rule in path_ignores[info["path"]]:
                 continue
             print(line.rstrip())
             failed = True
+        if not args.no_ruff and linter.tool_name == "ruff":
+            extend_select = linter.extend_select
+            configured_ignores = {
+                x
+                for x in linter.extend_ignore
+                if x.strip("0123456789") not in extend_select
+            }
+            obsolete_ruff_ignores = configured_ignores.difference(
+                seen_ruff_rules
+            ).difference(x.rstrip("0123456789") for x in seen_ruff_rules)
+            for obsolete_ignore in sorted(obsolete_ruff_ignores):
+                print(f"Obsolete ruff extend-ignore: {obsolete_ignore} in {project}")
+                failed = True
     if failed:
         sys.exit(1)
 
@@ -104,6 +126,7 @@ if __name__ == "__main__":
     parser.add_argument("commit", nargs="?", type=str, default=None)
     parser.add_argument("--no-flake8", action="store_true")
     parser.add_argument("--no-format", action="store_true")
+    parser.add_argument("--no-ruff", action="store_true")
     parser.add_argument("-v", "--verbose", action="count", default=0)
     args = parser.parse_args()
     asyncio.run(main(args))

@@ -114,7 +114,6 @@ extend-ignore = [
     "ERA001", # cleanup soon
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx
-    "G002", # cleanup soon - logging statement uses %
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0912", # maybe cleanup later
     "PLW2901", # maybe cleanup later
