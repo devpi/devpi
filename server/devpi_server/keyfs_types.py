@@ -104,6 +104,7 @@ class TypedKey:
             warnings.warn(
                 "The 'readonly' argument is deprecated. "
                 "You should either drop it or use the 'get_mutable' method.",
+                DeprecationWarning,
                 stacklevel=2,
             )
         if readonly:

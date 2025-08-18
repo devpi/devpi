@@ -814,6 +814,7 @@ class BaseStage(object):
             warnings.warn(
                 "The 'readonly' argument is deprecated. "
                 "Use 'get_mutable_linkstore_perstage' instead.",
+                DeprecationWarning,
                 stacklevel=2,
             )
         if self.customizer.readonly and not readonly:
@@ -1195,7 +1196,9 @@ class BaseStage(object):
                         "The 'get_principals_for_pypi_submit' method is deprecated, "
                         "you should use 'get_principals_for_upload'. "
                         "If you want to support older devpi-server versions, add an alias.",
-                        stacklevel=1)
+                        DeprecationWarning,
+                        stacklevel=1,
+                    )
             if not callable(method):
                 msg = f"The attribute {method_name} with value {method!r} of {self.customizer!r} is not callable."
                 raise AttributeError(msg)  # noqa: TRY004
@@ -1416,6 +1419,7 @@ class PrivateStage(BaseStage):
             warnings.warn(
                 "The 'readonly' argument is deprecated. "
                 "Use the 'get_mutable_deepcopy' function on the result instead.",
+                DeprecationWarning,
                 stacklevel=2,
             )
         project = normalize_name(project)

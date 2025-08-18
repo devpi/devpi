@@ -1024,6 +1024,7 @@ class MirrorStage(BaseStage):
             warnings.warn(
                 "The 'readonly' argument is deprecated. "
                 "Use the 'get_mutable_deepcopy' function on the result instead.",
+                DeprecationWarning,
                 stacklevel=2,
             )
         verdata = {}
