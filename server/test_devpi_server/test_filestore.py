@@ -160,7 +160,7 @@ class TestFileStore:
 
     def test_hash_spec_takes_precedence_over_hashes(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.7.zip", hash_type="md5")
-        other_md5_value = hashlib.md5().hexdigest()
+        other_md5_value = hashlib.md5(usedforsecurity=False).hexdigest()
         other_md5_spec = f"md5={other_md5_value}"
         assert link.hash_spec != other_md5_spec
         entry = filestore.maplink(link, "root", "pypi", "pytest")
@@ -185,7 +185,7 @@ class TestFileStore:
         sha256_value = hashlib.sha256(
             link.replace(fragment=None).url.encode()
         ).hexdigest()
-        other_md5_value = hashlib.md5().hexdigest()
+        other_md5_value = hashlib.md5(usedforsecurity=False).hexdigest()
         other_md5_spec = f"md5={other_md5_value}"
         assert link.hash_spec != other_md5_spec
         entry = filestore.maplink(link, "root", "pypi", "pytest")

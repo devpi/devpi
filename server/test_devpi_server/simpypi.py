@@ -7,7 +7,7 @@ import sys
 
 
 def getmd5(s):
-    return hashlib.md5(s.encode("utf8")).hexdigest()  # noqa: S324
+    return hashlib.md5(s.encode("utf8"), usedforsecurity=False).hexdigest()
 
 
 def getsha256(s):

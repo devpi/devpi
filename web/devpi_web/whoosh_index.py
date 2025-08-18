@@ -102,7 +102,10 @@ class ProjectNameTokenizer(Tokenizer):
                 yield t
 
 
-def project_name(name, tokenizer=ProjectNameTokenizer()):
+_PROJECT_NAME_TOKENIZER = ProjectNameTokenizer()
+
+
+def project_name(name, tokenizer=_PROJECT_NAME_TOKENIZER):
     result = []
     if "-" in name:
         result.append(name.replace("-", "_"))

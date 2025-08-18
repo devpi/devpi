@@ -11,12 +11,17 @@ def _iter_dict(d):
 
 
 try:
+    _DEFAULT_SIZE = getsizeof(0)
+    _NONE_TYPE = type(None)
+
     def gettotalsizeof(
-            obj, maxlen=None,
-            _default_size=getsizeof(0),
-            _sequences=(frozenset, list, set, tuple, SetViewReadonly, SeqViewReadonly),
-            _singles=(bytes, complex, float, int, str, type(None)),
-            _dicts=(dict, DictViewReadonly)):
+        obj,
+        maxlen=None,
+        _default_size=_DEFAULT_SIZE,
+        _sequences=(frozenset, list, set, tuple, SetViewReadonly, SeqViewReadonly),
+        _singles=(bytes, complex, float, int, str, _NONE_TYPE),
+        _dicts=(dict, DictViewReadonly),
+    ):
         stack = [iter((obj,))]
         result = 0
         seen = set()

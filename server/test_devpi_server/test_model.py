@@ -1631,9 +1631,13 @@ def test_ensure_boolean():
         assert ensure_boolean(s) is False
     with pytest.raises(InvalidIndexconfig):
         ensure_boolean(None)
+    with pytest.raises(InvalidIndexconfig):
         ensure_boolean("")
+    with pytest.raises(InvalidIndexconfig):
         ensure_boolean("foo")
+    with pytest.raises(InvalidIndexconfig):
         ensure_boolean([])
+    with pytest.raises(InvalidIndexconfig):
         ensure_boolean(["foo"])
 
 
@@ -1646,6 +1650,7 @@ def test_ensure_list():
     assert ensure_list(" foo , bar ") == ["foo", "bar"]
     with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_list(None), list)
+    with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_list(dict()), list)
 
 
@@ -1661,6 +1666,7 @@ def test_ensure_acl_list():
         ":ANONYMOUS:", "FOO", ":AUTHENTICATED:"]
     with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_acl_list(None), list)
+    with pytest.raises(InvalidIndexconfig):
         assert isinstance(ensure_acl_list(dict()), list)
 
 

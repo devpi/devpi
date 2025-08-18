@@ -148,10 +148,11 @@ def test_toxresults_state():
                 "host": "foo",
                 "installpkg": {
                     "basename": "pytest-1.7.zip",
-                    "md5": hashlib.md5(b"123").hexdigest(),  # noqa: S324
+                    "md5": hashlib.md5(b"123", usedforsecurity=False).hexdigest(),
                     "sha256": hashlib.sha256(b"123").hexdigest(),
                 },
-                "testenvs": self.testenvs}
+                "testenvs": self.testenvs,
+            }
             return json.dumps(result).encode('utf-8')
 
     linkstore = LinkStore([[Link({})]])

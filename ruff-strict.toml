@@ -24,6 +24,7 @@ ignore = [
     "PLR2004", # ignore - magic value comparison
     "PTH", # ignore - pathlib
     "Q", # ignore - quotes style
+    "RUF100", # after soon to cleanup
     "S101", # ignore - asserts
     "SLF001", # ignore - private member accessed
     "TD", # ignore - todos
@@ -85,7 +86,6 @@ order-by-type = false
     "S105", # ignore - possible hardcoded password
     "S106", # ignore - possible hardcoded password
     "S113", # ignore - requests call without timeout
-    "S324", # ignore - md5 - use usedforsecurity=False with Python 3.9
     "S603", # ignore - subprocess untrusted input
     "S607", # ignore - subprocess partial executable path
     "T201", # ignore - print found

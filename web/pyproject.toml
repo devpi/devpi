@@ -107,7 +107,6 @@ extend-ignore = [
     "ARG002", # maybe cleanup later - unused method argument
     "ARG005", # maybe cleanup later - unused lambda argument
     "B007", # maybe cleanup later
-    "B008", # cleanup later
     "B904", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
     "C401", # maybe cleanup later - rewrite as set comprehension
@@ -129,7 +128,6 @@ extend-ignore = [
     "RUF005", # cleanup later
     "RUF012", # cleanup later
     "RUF059", # cleanup later - unpacked variable unused
-    "RUF100", # after soon to cleanup
     "RSE102", # maybe cleanup later
     "SIM102", # maybe cleanup later
     "SIM108", # cleanup later

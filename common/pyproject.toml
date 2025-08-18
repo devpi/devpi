@@ -79,7 +79,6 @@ extend-ignore = [
     "PLW2901", # maybe cleanup later
     "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT011", # cleanup soon - pytest.raises match
-    "PT018", # maybe cleanup later - composite assert
     "RET503", # maybe cleanup later - missing return
     "RUF005", # cleanup later
     "RUF043", # cleanup later - pytest.raises match regexp

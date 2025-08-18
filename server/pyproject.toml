@@ -123,12 +123,10 @@ exclude = [
     "devpi_server/passwd.py",
     "devpi_server/readonly.py",
     "devpi_server/replica.py",
-    "devpi_server/sizeof.py",
     "devpi_server/view_auth.py",
     "devpi_server/views.py",
     "pytest_devpi_server/__init__.py",
     "test_devpi_server/conftest.py",
-    "test_devpi_server/example.py",
     "test_devpi_server/functional.py",
     "test_devpi_server/plugin.py",
     "test_devpi_server/simpypi.py",
@@ -174,7 +172,6 @@ extend-ignore = [
     "ARG002", # maybe cleanup later - unused method argument
     "ARG005", # maybe cleanup later - unused lambda argument
     "B007", # maybe cleanup later
-    "B008", # cleanup later
     "B904", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
     "C400", # maybe cleanup later - rewrite as list comprehension
@@ -193,7 +190,6 @@ extend-ignore = [
     "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT007", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT011", # cleanup soon - pytest.raises match
-    "PT012", # cleanup soon - pytest.raises
     "PT018", # maybe cleanup later - composite assert
     "RET501", # maybe cleanup later - no explicit return None
     "RET502", # maybe cleanup later - implicit return None
@@ -206,7 +202,6 @@ extend-ignore = [
     "RUF012", # cleanup later
     "RUF043", # cleanup later - pytest.raises match regexp
     "RUF059", # cleanup later - unpacked variable unused
-    "RUF100", # after soon to cleanup
     "RSE102", # maybe cleanup later
     "SIM102", # maybe cleanup later
     "SIM105", # cleanup soon

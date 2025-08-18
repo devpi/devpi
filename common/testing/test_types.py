@@ -13,11 +13,13 @@ def test_CompareMixin():
 
 def test_parsehashspec():
     hash_algo, hash_value = parse_hash_spec("l1kj23")
-    assert hash_algo is None and hash_value is None
+    assert hash_algo is None
+    assert hash_value is None
     hash_algo, hash_value = parse_hash_spec("xyz=123098123")
-    assert hash_algo is None and hash_value is None
+    assert hash_algo is None
+    assert hash_value is None
 
-    digest = hashlib.md5(b'123').hexdigest()
+    digest = hashlib.md5(b"123").hexdigest()  # noqa: S324 - testing
     hash_algo, hash_value = parse_hash_spec("md5=" + digest)
     assert hash_algo(b'123').hexdigest() == digest
 

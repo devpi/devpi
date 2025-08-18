@@ -129,7 +129,6 @@ extend-ignore = [
     "RUF005", # cleanup later
     "RUF012", # cleanup later
     "RUF059", # cleanup later - unpacked variable unused
-    "RUF100", # after soon to cleanup
     "RSE102", # maybe cleanup later
     "SIM102", # maybe cleanup later
     "SIM108", # cleanup later
