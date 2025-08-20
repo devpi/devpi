@@ -107,9 +107,11 @@ class Flake8:
     def _flake8(self):
         return shutil.which("flake8")
 
-    async def _strict_output(self, base, project):
+    async def _strict_output(self, base, project, *, color=False):
+        color_args = ["--color", "always"] if color else []
         cmd = [
             self._flake8,
+            *color_args,
             *self[project].ignore_args,
             project,
         ]
@@ -118,8 +120,8 @@ class Flake8:
         await p.wait()
         return LintResults(base, self[project], out.decode())
 
-    async def strict_output(self, *projects):
+    async def strict_output(self, *projects, color=False):
         results = await asyncio.gather(
-            *(self._strict_output(self.base, p) for p in projects)
+            *(self._strict_output(self.base, p, color=color) for p in projects)
         )
         return dict(zip(projects, results))

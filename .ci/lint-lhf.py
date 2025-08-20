@@ -3,16 +3,26 @@
 
 from ci_helpers import CI
 from collections import defaultdict
+import argparse
 import asyncio
 
 
-async def main():
+async def main(args):
     ci = CI()
-    ruff_results = await ci.ruff.strict_output(*ci.PROJECTS, color=True)
+    tasks = []
+    if not args.no_flake8:
+        tasks.append(
+            asyncio.create_task(ci.flake8.strict_output(*ci.PROJECTS, color=True))
+        )
+    if not args.no_ruff:
+        tasks.append(
+            asyncio.create_task(ci.ruff.strict_output(*ci.PROJECTS, color=True))
+        )
     results = defaultdict(list)
-    for ruff_result in ruff_results.values():
-        for result in ruff_result.results:
-            results[result["rule"]].append(result["raw_line"])
+    for _results in asyncio.as_completed(tasks):
+        for linter_result in (await _results).values():
+            for result in linter_result.results:
+                results[result["rule"]].append(result["raw_line"])
     total = 0
     out = []
     for result in sorted(results.values(), key=len):
@@ -24,4 +34,8 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-flake8", action="store_true")
+    parser.add_argument("--no-ruff", action="store_true")
+    args = parser.parse_args()
+    asyncio.run(main(args))
