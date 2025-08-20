@@ -335,7 +335,7 @@ class Connection:
         q = f"""
             COPY (
                 SELECT data FROM files WHERE path = {pg8000.native.literal(path)})
-            TO STDOUT WITH (FORMAT binary);"""
+            TO STDOUT WITH (FORMAT binary);"""  # noqa: S608 - we are escaping with literal
         stream = FileIn(f)
         self._sqlconn.run(
             q, stream=stream)

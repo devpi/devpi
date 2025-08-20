@@ -160,14 +160,14 @@ class NgramFilter(Filter):
 
             if t.mode == "query":
                 size = min(self.max, len(t.text))
-                for start in range(0, len_text - size + 1):
+                for start in range(len_text - size + 1):
                     t.text = text[start:start + size]
                     if chars:
                         t.startchar = startchar + start
                         t.endchar = startchar + start + size
                     yield t
             else:
-                for start in range(0, len_text - self.min + 1):
+                for start in range(len_text - self.min + 1):
                     for size in range(self.min, self.max + 1):
                         end = start + size
                         if end > len_text:
@@ -855,12 +855,12 @@ class Index:
             value = fields.get(key, [])
             if len(value) == 0:
                 continue
-            elif len(value) == 1:
+            if len(value) == 1:
                 parts.append('(type:%s "%s")' % (field, value[0].replace('"', '')))
             else:
                 raise ValueError("Only one value allowed for query.")
-        querystring = (" %s " % operator).join(parts)
-        log.debug("_querystring {0}".format(querystring))
+        querystring = (f" {operator} ").join(parts)
+        log.debug("_querystring %s", querystring)
         return querystring
 
     def query_packages(self, searchinfo, sro):

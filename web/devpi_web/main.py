@@ -101,9 +101,8 @@ def status_info(request):
     msgs = []
     pm = request.registry['devpiweb-pluginmanager']
     for result in pm.hook.devpiweb_get_status_info(request=request):
-        for msg in result:
-            msgs.append(msg)
-    states = set(x['status'] for x in msgs)
+        msgs.extend(result)
+    states = {x["status"] for x in msgs}
     if 'fatal' in states:
         status = 'fatal'
         short_msg = 'fatal'
@@ -338,7 +337,6 @@ def devpiserver_on_upload(stage, project, version, link):
 @devpiserver_hookimpl
 def devpiserver_on_changed_versiondata(stage, project, version, metadata):
     if stage is None:
-        # TODO we don't have enough info to delete the project
         return
     if not metadata:
         if is_project_cached(stage, project) and not stage.has_project_perstage(project):

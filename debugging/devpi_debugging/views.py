@@ -27,7 +27,7 @@ def keyfs_view(request):
                     serials.append(serial)
     else:
         with storage.get_connection() as conn:
-            start = range(0, min(5, conn.last_changelog_serial + 1))
+            start = range(min(5, conn.last_changelog_serial + 1))
             end = range(max(0, conn.last_changelog_serial - 4), conn.last_changelog_serial + 1)
             serials.extend(sorted(set(chain(start, end))))
     return dict(

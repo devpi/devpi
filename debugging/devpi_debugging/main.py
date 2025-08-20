@@ -87,15 +87,25 @@ def iter_current_threads(skip_thread_ids):
             if thread_id in skip_thread_ids:
                 yield (thread_id, frame, "skipped", None)
                 break
-            if name == "wait" and filename == "threading.py" and basename.startswith("python"):
-                continue
-            elif name == "get" and filename == "queue.py" and basename.startswith("python"):
+            if (
+                name == "wait"
+                and filename == "threading.py"
+                and basename.startswith("python")
+            ) or (
+                name == "get"
+                and filename == "queue.py"
+                and basename.startswith("python")
+            ):
                 continue
             elif name == "handler_thread" and filename == "task.py" and basename == "waitress":
                 yield (thread_id, frame, "known_waiting", "waitress handler")
-            elif name == "select" and filename == "selectors.py" and basename.startswith("python"):
-                continue
-            elif name == "db_read_last_changelog_serial" and basename == "devpi_server":
+            elif (
+                name == "select"
+                and filename == "selectors.py"
+                and basename.startswith("python")
+            ) or (
+                name == "db_read_last_changelog_serial" and basename == "devpi_server"
+            ):
                 continue
             elif name == "sleep" and filename == "mythread.py" and basename == "devpi_server":
                 yield (thread_id, frame, "known_waiting", "mythread sleeping")

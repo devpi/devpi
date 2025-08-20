@@ -179,7 +179,6 @@ extend-ignore = [
     "A002", # cleanup later - argument name shadows builtin
     "ARG001", # maybe cleanup later - unused function argument
     "ARG002", # maybe cleanup later - unused method argument
-    "ARG003", # cleanup soon - unused method argument
     "ARG005", # maybe cleanup later - unused lambda argument
     "B007", # maybe cleanup later
     "B008", # cleanup later
@@ -188,7 +187,6 @@ extend-ignore = [
     "C400", # maybe cleanup later - rewrite as list comprehension
     "C401", # maybe cleanup later - rewrite as set comprehension
     "C402", # maybe cleanup later - rewrite as dict comprehension
-    "C403", # maybe cleanup later - rewrite as set comprehension
     "C405", # cleanup soon - set literal instead of set call
     "DTZ001", # cleanup soon
     "ERA001", # cleanup soon
@@ -197,7 +195,6 @@ extend-ignore = [
     "FIX003", # cleanup later - xxx
     "FLY002", # maybe cleanup later - f-string instead of join
     "G002", # cleanup soon - logging statement uses %
-    "PERF102", # cleanup soon - keys/values of dict
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0911", # cleanup later
     "PLR0912", # maybe cleanup later
@@ -206,10 +203,7 @@ extend-ignore = [
     "PT007", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT011", # cleanup soon - pytest.raises match
     "PT012", # cleanup soon - pytest.raises
-    "PT017", # cleanup later - use pytest.raises
     "PT018", # maybe cleanup later - composite assert
-    "PT021", # maybe cleanup later - yield instead of addfinalizer
-    "PT022", # maybe cleanup later - return instead of yield
     "RET501", # maybe cleanup later - no explicit return None
     "RET502", # maybe cleanup later - implicit return None
     "RET503", # maybe cleanup later - missing return
@@ -225,7 +219,6 @@ extend-ignore = [
     "SIM105", # cleanup soon
     "SIM108", # cleanup later
     "SIM117", # cleanup later
-    "TRY004", # maybe cleanup later
     "UP004", # cleanup later - inherit from 'object'
     "UP008", # cleanup later - super
     "UP012", # false positives (bug in ruff?) - unnecessary utf-8 encode

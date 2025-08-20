@@ -120,7 +120,6 @@ extend-ignore = [
     "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT007", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT011", # cleanup soon - pytest.raises match
-    "PT017", # cleanup later - use pytest.raises
     "PT018", # maybe cleanup later - composite assert
     "RET502", # maybe cleanup later - implicit return None
     "RET503", # maybe cleanup later - missing return
@@ -133,11 +132,8 @@ extend-ignore = [
     "RSE102", # maybe cleanup later
     "SIM102", # maybe cleanup later
     "SIM108", # cleanup later
-    "SIM110", # cleanup soon
-    "SIM115", # cleanup soon
     "SIM117", # cleanup later
     "UP004", # cleanup later - inherit from 'object'
-    "UP015", # cleanup later - open mode parameters
     "UP025", # maybe cleanup later - unicode literals
     "UP032", # cleanup later - f-string instead of format
 ]

@@ -38,7 +38,7 @@ def main_patchjson(hub, args=None):
     args = hub.args
 
     path = args.path
-    with open(args.jsonfile, "r") as f:
+    with open(args.jsonfile) as f:
         data = json.load(f)
 
     current = hub.current

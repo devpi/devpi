@@ -391,7 +391,7 @@ class TestConfig:
         except Exception as e:
             if not isinstance(e, expected.__class__):
                 raise
-            assert e.args == expected.args
+            assert e.args == expected.args  # noqa: PT017
         else:
             assert result == expected
 

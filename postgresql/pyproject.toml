@@ -68,7 +68,6 @@ extend-ignore = [
     "RET506", # maybe cleanup later - unnecessary elif after raise
     "RUF012", # cleanup later
     "RSE102", # maybe cleanup later
-    "S608", # cleanup soon - possible sql injection
     "UP024", # maybe cleanup later - aliased errors
     "UP032", # cleanup later - f-string instead of format
 ]

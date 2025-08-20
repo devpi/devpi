@@ -110,20 +110,15 @@ extend-ignore = [
     "B008", # cleanup later
     "B904", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
-    "C400", # maybe cleanup later - rewrite as list comprehension
     "C401", # maybe cleanup later - rewrite as set comprehension
     "C402", # maybe cleanup later - rewrite as dict comprehension
     "C405", # cleanup soon - set literal instead of set call
     "ERA001", # cleanup soon
     "FBT002", # cleanup soon - boolean positional argument
-    "FIX002", # cleanup later - todo
     "FLY002", # maybe cleanup later - f-string instead of join
     "PERF401", # maybe cleanup later - list comprehension
-    "PERF402", # maybe cleanup later - list copy
     "PIE804", # cleanup later
-    "PIE808", # maybe cleanup later
     "PLR0912", # maybe cleanup later
-    "PLR1730", # maybe cleanup later
     "PLW2901", # maybe cleanup later
     "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "RET502", # maybe cleanup later - implicit return None
@@ -131,7 +126,6 @@ extend-ignore = [
     "RET504", # maybe cleanup later - unnecessary assignment before return
     "RET505", # maybe cleanup later - unnecessary elif after return
     "RET507", # maybe cleanup later - unnecessary elif after continue
-    "RET508", # maybe cleanup later - unnecessary else after break
     "RUF005", # cleanup later
     "RUF012", # cleanup later
     "RUF100", # after soon to cleanup
@@ -141,8 +135,6 @@ extend-ignore = [
     "UP004", # cleanup later - inherit from 'object'
     "UP012", # false positives (bug in ruff?) - unnecessary utf-8 encode
     "UP025", # maybe cleanup later - unicode literals
-    "UP030", # cleanup later - implicit references for positional format fields
-    "UP032", # cleanup later - f-string instead of format
 ]
 
 

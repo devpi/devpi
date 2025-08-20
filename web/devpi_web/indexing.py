@@ -49,8 +49,7 @@ def preprocess_project(project):
                 result['doc_version'] = version
                 result['+doczip'] = docs
             break
-        else:
-            assert '+doczip' not in result
+        assert "+doczip" not in result
 
     result[u'user'] = user
     result[u'index'] = index

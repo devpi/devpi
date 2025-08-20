@@ -82,11 +82,8 @@ extend-ignore = [
     "PT018", # maybe cleanup later - composite assert
     "RET503", # maybe cleanup later - missing return
     "RUF005", # cleanup later
-    "RSE102", # maybe cleanup later
     "SIM105", # cleanup soon
     "SIM108", # cleanup later
-    "SIM115", # cleanup soon
-    "TRY004", # maybe cleanup later
     "UP008", # cleanup later - super
     "UP024", # maybe cleanup later - aliased errors
 ]

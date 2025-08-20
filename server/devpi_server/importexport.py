@@ -190,7 +190,7 @@ class Exporter:
             indexes = data.pop("indexes", {})
             self.export_users[user.name] = data
             self.completed("user %r" % user.name)
-            for indexname, indexconfig in indexes.items():
+            for indexname in indexes:
                 stage = self.xom.model.getstage(user.name, indexname)
                 IndexDump(self, stage, userdir.join(indexname)).dump()
         self._write_json(path.join("dataindex.json"), self.export)

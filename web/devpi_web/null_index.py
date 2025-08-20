@@ -24,9 +24,7 @@ class Index:
         return dict(items=[])
 
     def _matcher(self, searchinfo):
-        items = list(
-            re.escape(x)
-            for x in searchinfo['fields']['name'])
+        items = [re.escape(x) for x in searchinfo["fields"]["name"]]
         return re.compile('|'.join(items)).search
 
     def query_packages(self, searchinfo, sro):

@@ -82,10 +82,7 @@ def pseudo_current():
 def contains_sublist(list1, sublist):
     len_sublist = len(sublist)
     assert len_sublist <= len(list1)
-    for i in range(len(list1)):
-        if list1[i:i+len_sublist] == sublist:
-            return True
-    return False
+    return any(list1[i : i + len_sublist] == sublist for i in range(len(list1)))
 
 
 def test_passthrough_args_toxargs(makehub, tmpdir, pseudo_current):

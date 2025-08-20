@@ -25,10 +25,7 @@ def Archive(path_or_file):
     If you do not use it as a context manager, you need to call
     archive.close() yourself.
     """
-    if hasattr(path_or_file, "seek"):
-        f = path_or_file
-    else:
-        f = open(str(path_or_file), "rb")
+    f = path_or_file if hasattr(path_or_file, "seek") else open(str(path_or_file), "rb")  # noqa: SIM115
     try:
         try:
             return ZipArchive(f)
@@ -36,8 +33,8 @@ def Archive(path_or_file):
             f.seek(0)
             try:
                 return TarArchive(f)
-            except tarfile.TarError:
-                raise UnsupportedArchive()
+            except tarfile.TarError as e:
+                raise UnsupportedArchive from e
     except Exception:
         f.close()
         raise
@@ -71,8 +68,8 @@ class BaseArchive:
 
 class TarArchive(BaseArchive):
     def __init__(self, file):
-        super(TarArchive, self).__init__(file)
-        self._archive = tarfile.open(mode="r", fileobj=file)
+        super().__init__(file)
+        self._archive = tarfile.open(mode="r", fileobj=file)  # noqa: SIM115
 
     def namelist(self, *args, **kwargs):
         return self._archive.getnames(*args, **kwargs)

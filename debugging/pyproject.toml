@@ -39,10 +39,8 @@ extend-ignore = [
     "B007", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
     "PERF401", # maybe cleanup later - list comprehension
-    "PIE808", # maybe cleanup later
     "PLR0912", # maybe cleanup later
     "SIM102", # maybe cleanup later
-    "SIM114", # maybe cleanup later
 ]
 
 

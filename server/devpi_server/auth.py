@@ -6,6 +6,7 @@ import itertools
 import itsdangerous
 import secrets
 from .log import threadlog
+from contextlib import suppress
 from passlib.context import CryptContext
 from passlib.utils.handlers import MinimalHandler
 from typing import TYPE_CHECKING
@@ -163,38 +164,49 @@ class DevpiHandler(MinimalHandler):
     context_kwds = ()
 
     @classmethod
-    def _get_salt_and_hash(cls, hash):
+    def _get_salt_and_hash(
+        cls,
+        hash,  # noqa: A002 - need to comply with interface
+    ):
         salt = None
-        try:
-            (salt, hash) = hash.split(':', 1)
-        except ValueError:
-            pass
-        return (salt, hash)
+        with suppress(ValueError):
+            (salt, hash_value) = hash.split(":", 1)
+        return (salt, hash_value)
 
     @classmethod
-    def identify(cls, hash):
-        (salt, hash) = cls._get_salt_and_hash(hash)
-        return salt and hash
+    def identify(
+        cls,
+        hash,  # noqa: A002 - need to comply with interface
+    ):
+        (salt, hash_value) = cls._get_salt_and_hash(hash)
+        return salt and hash_value
 
     @classmethod
-    def hash(cls, secret, **kwds):
+    def hash(
+        cls,
+        secret,
+        **kwds,  # noqa: ARG003 - need to comply with interface
+    ):
         salt = newsalt()
-        hash = getpwhash(secret, salt)
-        return "%s:%s" % (salt, hash)
+        return f"{salt}:{getpwhash(secret, salt)}"
 
     @classmethod
-    def verify(cls, secret: Union[str, bytes], hash: Union[str, bytes], **context_kwds: Any) -> Any:  # noqa: A002, ARG003
-        (salt, hash) = cls._get_salt_and_hash(hash)
-        return salt and hash and (getpwhash(secret, salt) == hash)
+    def verify(
+        cls,
+        secret: Union[str, bytes],
+        hash: Union[str, bytes],  # noqa: A002 - need to comply with interface
+        **context_kwds: Any,  # noqa: ARG003 - need to comply with interface
+    ) -> Any:
+        (salt, hash_value) = cls._get_salt_and_hash(hash)
+        return salt and hash_value and (getpwhash(secret, salt) == hash_value)
 
 
 pwd_context = CryptContext(schemes=["argon2", DevpiHandler], deprecated="auto")
 
 
-def verify_and_update_password_hash(password, hash, salt=None):
-    if salt is not None:
-        hash = "%s:%s" % (salt, hash)
-    (valid, newhash) = pwd_context.verify_and_update(password, hash)
+def verify_and_update_password_hash(password, pwhash, salt=None):
+    hash_value = pwhash if salt is None else f"{salt}:{pwhash}"
+    (valid, newhash) = pwd_context.verify_and_update(password, hash_value)
     assert newhash is None or isinstance(newhash, str)
     return (valid, newhash)
 

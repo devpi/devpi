@@ -212,7 +212,7 @@ def devpiserver_storage_backend(settings):
 
 
 def drop_dirty_files(dirty_files):
-    for path, dirty_file in dirty_files.items():
+    for dirty_file in dirty_files.values():
         if dirty_file is not None:
             os.remove(dirty_file.tmppath)
 

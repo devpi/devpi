@@ -1186,9 +1186,8 @@ class BaseStage(object):
                         "If you want to support older devpi-server versions, add an alias.",
                         stacklevel=1)
             if not callable(method):
-                raise AttributeError(
-                    "The attribute %s with value %r of %r is not callable." % (
-                        method_name, method, self.customizer))
+                msg = f"The attribute {method_name} with value {method!r} of {self.customizer!r} is not callable."
+                raise AttributeError(msg)  # noqa: TRY004
             for principal in get_principals(method(restrict_modify=restrict_modify)):
                 acl.append((Allow, principal, permission))
                 if permission == 'upload':

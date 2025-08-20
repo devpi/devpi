@@ -206,10 +206,10 @@ def auto_transact(request):
 
 
 @pytest.fixture
-def xom(request, makexom):
+def xom(makexom):
     xom = makexom([])
-    request.addfinalizer(xom.keyfs.release_all_wait_tx)
-    return xom
+    yield xom
+    xom.keyfs.release_all_wait_tx()
 
 
 def _speed_up_sqlite(cls):
@@ -1408,7 +1408,7 @@ def dummyrequest(pyramidconfig):
     from pyramid.testing import DummyRequest
     request = DummyRequest()
     pyramidconfig.begin(request=request)
-    yield request
+    return request
 
 
 @pytest.fixture

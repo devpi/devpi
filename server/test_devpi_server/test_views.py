@@ -362,8 +362,11 @@ def test_projects_pep_691(pypistage, testapp, url):
     assert 'User-Agent' in r.headers['Vary']
     assert r.headers['content-type'] == "application/vnd.pypi.simple.v1+json"
     assert r.json['meta']['api-version'] == '1.0'
-    assert set([x['name'] for x in r.json['projects']]) == {
-        "devpi-server", "django", "ploy-ansible"}
+    assert {x["name"] for x in r.json["projects"]} == {
+        "devpi-server",
+        "django",
+        "ploy-ansible",
+    }
 
 
 def test_project_pep_691(mapp, testapp):

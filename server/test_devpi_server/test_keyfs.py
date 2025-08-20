@@ -13,7 +13,7 @@ notransaction = pytest.mark.notransaction
 def keyfs(gen_path, pool, storage):
     keyfs = KeyFS(gen_path(), storage)
     pool.register(keyfs.notifier)
-    yield keyfs
+    return keyfs
 
 
 @pytest.fixture(params=["direct", "a/b/c"])

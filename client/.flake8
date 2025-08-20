@@ -8,7 +8,7 @@ per-file-ignores =
     list_remove.py:E226
     login.py:E226
     main.py:E128,E225,E226
-    test*.py:E225,E226,E265
+    test*.py:E225,E265
     upload.py:E225
     use.py:E225
     user.py:E225

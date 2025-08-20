@@ -395,10 +395,9 @@ def test_fail_push(monkeypatch, tmpdir):
         only_docs = False
         register_project = False
 
-    try:
+    with pytest.raises(SystemExit) as exc:
         main(hub, args)
-    except SystemExit as e:
-        assert e.code==1
+    assert exc.value.code == 1
 
 
 def test_derive_token_non_token():

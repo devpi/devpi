@@ -298,7 +298,8 @@ def sizeof_fmt(num):
 
 def format_timetuple(tt):
     if tt is not None:
-        return "{0}-{1:02d}-{2:02d} {3:02d}:{4:02d}:{5:02d}".format(*tt)
+        return "{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(*tt)
+    return None
 
 
 def format_timestamp(ts, unset_value=None):
@@ -972,8 +973,7 @@ def batch_list(num, current, left=3, right=3):
         raise ValueError("Current position (%s) can't be greater than total (%s)." % (current, num))
     result.append(0)
     first = current - left
-    if first < 1:
-        first = 1
+    first = max(first, 1)
     if first > 1:
         result.append(None)
     last = current + right + 1
@@ -1199,7 +1199,7 @@ class SearchView:
         else:
             fields = data
             operator = "and"
-        log.debug("xmlrpc_search {0}".format((fields, operator)))
+        log.debug("xmlrpc_search %s", (fields, operator))
         return dict(fields=fields, operator=operator)
 
     @view_config(
