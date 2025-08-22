@@ -62,6 +62,7 @@ jobs:
         run: |
           set -xe -o nounset
           source .ci/set-index-env.sh
+          export PYTHONWARNINGS=ignore
           devpi use "https://m.devpi.net/${DEVPI_INDEXNAME}"
           devpi login devpi-github --password ${{ secrets.DEVPI_GITHUB_PASSWORD }}
           mkdir .temp

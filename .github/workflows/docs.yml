@@ -25,6 +25,7 @@ jobs:
           set -xe -o nounset
           export DEVPI_INDEXNAME="devpi-github/docs"
           export PIP_INDEX_URL="https://pypi.org/simple/"
+          export PYTHONWARNINGS=ignore
           devpi use https://m.devpi.net/devpi-github
           devpi login devpi-github --password ${{ secrets.DEVPI_GITHUB_PASSWORD }}
           .ci/upload-packages.sh
