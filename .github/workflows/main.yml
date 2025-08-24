@@ -812,21 +812,25 @@ jobs:
             os: "macos-latest"
             # os-version: "13"
             tox-envs: "py38"
+            pytest-options: ""
           - project: "client"
             python-version: "3.8"
             os: "macos-latest"
             # os-version: "13"
             tox-envs: "py38"
+            pytest-options: "--timeout 300"
           - project: "server"
             python-version: "3.9"
             os: "macos-latest"
             # os-version: "13"
             tox-envs: "py39"
+            pytest-options: ""
           - project: "web"
             python-version: "3.9"
             os: "macos-latest"
             # os-version: "13"
             tox-envs: "py39"
+            pytest-options: ""
 
     env:
       PY_COLORS: 1
@@ -855,7 +859,7 @@ jobs:
           source .ci/set-index-env.sh
           cd $PROJECT
           python -m tox -a -vv
-          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes ${{ matrix.pytest-options }}
 
   mypy-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
