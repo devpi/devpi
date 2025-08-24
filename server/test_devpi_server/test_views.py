@@ -1274,6 +1274,29 @@ def test_submit_authorization(mapp, testapp):
     assert r.status_code == 200
 
 
+def test_submit_simple(mapp, testapp):
+    from webtest.forms import Upload
+
+    api = mapp.create_and_use()
+    content = b"a"
+    name = "pkg"
+    simple = URL(api.pypisubmit).joinpath("+simple").asdir()
+    version = "1.0"
+    basename = f"{name}-{version}.tar.gz"
+    mapp.set_versiondata(dict(name=name, version=version))
+    r = testapp.post(
+        simple.url,
+        {
+            ":action": "file_upload",
+            "name": name,
+            "version": version,
+            "content": Upload(basename, content),
+        },
+        expect_errors=True,
+    )
+    assert r.status_int == 404
+
+
 def test_submit_without_trailing_slash(mapp, testapp):
     # the regular target URL for uploads ends in a slash, the target
     # without a slash was only meant for pushing a release. This test

@@ -794,7 +794,7 @@ class PyPIView:
         response.vary = set(["User-Agent"])
         return response
 
-    @view_config(route_name="/{user}/{index}/+simple/")
+    @view_config(request_method="GET", route_name="/{user}/{index}/+simple/")
     def simple_list_all(self):
         self.log.info("starting +simple")
         stage = self.context.stage

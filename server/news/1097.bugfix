@@ -1,0 +1,1 @@
+Fix #1097: return 404 when trying to POST to +simple.
