@@ -13,7 +13,7 @@ from pyramid.interfaces import ISecurityPolicy
 from pyramid.request import RequestLocalCache
 
 
-class RootFactory(object):
+class RootFactory:
     def __init__(self, request, context=None):
         self.request = request
         if context is not None:
@@ -60,26 +60,45 @@ class RootFactory(object):
     def __acl__(self):
         acl = [(Allow, Everyone, 'user_login')]
         if self.restrict_modify is None:
-            acl.extend([
-                (Allow, Everyone, 'user_create'),
-                (Allow, 'root', 'user_modify'),
-                (Allow, 'root', 'index_create')])
+            acl.extend(
+                [
+                    (Allow, Everyone, "user_create"),
+                    (Allow, "root", "user_modify"),
+                    (Allow, "root", "user_modify_password"),
+                    (Allow, "root", "index_create"),
+                ]
+            )
             if self.username:
                 if self.username != 'root':
                     acl.extend([
                         (Allow, 'root', 'user_delete'),
                         (Allow, self.username, 'user_delete')])
-                acl.extend([
-                    (Allow, self.username, 'user_modify'),
-                    (Allow, self.username, 'index_create')])
+                acl.extend(
+                    [
+                        (Allow, self.username, "user_modify"),
+                        (Allow, self.username, "user_modify_password"),
+                        (Allow, self.username, "index_create"),
+                    ]
+                )
         else:
+            if self.username:
+                acl.extend(
+                    [
+                        (Allow, self.username, "user_modify_password"),
+                    ]
+                )
             for principal in self.restrict_modify:
                 if self.username and self.username != principal:
+                    # prevent --restrict-modify users from removing themselves
                     acl.append((Allow, principal, 'user_delete'))
-                acl.extend([
-                    (Allow, principal, 'user_create'),
-                    (Allow, principal, 'user_modify'),
-                    (Allow, principal, 'index_create')])
+                acl.extend(
+                    [
+                        (Allow, principal, "user_create"),
+                        (Allow, principal, "user_modify"),
+                        (Allow, principal, "user_modify_password"),
+                        (Allow, principal, "index_create"),
+                    ]
+                )
         stage = self._stage
         if stage:
             acl.extend(stage.__acl__())

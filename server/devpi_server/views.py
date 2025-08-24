@@ -1622,27 +1622,34 @@ class PyPIView:
                 200, "login successful", type="proxyauth", result=proxyauth)
         apireturn(401, "user %r could not be authenticated" % user)
 
-    @view_config(
-        route_name="/{user}", request_method="PATCH",
-        permission="user_modify")
-    @view_config(
-        route_name="/{user}/", request_method="PATCH",
-        permission="user_modify")
+    @view_config(route_name="/{user}", request_method="PATCH")
+    @view_config(route_name="/{user}/", request_method="PATCH")
     def user_patch(self):
         request = self.request
         kvdict = getjson(request)
         user = self.context.user
+        if len(keys := kvdict.keys()) == 1 and "password" in keys:
+            if not self.request.has_permission("user_modify_password"):
+                return apiresult(
+                    403, f"no permission to change password for user {user}"
+                )
+        elif not self.request.has_permission("user_modify"):
+            return apiresult(403, f"no permission to modify user {user}")
         password = kvdict.get("password")
         try:
             user.modify(**kvdict)
         except InvalidUserconfig as e:
-            apireturn(400, message=", ".join(e.messages))
+            return apiresult(400, message=", ".join(e.messages))
         if password is not None:
-            apireturn(200, "user updated, new proxy auth",
-                      type="userpassword",
-                      result=self.auth.new_proxy_auth(
-                          user.name, password=password, request=request))
-        apireturn(200, "user updated")
+            return apiresult(
+                200,
+                "user updated, new proxy auth",
+                type="userpassword",
+                result=self.auth.new_proxy_auth(
+                    user.name, password=password, request=request
+                ),
+            )
+        return apiresult(200, "user updated")
 
     @view_config(
         route_name="/{user}", request_method="PUT",

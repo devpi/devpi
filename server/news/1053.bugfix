@@ -1,0 +1,1 @@
+Fix #1053: allow users to update their passwords when ``--restrict-modify`` is used.

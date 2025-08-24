@@ -2714,6 +2714,16 @@ class TestRestrictModify:
         mapp.delete_user("hello")
         assert "hello" not in mapp.getuserlist()
 
+    def test_update_password(self, mapp):
+        mapp.login("admin", "admin")
+        mapp.create_user("hello", "password")
+        mapp.create_user("regular", "regular")
+        for login in self.logins:
+            mapp.login(*login)
+            mapp.change_password(login[0], "otherpassword")
+        for login in self.logins:
+            mapp.login(login[0], "otherpassword")
+
     def test_create_new_index(self, mapp):
         mapp.login("admin", "admin")
         mapp.create_user("hello", "password")
