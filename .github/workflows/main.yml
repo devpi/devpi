@@ -847,7 +847,7 @@ jobs:
           set -xe -o nounset
           python -VV
           python -m site
-          python -m pip install --upgrade pip setuptools wheel tox
+          python -m pip install --upgrade mercurial pip setuptools wheel tox
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
         shell: "bash"
         run: |
