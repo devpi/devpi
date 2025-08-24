@@ -374,21 +374,21 @@ jobs:
       matrix:
         include:
           - project: "common"
-            python-version: "3.13t"
+            python-version: "3.14t-dev"
             os: "ubuntu-latest"
-            tox-envs: "py313t"
+            tox-envs: "py314t"
           - project: "client"
-            python-version: "3.13t"
+            python-version: "3.14t-dev"
             os: "ubuntu-latest"
-            tox-envs: "py313t"
+            tox-envs: "py314t"
           - project: "server"
-            python-version: "3.13t"
+            python-version: "3.14t-dev"
             os: "ubuntu-latest"
-            tox-envs: "py313t"
+            tox-envs: "py314t"
           - project: "web"
-            python-version: "3.13t"
+            python-version: "3.14t-dev"
             os: "ubuntu-latest"
-            tox-envs: "py313t"
+            tox-envs: "py314t"
 
     env:
       PY_COLORS: 1
