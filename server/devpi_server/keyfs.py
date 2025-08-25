@@ -776,7 +776,7 @@ class Transaction(object):
             readonly = True
         else:
             warnings.warn(
-                "The 'readonly' argument is deprecated. You should either drop it, ",
+                "The 'readonly' argument is deprecated. You should either drop it, "
                 "use the 'get_mutable' method "
                 "or wrap the result in the 'get_mutable_deepcopy' function.",
                 stacklevel=2,
