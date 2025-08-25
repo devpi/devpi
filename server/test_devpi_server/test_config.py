@@ -499,3 +499,19 @@ class TestConfigFile:
         xom = makexom(plugins=(plugin,), opts=options)
         assert xom.config.storage_info["name"] == "foo"
         assert plugin.settings == {"bar": "ham"}
+
+
+@pytest.mark.parametrize(
+    ("nodeinfo", "expected"),
+    [
+        ({}, (None, None)),
+        ({"uuid": "123", "role": "primary"}, ("123", "123")),
+        ({"uuid": "123", "role": "replica"}, ("123", "")),
+        ({"uuid": "123", "primary-uuid": "456", "role": "replica"}, ("123", "456")),
+    ],
+)
+def test_make_uuid_headers(nodeinfo, expected):
+    from devpi_server.config import NodeInfo
+
+    output = NodeInfo(nodeinfo).make_uuid_headers()
+    assert output == expected

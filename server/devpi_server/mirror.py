@@ -30,7 +30,6 @@ from .readonly import ensure_deeply_readonly
 from .log import threadlog
 from .vendor._pip import HTMLPage
 from .views import SIMPLE_API_V1_JSON
-from .views import make_uuid_headers
 from pyramid.authentication import b64encode
 import json
 import threading
@@ -284,7 +283,7 @@ class MirrorStage(BaseStage):
     @cached_property
     def http(self):
         if self.xom.is_replica():
-            (uuid, primary_uuid) = make_uuid_headers(self.xom.config.nodeinfo)
+            (uuid, primary_uuid) = self.xom.config.nodeinfo.make_uuid_headers()
             get_extra_headers = self.xom.replica_thread.http.get_extra_headers
         else:
 
@@ -304,7 +303,7 @@ class MirrorStage(BaseStage):
         # make a copy of extra_headers
         extra_headers = {} if extra_headers is None else dict(extra_headers)
         if self.xom.is_replica():
-            (uuid, primary_uuid) = make_uuid_headers(self.xom.config.nodeinfo)
+            (uuid, primary_uuid) = self.xom.config.nodeinfo.make_uuid_headers()
             rt = self.xom.replica_thread
             token = rt.auth_serializer.dumps(uuid)
             extra_headers[rt.H_REPLICA_UUID] = uuid

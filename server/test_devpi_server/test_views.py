@@ -127,7 +127,8 @@ def test_user_patch_trailing_slash(testapp):
     ({"uuid": "123", "primary-uuid": "456", "role": "replica"}, ("123", "456")),
 ])
 def test_make_uuid_headers(nodeinfo, expected):
-    output = make_uuid_headers(nodeinfo)
+    with pytest.warns(DeprecationWarning, match="The make_uuid_headers function"):
+        output = make_uuid_headers(nodeinfo)
     assert output == expected
 
 

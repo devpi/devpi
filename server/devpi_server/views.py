@@ -39,6 +39,7 @@ import itertools
 import json
 from devpi_common.validation import normalize_name, is_valid_archive_name
 
+from .config import NodeInfo
 from .config import hookimpl
 from .exceptions import lazy_format_exception_only
 from .filestore import BadGateway
@@ -202,7 +203,7 @@ def tween_request_logging(handler, registry):
             rheaders = response.headers
             serial = rheaders.get("X-DEVPI-SERIAL")
             rheaders.update(meta_headers)
-            uuid, primary_uuid = make_uuid_headers(nodeinfo)
+            uuid, primary_uuid = nodeinfo.make_uuid_headers()
             rheaders["X-DEVPI-UUID"] = uuid
             rheaders[H_MASTER_UUID] = primary_uuid
             rheaders[H_PRIMARY_UUID] = primary_uuid
@@ -220,17 +221,15 @@ def tween_request_logging(handler, registry):
 
 
 def make_uuid_headers(nodeinfo):
-    uuid = primary_uuid = nodeinfo.get("uuid")
-    if uuid is not None and nodeinfo["role"] == "replica":
-        if "master-uuid" in nodeinfo:
-            warnings.warn(
-                "master-uuid in nodeinfo is deprecated, use primary-uuid instead",
-                DeprecationWarning,
-                stacklevel=2)
-            primary_uuid = nodeinfo.get("master-uuid", "")
-        else:
-            primary_uuid = nodeinfo.get("primary-uuid", "")
-    return uuid, primary_uuid
+    warnings.warn(
+        "The make_uuid_headers function is deprecated, "
+        "use config.nodeinfo.make_uuid_headers instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    if not isinstance(nodeinfo, NodeInfo):
+        nodeinfo = NodeInfo(nodeinfo)
+    return nodeinfo.make_uuid_headers()
 
 
 def tween_keyfs_transaction(handler, registry):

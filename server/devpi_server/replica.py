@@ -14,7 +14,6 @@ from .model import UpstreamError
 from .views import FileStreamer
 from .views import H_MASTER_UUID
 from .views import H_PRIMARY_UUID
-from .views import make_uuid_headers
 from devpi_common.types import cached_property
 from devpi_common.url import URL
 from devpi_common.validation import normalize_name
@@ -372,7 +371,7 @@ class HTTPClient:
         extra_headers = {} if extra_headers is None else dict(extra_headers)
         # we call it each time, as the primary_uuid will be updated as
         # requests come in with the info in their headers
-        (uuid, primary_uuid) = make_uuid_headers(self.config.nodeinfo)
+        (uuid, primary_uuid) = self.config.nodeinfo.make_uuid_headers()
         assert uuid != primary_uuid
         extra_headers[H_REPLICA_UUID] = uuid
         if primary_uuid is not None:
