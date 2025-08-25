@@ -515,11 +515,17 @@ class Importer:
 
         # create projects and releasefiles for each index
         for stage in stages:
-            imported_files = set()
             import_index = self.import_indexes[stage.name]
             projects = import_index.get("projects", {})
-            files = import_index.get("files", [])
+            files: dict[str, dict[str, dict]] = defaultdict(dict)
+            for filedesc in import_index.get("files", []):
+                project_files = files[normalize_name(filedesc["projectname"])]
+                rel = filedesc["relpath"]
+                assert rel not in project_files
+                project_files[rel] = filedesc
             for project, versions in self.iter_projects_normalized(projects):
+                norm_project = normalize_name(project)
+                project_files = files.pop(norm_project, {})
                 with self.xom.keyfs.write_transaction():
                     for version, versiondata in versions.items():
                         assert "+elinks" not in versiondata
@@ -528,9 +534,10 @@ class Importer:
                         assert not any(True for x in versiondata if x.startswith('+'))
                         if not versiondata.get("version"):
                             name = versiondata["name"]
-                            self.warn("%r: version metadata has no explicit "
-                                      "version, setting derived %r" %
-                                      (name, version))
+                            self.warn(
+                                f"{name}: version metadata has no explicit "
+                                f"version, setting derived {version}"
+                            )
                             versiondata["version"] = version
                         if hasattr(stage, 'set_versiondata'):
                             stage.set_versiondata(versiondata)
@@ -538,13 +545,13 @@ class Importer:
                             stage.add_project_name(versiondata["name"])
 
                     # import release files
-                    for filedesc in files:
-                        if normalize_name(filedesc["projectname"]) == normalize_name(project):
-                            imported_files.add(filedesc["relpath"])
-                            self.import_filedesc(stage, filedesc, versions)
-            missing = set(x["relpath"] for x in files) - imported_files
-            if missing:
-                msg = f"Some files weren't imported: {', '.join(sorted(missing))}"
+                    for rel in list(project_files):
+                        filedesc = project_files[rel]
+                        self.import_filedesc(stage, filedesc, versions)
+                        project_files.pop(rel)
+            skipped = {x["relpath"] for pf in files.values() for x in pf.values()}
+            if skipped:
+                msg = f"Some files weren't imported: {', '.join(sorted(skipped))}"
                 raise Fatal(msg)
 
         self.tw.line("********* import_all: importing finished ***********")
