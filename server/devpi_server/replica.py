@@ -1,38 +1,43 @@
-import os
-import contextlib
-import io
-import itsdangerous
-import secrets
-import sys
-import threading
-import time
-import traceback
-import warnings
-from pluggy import HookimplMarker
-from pyramid.httpexceptions import HTTPNotFound, HTTPAccepted, HTTPBadRequest
-from pyramid.httpexceptions import HTTPForbidden
-from pyramid.view import view_config
-from pyramid.response import Response
-from repoze.lru import LRUCache
-from devpi_common.types import cached_property
-from devpi_common.url import URL
-from devpi_common.validation import normalize_name
-from webob.headers import EnvironHeaders, ResponseHeaders
-
 from . import mythread
 from .config import hookimpl
 from .exceptions import lazy_format_exception
 from .filestore import ChecksumError
 from .filestore import FileEntry
 from .fileutil import buffered_iterator
-from .fileutil import dumps, load, loads
-from .log import thread_push_log, threadlog
+from .fileutil import dumps
+from .fileutil import load
+from .fileutil import loads
+from .log import thread_push_log
+from .log import threadlog
 from .main import fatal
+from .model import UpstreamError
 from .views import FileStreamer
 from .views import H_MASTER_UUID
 from .views import H_PRIMARY_UUID
 from .views import make_uuid_headers
-from .model import UpstreamError
+from devpi_common.types import cached_property
+from devpi_common.url import URL
+from devpi_common.validation import normalize_name
+from pluggy import HookimplMarker
+from pyramid.httpexceptions import HTTPAccepted
+from pyramid.httpexceptions import HTTPBadRequest
+from pyramid.httpexceptions import HTTPForbidden
+from pyramid.httpexceptions import HTTPNotFound
+from pyramid.response import Response
+from pyramid.view import view_config
+from repoze.lru import LRUCache
+from webob.headers import EnvironHeaders
+from webob.headers import ResponseHeaders
+import contextlib
+import io
+import itsdangerous
+import os
+import secrets
+import sys
+import threading
+import time
+import traceback
+import warnings
 
 
 devpiweb_hookimpl = HookimplMarker("devpiweb")
@@ -340,6 +345,59 @@ class PrimaryChangelogRequest:
         return serial
 
 
+class HTTPClient:
+    def __init__(self, xom):
+        self.config = xom.config
+        self.http = xom.new_http_client("replica")
+        self.outside_url = xom.config.outside_url
+
+    @cached_property
+    def auth_serializer(self):
+        return get_auth_serializer(self.config)
+
+    def close(self):
+        self.http.close()
+
+    def get(self, url, *, allow_redirects, timeout=None, extra_headers=None):
+        extra_headers = self.get_extra_headers(extra_headers)
+        return self.http.get(
+            URL(url).url,
+            allow_redirects=allow_redirects,
+            timeout=timeout,
+            extra_headers=extra_headers,
+        )
+
+    def get_extra_headers(self, extra_headers):
+        # make a copy of extra_headers
+        extra_headers = {} if extra_headers is None else dict(extra_headers)
+        # we call it each time, as the primary_uuid will be updated as
+        # requests come in with the info in their headers
+        (uuid, primary_uuid) = make_uuid_headers(self.config.nodeinfo)
+        assert uuid != primary_uuid
+        extra_headers[H_REPLICA_UUID] = uuid
+        if primary_uuid is not None:
+            extra_headers[H_EXPECTED_MASTER_ID] = primary_uuid
+            extra_headers[H_EXPECTED_PRIMARY_ID] = primary_uuid
+        if self.outside_url is not None:
+            extra_headers[H_REPLICA_OUTSIDE_URL] = self.outside_url
+        token = self.auth_serializer.dumps(uuid)
+        extra_headers["Authorization"] = f"Bearer {token}"
+        return extra_headers
+
+    def stream(
+        self, cstack, method, url, *, allow_redirects, timeout=None, extra_headers=None
+    ):
+        extra_headers = self.get_extra_headers(extra_headers)
+        return self.http.stream(
+            cstack,
+            method,
+            URL(url).url,
+            allow_redirects=allow_redirects,
+            timeout=timeout,
+            extra_headers=extra_headers,
+        )
+
+
 class ReplicaThread:
     H_REPLICA_FILEREPL = H_REPLICA_FILEREPL
     H_REPLICA_UUID = H_REPLICA_UUID
@@ -372,12 +430,8 @@ class ReplicaThread:
         self.update_from_primary_at = None
         # set whenever the primary serial and current replication serial match
         self.replica_in_sync_at = None
-        self.http = self.xom.new_http_client("replica")
+        self.http = HTTPClient(xom)
         self.initial_fetch = True
-
-    @cached_property
-    def auth_serializer(self):
-        return get_auth_serializer(self.xom.config)
 
     def get_master_serial(self):
         warnings.warn(
@@ -468,22 +522,12 @@ class ReplicaThread:
         log = self.log
         config = self.xom.config
         log.info("fetching %s", url)
-        uuid, primary_uuid = make_uuid_headers(config.nodeinfo)
-        assert uuid != primary_uuid
         with contextlib.ExitStack() as cstack:
             try:
                 self.primary_contacted_at = time.time()
-                token = self.auth_serializer.dumps(uuid)
-                headers = {
-                    H_REPLICA_UUID: uuid,
-                    H_EXPECTED_MASTER_ID: primary_uuid,
-                    H_EXPECTED_PRIMARY_ID: primary_uuid,
-                    "Authorization": f"Bearer {token}",
-                }
-                if config.outside_url:
-                    headers[H_REPLICA_OUTSIDE_URL] = config.outside_url
-                if self.use_streaming:
-                    headers["Accept"] = REPLICA_ACCEPT_STREAMING
+                headers = (
+                    {"Accept": REPLICA_ACCEPT_STREAMING} if self.use_streaming else {}
+                )
                 r = self.http.stream(
                     cstack,
                     "GET",
@@ -649,7 +693,8 @@ class FileReplicationSharedData(object):
     ERROR_QUEUE_MAX_DELAY = 60 * 60
 
     def __init__(self, xom):
-        from queue import Empty, PriorityQueue
+        from queue import Empty
+        from queue import PriorityQueue
         self.Empty = Empty
         self.xom = xom
         self.queue = PriorityQueue()
@@ -886,7 +931,7 @@ class FileReplicationThread:
     def __init__(self, xom, shared_data):
         self.xom = xom
         self.shared_data = shared_data
-        self.http = self.xom.new_http_client("replica")
+        self.http = HTTPClient(xom)
         self.file_search_path = None
         if self.xom.config.replica_file_search_path is not None:
             search_path = os.path.join(
@@ -900,12 +945,6 @@ class FileReplicationThread:
                     "path for existing files doesn't exist: %s",
                     self.xom.config.replica_file_search_path)
         self.use_hard_links = self.xom.config.hard_links
-        self.uuid, primary_uuid = make_uuid_headers(xom.config.nodeinfo)
-        assert self.uuid != primary_uuid
-
-    @cached_property
-    def auth_serializer(self):
-        return get_auth_serializer(self.xom.config)
 
     def find_pre_existing_file(self, entry):
         if self.file_search_path is None:
@@ -980,18 +1019,13 @@ class FileReplicationThread:
         url = self.xom.config.primary_url.joinpath(relpath).url
         # we perform the request with a special header so that
         # the primary can avoid getting "volatile" links
-        token = self.auth_serializer.dumps(self.uuid)
         with contextlib.ExitStack() as cstack:
             r = self.http.stream(
                 cstack,
                 "GET",
                 url,
                 allow_redirects=False,
-                extra_headers={
-                    H_REPLICA_FILEREPL: "YES",
-                    H_REPLICA_UUID: self.uuid,
-                    "Authorization": f"Bearer {token}",
-                },
+                extra_headers={H_REPLICA_FILEREPL: "YES"},
                 timeout=self.xom.config.args.request_timeout,
             )
             if r.status_code == 302:

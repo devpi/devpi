@@ -285,16 +285,7 @@ class MirrorStage(BaseStage):
     def http(self):
         if self.xom.is_replica():
             (uuid, primary_uuid) = make_uuid_headers(self.xom.config.nodeinfo)
-            rt = self.xom.replica_thread
-            dumps = rt.auth_serializer.dumps
-
-            def get_extra_headers(extra_headers):
-                # make a copy of extra_headers
-                extra_headers = {} if extra_headers is None else dict(extra_headers)
-                token = dumps(uuid)
-                extra_headers[rt.H_REPLICA_UUID] = uuid
-                extra_headers["Authorization"] = f"Bearer {token}"
-                return extra_headers
+            get_extra_headers = self.xom.replica_thread.http.get_extra_headers
         else:
 
             def get_extra_headers(extra_headers):

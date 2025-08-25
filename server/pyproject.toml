@@ -277,9 +277,6 @@ extend-ignore = [
 "devpi_server/readonly.py" = [
     "I001", # maybe cleanup later - import block unsorted
 ]
-"devpi_server/replica.py" = [
-    "I001", # maybe cleanup later - import block unsorted
-]
 "devpi_server/sizeof.py" = [
     "I001", # maybe cleanup later - import block unsorted
 ]

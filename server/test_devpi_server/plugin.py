@@ -381,7 +381,7 @@ def maketestapp():
 
 
 @pytest.fixture
-def makemapp(request, maketestapp, makexom):
+def makemapp(maketestapp, makexom):
     def makemapp(testapp=None, options=()):
         if testapp is None:
             testapp = maketestapp(makexom(options))
