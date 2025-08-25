@@ -898,44 +898,6 @@ class BaseStage(object):
                 name, self.list_versions_perstage(name)),
             stable=stable)
 
-    def get_last_project_change_serial_perstage(self, project, at_serial=None):
-        project = normalize_name(project)
-        tx = self.keyfs.tx
-        if at_serial is None:
-            at_serial = tx.at_serial
-        info = tx.get_last_serial_and_value_at(
-            self.key_projects,
-            at_serial, raise_on_error=False)
-        if info is None:
-            # never existed
-            return -1
-        (last_serial, projects) = info
-        if projects is None:
-            # the whole index was deleted
-            return -1
-        info = tx.get_last_serial_and_value_at(
-            self.key_projversions(project),
-            at_serial, raise_on_error=False)
-        if info is None:
-            if project in projects:
-                # no versions ever existed, but the project is known
-                return last_serial
-            # the project never existed or was deleted and didn't have versions
-            return -1
-        (last_serial, versions) = info
-        if versions is None:
-            # was deleted
-            return last_serial
-        version = get_latest_version(versions)
-        info = tx.get_last_serial_and_value_at(
-            self.key_projversion(project, version),
-            at_serial, raise_on_error=False)
-        if info is None:
-            # never existed
-            return -1
-        (version_serial, version) = info
-        return max(last_serial, version_serial)
-
     def get_versiondata(self, project, version):
         assert isinstance(project, str), "project %r not text" % project
         result = {}
@@ -1420,6 +1382,50 @@ class PrivateStage(BaseStage):
 
     def list_versions_perstage(self, project):
         return self.key_projversions(project).get()
+
+    def get_last_project_change_serial_perstage(self, project, at_serial=None):  # noqa: PLR0911
+        project = normalize_name(project)
+        tx = self.keyfs.tx
+        if at_serial is None:
+            at_serial = tx.at_serial
+        info = tx.get_last_serial_and_value_at(
+            self.key_projects,
+            at_serial,
+            raise_on_error=False,
+        )
+        if info is None:
+            # never existed
+            return -1
+        (last_serial, projects) = info
+        if projects is None:
+            # the whole index was deleted
+            return -1
+        info = tx.get_last_serial_and_value_at(
+            self.key_projversions(project),
+            at_serial,
+            raise_on_error=False,
+        )
+        if info is None:
+            if project in projects:
+                # no versions ever existed, but the project is known
+                return last_serial
+            # the project never existed or was deleted and didn't have versions
+            return -1
+        (last_serial, versions) = info
+        if versions is None:
+            # was deleted
+            return last_serial
+        version = get_latest_version(versions)
+        info = tx.get_last_serial_and_value_at(
+            self.key_projversion(project, version),
+            at_serial,
+            raise_on_error=False,
+        )
+        if info is None:
+            # never existed
+            return -1
+        (version_serial, version) = info
+        return max(last_serial, version_serial)
 
     def get_versiondata_perstage(self, project, version, readonly=None):
         if readonly is None:
