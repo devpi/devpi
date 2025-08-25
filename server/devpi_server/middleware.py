@@ -9,7 +9,7 @@ class OutsideURLMiddleware:
     def __call__(self, environ, start_response):
         outside_url = environ.get('HTTP_X_OUTSIDE_URL')
         if not outside_url:
-            outside_url = self.xom.config.args.outside_url
+            outside_url = self.xom.config.outside_url
         if outside_url:
             outside_url = urlparse(outside_url)
             environ['wsgi.url_scheme'] = outside_url.scheme

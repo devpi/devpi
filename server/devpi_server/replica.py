@@ -480,8 +480,8 @@ class ReplicaThread:
                     H_EXPECTED_PRIMARY_ID: primary_uuid,
                     "Authorization": f"Bearer {token}",
                 }
-                if config.args.outside_url:
-                    headers[H_REPLICA_OUTSIDE_URL] = config.args.outside_url
+                if config.outside_url:
+                    headers[H_REPLICA_OUTSIDE_URL] = config.outside_url
                 if self.use_streaming:
                     headers["Accept"] = REPLICA_ACCEPT_STREAMING
                 r = self.http.stream(

@@ -61,7 +61,7 @@ def gen_cron(tw, config, argv, writer):
 
 
 def gen_nginx(tw, config, argv, writer):
-    outside_url = config.args.outside_url
+    outside_url = config.outside_url
     if outside_url is None:  # default
         outside_url = "http://localhost:80"
 
@@ -85,7 +85,7 @@ def gen_nginx(tw, config, argv, writer):
 
 
 def gen_nginx_caching(tw, config, argv, writer):
-    outside_url = config.args.outside_url
+    outside_url = config.outside_url
     if outside_url is None:  # default
         outside_url = "http://localhost:80"
 

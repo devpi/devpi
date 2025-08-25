@@ -309,19 +309,16 @@ class StatusView:
         status = {
             "serverdir": str(config.server_path),
             "uuid": self.xom.config.nodeinfo["uuid"],
-            "versioninfo":
-                dict(self.request.registry["devpi_version_info"]),
+            "versioninfo": dict(self.request.registry["devpi_version_info"]),
             "server-code": os.path.dirname(devpi_server.__file__),
             "host": config.args.host,
             "port": config.args.port,
-            "outside-url": config.args.outside_url,
+            "outside-url": config.outside_url,
             "serial": self.xom.keyfs.get_current_serial(),
             "last-commit-timestamp": self.xom.keyfs.get_last_commit_timestamp(),
             "event-serial": self.xom.keyfs.notifier.read_event_serial(),
-            "event-serial-timestamp":
-                self.xom.keyfs.notifier.get_event_serial_timestamp(),
-            "event-serial-in-sync-at":
-                self.xom.keyfs.notifier.event_serial_in_sync_at,
+            "event-serial-timestamp": self.xom.keyfs.notifier.get_event_serial_timestamp(),
+            "event-serial-in-sync-at": self.xom.keyfs.notifier.event_serial_in_sync_at,
             "metrics": [],
         }
         seen = set()
