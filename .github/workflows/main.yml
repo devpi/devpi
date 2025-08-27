@@ -852,6 +852,7 @@ jobs:
           python -VV
           python -m site
           python -m pip install --upgrade mercurial pip setuptools wheel tox
+          brew install nginx
       - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
         shell: "bash"
         run: |
