@@ -1,1 +1,0 @@
-Fix traceback by returning 401 error code when using wrong password with a user that was created using an authentication plugin like devpi-ldap which passes authentication through in that case.

@@ -1,1 +1,0 @@
-Changed User-Agent when fetching data for mirrors from just "server" to "devpi-server".

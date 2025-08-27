@@ -1,1 +1,0 @@
-Removed ``--replica-max-retries`` option. It wasn't implemented for async_httpget and didn't work correctly when streaming data.

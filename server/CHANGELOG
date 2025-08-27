@@ -2,6 +2,54 @@
 
 .. towncrier release notes start
 
+6.17.0 (2025-08-27)
+===================
+
+Deprecations and Removals
+-------------------------
+
+- Dropped support for migrating old password hashes that were replaced in devpi-server 4.2.0.
+
+- Removed support for basic authorization in primary URL. The connection is already secured by a bearer token header.
+
+- Removed the experimental ``--replica-cert`` option. The replica is already using a token via a shared secret, so this is redundant.
+
+- Removed ``--replica-max-retries`` option. It wasn't implemented for async_httpget and didn't work correctly when streaming data.
+
+Features
+--------
+
+- Use httpx for all data fetching for mirrors and fetch projects list asynchronously to allow update in background even after a timeout.
+
+- Use httpx instead of requests when proxying from replicas to primary.
+
+- Use httpx for all requests from replicas to primary.
+
+- Use httpx when pushing releases to external index.
+
+- Added ``mirror_ignore_serial_header`` mirror index option, which allows switching from PyPI to a mirror without serials header when set to ``True``, otherwise only stale links will be served and no updates be stored.
+
+- The HTTP cache information for mirrored projects is persisted and re-used on server restarts.
+
+- Added ``--file-replication-skip-indexes`` option to skip file replication for ``all``, by index type (i.e. ``mirror``) or index name (i.e. ``root/pypi``).
+
+Bug Fixes
+---------
+
+- Correctly handle lists for ``Provides-Extra`` and ``License-File`` metadata in database.
+
+- Fix traceback by returning 401 error code when using wrong password with a user that was created using an authentication plugin like devpi-ldap which passes authentication through in that case.
+
+- Fix #1053: allow users to update their passwords when ``--restrict-modify`` is used.
+
+- Fix #1097: return 404 when trying to POST to +simple.
+
+Other Changes
+-------------
+
+- Changed User-Agent when fetching data for mirrors from just "server" to "devpi-server".
+
+
 6.16.0 (2025-06-25)
 ===================
 

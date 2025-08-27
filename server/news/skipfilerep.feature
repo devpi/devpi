@@ -1,1 +1,0 @@
-Added ``--file-replication-skip-indexes`` option to skip file replication for ``all``, by index type (i.e. ``mirror``) or index name (i.e. ``root/pypi``).

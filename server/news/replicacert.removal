@@ -1,1 +1,0 @@
-Removed the experimental ``--replica-cert`` option. The replica is already using a token via a shared secret, so this is redundant.

@@ -1,1 +1,0 @@
-Use httpx instead of requests when proxying from replicas to primary.
