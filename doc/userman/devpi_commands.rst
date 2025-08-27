@@ -526,12 +526,14 @@ devpi command reference (server)
                         [--primary-url PRIMARY_URL]
                         [--master-url DEPRECATED_MASTER_URL]
                         [--replica-file-search-path PATH] [--hard-links]
-                        [--file-replication-threads NUM] [--proxy-timeout NUM]
-                        [--no-replica-streaming] [--request-timeout NUM]
-                        [--offline-mode] [--serverdir DIR] [--storage NAME]
-                        [--keyfs-cache-size NUM] [--secretfile path]
-                        [--requests-only] [--restrict-modify SPEC] [--theme THEME]
-                        [--debug-macros] [--documentation-path DOCUMENTATION_PATH]
+                        [--file-replication-threads NUM]
+                        [--file-replication-skip-indexes INDEXES]
+                        [--proxy-timeout NUM] [--no-replica-streaming]
+                        [--request-timeout NUM] [--offline-mode] [--serverdir DIR]
+                        [--storage NAME] [--keyfs-cache-size NUM]
+                        [--secretfile path] [--requests-only]
+                        [--restrict-modify SPEC] [--theme THEME] [--debug-macros]
+                        [--documentation-path DOCUMENTATION_PATH]
                         [--keep-docs-packed] [--indexer-backend NAME]
 
     Start a server which serves multiple users and indices. The special root/pypi
@@ -625,6 +627,13 @@ devpi command reference (server)
                             your OS apply. USE AT YOUR OWN RISK [False]
       --file-replication-threads NUM
                             number of threads for file download from primary [5]
+      --file-replication-skip-indexes INDEXES
+                            Comma separated list of index names in
+                            username/indexname form or index type (i.e. 'mirror')
+                            for which files aren't replicated. This can also be
+                            set to 'all' to replicate no files. If the file is
+                            requested directly during runtime, it will still be
+                            fetched and stored. [None]
       --proxy-timeout NUM   Number of seconds to wait before proxied requests from
                             the replica to the primary time out (login, uploads
                             etc). [30]
