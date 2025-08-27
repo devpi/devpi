@@ -89,10 +89,6 @@ devpi-server-replica-status = "devpi_server.replica"
 devpi-server-status = "devpi_server.views"
 
 
-[project.entry-points.pytest11]
-pytest_devpi_server = "pytest_devpi_server"
-
-
 [tool.ruff]
 extend = "../pyproject.toml"
 target-version = "py39"
