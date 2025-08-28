@@ -39,6 +39,7 @@ import weakref
 
 
 if TYPE_CHECKING:
+    from .normalized import NormalizedName
     from typing import Any
 
 
@@ -1072,43 +1073,46 @@ def devpiserver_get_stage_customizer_classes():
 class ProjectNamesCache:
     """ Helper class for maintaining project names from a mirror. """
 
+    _data: dict[NormalizedName, str]
+    _etag: str | None
+    _lock: threading.RLock
     _timestamp: float
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = threading.RLock()
         self._timestamp = -1
         self._data = dict()
         self._etag = None
 
-    def exists(self):
+    def exists(self) -> bool:
         with self._lock:
             return self._timestamp != -1
 
-    def expire(self):
+    def expire(self) -> None:
         with self._lock:
             self._timestamp = 0
 
-    def is_expired(self, expiry_time):
+    def is_expired(self, expiry_time: float) -> bool:
         with self._lock:
             return (time.time() - self._timestamp) >= expiry_time
 
-    def get(self):
+    def get(self) -> dict[NormalizedName, str]:
         return self._data
 
-    def get_etag(self):
+    def get_etag(self) -> str | None:
         return self._etag
 
-    def add(self, project):
+    def add(self, project: NormalizedName | str) -> None:
         """ Add project to cache. """
         with self._lock:
             self._data[normalize_name(project)] = project
 
-    def discard(self, project):
+    def discard(self, project: NormalizedName | str) -> None:
         """ Remove project from cache. """
         with self._lock:
             del self._data[normalize_name(project)]
 
-    def set(self, data, etag):
+    def set(self, data: dict[NormalizedName, str], etag: str) -> None:
         """ Set data and update timestamp. """
         with self._lock:
             if data != self._data:
@@ -1116,7 +1120,7 @@ class ProjectNamesCache:
                 self._data = data
             self.mark_current(etag)
 
-    def mark_current(self, etag):
+    def mark_current(self, etag: str) -> None:
         with self._lock:
             self._timestamp = time.time()
             self._etag = etag
@@ -1177,37 +1181,39 @@ class ProjectUpdateLock:
 class ProjectUpdateCache:
     """ Helper class to manage when we last updated something project specific. """
 
-    _project2lock: weakref.WeakValueDictionary
-    _project2time: dict
+    _project2lock: weakref.WeakValueDictionary[NormalizedName, ProjectUpdateInnerLock]
+    _project2time: dict[NormalizedName, tuple[float, str | None]]
 
     def __init__(self):
         self._project2time = {}
         self._project2lock = weakref.WeakValueDictionary()
 
-    def is_expired(self, project, expiry_time):
+    def is_expired(self, project: NormalizedName, expiry_time: float) -> bool:
         (t, etag) = self._project2time.get(project, (None, None))
         if t is not None:
             return (time.time() - t) >= expiry_time
         return True
 
-    def get_etag(self, project):
+    def get_etag(self, project: NormalizedName) -> str | None:
         (t, etag) = self._project2time.get(project, (None, None))
         return etag
 
-    def get_timestamp(self, project):
+    def get_timestamp(self, project: NormalizedName) -> float:
         (ts, etag) = self._project2time.get(project, (-1, None))
         return ts
 
-    def refresh(self, project, etag):
+    def refresh(self, project: NormalizedName, etag: str | None) -> None:
         self._project2time[project] = (time.time(), etag)
 
-    def expire(self, project, etag=None):
+    def expire(self, project: NormalizedName, etag: str | None = None) -> None:
         if etag is None:
             self._project2time.pop(project, None)
         else:
             self._project2time[project] = (0, etag)
 
-    def acquire(self, project, timeout=-1):
+    def acquire(
+        self, project: NormalizedName, timeout: float = -1
+    ) -> ProjectUpdateLock | None:
         lock = ProjectUpdateLock(
             project,
             self._project2lock.setdefault(project, ProjectUpdateInnerLock()))
@@ -1218,8 +1224,9 @@ class ProjectUpdateCache:
         if lock.acquire(timeout=timeout):
             return lock
         self._project2lock.pop(project, None)
+        return None
 
-    def release(self, project):
+    def release(self, project: NormalizedName) -> None:
         lock = self._project2lock.pop(project, None)
         if lock is not None and lock.locked():
             lock.release()
