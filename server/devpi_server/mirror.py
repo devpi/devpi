@@ -1181,52 +1181,59 @@ class ProjectUpdateLock:
 class ProjectUpdateCache:
     """ Helper class to manage when we last updated something project specific. """
 
-    _project2lock: weakref.WeakValueDictionary[NormalizedName, ProjectUpdateInnerLock]
-    _project2time: dict[NormalizedName, tuple[float, str | None]]
+    _project2lock: weakref.WeakValueDictionary[str, ProjectUpdateInnerLock]
+    _project2time: dict[str, tuple[float, str | None]]
 
     def __init__(self):
         self._project2time = {}
         self._project2lock = weakref.WeakValueDictionary()
 
     def is_expired(self, project: NormalizedName, expiry_time: float) -> bool:
-        (t, etag) = self._project2time.get(project, (None, None))
-        if t is not None:
-            return (time.time() - t) >= expiry_time
+        _project = str(project)
+        (ts, _etag) = self._project2time.get(_project, (None, None))
+        if ts is not None:
+            return (time.time() - ts) >= expiry_time
         return True
 
     def get_etag(self, project: NormalizedName) -> str | None:
-        (t, etag) = self._project2time.get(project, (None, None))
+        _project = str(project)
+        (_ts, etag) = self._project2time.get(_project, (None, None))
         return etag
 
     def get_timestamp(self, project: NormalizedName) -> float:
-        (ts, etag) = self._project2time.get(project, (-1, None))
+        _project = str(project)
+        (ts, _etag) = self._project2time.get(_project, (-1, None))
         return ts
 
     def refresh(self, project: NormalizedName, etag: str | None) -> None:
-        self._project2time[project] = (time.time(), etag)
+        _project = str(project)
+        self._project2time[_project] = (time.time(), etag)
 
     def expire(self, project: NormalizedName, etag: str | None = None) -> None:
+        _project = str(project)
         if etag is None:
-            self._project2time.pop(project, None)
+            self._project2time.pop(_project, None)
         else:
-            self._project2time[project] = (0, etag)
+            self._project2time[_project] = (0, etag)
 
     def acquire(
         self, project: NormalizedName, timeout: float = -1
     ) -> ProjectUpdateLock | None:
+        _project = str(project)
         lock = ProjectUpdateLock(
-            project,
-            self._project2lock.setdefault(project, ProjectUpdateInnerLock()))
+            _project, self._project2lock.setdefault(_project, ProjectUpdateInnerLock())
+        )
         if lock.locked() and lock.is_from_current_thread():
             # remove inner lock, so this is just a dummy
             lock.lock = None
             return lock
         if lock.acquire(timeout=timeout):
             return lock
-        self._project2lock.pop(project, None)
+        self._project2lock.pop(_project, None)
         return None
 
     def release(self, project: NormalizedName) -> None:
-        lock = self._project2lock.pop(project, None)
+        _project = str(project)
+        lock = self._project2lock.pop(_project, None)
         if lock is not None and lock.locked():
             lock.release()
