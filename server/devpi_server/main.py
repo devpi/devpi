@@ -15,6 +15,7 @@ from .httpclient import FatalResponse
 from .httpclient import HTTPClient
 from .httpclient import OfflineHTTPClient
 from .httpclient import get_caller_location
+from .keyfs import KeyFS
 from .log import configure_cli_logging
 from .log import configure_logging
 from .log import thread_push_log
@@ -416,7 +417,7 @@ class XOM:
         app = xom.create_app()
         if xom.is_replica():
             # XXX ground restart_as_write_transaction better
-            xom.keyfs.restart_as_write_transaction = None
+            xom.keyfs.restart_as_write_transaction = None  # type: ignore[assignment, method-assign]
         return xom.thread_pool.run(wsgi_run, xom, app)
 
     def fatal(self, msg):
@@ -430,8 +431,7 @@ class XOM:
         return FileStore(self.keyfs)
 
     @cached_property
-    def keyfs(self):
-        from devpi_server.keyfs import KeyFS
+    def keyfs(self) -> KeyFS:
         from devpi_server.model import add_keys
         keyfs = KeyFS(
             self.config.server_path,

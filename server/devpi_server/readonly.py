@@ -17,6 +17,7 @@ from collections.abc import ValuesView
 from functools import singledispatch
 from functools import total_ordering
 from typing import TYPE_CHECKING
+from typing import TypeVar
 from typing import Union
 from typing import overload
 
@@ -160,13 +161,16 @@ class ListViewReadonly(SeqViewReadonly):
         self._data = data
 
 
-class SetViewReadonly(ReadonlyView, AbstractSet):
+T = TypeVar("T", bound=Hashable)
+
+
+class SetViewReadonly(ReadonlyView, AbstractSet[T]):
     __slots__ = ()
 
-    def __init__(self, data: AbstractSet) -> None:
+    def __init__(self, data: AbstractSet[T]) -> None:
         self._data = data
 
-    def __iter__(self) -> Iterator[Hashable]:
+    def __iter__(self) -> Iterator[T]:
         return iter(self._data)
 
 

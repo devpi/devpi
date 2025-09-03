@@ -45,6 +45,7 @@ import warnings
 
 if TYPE_CHECKING:
     from .keyfs_types import KeyFSTypesRO
+    from .keyfs_types import KeyType
     from .markers import Absent
     from .markers import Deleted
     from .mythread import MyThread
@@ -275,10 +276,13 @@ class TxNotificationThread:
         log.debug("finished calling all hooks for tx%s", event_serial)
 
 
-class KeyFS(object):
+class KeyFS:
     """ singleton storage object. """
+
     class ReadOnly(Exception):
         """ attempt to open write transaction while in readonly mode. """
+
+    _keys: dict[str, PTypedKey | TypedKey]
 
     def __init__(
         self,
@@ -306,10 +310,12 @@ class KeyFS(object):
         self.io_file_factory = io_file_factory
         self._readonly = readonly
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> PTypedKey | TypedKey:
         if name not in self._keys:
             raise AttributeError(name)
-        return self._keys[name]
+        assert name not in self.__dict__
+        self.__dict__[name] = key = self._keys[name]
+        return key
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.base_path}>"
@@ -464,7 +470,12 @@ class KeyFS(object):
     def tx(self):
         return self._threadlocal.tx
 
-    def add_key(self, name, path, type):
+    def add_key(
+        self,
+        name: str,
+        path: str,
+        type: type[KeyType],  # noqa: A002
+    ) -> PTypedKey[KeyType] | TypedKey[KeyType]:
         assert isinstance(path, str)
         key: PTypedKey | TypedKey
         if "{" in path:
