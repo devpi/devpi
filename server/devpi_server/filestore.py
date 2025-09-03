@@ -13,6 +13,7 @@ from devpi_server.log import threadlog
 from devpi_server.markers import absent
 from inspect import currentframe
 from typing import TYPE_CHECKING
+from typing import overload
 from urllib.parse import unquote
 from wsgiref.handlers import format_date_time
 import hashlib
@@ -22,7 +23,10 @@ import warnings
 
 
 if TYPE_CHECKING:
+    from .interfaces import ContentOrFile
     from .keyfs_types import RelPath
+    from .markers import Absent
+    from typing import Any
 
 
 def _get_default_hash_types():  # this is a function for testing
@@ -31,7 +35,7 @@ def _get_default_hash_types():  # this is a function for testing
 
 _nodefault = object()
 # do not import the following, as they are changed for testing
-DEFAULT_HASH_TYPE = "sha256"
+DEFAULT_HASH_TYPE: str = "sha256"
 DEFAULT_HASH_TYPES = _get_default_hash_types()
 
 
@@ -106,8 +110,8 @@ class RunningHashes:
                 rh.update(data)
 
 
-class Digests(dict):
-    def add_spec(self, hash_spec):
+class Digests(dict[str, str]):
+    def add_spec(self, hash_spec: str) -> None:
         (hash_algo, hash_value) = parse_hash_spec(hash_spec)
         hash_type = hash_algo().name
         if hash_type in self:
@@ -116,18 +120,22 @@ class Digests(dict):
             self[hash_type] = hash_value
 
     @property
-    def best_available_spec(self):
-        return self.get_spec(self.best_available_type, None)
+    def best_available_spec(self) -> str | None:
+        if (best_available_type := self.best_available_type) is None:
+            return None
+        return self.get_spec(best_available_type, None)
 
     @property
-    def best_available_type(self):
+    def best_available_type(self) -> str | None:
         return best_available_hash_type(self)
 
     @property
-    def best_available_value(self):
-        return self.get(self.best_available_type, None)
+    def best_available_value(self) -> str | None:
+        if (best_available_type := self.best_available_type) is None:
+            return None
+        return self.get(best_available_type, None)
 
-    def errors_for(self, content_or_hashes):
+    def errors_for(self, content_or_hashes: ContentOrFile | Digests) -> dict[str, dict]:
         errors = {}
         if isinstance(content_or_hashes, Digests):
             hashes = content_or_hashes
@@ -147,46 +155,71 @@ class Digests(dict):
                         f"got {hash_value}, expected {expected_hash_value}")
         return errors
 
-    def exception_for(self, content_or_hashes, relpath):
+    def exception_for(
+        self, content_or_hashes: ContentOrFile | Digests, relpath: str
+    ) -> ChecksumError | None:
         errors = self.errors_for(content_or_hashes)
         if errors:
-            error_msg = errors.get(
-                self.best_available_type, next(iter(errors.values())))['msg']
+            if (best_available_type := self.best_available_type) is None:
+                return None
+            error_msg = errors.get(best_available_type, next(iter(errors.values())))[
+                "msg"
+            ]
             return ChecksumError(f"{relpath}: {error_msg}")
         return None
 
     @classmethod
-    def from_spec(cls, hash_spec):
+    def from_spec(cls, hash_spec: str) -> Digests:
         result = cls()
         if hash_spec:
             result.add_spec(hash_spec)
         return result
 
-    def get_default_spec(self):
+    def get_default_spec(self) -> str:
         return self.get_spec(DEFAULT_HASH_TYPE)
 
-    def get_default_type(self):
+    def get_default_type(self) -> str:
         return DEFAULT_HASH_TYPE
 
-    def get_default_value(self, default=_nodefault):
+    @overload
+    def get_default_value(self, default: Absent = absent) -> str: ...
+
+    @overload
+    def get_default_value(self, default: str) -> str: ...
+
+    @overload
+    def get_default_value(self, default: Any) -> Any: ...
+
+    def get_default_value(self, default: str | Any | Absent = absent) -> str | Any:
         result = self.get(DEFAULT_HASH_TYPE, default)
-        if result is _nodefault:
+        if result is absent:
             raise KeyError(DEFAULT_HASH_TYPE)
         return result
 
-    def get_missing_hash_types(self):
+    def get_missing_hash_types(self) -> set[str]:
         return set(DEFAULT_HASH_TYPES).difference(self)
 
-    def get_spec(self, hash_type, default=_nodefault):
+    @overload
+    def get_spec(self, hash_type: str, default: Absent = absent) -> str: ...
+
+    @overload
+    def get_spec(self, hash_type: str, default: str) -> str: ...
+
+    @overload
+    def get_spec(self, hash_type: str, default: Any) -> Any: ...
+
+    def get_spec(
+        self, hash_type: str, default: str | Any | Absent = absent
+    ) -> str | Any:
         result = self.get(hash_type, default)
-        if result is _nodefault:
+        if result is absent:
             raise KeyError(hash_type)
         if result is default:
             return result
         return f"{hash_type}={result}"
 
 
-def best_available_hash_type(hashes):
+def best_available_hash_type(hashes: Digests) -> str | None:
     if not hashes:
         return None
     if DEFAULT_HASH_TYPE in hashes:
