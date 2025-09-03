@@ -4,6 +4,8 @@ from .fileutil import get_write_file_ensure_dir
 from .interfaces import IIOFile
 from .keyfs_types import FilePathInfo
 from .log import threadlog
+from .markers import Deleted
+from .markers import deleted
 from contextlib import suppress
 from hashlib import sha256
 from typing import TYPE_CHECKING
@@ -70,7 +72,7 @@ class DirtyFile:
 
 @implementer(IIOFile)
 class FSIOFileBase:
-    _dirty_files: dict[str, DirtyFile | None]
+    _dirty_files: dict[str, DirtyFile | Deleted]
 
     def __init__(self, base_path: Path, settings: dict) -> None:
         self.settings = settings
@@ -102,16 +104,16 @@ class FSIOFileBase:
         assert isinstance(path, FilePathInfo)
         _path = self._make_path(path)
         old = self._dirty_files.get(_path)
-        if old is not None:
+        if isinstance(old, DirtyFile):
             os.remove(old.tmppath)
-        self._dirty_files[_path] = None
+        self._dirty_files[_path] = deleted
 
     def exists(self, path: FilePathInfo) -> bool:
         assert isinstance(path, FilePathInfo)
         _path = self._make_path(path)
         if _path in self._dirty_files:
             dirty_file = self._dirty_files[_path]
-            if dirty_file is None:
+            if isinstance(dirty_file, Deleted):
                 return False
             _path = dirty_file.tmppath
         return os.path.exists(_path)
@@ -121,7 +123,7 @@ class FSIOFileBase:
         _path = self._make_path(path)
         if _path in self._dirty_files:
             dirty_file = self._dirty_files[_path]
-            if dirty_file is None:
+            if isinstance(dirty_file, Deleted):
                 raise OSError
             _path = dirty_file.tmppath
         with open(_path, "rb") as f:
@@ -154,7 +156,7 @@ class FSIOFileBase:
         _path = self._make_path(path)
         if _path in self._dirty_files:
             dirty_file = self._dirty_files[_path]
-            if dirty_file is None:
+            if isinstance(dirty_file, Deleted):
                 raise OSError
             _path = dirty_file.tmppath
         return open(_path, "rb")
@@ -177,7 +179,7 @@ class FSIOFileBase:
         _path = self._make_path(path)
         if _path in self._dirty_files:
             dirty_file = self._dirty_files[_path]
-            if dirty_file is None:
+            if isinstance(dirty_file, Deleted):
                 return None
             _path = dirty_file.tmppath
         with suppress(OSError):
@@ -207,6 +209,6 @@ class FSIOFileBase:
 
     def rollback(self) -> None:
         for dirty_file in self._dirty_files.values():
-            if dirty_file is not None:
+            if isinstance(dirty_file, DirtyFile):
                 os.remove(dirty_file.tmppath)
         self._dirty_files.clear()

@@ -4,6 +4,7 @@ from .filestore_fs_base import FSIOFileBase
 from .fileutil import rename
 from .interfaces import IIOFileFactory
 from .log import threadlog
+from .markers import Deleted
 from contextlib import closing
 from contextlib import suppress
 from pathlib import Path
@@ -34,7 +35,7 @@ class FSIOFile(FSIOFileBase):
 
     def iter_pending_renames(self) -> Iterable[tuple[str | None, str]]:
         for path, dirty_file in self._dirty_files.items():
-            if dirty_file is None:
+            if isinstance(dirty_file, Deleted):
                 yield (None, path)
             else:
                 yield (dirty_file.tmppath, path)
