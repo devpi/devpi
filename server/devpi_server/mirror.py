@@ -14,6 +14,7 @@ from .log import threadlog
 from .markers import unknown
 from .model import BaseStage
 from .model import BaseStageCustomizer
+from .model import Rel
 from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
@@ -1041,7 +1042,7 @@ class MirrorStage(BaseStage):
                 elinks = verdata.setdefault("+elinks", [])
                 elinks.append(
                     dict(
-                        rel="releasefile",
+                        rel=Rel.ReleaseFile,
                         entrypath=sm.path,
                         hash_spec=sm.hash_spec,
                         hashes=sm.hashes,

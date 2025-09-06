@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from .auth import hash_password
 from .auth import verify_and_update_password_hash
+from .compat import StrEnum
 from .config import hookimpl
 from .filestore import Digests
 from .filestore import FileEntry
@@ -33,6 +36,12 @@ import warnings
 
 
 notset = object()
+
+
+class Rel(StrEnum):
+    DocZip = "doczip"
+    ReleaseFile = "releasefile"
+    ToxResult = "toxresult"
 
 
 def join_links_data(links, requires_python, yanked):
@@ -847,7 +856,7 @@ class BaseStage(object):
         assert not isinstance(content_or_file, dict)
         linkstore = self.get_mutable_linkstore_perstage(link.project, link.version)
         return linkstore.new_reflink(
-            rel="toxresult",
+            rel=Rel.ToxResult,
             content_or_file=content_or_file,
             for_entrypath=link,
             filename=filename,
@@ -858,7 +867,7 @@ class BaseStage(object):
     def get_toxresults(self, link):
         l = []
         linkstore = self.get_linkstore_perstage(link.project, link.version)
-        for reflink in linkstore.get_links(rel="toxresult", for_entrypath=link):
+        for reflink in linkstore.get_links(rel=Rel.ToxResult, for_entrypath=link):
             with reflink.entry.file_open_read() as f:
                 l.append(json.load(f))
         return l
@@ -1442,7 +1451,7 @@ class PrivateStage(BaseStage):
         requires_python = []
         for version in self.list_versions_perstage(project):
             linkstore = self.get_linkstore_perstage(project, version)
-            releases = linkstore.get_links("releasefile")
+            releases = linkstore.get_links(Rel.ReleaseFile)
             links.extend(map(make_key_and_href, releases))
             require_python = self.get_versiondata_perstage(project,
                     version).get('requires_python')
@@ -1473,11 +1482,12 @@ class PrivateStage(BaseStage):
                 raise MissesRegistration("%s-%s", project, version)
         linkstore = self.get_mutable_linkstore_perstage(project, version)
         link = linkstore.create_linked_entry(
-            rel="releasefile",
+            rel=Rel.ReleaseFile,
             basename=filename,
             content_or_file=content_or_file,
             hashes=hashes,
-            last_modified=last_modified)
+            last_modified=last_modified,
+        )
         self._regen_simplelinks(project)
         return link
 
@@ -1499,16 +1509,17 @@ class PrivateStage(BaseStage):
             self.set_versiondata({'name': project, 'version': version})
         linkstore = self.get_mutable_linkstore_perstage(project, version)
         return linkstore.create_linked_entry(
-            rel="doczip",
+            rel=Rel.DocZip,
             basename=basename,
             content_or_file=content_or_file,
             hashes=hashes,
-            last_modified=last_modified)
+            last_modified=last_modified,
+        )
 
     def get_doczip_link(self, project, version):
         """ get link of documentation zip or None if no docs exists. """
         linkstore = self.get_linkstore_perstage(project, version)
-        links = linkstore.get_links(rel="doczip")
+        links = linkstore.get_links(rel=Rel.DocZip)
         if len(links) > 1:
             threadlog.warning(
                 "Multiple documentation files for %s-%s, returning newest",
@@ -1824,8 +1835,13 @@ class LinkStore:
         if was_deleted:
             self._mark_dirty()
 
-    def get_links(self, rel=None, basename=None, entrypath=None,
-                  for_entrypath=None):
+    def get_links(
+        self,
+        rel: Rel | None = None,
+        basename: str | None = None,
+        entrypath: str | None = None,
+        for_entrypath: ELink | str | None = None,
+    ) -> list[ELink]:
         if isinstance(for_entrypath, ELink):
             for_entrypath = for_entrypath.relpath
         elif for_entrypath is not None:
@@ -1865,7 +1881,7 @@ class LinkStore:
         elif for_entrypath is not None:
             assert "#" not in for_entrypath
         new_linkdict = {
-            "rel": rel,
+            "rel": str(rel),
             "entrypath": file_entry.relpath,
             "hash_spec": file_entry._hash_spec,
             "hashes": file_entry.hashes,

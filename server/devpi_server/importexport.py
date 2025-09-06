@@ -7,6 +7,7 @@ from .main import Fatal
 from .main import init_default_indexes
 from .main import set_state_version
 from .main import xom_from_config
+from .model import Rel
 from .readonly import ReadonlyView
 from .readonly import get_mutable_deepcopy
 from devpi_common.metadata import BasenameMeta
@@ -255,7 +256,7 @@ class IndexDump:
         self.exporter.completed("index %r" % self.stage.name)
 
     def dump_docfiles(self, linkstore):
-        links = linkstore.get_links(rel="doczip")
+        links = linkstore.get_links(rel=Rel.DocZip)
         if len(links) > 1:
             threadlog.warning(
                 "Multiple documentation files for %s-%s, only exporting newest",
@@ -269,7 +270,7 @@ class IndexDump:
                 entry, self.basedir / f"{linkstore.project}-{link.version}.doc.zip"
             )
             self.add_filedesc(
-                "doczip",
+                Rel.DocZip,
                 linkstore.project,
                 relpath,
                 version=link.version,
@@ -277,7 +278,7 @@ class IndexDump:
             )
 
     def dump_releasefiles(self, linkstore):
-        for link in linkstore.get_links(rel="releasefile"):
+        for link in linkstore.get_links(rel=Rel.ReleaseFile):
             entry = self.exporter.filestore.get_file_entry(link.relpath)
             if not entry.last_modified:
                 continue
@@ -287,13 +288,17 @@ class IndexDump:
             relpath = self.exporter.copy_file(
                 entry, self.basedir / linkstore.project / link.version / entry.basename
             )
-            self.add_filedesc("releasefile", linkstore.project, relpath,
-                               version=linkstore.version,
-                               entrymapping=entry.meta,
-                               log=link.get_logs())
+            self.add_filedesc(
+                Rel.ReleaseFile,
+                linkstore.project,
+                relpath,
+                version=linkstore.version,
+                entrymapping=entry.meta,
+                log=link.get_logs(),
+            )
 
     def dump_toxresults(self, linkstore):
-        for tox_link in linkstore.get_links(rel="toxresult"):
+        for tox_link in linkstore.get_links(rel=Rel.ToxResult):
             reflink = linkstore.stage.get_link_from_entrypath(tox_link.for_entrypath)
             relpath = self.exporter.copy_file(
                 tox_link.entry,
@@ -302,7 +307,7 @@ class IndexDump:
                 ),
             )
             self.add_filedesc(
-                type="toxresult",
+                type=Rel.ToxResult,
                 project=linkstore.project,
                 relpath=relpath,
                 version=linkstore.version,
@@ -578,7 +583,7 @@ class Importer:
         # determined here but in store_releasefile/store_doczip/store_toxresult etc
         hashes.update(get_hashes(f, hash_types=hashes.get_missing_hash_types()))
 
-        if filedesc["type"] == "releasefile":
+        if filedesc["type"] == Rel.ReleaseFile:
             if self.dumpversion == "1":
                 # previous versions would not add a version attribute
                 version = BasenameMeta(p.name).version
@@ -617,14 +622,14 @@ class Importer:
                     yanked.append(is_yanked)
                 stage._save_cache_links(
                     project, links, requires_python, yanked, serial, None)
-        elif filedesc["type"] == "doczip":
+        elif filedesc["type"] == Rel.DocZip:
             version = filedesc["version"]
             # docs didn't always have entrymapping in export dump
             last_modified = mapping.get("last_modified")
             link = stage.store_doczip(
                 project, version, f, hashes=hashes, last_modified=last_modified)
             entry = link.entry
-        elif filedesc["type"] == "toxresult":
+        elif filedesc["type"] == Rel.ToxResult:
             linkstore = stage.get_linkstore_perstage(
                 filedesc["projectname"], filedesc["version"])
             # we can not search for the full relative path because
