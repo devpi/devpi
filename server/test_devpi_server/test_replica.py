@@ -1,20 +1,24 @@
-import hashlib
-import os
-import pytest
-from devpi_server.log import thread_pop_log
 from devpi_server.filestore import get_hashes
 from devpi_server.fileutil import LoadError
 from devpi_server.fileutil import dumps
 from devpi_server.fileutil import loads
 from devpi_server.keyfs import MissingFileException
-from devpi_server.log import threadlog, thread_push_log
-from devpi_server.replica import H_EXPECTED_MASTER_ID, H_MASTER_UUID
-from devpi_server.replica import H_EXPECTED_PRIMARY_ID, H_PRIMARY_UUID
-from devpi_server.replica import H_REPLICA_UUID, H_REPLICA_OUTSIDE_URL
+from devpi_server.log import thread_pop_log
+from devpi_server.log import thread_push_log
+from devpi_server.log import threadlog
+from devpi_server.replica import H_EXPECTED_MASTER_ID
+from devpi_server.replica import H_EXPECTED_PRIMARY_ID
+from devpi_server.replica import H_MASTER_UUID
+from devpi_server.replica import H_PRIMARY_UUID
+from devpi_server.replica import H_REPLICA_OUTSIDE_URL
+from devpi_server.replica import H_REPLICA_UUID
 from devpi_server.replica import PrimaryChangelogRequest
 from devpi_server.replica import proxy_view_to_primary
 from devpi_server.views import iter_remote_file_replica
 from pyramid.httpexceptions import HTTPNotFound
+import hashlib
+import os
+import pytest
 
 
 pytestmark = [pytest.mark.notransaction]
@@ -1163,8 +1167,8 @@ def test_primary_url_auth(makexom):
 
 def test_replica_user_auth_before_other_plugins(makexom):
     from devpi_server import replica
-    from devpi_server.config import hookimpl
     from devpi_server.auth import Auth
+    from devpi_server.config import hookimpl
     from pyramid.httpexceptions import HTTPForbidden
 
     class Plugin:

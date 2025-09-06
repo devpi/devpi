@@ -1,22 +1,23 @@
-import getpass
-import inspect
-import itertools
-import pytest
-import json
-
+from devpi_common.archive import Archive
+from devpi_common.archive import zip_dict
 from devpi_common.metadata import splitbasename
-from devpi_common.archive import Archive, zip_dict
 from devpi_server.config import hookimpl
 from devpi_server.filestore import get_hashes
 from devpi_server.model import InvalidIndexconfig
 from devpi_server.model import PrivateStage
-from devpi_server.model import unknown
-from devpi_server.model import ensure_boolean
+from devpi_server.model import StageCustomizer
 from devpi_server.model import ensure_acl_list
+from devpi_server.model import ensure_boolean
 from devpi_server.model import ensure_list
 from devpi_server.model import run_passwd
-from devpi_server.model import StageCustomizer
+from devpi_server.model import unknown
 from io import BytesIO
+import getpass
+import inspect
+import itertools
+import json
+import pytest
+
 
 pytestmark = [pytest.mark.writetransaction]
 

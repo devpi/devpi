@@ -6,26 +6,30 @@ write Transaction is ongoing.  Each Transaction will see a consistent
 view of key/values referring to the point in time it was started,
 independent from any future changes.
 """
-import contextlib
-import py
 from . import mythread
+from .filestore import FileEntry
+from .fileutil import read_int_from_file
+from .fileutil import write_int_to_file
 from .interfaces import IStorageConnection3
 from .interfaces import IWriter2
 from .keyfs_types import PTypedKey
 from .keyfs_types import Record
 from .keyfs_types import TypedKey
-from .log import threadlog, thread_push_log, thread_pop_log
 from .log import thread_change_log_prefix
-from .markers import absent, deleted
+from .log import thread_pop_log
+from .log import thread_push_log
+from .log import threadlog
+from .markers import absent
+from .markers import deleted
 from .model import RootModel
 from .readonly import ensure_deeply_readonly
 from .readonly import get_mutable_deepcopy
 from .readonly import is_deeply_readonly
-from .filestore import FileEntry
-from .fileutil import read_int_from_file, write_int_to_file
 from devpi_common.types import cached_property
 from pathlib import Path
+import contextlib
 import errno
+import py
 import time
 import warnings
 

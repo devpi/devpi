@@ -1,7 +1,7 @@
-import pytest
 from devpi_server import mythread
+from devpi_server.config import get_pluginmanager
 from devpi_server.config import hookimpl
-from devpi_server.config import parseoptions, get_pluginmanager
+from devpi_server.config import parseoptions
 from devpi_server.main import Fatal
 from devpi_server.main import XOM
 from devpi_server.main import check_compatible_version
@@ -9,6 +9,7 @@ from devpi_server.main import main
 from devpi_server.main import tween_request_profiling
 import devpi_server
 import os
+import pytest
 
 
 @pytest.fixture
@@ -104,7 +105,8 @@ def test_requests_only(makexom):
 @wsgi_run_throws
 def test_run_commands_called(tmpdir):
     from devpi_server.init import init
-    from devpi_server.main import _main, get_pluginmanager
+    from devpi_server.main import _main
+    from devpi_server.main import get_pluginmanager
     l = []
 
     class Plugin:
@@ -155,7 +157,8 @@ def test_fatal_if_no_storage_and_no_sqlite_file(tmp_path):
 @wsgi_run_throws
 def test_main_starts_server_if_run_commands_returns_none(tmpdir):
     from devpi_server.init import init
-    from devpi_server.main import _main, get_pluginmanager
+    from devpi_server.main import _main
+    from devpi_server.main import get_pluginmanager
     l = []
 
     class Plugin:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from .keyfs_types import RelpathInfo
 from contextlib import closing
 from inspect import getfullargspec
@@ -11,8 +12,9 @@ from zope.interface.verify import verifyObject
 
 
 if TYPE_CHECKING:
+    from .keyfs_types import PTypedKey
     from .keyfs_types import Record
-    from .keyfs_types import PTypedKey, TypedKey
+    from .keyfs_types import TypedKey
     from collections.abc import Iterable
     from collections.abc import Iterator
     from contextlib import AbstractContextManager

@@ -1,6 +1,6 @@
+from . import test_streaming
 import pytest
 import sys
-from . import test_streaming
 
 
 pytestmark = [

@@ -1,23 +1,24 @@
-import os
-import sys
-import pytest
-import json
+from devpi_common.archive import Archive
+from devpi_common.archive import zip_dict
+from devpi_common.metadata import Version
+from devpi_common.types import parse_hash_spec
+from devpi_common.url import URL
 from devpi_server.config import hookimpl
 from devpi_server.filestore import get_hashes
 from devpi_server.filestore import make_splitdir
 from devpi_server.filestore import relpath_prefix
 from devpi_server.importexport import Exporter
 from devpi_server.importexport import IndexTree
-from devpi_server.importexport import do_export, do_import
+from devpi_server.importexport import do_export
+from devpi_server.importexport import do_import
 from devpi_server.main import Fatal
-from devpi_common.archive import Archive, zip_dict
-from devpi_common.metadata import Version
-from devpi_common.types import parse_hash_spec
-from devpi_common.url import URL
 from io import BytesIO
-import importlib.resources
-
 import devpi_server
+import importlib.resources
+import json
+import os
+import pytest
+import sys
 
 
 def make_export(tmpdir, terminalwriter, xom):

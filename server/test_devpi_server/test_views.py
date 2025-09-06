@@ -1,28 +1,29 @@
-import pytest
-import json
-import posixpath
-from bs4 import BeautifulSoup
-
-from pyramid.response import Response
-from devpi_common.metadata import splitbasename
-from devpi_common.url import URL
-from devpi_common.archive import Archive, zip_dict
-from devpi_common.viewhelp import ViewLinkStore
-
-import devpi_server.views
-from devpi_server.config import hookimpl
-from devpi_server.filestore import FileEntry
-from devpi_server.filestore import get_hashes
-from devpi_server.filestore import get_hash_spec
-from devpi_server.filestore import make_splitdir
-from devpi_server.views import tween_keyfs_transaction, make_uuid_headers
-from devpi_server.mirror import parse_index
-from io import BytesIO
-from .functional import TestIndexThings  # noqa: F401
 from .functional import TestIndexPushThings  # noqa: F401
+from .functional import TestIndexThings  # noqa: F401
+from .functional import TestMirrorIndexThings  # noqa: F401
 from .functional import TestProjectThings  # noqa: F401
 from .functional import TestUserThings  # noqa: F401
-from .functional import TestMirrorIndexThings  # noqa: F401
+from bs4 import BeautifulSoup
+from devpi_common.archive import Archive
+from devpi_common.archive import zip_dict
+from devpi_common.metadata import splitbasename
+from devpi_common.url import URL
+from devpi_common.viewhelp import ViewLinkStore
+from devpi_server.config import hookimpl
+from devpi_server.filestore import FileEntry
+from devpi_server.filestore import get_hash_spec
+from devpi_server.filestore import get_hashes
+from devpi_server.filestore import make_splitdir
+from devpi_server.mirror import parse_index
+from devpi_server.views import make_uuid_headers
+from devpi_server.views import tween_keyfs_transaction
+from io import BytesIO
+from pyramid.response import Response
+import devpi_server.views
+import json
+import posixpath
+import pytest
+
 
 proj = pytest.mark.parametrize("proj", [True, False])
 pytestmark = [pytest.mark.notransaction]

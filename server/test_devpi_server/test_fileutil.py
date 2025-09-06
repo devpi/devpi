@@ -4,10 +4,10 @@ from devpi_server.fileutil import LoadError
 from devpi_server.fileutil import dumplen
 from devpi_server.fileutil import dumps
 from devpi_server.fileutil import loads
-from execnet.gateway_base import _Serializer
 from execnet.gateway_base import DumpError as _DumpError
 from execnet.gateway_base import LoadError as _LoadError
 from execnet.gateway_base import Unserializer
+from execnet.gateway_base import _Serializer
 import pytest
 
 

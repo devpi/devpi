@@ -1,12 +1,13 @@
+from devpi_server.mirror import ProjectNamesCache
+from devpi_server.mirror import ProjectUpdateCache
+from devpi_server.mirror import URL
+from devpi_server.mirror import parse_index
+from test_devpi_server.simpypi import getmd5
+import hashlib
 import httpx
+import pytest
 import requests.exceptions
 import time
-import hashlib
-import pytest
-
-from devpi_server.mirror import URL, parse_index
-from devpi_server.mirror import ProjectNamesCache, ProjectUpdateCache
-from test_devpi_server.simpypi import getmd5
 
 
 def getlinks(text):

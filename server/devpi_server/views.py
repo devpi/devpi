@@ -1,44 +1,6 @@
 from __future__ import annotations
 
-import contextlib
-import os
-import re
-import warnings
-from time import time
-from collections import defaultdict
-from devpi_common.types import ensure_unicode
-from devpi_common.url import URL
-from devpi_common.metadata import get_pyversion_filetype
-import devpi_server
-from html import escape
-from http import HTTPStatus
-from lazy import lazy
-from operator import attrgetter
-from pluggy import HookimplMarker
-from pyramid.authentication import b64encode
-from pyramid.interfaces import IRequestExtensions
-from pyramid.interfaces import IRootFactory
-from pyramid.interfaces import IRoutesMapper
-from pyramid.httpexceptions import HTTPException, HTTPFound, HTTPSuccessful
-from pyramid.httpexceptions import HTTPForbidden
-from pyramid.httpexceptions import HTTPInternalServerError
-from pyramid.httpexceptions import HTTPOk
-from pyramid.httpexceptions import HTTPUnauthorized
-from pyramid.httpexceptions import exception_response
-from pyramid.request import Request
-from pyramid.request import apply_request_extensions
-from pyramid.response import FileIter
-from pyramid.response import Response
-from pyramid.security import forget
-from pyramid.threadlocal import RequestContext
-from pyramid.traversal import DefaultRootFactory
-from pyramid.view import exception_view_config
-from pyramid.view import view_config
-from urllib.parse import urlparse
-import itertools
-import json
-from devpi_common.validation import normalize_name, is_valid_archive_name
-
+from .auth import Auth
 from .config import NodeInfo
 from .config import hookimpl
 from .exceptions import lazy_format_exception_only
@@ -48,14 +10,59 @@ from .filestore import get_hashes
 from .filestore import get_seekable_content_or_file
 from .fileutil import buffered_iterator
 from .keyfs import KeyfsTimeoutError
-from .model import InvalidIndex, InvalidIndexconfig, InvalidUser, InvalidUserconfig
+from .log import thread_pop_log
+from .log import thread_push_log
+from .log import threadlog
+from .model import InvalidIndex
+from .model import InvalidIndexconfig
+from .model import InvalidUser
+from .model import InvalidUserconfig
 from .model import ReadonlyIndex
 from .model import RemoveValue
 from .readonly import get_mutable_deepcopy
-from .log import thread_push_log, thread_pop_log, threadlog
-
-from .auth import Auth
+from collections import defaultdict
+from devpi_common.metadata import get_pyversion_filetype
+from devpi_common.types import ensure_unicode
+from devpi_common.url import URL
+from devpi_common.validation import is_valid_archive_name
+from devpi_common.validation import normalize_name
+from html import escape
+from http import HTTPStatus
+from lazy import lazy
+from operator import attrgetter
+from pluggy import HookimplMarker
+from pyramid.authentication import b64encode
+from pyramid.httpexceptions import HTTPException
+from pyramid.httpexceptions import HTTPForbidden
+from pyramid.httpexceptions import HTTPFound
+from pyramid.httpexceptions import HTTPInternalServerError
+from pyramid.httpexceptions import HTTPOk
+from pyramid.httpexceptions import HTTPSuccessful
+from pyramid.httpexceptions import HTTPUnauthorized
+from pyramid.httpexceptions import exception_response
+from pyramid.interfaces import IRequestExtensions
+from pyramid.interfaces import IRootFactory
+from pyramid.interfaces import IRoutesMapper
+from pyramid.request import Request
+from pyramid.request import apply_request_extensions
+from pyramid.response import FileIter
+from pyramid.response import Response
+from pyramid.security import forget
+from pyramid.threadlocal import RequestContext
+from pyramid.traversal import DefaultRootFactory
+from pyramid.view import exception_view_config
+from pyramid.view import view_config
+from time import time
+from urllib.parse import urlparse
 import attrs
+import contextlib
+import devpi_server
+import itertools
+import json
+import os
+import re
+import warnings
+
 
 devpiweb_hookimpl = HookimplMarker("devpiweb")
 server_version = devpi_server.__version__

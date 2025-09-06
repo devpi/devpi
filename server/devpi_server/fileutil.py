@@ -1,12 +1,12 @@
-import errno
-import os.path
-import sys
 from . import filestore
 from . import readonly
 from io import BytesIO
 from struct import error as struct_error
 from struct import pack
 from struct import unpack
+import errno
+import os.path
+import sys
 
 
 _nodefault = object()

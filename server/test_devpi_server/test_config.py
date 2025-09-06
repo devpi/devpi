@@ -1,5 +1,7 @@
-from devpi_server.config import MyArgumentParser, parseoptions, get_pluginmanager
+from devpi_server.config import MyArgumentParser
+from devpi_server.config import get_pluginmanager
 from devpi_server.config import hookimpl
+from devpi_server.config import parseoptions
 from devpi_server.main import Fatal
 from pathlib import Path
 import pytest

@@ -3,17 +3,17 @@ Module for handling storage and proxy-streaming and caching of release files
 for all indexes.
 
 """
-import hashlib
-import mimetypes
 from .readonly import get_mutable_deepcopy
-from wsgiref.handlers import format_date_time
-import re
 from devpi_common.metadata import splitbasename
 from devpi_common.types import parse_hash_spec
 from devpi_server.log import threadlog
 from devpi_server.markers import absent
 from inspect import currentframe
 from urllib.parse import unquote
+from wsgiref.handlers import format_date_time
+import hashlib
+import mimetypes
+import re
 import warnings
 
 

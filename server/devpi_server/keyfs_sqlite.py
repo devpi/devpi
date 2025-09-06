@@ -1,17 +1,21 @@
-from devpi_common.types import cached_property
 from .config import hookimpl
 from .filestore_fs import LazyChangesFormatter
-from .fileutil import dumps, loads
+from .fileutil import dumps
+from .fileutil import loads
 from .interfaces import IStorageConnection2
 from .keyfs import KeyfsTimeoutError
 from .keyfs import get_relpath_at
 from .keyfs_types import RelpathInfo
-from .log import threadlog, thread_push_log, thread_pop_log
+from .log import thread_pop_log
+from .log import thread_push_log
+from .log import threadlog
 from .markers import absent
 from .mythread import current_thread
 from .readonly import ReadonlyView
-from .readonly import ensure_deeply_readonly, get_mutable_deepcopy
+from .readonly import ensure_deeply_readonly
+from .readonly import get_mutable_deepcopy
 from .sizeof import gettotalsizeof
+from devpi_common.types import cached_property
 from io import BytesIO
 from repoze.lru import LRUCache
 from tempfile import SpooledTemporaryFile as SpooledTemporaryFileBase

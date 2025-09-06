@@ -1,8 +1,8 @@
+from .functional import TestIndexPushThings as BaseTestIndexPushThings
+from .functional import TestIndexThings as BaseTestIndexThings
+from .functional import TestMirrorIndexThings as BaseTestMirrorIndexThings
 from .functional import TestProjectThings as BaseTestProjectThings
 from .functional import TestUserThings as BaseTestUserThings
-from .functional import TestIndexThings as BaseTestIndexThings
-from .functional import TestIndexPushThings as BaseTestIndexPushThings
-from .functional import TestMirrorIndexThings as BaseTestMirrorIndexThings
 import pytest
 
 

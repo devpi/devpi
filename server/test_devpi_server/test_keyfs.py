@@ -1,10 +1,11 @@
+from devpi_server.keyfs import KeyFS
+from devpi_server.keyfs import Transaction
+from devpi_server.mythread import ThreadPool
+from devpi_server.readonly import is_deeply_readonly
 import contextlib
 import py
 import pytest
-from devpi_server.mythread import ThreadPool
 
-from devpi_server.keyfs import KeyFS, Transaction
-from devpi_server.readonly import is_deeply_readonly
 
 notransaction = pytest.mark.notransaction
 

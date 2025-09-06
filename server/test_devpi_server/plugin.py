@@ -1,27 +1,15 @@
-from _pytest import capture
-import re
-from webtest.forms import Upload
-import json
-import webtest
-import mimetypes
-import subprocess
-
-import pytest
-import py
-import requests
-import shutil
-import socket
-import sys
-import time
 from .functional import MappMixin
+from _pytest import capture
 from bs4 import BeautifulSoup
 from contextlib import closing
+from devpi_common.url import URL
+from devpi_common.validation import normalize_name
 from devpi_server import mirror
 from devpi_server.config import get_pluginmanager
-from devpi_server.main import XOM, parseoptions
-from devpi_common.validation import normalize_name
-from devpi_common.url import URL
-from devpi_server.log import threadlog, thread_clear_log
+from devpi_server.log import thread_clear_log
+from devpi_server.log import threadlog
+from devpi_server.main import XOM
+from devpi_server.main import parseoptions
 from io import BytesIO
 from pathlib import Path
 from pyramid.authentication import b64encode
@@ -29,7 +17,20 @@ from pyramid.httpexceptions import status_map
 from queue import Queue as BaseQueue
 from webtest import TestApp as TApp
 from webtest import TestResponse
+from webtest.forms import Upload
 import hashlib
+import json
+import mimetypes
+import py
+import pytest
+import re
+import requests
+import shutil
+import socket
+import subprocess
+import sys
+import time
+import webtest
 
 
 pytest_plugins = ["test_devpi_server.reqmock"]
@@ -65,8 +66,8 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 def server_version():
-    from devpi_server import __version__
     from devpi_common.metadata import parse_version
+    from devpi_server import __version__
     return parse_version(__version__)
 
 
@@ -716,8 +717,8 @@ def model(xom):
 def devpiserver_makepypistage():
     def makepypistage(xom):
         from devpi_server.main import _pypi_ixconfig_default
-        from devpi_server.mirror import MirrorStage
         from devpi_server.mirror import MirrorCustomizer
+        from devpi_server.mirror import MirrorStage
         # we copy _pypi_ixconfig_default, otherwise the defaults will
         # be modified during config updates later on
         return MirrorStage(
@@ -1326,12 +1327,12 @@ def call_devpi_in_dir():
     devpiserver = shutil.which("devpi-server")
 
     def devpi(server_dir, args):
+        from _pytest.monkeypatch import MonkeyPatch
+        from _pytest.pytester import RunResult
         from devpi_server.genconfig import genconfig
         from devpi_server.importexport import import_
         from devpi_server.init import init
         from devpi_server.main import main
-        from _pytest.monkeypatch import MonkeyPatch
-        from _pytest.pytester import RunResult
         m = MonkeyPatch()
         m.setenv("DEVPISERVER_SERVERDIR", getattr(server_dir, 'strpath', server_dir))
         cap = capture.MultiCapture(
@@ -1569,7 +1570,8 @@ def nginx_replica_host_port(request, call_devpi_in_dir, server_path, adjust_ngin
 
 @pytest.fixture(scope="session")
 def simpypiserver():
-    from .simpypi import httpserver, SimPyPIRequestHandler
+    from .simpypi import SimPyPIRequestHandler
+    from .simpypi import httpserver
     import threading
     host = 'localhost'
     port = get_open_port(host)
@@ -1606,7 +1608,8 @@ class Gen:
 
 @pytest.fixture
 def pyramidconfig():
-    from pyramid.testing import setUp, tearDown
+    from pyramid.testing import setUp
+    from pyramid.testing import tearDown
     config = setUp()
     yield config
     tearDown()

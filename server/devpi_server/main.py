@@ -5,21 +5,11 @@ recursive cache of pypi.org packages.
 """
 from __future__ import annotations
 
-import functools
-import os
-import os.path
-import asyncio
-import py
-import sys
-import threading
-import time
-import warnings
-
-from requests import Response, exceptions
-from devpi_common.types import cached_property
-from devpi_common.request import new_requests_session
+from . import __version__ as server_version
+from . import mythread
 from .config import MyArgumentParser
-from .config import parseoptions, get_pluginmanager
+from .config import get_pluginmanager
+from .config import parseoptions
 from .exceptions import lazy_format_exception_only
 from .httpclient import FatalResponse
 from .httpclient import HTTPClient
@@ -27,15 +17,26 @@ from .httpclient import OfflineHTTPClient
 from .httpclient import get_caller_location
 from .log import configure_cli_logging
 from .log import configure_logging
-from .log import threadlog
 from .log import thread_push_log
+from .log import threadlog
 from .model import BaseStage
 from .model import RootModel
 from .views import apireturn
-from . import mythread
-from . import __version__ as server_version
+from devpi_common.request import new_requests_session
+from devpi_common.types import cached_property
 from operator import iconcat
+from requests import Response
+from requests import exceptions
 from typing import TYPE_CHECKING
+import asyncio
+import functools
+import os
+import os.path
+import py
+import sys
+import threading
+import time
+import warnings
 
 
 if TYPE_CHECKING:
@@ -559,7 +560,8 @@ class XOM:
         from devpi_server.middleware import OutsideURLMiddleware
         from devpi_server.view_auth import DevpiSecurityPolicy
         from devpi_server.views import ContentTypePredicate
-        from devpi_server.views import route_url, INSTALLER_USER_AGENT
+        from devpi_server.views import INSTALLER_USER_AGENT
+        from devpi_server.views import route_url
         from pyramid.config import Configurator
         from pyramid.viewderivers import INGRESS
         log = self.log

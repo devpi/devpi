@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from pluggy import HookspecMarker
 from typing import Optional
 from typing import TYPE_CHECKING

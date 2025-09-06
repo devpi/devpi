@@ -3,8 +3,8 @@ from devpi_server.views import iter_cache_remote_file
 from io import BytesIO
 from webob.headers import ResponseHeaders
 import hashlib
-import pytest
 import py
+import pytest
 
 
 zip_types = ("application/zip", "application/x-zip-compressed")

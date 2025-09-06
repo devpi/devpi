@@ -46,4 +46,6 @@ try:
         return result
 except TypeError:
     # PyPy doesn't implement getsizeof, use dumplen as estimate
-    from .fileutil import dumplen as gettotalsizeof  # type: ignore[assignment] # noqa: F401
+    from .fileutil import (  # type: ignore[assignment] # noqa: F401
+        dumplen as gettotalsizeof,
+    )

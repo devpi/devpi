@@ -1,13 +1,14 @@
-import py
-import sys
-import subprocess
 from collections import OrderedDict
 from devpi_common.url import URL
+from devpi_server.config import get_parser
+from devpi_server.config import get_pluginmanager
+from devpi_server.config import hookimpl
+from devpi_server.config import parseoptions
 from functools import partial
 from plistlib import dumps as plist_dumps
-
-from devpi_server.config import hookimpl
-from devpi_server.config import parseoptions, get_parser, get_pluginmanager
+import py
+import subprocess
+import sys
 
 
 # don't sort the keys; that way we can keep our own order

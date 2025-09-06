@@ -1,23 +1,24 @@
+from . import fileutil
+from . import hookspecs
+from .log import threadlog
+from devpi_common.types import cached_property
+from devpi_common.url import URL
+from functools import partial
+from operator import itemgetter
+from pathlib import Path
+from pluggy import HookimplMarker
+from pluggy import PluginManager
+from tempfile import NamedTemporaryFile
 import argon2
-import base64
-import os.path
 import argparse
+import base64
+import devpi_server
+import json
+import os.path
+import py
 import secrets
 import sys
 import uuid
-from operator import itemgetter
-from pathlib import Path
-from tempfile import NamedTemporaryFile
-from pluggy import HookimplMarker, PluginManager
-import py
-from devpi_common.types import cached_property
-from functools import partial
-from .log import threadlog
-from . import fileutil
-from . import hookspecs
-import json
-import devpi_server
-from devpi_common.url import URL
 import warnings
 
 

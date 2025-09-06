@@ -1,6 +1,7 @@
 from devpi_server.config import hookimpl
 import pytest
 
+
 pytestmark = [pytest.mark.writetransaction]
 
 

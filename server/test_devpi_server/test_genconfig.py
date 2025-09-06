@@ -1,5 +1,5 @@
-import subprocess
 import pytest
+import subprocess
 
 
 @pytest.mark.slow
