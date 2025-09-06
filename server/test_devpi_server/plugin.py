@@ -4,6 +4,7 @@ from .functional import MappMixin
 from _pytest import capture
 from bs4 import BeautifulSoup
 from contextlib import closing
+from devpi_common.terminal import TerminalWriter
 from devpi_common.url import URL
 from devpi_common.validation import normalize_name
 from devpi_server import mirror
@@ -1732,7 +1733,7 @@ def tox_result_data(request):
 
 @pytest.fixture
 def terminalwriter():
-    return py.io.TerminalWriter()
+    return TerminalWriter()
 
 
 @pytest.fixture(autouse=True, scope="session")

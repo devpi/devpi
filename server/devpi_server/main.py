@@ -23,6 +23,7 @@ from .model import BaseStage
 from .model import RootModel
 from .views import apireturn
 from devpi_common.request import new_requests_session
+from devpi_common.terminal import TerminalWriter
 from devpi_common.types import cached_property
 from operator import iconcat
 from requests import Response
@@ -32,7 +33,6 @@ import asyncio
 import functools
 import os
 import os.path
-import py
 import sys
 import threading
 import time
@@ -90,11 +90,11 @@ class CommandRunner:
 
     @cached_property
     def tw(self):
-        return py.io.TerminalWriter()
+        return TerminalWriter()
 
     @cached_property
     def tw_err(self):
-        return py.io.TerminalWriter(sys.stderr)
+        return TerminalWriter(sys.stderr)
 
 
 DATABASE_VERSION = "4"

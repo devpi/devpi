@@ -1,12 +1,13 @@
 from collections import OrderedDict
+from devpi_common.terminal import TerminalWriter
 from devpi_common.url import URL
 from devpi_server.config import get_parser
 from devpi_server.config import get_pluginmanager
 from devpi_server.config import hookimpl
 from devpi_server.config import parseoptions
 from functools import partial
+from pathlib import Path
 from plistlib import dumps as plist_dumps
-import py
 import subprocess
 import sys
 
@@ -29,8 +30,7 @@ def render(confname, format=None, **kw):
 
 
 def get_devpibin(tw):
-    devpibin = py.path.local(
-        sys.argv[0].replace("devpi-gen-config", "devpi-server"))
+    devpibin = Path(sys.argv[0]).with_name("devpi-server")
     if not devpibin.exists():
         tw.line(
             "The devpi-server executable doesn't exist in the following "
@@ -183,8 +183,8 @@ def genconfig(config=None, argv=None):
             "webservers. Takes same arguments as devpi-server.")
         config = parseoptions(pluginmanager, argv, parser=parser)
 
-    tw = py.io.TerminalWriter()
-    tw.cwd = py.path.local()
+    tw = TerminalWriter()
+    cwd = Path().absolute()
 
     if not config.args.configfile:
         tw.line(
@@ -192,7 +192,8 @@ def genconfig(config=None, argv=None):
             "devpi-server, see --configfile option.",
             red=True)
 
-    destdir = tw.cwd.ensure("gen-config", dir=1)
+    destdir = cwd.joinpath("gen-config")
+    destdir.mkdir(parents=True, exist_ok=True)
 
     new_argv = []
     argv_iter = iter(argv[1:])
@@ -209,17 +210,18 @@ def genconfig(config=None, argv=None):
             if '=' not in arg:
                 next(argv_iter)  # remove path
             # replace with absolute path
-            new_argv.extend([
-                "--configfile",
-                py.path.local(config.args.configfile).strpath])
+            new_argv.extend(
+                ["--configfile", str(Path(config.args.configfile).absolute())]
+            )
             continue
         new_argv.append(arg)
-    new_config = parseoptions(pluginmanager, ["devpi-server"] + new_argv)
+    new_config = parseoptions(pluginmanager, ["devpi-server", *new_argv])
 
     def writer(basename, content):
-        p = destdir.join(basename)
-        p.write(content)
-        tw.line("wrote %s" % p.relto(tw.cwd), bold=True)
+        p = destdir.joinpath(basename)
+        with p.open("w" if isinstance(content, str) else "wb") as f:
+            f.write(content)
+        tw.line(f"wrote {p.relative_to(cwd)}", bold=True)
 
     config.hook.devpiserver_genconfig(
         tw=tw, config=new_config, argv=new_argv, writer=writer)

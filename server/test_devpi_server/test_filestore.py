@@ -1,9 +1,9 @@
 from devpi_server.filestore import get_hashes
 from devpi_server.views import iter_cache_remote_file
 from io import BytesIO
+from pathlib import Path
 from webob.headers import ResponseHeaders
 import hashlib
-import py
 import pytest
 
 
@@ -133,8 +133,8 @@ class TestFileStore:
         link1 = gen.pypi_package_link("pytest-1.2.zip", hash_spec=md5_1.get_spec("md5"))
         entry1 = filestore.maplink(link1, "root", "pypi", "pytest")
         # write a wrong file outside the transaction
-        filepath = py.path.local(entry1.file_os_path())
-        filepath.dirpath().ensure(dir=1)
+        filepath = Path(entry1.file_os_path())
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         with filepath.open("w") as f:
             f.write('othercontent')
         filestore.keyfs.rollback_transaction_in_thread()
@@ -147,7 +147,7 @@ class TestFileStore:
         assert isinstance(entry2.hashes.exception_for(content2, entry2.relpath), ValueError)
         assert entry2.hashes.exception_for(content1, entry2.relpath) is None
         filestore.keyfs.commit_transaction_in_thread()
-        assert py.path.local(filepath).exists()
+        assert Path(filepath).exists()
 
     def test_file_delete(self, filestore, gen):
         link = gen.pypi_package_link("pytest-1.2.zip", hash_spec=False)
@@ -365,7 +365,7 @@ def test_file_tx_commit(filestore, gen):
     content = b"123"
     entry.file_set_content(content, hashes=get_hashes(content))
     assert entry.file_exists()
-    filepath = py.path.local(entry.file_os_path(_raises=False))
+    filepath = Path(entry.file_os_path(_raises=False))
     assert not filepath.exists()
     assert entry.file_get_content() == content
     # commit existing data and start new transaction
@@ -389,7 +389,7 @@ def test_file_tx_rollback(filestore, gen):
     content = b"123"
     entry.file_set_content(content, hashes=get_hashes(content))
     assert entry.file_exists()
-    filepath = py.path.local(entry.file_os_path(_raises=False))
+    filepath = Path(entry.file_os_path(_raises=False))
     assert not filepath.exists()
     assert entry.file_get_content() == content
     filestore.keyfs.rollback_transaction_in_thread()
