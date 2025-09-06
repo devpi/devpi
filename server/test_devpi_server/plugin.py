@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .functional import MappMixin
 from _pytest import capture
 from bs4 import BeautifulSoup
@@ -18,7 +20,6 @@ from queue import Queue as BaseQueue
 from webtest import TestApp as TApp
 from webtest import TestResponse
 from webtest.forms import Upload
-import hashlib
 import json
 import mimetypes
 import py
@@ -33,6 +34,17 @@ import time
 import webtest
 
 
+class NotSet:
+    __slots__ = ()
+
+    def __bool__(self):
+        return False
+
+    def __repr__(self) -> str:
+        return "<notset>"
+
+
+notset = NotSet()
 pytest_plugins = ["test_devpi_server.reqmock"]
 
 
@@ -1619,13 +1631,48 @@ def gen():
 
 
 class Gen:
-    def pypi_package_link(self, pkgname, *, md5=True):
-        link = "https://pypi.org/package/some/%s" % pkgname
-        if md5 is True:
-            md5 = hashlib.md5(link.encode()).hexdigest()  # noqa: S324
-        if md5:
-            link += "#md5=%s" % md5
-        return URL(link)
+    def __init__(self):
+        from devpi_server.filestore import DEFAULT_HASH_TYPE
+        from devpi_server.filestore import get_hashes
+
+        self.DEFAULT_HASH_TYPE = DEFAULT_HASH_TYPE
+        self.get_hashes = get_hashes
+
+    def pypi_package_link(
+        self,
+        pkgname: str,
+        *,
+        hash_spec: NotSet | bool | str = notset,
+        hash_type: NotSet | str = notset,
+        md5: NotSet | bool | str = notset,
+    ) -> URL:
+        link = f"https://pypi.org/package/some/{pkgname}"
+        if hash_spec is notset and hash_type is notset and md5 is notset:
+            hash_type = "md5"
+            hash_spec = True
+        if isinstance(md5, bool):
+            assert hash_spec is notset
+            if md5:
+                assert hash_type is notset
+                hash_type = "md5"
+            else:
+                hash_spec = False
+            md5 = notset
+        elif isinstance(md5, str):
+            assert hash_spec is notset
+            hash_spec = f"md5={md5}"
+            md5 = notset
+        elif md5 is not notset:
+            raise TypeError
+        assert md5 is notset
+        if hash_spec is notset or hash_spec is True:
+            if hash_type is notset:
+                hash_type = self.DEFAULT_HASH_TYPE
+            hash_spec = self.get_hashes(
+                link.encode(),
+                hash_types=(hash_type,),
+            ).get_spec(hash_type)
+        return URL(f"{link}#{hash_spec}" if hash_spec else link)
 
 
 @pytest.fixture
