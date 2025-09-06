@@ -17,6 +17,7 @@ from .model import BaseStageCustomizer
 from .model import Rel
 from .model import ensure_boolean
 from .model import join_links_data
+from .normalized import normalize_name
 from .readonly import ensure_deeply_readonly
 from .views import SIMPLE_API_V1_JSON
 from devpi_common.metadata import BasenameMeta
@@ -24,7 +25,6 @@ from devpi_common.metadata import is_archive_of_project
 from devpi_common.metadata import parse_version
 from devpi_common.types import cached_property
 from devpi_common.url import URL
-from devpi_common.validation import normalize_name
 from functools import partial
 from html.parser import HTMLParser
 from pyramid.authentication import b64encode

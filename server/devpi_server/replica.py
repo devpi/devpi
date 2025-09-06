@@ -13,12 +13,12 @@ from .log import thread_push_log
 from .log import threadlog
 from .main import Fatal
 from .model import UpstreamError
+from .normalized import normalize_name
 from .views import FileStreamer
 from .views import H_MASTER_UUID
 from .views import H_PRIMARY_UUID
 from devpi_common.types import cached_property
 from devpi_common.url import URL
-from devpi_common.validation import normalize_name
 from pluggy import HookimplMarker
 from pyramid.httpexceptions import HTTPAccepted
 from pyramid.httpexceptions import HTTPBadRequest

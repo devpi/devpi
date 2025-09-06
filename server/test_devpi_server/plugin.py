@@ -6,13 +6,13 @@ from bs4 import BeautifulSoup
 from contextlib import closing
 from devpi_common.terminal import TerminalWriter
 from devpi_common.url import URL
-from devpi_common.validation import normalize_name
 from devpi_server import mirror
 from devpi_server.config import get_pluginmanager
 from devpi_server.log import thread_clear_log
 from devpi_server.log import threadlog
 from devpi_server.main import XOM
 from devpi_server.main import parseoptions
+from devpi_server.normalized import normalize_name
 from io import BytesIO
 from pathlib import Path
 from pyramid.authentication import b64encode

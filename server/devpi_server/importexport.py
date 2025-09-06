@@ -10,12 +10,12 @@ from .main import init_default_indexes
 from .main import set_state_version
 from .main import xom_from_config
 from .model import Rel
+from .normalized import normalize_name
 from .readonly import ReadonlyView
 from .readonly import get_mutable_deepcopy
 from collections import defaultdict
 from devpi_common.metadata import BasenameMeta
 from devpi_common.url import URL
-from devpi_common.validation import normalize_name
 from devpi_server import __version__ as server_version
 from devpi_server.model import get_stage_customizer_classes
 from devpi_server.model import is_valid_name

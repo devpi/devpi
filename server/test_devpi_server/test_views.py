@@ -228,6 +228,16 @@ def test_simple_project_redirect(pypistage, testapp):
     assert r.headers["location"].endswith("/root/pypi/+simple/%s/" % project)
 
 
+def test_index_project_not_found(mapp):
+    api = mapp.create_and_use()
+    r = mapp.getjson(api.index + "/pkg1", code=404)
+    assert r["message"] == "no project 'pkg1'"
+    # non-normalized projects are redirected first,
+    # causing normalized name in error
+    r = mapp.getjson(api.index + "/Foo.Bar", code=404)
+    assert r["message"] == "no project 'foo-bar'"
+
+
 def test_index_get_json_patch_json_roundtrip(mapp, testapp):
     api = mapp.create_and_use(indexconfig=dict(bases=["root/pypi"]))
     r = testapp.get(api.index)

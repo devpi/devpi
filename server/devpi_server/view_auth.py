@@ -1,6 +1,6 @@
+from .normalized import normalize_name
 from devpi_common.types import cached_property
 from devpi_common.types import ensure_unicode
-from devpi_common.validation import normalize_name
 from devpi_server.auth import Auth
 from devpi_server.config import hookimpl
 from devpi_server.config import traced_pluggy_call
@@ -157,7 +157,7 @@ class RootFactory:
         except UpstreamError as e:
             abort(self.request, 502, str(e))
         if not res and not self.stage.has_project(project):
-            abort(self.request, 404, f"no project {project!r}")
+            abort(self.request, 404, f"no project {project.original!r}")
         return res
 
     @cached_property

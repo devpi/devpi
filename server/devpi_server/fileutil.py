@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from . import filestore
 from . import readonly
+from .normalized import NormalizedName
 from io import BytesIO
 from struct import error as struct_error
 from struct import pack
@@ -227,6 +228,7 @@ _dispatch: dict[type, Callable] = {
     set: _dump_set,
     readonly.SetViewReadonly: _dump_set,
     complex: _dump_complex,
+    NormalizedName: _dump_str,
 }
 
 

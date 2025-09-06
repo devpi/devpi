@@ -9,6 +9,7 @@ from .filestore import FileEntry
 from .filestore import get_hash_spec
 from .log import threadlog
 from .markers import unknown
+from .normalized import normalize_name
 from .readonly import get_mutable_deepcopy
 from devpi_common.metadata import get_latest_version
 from devpi_common.metadata import parse_version
@@ -17,7 +18,6 @@ from devpi_common.types import cached_property
 from devpi_common.types import ensure_unicode
 from devpi_common.types import parse_hash_spec
 from devpi_common.url import URL
-from devpi_common.validation import normalize_name
 from devpi_common.validation import validate_metadata
 from functools import total_ordering
 from itertools import zip_longest
