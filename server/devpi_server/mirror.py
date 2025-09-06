@@ -9,6 +9,7 @@ from __future__ import annotations
 from .config import hookimpl
 from .exceptions import lazy_format_exception
 from .filestore import key_from_link
+from .htmlpage import HTMLPage
 from .log import threadlog
 from .markers import unknown
 from .model import BaseStage
@@ -16,7 +17,6 @@ from .model import BaseStageCustomizer
 from .model import ensure_boolean
 from .model import join_links_data
 from .readonly import ensure_deeply_readonly
-from .vendor._pip import HTMLPage
 from .views import SIMPLE_API_V1_JSON
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
