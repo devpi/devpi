@@ -31,6 +31,7 @@ import socket
 import subprocess
 import sys
 import time
+import warnings
 import webtest
 
 
@@ -1647,9 +1648,13 @@ class Gen:
         md5: NotSet | bool | str = notset,
     ) -> URL:
         link = f"https://pypi.org/package/some/{pkgname}"
-        if hash_spec is notset and hash_type is notset and md5 is notset:
-            hash_type = "md5"
-            hash_spec = True
+        if md5 is not notset:
+            warnings.warn(
+                "The 'md5' argument of 'pypi_package_link' is deprecated, "
+                "use 'hash_spec' or 'hash_type' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         if isinstance(md5, bool):
             assert hash_spec is notset
             if md5:

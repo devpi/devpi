@@ -18,7 +18,6 @@ from devpi_server.replica import PrimaryChangelogRequest
 from devpi_server.replica import proxy_view_to_primary
 from devpi_server.views import iter_remote_file_replica
 from pyramid.httpexceptions import HTTPNotFound
-import hashlib
 import os
 import pytest
 
@@ -806,8 +805,8 @@ class TestFileReplication:
     def test_fetch(self, gen, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'
-        md5 = hashlib.md5(content1).hexdigest()
-        link = gen.pypi_package_link("pytest-1.8.zip", md5=md5)
+        md5_1 = get_hashes(content1, hash_types=("md5",))
+        link = gen.pypi_package_link("pytest-1.8.zip", hash_spec=md5_1.get_spec("md5"))
         with xom.keyfs.write_transaction():
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert not entry.file_exists()
@@ -857,8 +856,8 @@ class TestFileReplication:
     def test_fetch_later_deleted(self, caplog, gen, xom, replica_xom):
         replay(xom, replica_xom)
         content1 = b'hello'
-        md5 = hashlib.md5(content1).hexdigest()
-        link = gen.pypi_package_link("pytest-1.8.zip", md5=md5)
+        md5_1 = get_hashes(content1, hash_types=("md5",))
+        link = gen.pypi_package_link("pytest-1.8.zip", hash_spec=md5_1.get_spec("md5"))
         with xom.keyfs.write_transaction():
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
             assert not entry.file_exists()
@@ -896,7 +895,7 @@ class TestFileReplication:
         (frthread,) = replica_xom.replica_thread.file_replication_threads
         replay(xom, replica_xom)
         content1 = b'hello'
-        link = gen.pypi_package_link("some-1.8.zip", md5=False)
+        link = gen.pypi_package_link("some-1.8.zip", hash_spec=False)
         with xom.keyfs.write_transaction():
             entry = xom.filestore.maplink(link, "root", "pypi", "some")
             assert not entry.file_exists()
@@ -975,10 +974,10 @@ class TestFileReplication:
                             lambda x: l.append(x))
         content = b"123"
         with xom.keyfs.write_transaction():
-            md5_1 = get_hashes(content, hash_types=("md5",))["md5"]
-            link = gen.pypi_package_link("pytest-1.8.zip", md5=md5_1)
+            md5_1 = get_hashes(content, hash_types=("md5",)).get_spec("md5")
+            link = gen.pypi_package_link("pytest-1.8.zip", hash_spec=md5_1)
             entry = xom.filestore.maplink(link, "root", "pypi", "pytest")
-            assert entry.best_available_hash_spec == f"md5={md5_1}"
+            assert entry.best_available_hash_spec == md5_1
             assert not entry.file_exists()
         replay(xom, replica_xom)
         with replica_xom.keyfs.read_transaction():
