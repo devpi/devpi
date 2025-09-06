@@ -22,6 +22,7 @@ from .log import threadlog
 from .model import BaseStage
 from .model import RootModel
 from .views import apireturn
+from collections import defaultdict
 from devpi_common.request import new_requests_session
 from devpi_common.terminal import TerminalWriter
 from devpi_common.types import cached_property
@@ -581,12 +582,12 @@ class XOM:
         version_info.sort()
         pyramid_config.registry['devpi_version_info'] = version_info
         pyramid_config.registry['xom'] = self
-        index_classes: dict[str, list] = {}
+        index_classes: defaultdict[str, list] = defaultdict(list)
         customizer_classes: list[tuple[str, type]] = functools.reduce(
             iconcat, self.config.hook.devpiserver_get_stage_customizer_classes(), []
         )
         for ixtype, ixclass in customizer_classes:
-            index_classes.setdefault(ixtype, []).append(ixclass)
+            index_classes[ixtype].append(ixclass)
         for ixtype, ixclasses in index_classes.items():
             if len(ixclasses) > 1:
                 raise Fatal(

@@ -12,6 +12,7 @@ from .main import xom_from_config
 from .model import Rel
 from .readonly import ReadonlyView
 from .readonly import get_mutable_deepcopy
+from collections import defaultdict
 from devpi_common.metadata import BasenameMeta
 from devpi_common.url import URL
 from devpi_common.validation import normalize_name
@@ -406,9 +407,9 @@ class Importer:
             raise SystemExit(1)
 
     def iter_projects_normalized(self, projects):
-        project_name_map: dict[str, set] = {}
+        project_name_map: dict[str, set] = defaultdict(set)
         for project in projects:
-            project_name_map.setdefault(normalize_name(project), set()).add(project)
+            project_name_map[normalize_name(project)].add(project)
         for project, names in project_name_map.items():
             versions = {}
             for name in names:
@@ -666,7 +667,7 @@ class IndexTree:
     create in root->child order.
     """
     def __init__(self):
-        self.name2children = {}
+        self.name2children = defaultdict(list)
         self.name2bases = {}
 
     def add(self, name, bases=None):
@@ -675,11 +676,10 @@ class IndexTree:
             bases.remove(name)
         self.name2bases[name] = bases
         if not bases:
-            self.name2children.setdefault(None, []).append(name)
+            self.name2children[None].append(name)
         else:
             for base in bases:
-                children = self.name2children.setdefault(base, [])
-                children.append(name)
+                self.name2children[base].append(name)
 
     def validate(self):
         all_bases = set(itertools.chain.from_iterable(self.name2bases.values()))
@@ -706,7 +706,7 @@ class IndexTree:
                     if name:
                         yield name
                     created.add(name)
-                    for child in self.name2children.get(name, []):
+                    for child in self.name2children[name]:
                         if child not in created:
                             pending.append(child)
         missed = set(self.name2bases) - created
