@@ -1,8 +1,35 @@
 # this file is shared via symlink with devpi-client,
 # so it must continue to work with the lowest supported Python 3.x version
+from __future__ import annotations
+
 from devpi_common.metadata import parse_version
+from typing import TYPE_CHECKING
 from urllib.parse import quote as url_quote
 import pytest
+
+
+if TYPE_CHECKING:
+    from typing import Any
+    from typing import Protocol
+
+    class MappProtocol(Protocol):
+        api: API
+
+        def create_and_login_user(self, user: str, password: str) -> None: ...
+
+        def create_index(
+            self,
+            indexname: str,
+            indexconfig: dict | None = None,
+            use: bool = True,  # noqa: FBT001, FBT002 - API
+            code: int = 200,
+        ) -> API | str: ...
+
+        def getjson(self, path: str, code: int = 200) -> dict[str, Any]: ...
+
+        def get_new_stagename(self) -> str: ...
+
+        def use(self, stagename: str) -> API: ...
 
 
 LOWER_ARGON2_MEMORY_COST = 8
@@ -11,8 +38,14 @@ LOWER_ARGON2_TIME_COST = 1
 
 
 class API:
+    login: str
+    user: str
+    password: str
+    simpleindex: str
+    stagename: str
+
     def __init__(self, d):
-        self.__dict__ = d
+        self.__dict__.update(d)
 
     def __repr__(self):
         cls = self.__class__
@@ -24,7 +57,12 @@ class API:
 class MappMixin:
     _usercount = 0
 
-    def create_and_use(self, stagename=None, password="123", indexconfig=None):  # noqa: S107
+    def create_and_use(
+        self: MappProtocol,
+        stagename: str | None = None,
+        password: str = "123",  # noqa: S107 - testing
+        indexconfig: dict | None = None,
+    ) -> API:
         if stagename is None:
             stagename = self.get_new_stagename()
         user, index = stagename.split("/")
@@ -36,11 +74,11 @@ class MappMixin:
         self.api.stagename = stagename
         return self.api
 
-    def get_new_stagename(self):
+    def get_new_stagename(self) -> str:
         self._usercount += 1
         return "user%s/dev" % self._usercount
 
-    def getapi(self, relpath="/"):
+    def getapi(self: MappProtocol, relpath: str = "/") -> API:
         path = relpath.strip("/")
         if not path:
             path = "/+api"

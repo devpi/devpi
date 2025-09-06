@@ -59,7 +59,7 @@ class TestAuth:
         def validate(self, authpassword):
             result = orig_validate(self, authpassword)
             # block original to error on second use
-            User.validate = lambda s, a: 0 / 0
+            User.validate = lambda _s, _a: 0 / 0  # type: ignore[method-assign]
             return result
 
         monkeypatch.setattr(User, "validate", validate)
@@ -97,6 +97,8 @@ class TestAuthPlugin:
     @pytest.fixture
     def plugin(self):
         class Plugin:
+            results: list
+
             @hookimpl
             def devpiserver_auth_request(self, request, userdict, username, password):  # noqa: ARG002
                 return self.results.pop()
@@ -163,6 +165,8 @@ class TestAuthPlugins:
     @pytest.fixture
     def plugin1(self):
         class Plugin:
+            results: list
+
             @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):  # noqa: ARG002
                 return self.results.pop()
@@ -171,6 +175,8 @@ class TestAuthPlugins:
     @pytest.fixture
     def plugin2(self):
         class Plugin:
+            results: list
+
             @hookimpl
             def devpiserver_auth_user(self, userdict, username, password):  # noqa: ARG002
                 return self.results.pop()

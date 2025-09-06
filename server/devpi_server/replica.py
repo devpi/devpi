@@ -698,7 +698,7 @@ def register_key_subscribers(xom):
 
 
 class FileReplicationSharedData:
-    QUEUE_TIMEOUT = 1
+    QUEUE_TIMEOUT: float = 1
     ERROR_QUEUE_DELAY_MULTIPLIER = 1.5
     ERROR_QUEUE_REPORT_DELAY = 2 * 60
     ERROR_QUEUE_MAX_DELAY = 60 * 60

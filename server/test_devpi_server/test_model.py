@@ -554,10 +554,10 @@ class TestStage:
         # now we try to modify the index with the old pypi_whitelist setting
         # which can still exist in dbs and will be sent by devpi-client
         stage.modify(pypi_whitelist=[], volatile=False)
-        # if all went well, volatile should be changed
-        assert stage.ixconfig['volatile'] is False
-        # and pypi_whitelist ignored
+        # if all went well, pypi_whitelist is ignored
         assert 'pypi_whitelist' not in stage.ixconfig
+        # and volatile should be changed
+        assert stage.ixconfig["volatile"] is False
 
     @pytest.mark.notransaction
     def test_legacy_pypi_whitelist_removed(self, xom):
@@ -577,8 +577,8 @@ class TestStage:
             new_config['volatile'] = False
             # now we try to modify the index
             stage.modify(**new_config)
-            assert stage.ixconfig['volatile'] is False
             assert 'pypi_whitelist' not in stage.ixconfig
+            assert stage.ixconfig["volatile"] is False
 
     def test_package_not_in_mirror_whitelist_all(self, monkeypatch, pypistage, stage):
         stage.modify(mirror_whitelist="*", bases=(pypistage.name,))
@@ -1099,18 +1099,19 @@ class TestStage:
 
     @pytest.mark.start_threads
     def test_doczip_remove_hook(self, stage, queue):
-        class Plugin:
+        class Plugin1:
             @hookimpl
             def devpiserver_on_upload(self, stage, project, version, link):
                 queue.put((stage, project, version, link))
-        stage.xom.config.pluginmanager.register(Plugin())
 
-        class Plugin:
+        stage.xom.config.pluginmanager.register(Plugin1())
+
+        class Plugin2:
             @hookimpl
             def devpiserver_on_remove_file(self, stage, relpath):
                 queue.put((stage, relpath))
 
-        stage.xom.config.pluginmanager.register(Plugin())
+        stage.xom.config.pluginmanager.register(Plugin2())
 
         # upload, should trigger devpiserver_on_upload
         stage.set_versiondata(udict(name="pkg2", version="1.0"))
@@ -1159,7 +1160,7 @@ class TestStage:
             assert stage.get_last_change_serial_perstage() == current_serial
         content = b""
         hashes = get_hashes(content)
-        actions = [
+        actions: list = [
             ("set_versiondata", (dict(name="pkg", version="1.0"),), {}),
             (
                 "store_releasefile",
@@ -1223,9 +1224,9 @@ class TestStage:
             ('del_entry', entry, False),
             ('del_versiondata', 'hello', '1.0', False),
             ('del_project', 'hello')]
-        for action in actions:
+        for action, *args in actions:
             with xom.keyfs.write_transaction():
-                getattr(stage2, action[0])(*action[1:])
+                getattr(stage2, action)(*args)
                 # inside the transaction there is no change yet
                 assert stage2.get_last_change_serial_perstage() == current_serial
             assert current_serial == xom.keyfs.get_current_serial() - 1

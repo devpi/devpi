@@ -1,5 +1,7 @@
 # this file is shared via symlink with devpi-client,
 # so it must continue to work with the lowest supported Python 3.x version
+from __future__ import annotations
+
 from html import escape
 import hashlib
 import http.server as httpserver
@@ -39,7 +41,13 @@ def make_simple_pkg_info(name, *, text="", pkgver=None, hash_type=None,
     return ret, text
 
 
+class SimPyPIServer(httpserver.HTTPServer):
+    simpypi: SimPyPI
+
+
 class SimPyPIRequestHandler(httpserver.BaseHTTPRequestHandler):
+    server: SimPyPIServer
+
     def do_GET(self):
         def start_response(status, headers):
             self.send_response(status)

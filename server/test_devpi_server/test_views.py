@@ -1280,10 +1280,11 @@ def test_submit_authorization(mapp, testapp):
     r = testapp.post(api.index + '/', data, expect_errors=True)
     assert r.status_code == 401
     assert 'WWW-Authenticate' in r.headers
-    basic_auth = '%s:%s' % (api.user, api.password)
-    basic_auth = b"Basic " + b64encode(basic_auth.encode("ascii"))
-    basic_auth = basic_auth.decode("ascii")
-    headers = {'Authorization': basic_auth}
+    headers = {
+        "Authorization": (
+            b"Basic " + b64encode(f"{api.user}:{api.password}".encode("ascii"))
+        ).decode("ascii")
+    }
     r = testapp.post(api.index + '/', data, headers=headers)
     assert r.status_code == 200
 
@@ -1774,6 +1775,8 @@ class TestPluginPermissions:
 
 def test_upload_trigger(mapp):
     class Plugin:
+        results: list
+
         @hookimpl
         def devpiserver_on_upload_sync(
                 self, log, application_url, stage, project, version):  # noqa: ARG002

@@ -183,8 +183,8 @@ def test_version_info(xom):
     app = xom.create_app()
     while not hasattr(app, 'registry'):
         app = app.app
-    counts = {}
-    for name, version in app.registry['devpi_version_info']:
+    counts: dict[str, int] = {}
+    for name, _version in app.registry["devpi_version_info"]:
         counts[name] = counts.get(name, 0) + 1
     assert counts['devpi-server'] == 1
 

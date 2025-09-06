@@ -472,7 +472,7 @@ class TestTransactionIsolation:
     def test_get_value_at_modify_inplace_is_safe(self, keyfs):
         from copy import deepcopy
         D = keyfs.add_key("NAME", "hello", dict)
-        d = {1: set(), 2: dict(), 3: []}
+        d: dict[int, object] = {1: set(), 2: dict(), 3: []}
         d_orig = deepcopy(d)
         with keyfs.write_transaction():
             D.set(d)

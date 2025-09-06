@@ -287,9 +287,9 @@ class TestFileStore:
         entry = filestore.maplink(link, "root", "pypi", "pytest")
         assert entry.best_available_hash_spec is None
         assert not entry.hashes
-        headers = ResponseHeaders({
-            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
-            "content-length": None})
+        headers = ResponseHeaders(
+            {"last-modified": "Thu, 25 Nov 2010 20:00:27 GMT", "content-length": ""}
+        )
         assert entry.file_size() is None
         http.url2response[link.url] = dict(
             status_code=200, headers=headers, raw=BytesIO(b"1")

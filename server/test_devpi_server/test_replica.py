@@ -1223,7 +1223,7 @@ class TestFileReplicationSharedData:
         def handler(index_type, serial, key, keyname, value, back_serial):
             result.append(key)
         # Regardless of the serial or add order, the stage should come first
-        cases = []
+        cases: list = []
         cases.extend(permutations(((mirror_file, 0), (stage_file, 0), (deleted_file, 0))))
         cases.extend(permutations(((mirror_file, 1), (stage_file, 0), (deleted_file, 0))))
         cases.extend(permutations(((mirror_file, 0), (stage_file, 1), (deleted_file, 0))))
@@ -1380,7 +1380,7 @@ class TestFileReplicationSharedData:
         def handler(index_type, serial, key, keyname, value, back_serial):
             result.append(index_type)
 
-        changes = {
+        changes: dict[int, dict] = {
             0: {userkey: ({"indexes": {"dev": {"type": "stage"}}}, -1)},
             1: {key: (None, -1)},
             2: {userkey: ({}, 0)},
@@ -1388,7 +1388,8 @@ class TestFileReplicationSharedData:
             4: {userkey: ({"indexes": {"dev": {"type": "mirror"}}}, 2)},
             5: {key: (None, -1)},
             6: {userkey: (None, 4)},
-            7: {key: (None, -1)}}
+            7: {key: (None, -1)},
+        }
 
         class Tx:
             def get_value_at(self, key, serial):

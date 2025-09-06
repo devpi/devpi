@@ -13,6 +13,7 @@ class TestCredentialPlugin:
     def plugin(self):
         class Plugin:
             __name__ = 'TestCredentialPlugin'
+            results: list
 
             @hookimpl
             def devpiserver_get_credentials(self, request):  # noqa: ARG002
@@ -40,6 +41,7 @@ class TestCredentialPlugins:
     def plugin1(self):
         class Plugin:
             __name__ = 'TestCredentialPlugin1'
+            results: list
 
             @hookimpl
             def devpiserver_get_credentials(self, request):  # noqa: ARG002
@@ -50,6 +52,7 @@ class TestCredentialPlugins:
     def plugin2(self):
         class Plugin:
             __name__ = 'TestCredentialPlugin2'
+            results: list
 
             @hookimpl
             def devpiserver_get_credentials(self, request):  # noqa: ARG002

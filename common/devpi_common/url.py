@@ -36,13 +36,13 @@ class URL:
     url: str
 
     def __init__(self, url: URL | str = "", *args: Any, **kwargs: Any) -> None:
-        if isinstance(url, URL):
-            url = url.url
+        _url = url.url if isinstance(url, URL) else url
+        del url
         if args:
-            url = _joinpath(url, args, **kwargs)
-        if not url:
-            url = ""
-        self.url = ensure_unicode(url)
+            _url = _joinpath(_url, args, **kwargs)
+        if not _url:
+            _url = ""
+        self.url = ensure_unicode(_url)
 
     def __nonzero__(self):
         return bool(self.url)

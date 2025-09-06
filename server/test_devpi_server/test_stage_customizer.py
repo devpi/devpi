@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from devpi_server.config import hookimpl
 from devpi_server.filestore import get_hashes
+from devpi_server.model import InvalidIndexconfig
 import pytest
 
 
@@ -65,7 +68,9 @@ def test_permissions_for_unknown_index(mapp, xom):
 def test_indexconfig_items(makemapp, maketestapp, makexom):
     from devpi_server.model import ensure_list
 
-    class MyStageCustomizer(object):
+    class MyStageCustomizer:
+        InvalidIndexconfig = InvalidIndexconfig
+
         def get_possible_indexconfig_keys(self):
             return ("bar", "ham")
 
@@ -74,8 +79,13 @@ def test_indexconfig_items(makemapp, maketestapp, makexom):
                 return ensure_list(value)
             if key == "ham":
                 return value
+            raise ValueError(key)
 
-        def validate_config(self, oldconfig, newconfig):  # noqa: ARG002
+        def validate_config(
+            self,
+            oldconfig: dict,  # noqa: ARG002 - API
+            newconfig: dict,
+        ) -> None:
             if "bar" not in newconfig:
                 raise self.InvalidIndexconfig(["requires bar"])
 
@@ -114,7 +124,9 @@ def test_indexconfig_items(makemapp, maketestapp, makexom):
 
 
 def test_validate_config(makemapp, maketestapp, makexom):
-    class MyStageCustomizer(object):
+    class MyStageCustomizer:
+        InvalidIndexconfig = InvalidIndexconfig
+
         def validate_config(self, oldconfig, newconfig):
             errors = []
             if len(oldconfig.get('bases', [])) > len(newconfig.get('bases', [])):

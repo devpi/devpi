@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .compat import SpooledTemporaryFile
 from .interfaces import IIOFile
-from .keyfs_types import FilePathInfo
 from .keyfs_types import RelPath
 from .log import threadlog
 from .markers import Deleted
@@ -19,6 +18,7 @@ import re
 
 if TYPE_CHECKING:
     from .interfaces import ContentOrFile
+    from .keyfs_types import FilePathInfo
     from collections.abc import Callable
     from collections.abc import Iterable
     from types import TracebackType
@@ -119,7 +119,6 @@ class FSIOFileBase:
             threadlog.debug(msg, LazyChangesFormatter({}, files_commit, files_del))
 
     def delete(self, path: FilePathInfo) -> None:
-        assert isinstance(path, FilePathInfo)
         old = self._dirty_files.get(path.relpath, deleted)
         if not isinstance(old, Deleted):
             old.drop()
@@ -127,7 +126,6 @@ class FSIOFileBase:
         self._relpath_file_path_info_map[path.relpath].add(path)
 
     def exists(self, path: FilePathInfo) -> bool:
-        assert isinstance(path, FilePathInfo)
         fp: IFile
         if path.relpath in self._dirty_files:
             dirty_file = self._dirty_files[path.relpath]
@@ -139,7 +137,6 @@ class FSIOFileBase:
         return fp.exists()
 
     def get_content(self, path: FilePathInfo) -> bytes:
-        assert isinstance(path, FilePathInfo)
         fp: IFile
         if path.relpath in self._dirty_files:
             dirty_file = self._dirty_files[path.relpath]
@@ -165,12 +162,10 @@ class FSIOFileBase:
         return path.relpath in self._dirty_files
 
     def new_open(self, path: FilePathInfo) -> IO[bytes]:
-        assert isinstance(path, FilePathInfo)
         assert not self.exists(path)
         return SpooledTemporaryFile(dir=str(self.basedir), max_size=1048576)
 
     def open_read(self, path: FilePathInfo) -> IO[bytes]:
-        assert isinstance(path, FilePathInfo)
         fp: IFile
         if path.relpath in self._dirty_files:
             dirty_file = self._dirty_files[path.relpath]
@@ -182,18 +177,15 @@ class FSIOFileBase:
         return fp.open("rb")
 
     def os_path(self, path: FilePathInfo) -> str:
-        assert isinstance(path, FilePathInfo)
         return str(self.file_factory.get_file(self.basedir, path).os_path())
 
     def set_content(self, path: FilePathInfo, content_or_file: ContentOrFile) -> None:
-        assert isinstance(path, FilePathInfo)
         self._dirty_files[path.relpath] = self.dirtyfile_factory.from_content(
             self.basedir, path, content_or_file
         )
         self._relpath_file_path_info_map[path.relpath].add(path)
 
     def size(self, path: FilePathInfo) -> int | None:
-        assert isinstance(path, FilePathInfo)
         fp: IFile
         if path.relpath in self._dirty_files:
             dirty_file = self._dirty_files[path.relpath]

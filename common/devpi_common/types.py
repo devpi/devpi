@@ -149,7 +149,7 @@ class lazydecorator:
             assert newfunc == func
 
 
-def ensure_unicode(x):
+def ensure_unicode(x: bytes | str) -> str:
     if isinstance(x, bytes):
         return x.decode("utf8")
     return str(x)

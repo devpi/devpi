@@ -1130,7 +1130,7 @@ def test_requests_http_get_negative_status_code(xom, monkeypatch):
 
     monkeypatch.setattr(xom._http.client, "get", r)
     r = xom.http.get("http://notexists.qwe", allow_redirects=False)
-    assert r.status_code == -1
+    assert r.status_code == -1  # type: ignore[attr-defined]
     assert l
 
 
@@ -1145,7 +1145,7 @@ def test_requests_httpget_negative_status_code(xom, monkeypatch):
 
     monkeypatch.setattr(xom._httpsession, "get", r)
     r = xom.httpget("http://notexists.qwe", allow_redirects=False)
-    assert r.status_code == -1
+    assert r.status_code == -1  # type: ignore[attr-defined]
     assert l
 
 
@@ -1390,27 +1390,29 @@ class TestProjectNamesCache:
 
 
 def test_ProjectUpdateCache(monkeypatch):
+    from devpi_server.normalized import normalize_name
+
     x = ProjectUpdateCache()
     expiry_time = 30
-    assert x.is_expired("x", expiry_time)
-    assert x.get_etag("x") is None
-    x.refresh("x", '"foo"')
-    assert not x.is_expired("x", expiry_time)
-    assert x.get_etag("x") == '"foo"'
+    assert x.is_expired(normalize_name("x"), expiry_time)
+    assert x.get_etag(normalize_name("x")) is None
+    x.refresh(normalize_name("x"), '"foo"')
+    assert not x.is_expired(normalize_name("x"), expiry_time)
+    assert x.get_etag(normalize_name("x")) == '"foo"'
     t = time.time() + 35
     monkeypatch.setattr("time.time", lambda: t)
-    assert x.is_expired("x", expiry_time)
-    assert x.get_etag("x") == '"foo"'
-    x.refresh("x", '"bar"')
-    assert not x.is_expired("x", expiry_time)
-    assert x.get_etag("x") == '"bar"'
-    x.expire("x")
-    assert x.is_expired("x", expiry_time)
-    assert x.get_etag("x") is None
+    assert x.is_expired(normalize_name("x"), expiry_time)
+    assert x.get_etag(normalize_name("x")) == '"foo"'
+    x.refresh(normalize_name("x"), '"bar"')
+    assert not x.is_expired(normalize_name("x"), expiry_time)
+    assert x.get_etag(normalize_name("x")) == '"bar"'
+    x.expire(normalize_name("x"))
+    assert x.is_expired(normalize_name("x"), expiry_time)
+    assert x.get_etag(normalize_name("x")) is None
 
-    x.refresh("y", None)
-    assert x.get_timestamp("y") == t
-    assert x.get_etag("y") is None
+    x.refresh(normalize_name("y"), None)
+    assert x.get_timestamp(normalize_name("y")) == t
+    assert x.get_etag(normalize_name("y")) is None
 
 
 @pytest.mark.notransaction

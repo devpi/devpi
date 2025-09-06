@@ -24,6 +24,7 @@ class TestParser:
         parser = MyArgumentParser()
         opt = parser.addoption("--hello", type=str, help="x", default="world")
         parser.post_process_actions()
+        assert opt.help is not None
         assert "[world]" in opt.help
 
     def test_addoption_getdefault(self):
@@ -33,10 +34,12 @@ class TestParser:
         opt = parser.addoption("--hello", default="world", type=str, help="x")
         parser.post_process_actions(defaultget=getter)
         assert opt.default == "world2"
+        assert opt.help is not None
         assert "[world2]" in opt.help
         opt = parser.addoption("--hello2", default="world", type=str, help="x")
         parser.post_process_actions(defaultget=getter)
         assert opt.default == "world"
+        assert opt.help is not None
         assert "[world]" in opt.help
 
     def test_addgroup(self):
