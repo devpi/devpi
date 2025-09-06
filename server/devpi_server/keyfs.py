@@ -10,6 +10,7 @@ from . import mythread
 from .filestore import FileEntry
 from .fileutil import read_int_from_file
 from .fileutil import write_int_to_file
+from .interfaces import IStorage
 from .interfaces import IStorageConnection3
 from .interfaces import IWriter2
 from .keyfs_types import PTypedKey
@@ -262,10 +263,13 @@ class KeyFS(object):
         self._cv_new_transaction = mythread.threading.Condition()
         self._import_subscriber = None
         self.notifier = TxNotificationThread(self)
-        self._storage = storage(
-            py.path.local(self.base_path),
-            notify_on_commit=self._notify_on_commit,
-            cache_size=cache_size)
+        self._storage = IStorage(
+            storage(
+                py.path.local(self.base_path),
+                notify_on_commit=self._notify_on_commit,
+                cache_size=cache_size,
+            )
+        )
         self._readonly = readonly
 
     def __repr__(self):
@@ -281,12 +285,7 @@ class KeyFS(object):
         return py.path.local(self.base_path)
 
     def get_connection(self, closing=True, write=False, timeout=30):
-        try:
-            conn = self._storage.get_connection(
-                closing=False, write=write, timeout=timeout)
-        except TypeError:
-            conn = self._storage.get_connection(
-                closing=False, write=write)
+        conn = self._storage.get_connection(closing=False, write=write, timeout=timeout)
         conn = IStorageConnection3(conn)
         if closing:
             return contextlib.closing(conn)

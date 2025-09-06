@@ -1015,7 +1015,7 @@ class Config:
         return self._storage_info_from_name(name, settings)
 
     @property
-    def storage(self):
+    def storage(self) -> type:
         return self._storage_info()["storage"]
 
     def _determine_storage(self):

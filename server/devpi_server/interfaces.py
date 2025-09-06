@@ -4,6 +4,7 @@ from .keyfs_types import RelpathInfo
 from contextlib import closing
 from inspect import getfullargspec
 from typing import TYPE_CHECKING
+from typing import overload
 from zope.interface import Attribute
 from zope.interface import Interface
 from zope.interface import classImplements
@@ -15,15 +16,38 @@ if TYPE_CHECKING:
     from .keyfs_types import PTypedKey
     from .keyfs_types import Record
     from .keyfs_types import TypedKey
+    from collections.abc import Callable
     from collections.abc import Iterable
     from collections.abc import Iterator
     from contextlib import AbstractContextManager
     from types import TracebackType
     from typing import Any
-    from typing import Callable
     from typing import IO
+    from typing import Literal
     from typing import Optional
     from typing import Union
+
+
+class IStorage(Interface):
+    basedir = Attribute(""" The base directory as py.path.local. """)
+
+    last_commit_timestamp: float = Attribute("""
+        The timestamp of the last commit. """)
+
+    @overload
+    def get_connection(
+        *, closing: Literal[True], write: bool, timeout: float
+    ) -> AbstractContextManager[Any]:
+        pass
+
+    @overload
+    def get_connection(*, closing: Literal[False], write: bool, timeout: float) -> Any:
+        pass
+
+    def get_connection(
+        *, closing: bool, write: bool, timeout: float
+    ) -> Any | AbstractContextManager[Any]:
+        """Returns a connection to the storage."""
 
 
 class IStorageConnection(Interface):
@@ -160,6 +184,28 @@ def _register_adapter(func: Callable) -> None:
         msg = f"Adapter for {iface.getName()!r} already registered."
         raise RuntimeError(msg)
     _adapters[iface] = func
+
+
+@_register_adapter
+def adapt_istorage(iface: IStorage, obj: Any) -> Any:
+    cls = obj.__class__
+    orig_get_connection = cls.get_connection
+    spec = getfullargspec(orig_get_connection)
+
+    def get_connection(
+        self: Any,
+        *,
+        closing: bool = True,
+        write: bool = False,
+        timeout: float = 30,  # noqa: ARG001 - backward compatibility
+    ) -> Any:
+        return orig_get_connection(self, closing=closing, write=write)
+
+    if "timeout" not in spec.args:
+        cls.get_connection = get_connection
+    classImplements(cls, iface)  # type: ignore[misc]
+    verifyObject(iface, obj)
+    return obj
 
 
 @_register_adapter
