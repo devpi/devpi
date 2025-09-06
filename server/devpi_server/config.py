@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from . import fileutil
 from . import hookspecs
+from .interfaces import IIOFileFactory
 from .log import threadlog
 from devpi_common.types import cached_property
 from devpi_common.url import URL
@@ -9,6 +12,7 @@ from pathlib import Path
 from pluggy import HookimplMarker
 from pluggy import PluginManager
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING
 import argon2
 import argparse
 import base64
@@ -20,6 +24,10 @@ import secrets
 import sys
 import uuid
 import warnings
+
+
+if TYPE_CHECKING:
+    from .interfaces import IStorageConnection3
 
 
 log = threadlog
@@ -669,6 +677,24 @@ class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
 
+def get_io_file_factory(storage_info: dict) -> IIOFileFactory:  # noqa: ARG001
+    from .filestore_db import DBIOFile
+    from .interfaces import IIOFile
+    from zope.interface import provider
+    from zope.interface.verify import verifyObject
+
+    _io_file_factory = DBIOFile
+    verifyObject(IIOFileFactory, _io_file_factory)
+
+    @provider(IIOFileFactory)
+    def io_file_factory(conn: IStorageConnection3) -> IIOFile:
+        result = IIOFile(_io_file_factory(conn))
+        verifyObject(IIOFile, result)
+        return result
+
+    return io_file_factory
+
+
 class Config:
     def __init__(self, args, pluginmanager):
         self.args = args
@@ -1013,6 +1039,10 @@ class Config:
         name = self.storage_info["name"]
         settings = self.storage_info["settings"]
         return self._storage_info_from_name(name, settings)
+
+    @property
+    def io_file_factory(self) -> IIOFileFactory:
+        return get_io_file_factory(self._storage_info())
 
     @property
     def storage(self) -> type:

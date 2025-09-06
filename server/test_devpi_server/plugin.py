@@ -286,6 +286,13 @@ def storage(storage_info):
     return storage_info['storage']
 
 
+@pytest.fixture(scope="session")
+def storage_io_file_factory(storage_info):
+    from devpi_server.config import get_io_file_factory
+
+    return get_io_file_factory(storage_info)
+
+
 @pytest.fixture
 def makexom(
     request, gen_path, http, httpget, monkeypatch, storage_args, storage_plugin

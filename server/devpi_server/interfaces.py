@@ -24,8 +24,99 @@ if TYPE_CHECKING:
     from typing import Any
     from typing import IO
     from typing import Literal
-    from typing import Optional
     from typing import Union
+
+    ContentOrFile = Union[IO[bytes], bytes]
+
+
+class IDBIOFileConnection(Interface):
+    def commit_files_without_increasing_serial() -> None:
+        """Writes any files which have been changed without
+        increasing the serial."""
+
+    def io_file_delete(path: str) -> None:
+        """Deletes the file at path."""
+
+    def io_file_exists(path: str) -> bool:
+        """Returns True if file at path exists."""
+
+    def io_file_get(path: str) -> bytes:
+        """Returns binary content of the file at path."""
+
+    def io_file_new_open(path: str) -> IO[bytes]:
+        """Returns a new open file like object for binary writing."""
+
+    def io_file_open(path: str) -> IO[bytes]:
+        """Returns an open file like object for binary reading."""
+
+    def io_file_os_path(path: str) -> str | None:
+        """Returns the real path to the file if the storage is filesystem
+        based, otherwise None."""
+
+    def io_file_set(path: str, content_or_file: ContentOrFile) -> None:
+        """Set the binary content of the file at path."""
+
+    def io_file_size(path: str) -> int | None:
+        """Returns the size of the file at path."""
+
+
+class IIOFileFactory(Interface):
+    def __call__(conn: IStorageConnection3) -> IIOFile:
+        pass
+
+
+class IIOFile(Interface):
+    def __enter__() -> AbstractContextManager:
+        pass
+
+    def __exit__(  # noqa: PLE0302, PYI036
+        cls: type[BaseException] | None,
+        val: BaseException | None,  # noqa: PYI036
+        tb: TracebackType | None,  # noqa: PYI036
+    ) -> bool | None:
+        pass
+
+    def commit() -> None:
+        """Commit changed files to storage."""
+
+    def delete(path: str) -> None:
+        """Deletes the file at path."""
+
+    def exists(path: str) -> bool:
+        """Returns True if file at path exists."""
+
+    def get_content(path: str) -> bytes:
+        """Returns binary content of the file at path."""
+
+    def get_rel_renames() -> list[str]:
+        """Returns deserialized rel_renames for given serial."""
+
+    def is_dirty() -> bool:
+        """Indicate whether there are any file changes pending."""
+
+    def new_open(path: str) -> IO[bytes]:
+        """Returns a new open file like object for binary writing."""
+
+    def open_read(path: str) -> IO[bytes]:
+        """Returns an open file like object for binary reading."""
+
+    def os_path(path: str) -> str | None:
+        """Returns the real path to the file if the storage is filesystem
+        based, otherwise None."""
+
+    def perform_crash_recovery(
+        iter_rel_renames: Callable[[], Iterable[str]],
+    ) -> None:
+        """Perform recovery from crash during two phase commit."""
+
+    def rollback() -> None:
+        """Rollback changes to files."""
+
+    def set_content(path: str, content_or_file: ContentOrFile) -> None:
+        """Set the binary content of the file at path."""
+
+    def size(path: str) -> int | None:
+        """Returns the size of the file at path."""
 
 
 class IStorage(Interface):
@@ -65,7 +156,7 @@ class IStorageConnection(Interface):
     def get_changes(serial: int) -> dict:
         """ Returns deserialized readonly changes for given serial. """
 
-    def get_raw_changelog_entry(serial: int) -> Optional[bytes]:
+    def get_raw_changelog_entry(serial: int) -> bytes | None:
         """ Returns serializes changes for given serial. """
 
     def io_file_delete(path: str) -> None:
@@ -80,14 +171,14 @@ class IStorageConnection(Interface):
     def io_file_open(path: str) -> IO[bytes]:
         """ Returns an open file like object for binary reading. """
 
-    def io_file_os_path(path: str) -> Optional[str]:
+    def io_file_os_path(path: str) -> str | None:
         """ Returns the real path to the file if the storage is filesystem
             based, otherwise None. """
 
     def io_file_set(path: str, content: bytes) -> None:
         """ Set the binary content of the file at path. """
 
-    def io_file_size(path: str) -> Optional[int]:
+    def io_file_size(path: str) -> int | None:
         """ Returns the size of the file at path. """
 
     def commit_files_without_increasing_serial() -> None:
@@ -110,7 +201,7 @@ class IStorageConnection2(IStorageConnection):
 
 
 class IStorageConnection3(IStorageConnection2):
-    def io_file_set(path: str, content_or_file: Union[bytes, IO[bytes]]) -> None:
+    def io_file_set(path: str, content_or_file: ContentOrFile) -> None:
         """ Set the binary content of the file at path. """
 
     def io_file_new_open(path: str) -> IO[bytes]:
@@ -121,14 +212,14 @@ class IWriter(Interface):
     commit_serial = Attribute("""
         The current to be commited serial set when entering the context manager. """)
 
-    def __enter__() -> None:
+    def __enter__() -> AbstractContextManager:
         pass
 
     def __exit__(  # noqa: PLE0302, PYI036
-        cls: Optional[type[BaseException]],
-        val: Optional[BaseException],  # noqa: PYI036
-        tb: Optional[TracebackType],  # noqa: PYI036
-    ) -> None:
+        cls: type[BaseException] | None,
+        val: BaseException | None,  # noqa: PYI036
+        tb: TracebackType | None,  # noqa: PYI036
+    ) -> bool | None:
         pass
 
     def record_set(
@@ -141,17 +232,20 @@ class IWriter2(Interface):
     commit_serial = Attribute("""
         The current to be commited serial set when entering the context manager. """)
 
-    def __enter__() -> None:
+    def __enter__() -> AbstractContextManager:
         pass
 
     def __exit__(  # noqa: PLE0302 PYI036
-        cls: Optional[type[BaseException]],
-        val: Optional[BaseException],  # noqa: PYI036
-        tb: Optional[TracebackType],  # noqa: PYI036
-    ) -> None:
+        cls: type[BaseException] | None,
+        val: BaseException | None,  # noqa: PYI036
+        tb: TracebackType | None,  # noqa: PYI036
+    ) -> bool | None:
         pass
 
     def records_set(records: Iterable[Record]) -> None:
+        pass
+
+    def set_rel_renames(rel_renames: list[str]) -> None:
         pass
 
 
@@ -184,6 +278,19 @@ def _register_adapter(func: Callable) -> None:
         msg = f"Adapter for {iface.getName()!r} already registered."
         raise RuntimeError(msg)
     _adapters[iface] = func
+
+
+@_register_adapter
+def adapt_idbiofileconnection(iface: IDBIOFileConnection, obj: Any) -> Any:
+    # any storage connection which needs to be adapted to this interface
+    # is a legacy one and we can get IStorageConnection3 for it
+    obj = IStorageConnection3(obj)
+    _obj = unwrap_connection_obj(obj)
+    cls = get_connection_class(_obj)
+    classImplements(cls, iface)  # type: ignore[misc]
+    # make sure the object now actually provides this interface
+    verifyObject(iface, _obj)
+    return obj
 
 
 @_register_adapter
@@ -269,7 +376,9 @@ def adapt_istorageconnection3(iface: IStorageConnection3, obj: Any) -> Any:
         from tempfile import TemporaryFile
         return TemporaryFile()
 
-    def io_file_set(self: Any, path: str, content_or_file: Union[bytes, IO[bytes]], _io_file_set: Callable) -> None:
+    def io_file_set(
+        self: Any, path: str, content_or_file: ContentOrFile, _io_file_set: Callable
+    ) -> None:
         """ Fallback method wrapper for legacy storage connections. """
         # _io_file_set is from the original class
         if not isinstance(content_or_file, bytes):
@@ -287,7 +396,7 @@ def adapt_istorageconnection3(iface: IStorageConnection3, obj: Any) -> Any:
 
     # we need another wrapper to pass in the io_file_set from original class
     # for some reason a partial doesn't work here
-    def _io_file_set(self: Any, path: str, content_or_file: Union[bytes, IO[bytes]]) -> None:
+    def _io_file_set(self: Any, path: str, content_or_file: ContentOrFile) -> None:
         return io_file_set(self, path, content_or_file, _io_file_set=orig_io_file_set)
 
     cls.io_file_set = _io_file_set  # type: ignore[attr-defined]
@@ -322,6 +431,11 @@ def adapt_iwriter2(iface: IWriter2, obj: Any) -> Any:
             self.record_set(record.key, record.value, record.back_serial)
 
     cls.records_set = _records_set
+
+    def _set_rel_renames(self: Any, rel_renames: list[str]) -> None:
+        pass
+
+    cls.set_rel_renames = _set_rel_renames
     # and add the interface
     classImplements(cls, iface)  # type: ignore[misc]
     # make sure the object now actually provides this interface

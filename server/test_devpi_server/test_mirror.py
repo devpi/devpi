@@ -1432,18 +1432,18 @@ def test_redownload_locally_removed_release(mapp, simpypi):
     r = mapp.downloadrelease(200, result[0])
     assert r == content
     with mapp.xom.keyfs.read_transaction() as tx:
-        assert tx.conn.io_file_exists(file_relpath)
+        assert tx.io_file.exists(file_relpath)
     # now remove the local copy
     with mapp.xom.keyfs.write_transaction() as tx:
-        tx.conn.io_file_delete(file_relpath)
+        tx.io_file.delete(file_relpath)
     with mapp.xom.keyfs.read_transaction() as tx:
-        assert not tx.conn.io_file_exists(file_relpath)
+        assert not tx.io_file.exists(file_relpath)
     serial = mapp.xom.keyfs.get_current_serial()
     # and download again
     r = mapp.downloadrelease(200, result[0])
     assert r == content
     with mapp.xom.keyfs.read_transaction() as tx:
-        assert tx.conn.io_file_exists(file_relpath)
+        assert tx.io_file.exists(file_relpath)
     # the serial should not have increased
     assert serial == mapp.xom.keyfs.get_current_serial()
 

@@ -63,9 +63,51 @@ class TestRenameFileLogic:
     @pytest.mark.notransaction
     def test_dirty_files_removed_on_rollback(self, keyfs):
         with pytest.raises(RuntimeError), keyfs.read_transaction() as tx:  # noqa: PT012
-            tx.conn.io_file_set('foo', b'foo')
-            tmppath = tx.conn.dirty_files[str(keyfs.base_path / 'foo')].tmppath
+            tx.io_file.set_content("foo", b"foo")
+            tmppath = tx.io_file._dirty_files[str(keyfs.base_path / "foo")].tmppath
             assert os.path.exists(tmppath)
             # abort transaction
             raise RuntimeError
         assert not os.path.exists(tmppath)
+
+    @pytest.mark.storage_with_filesystem
+    @pytest.mark.notransaction
+    def test_finalize_init(self, caplog, makexom, mock, monkeypatch, tmp_path):
+        from devpi_server.filestore import MutableFileEntry
+        from devpi_server.filestore import get_hashes
+        from devpi_server.filestore import make_splitdir
+
+        _commit_renames = mock.Mock()
+        _commit_renames.return_value = ([], [])
+        monkeypatch.setattr(
+            "devpi_server.keyfs_sqlite_fs.commit_renames", _commit_renames
+        )
+        xom = makexom(opts=("--serverdir", str(tmp_path)))
+        content = b"foo"
+        hashes = get_hashes(content)
+        with xom.keyfs.write_transaction() as tx:
+            hashdir_a, hashdir_b = make_splitdir(hashes.get_default_spec())
+            key = tx.keyfs.STAGEFILE(
+                user="user",
+                index="index",
+                hashdir_a=hashdir_a,
+                hashdir_b=hashdir_b,
+                filename="foo.txt",
+            )
+            entry = MutableFileEntry(key)
+            entry.file_set_content(content, hashes=hashes)
+            path = xom.config.server_path.joinpath(entry._storepath)
+            (rel_rename,) = tx.io_file.get_rel_renames()
+        assert _commit_renames.called
+        # due to the monkeypatch above the file renames shouldn't be done yet
+        assert not path.exists()
+        assert xom.config.server_path.joinpath(rel_rename).exists()
+        monkeypatch.undo()
+        caplog.clear()
+        xom = makexom(opts=("--serverdir", str(tmp_path)))
+        # getting the keyfs attribute should call finalize_init
+        assert xom.keyfs
+        # which should perform the renames
+        assert path.exists()
+        assert not xom.config.server_path.joinpath(rel_rename).exists()
+        assert len(caplog.getrecords(".*completed.*file-commit.*")) == 1

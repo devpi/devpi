@@ -435,8 +435,10 @@ class XOM:
         keyfs = KeyFS(
             self.config.server_path,
             self.config.storage,
+            io_file_factory=self.config.io_file_factory,
             readonly=self.is_replica(),
-            cache_size=self.config.args.keyfs_cache_size)
+            cache_size=self.config.args.keyfs_cache_size,
+        )
         add_keys(self, keyfs)
         try:
             keyfs.finalize_init()
