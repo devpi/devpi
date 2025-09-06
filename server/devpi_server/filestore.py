@@ -3,6 +3,8 @@ Module for handling storage and proxy-streaming and caching of release files
 for all indexes.
 
 """
+from __future__ import annotations
+
 from .keyfs_types import FilePathInfo
 from .readonly import get_mutable_deepcopy
 from devpi_common.metadata import splitbasename
@@ -10,12 +12,17 @@ from devpi_common.types import parse_hash_spec
 from devpi_server.log import threadlog
 from devpi_server.markers import absent
 from inspect import currentframe
+from typing import TYPE_CHECKING
 from urllib.parse import unquote
 from wsgiref.handlers import format_date_time
 import hashlib
 import mimetypes
 import re
 import warnings
+
+
+if TYPE_CHECKING:
+    from .keyfs_types import RelPath
 
 
 def _get_default_hash_types():  # this is a function for testing
@@ -411,7 +418,7 @@ class BadGateway(Exception):
 
 
 class BaseFileEntry:
-    __slots__ = ("_meta", "_storepath", "basename", "key", "relpath")
+    __slots__ = ("_meta", "key")
 
     BadGateway = BadGateway
     _hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
@@ -423,11 +430,18 @@ class BaseFileEntry:
 
     def __init__(self, key, meta=_nodefault):
         self.key = key
-        self.relpath = key.relpath
-        self.basename = self.relpath.split("/")[-1]
         self._meta = _nodefault
         if meta is not _nodefault:
             self._meta = meta or {}
+
+    @property
+    def basename(self):
+        params = self.key.params
+        if "filename" in params:
+            return params["filename"]
+        if "basename" in params:
+            return params["basename"]
+        return self.relpath.split("/")[-1]
 
     @property
     def file_path_info(self) -> FilePathInfo:
@@ -436,6 +450,10 @@ class BaseFileEntry:
     @property
     def index(self):
         return self.key.params['index']
+
+    @property
+    def relpath(self) -> RelPath:
+        return self.key.relpath
 
     @property
     def user(self):
