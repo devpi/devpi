@@ -14,7 +14,7 @@ from .filestore import FilePathInfo
 from .fileutil import read_int_from_file
 from .fileutil import write_int_to_file
 from .interfaces import IStorage
-from .interfaces import IStorageConnection3
+from .interfaces import IStorageConnection4
 from .interfaces import IWriter2
 from .keyfs_types import PTypedKey
 from .keyfs_types import Record
@@ -32,6 +32,7 @@ from .readonly import is_deeply_readonly
 from devpi_common.types import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import overload
 import contextlib
 import errno
 import py
@@ -41,6 +42,12 @@ import warnings
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from typing import Literal
+    from typing import Union
+
+    KeyFSConn = IStorageConnection4
+    KeyFSConnClosing = contextlib.closing[KeyFSConn]
+    KeyFSConnWithClosing = Union[KeyFSConn, KeyFSConnClosing]
 
 
 def __getattr__(name):
@@ -301,9 +308,32 @@ class KeyFS(object):
             stacklevel=3)
         return py.path.local(self.base_path)
 
-    def get_connection(self, closing=True, write=False, timeout=30):
+    @overload
+    def get_connection(
+        self,
+        closing: Literal[True] = True,  # noqa: FBT002
+        write: bool = False,  # noqa: FBT001, FBT002 - API
+        timeout: float = 30,
+    ) -> KeyFSConnClosing:
+        pass
+
+    @overload
+    def get_connection(
+        self,
+        closing: Literal[False] = False,  # noqa: FBT002
+        write: bool = False,  # noqa: FBT001, FBT002 - API
+        timeout: float = 30,
+    ) -> KeyFSConn:
+        pass
+
+    def get_connection(
+        self,
+        closing: bool = True,  # noqa: FBT001, FBT002 - API
+        write: bool = False,  # noqa: FBT001, FBT002 - API
+        timeout: float = 30,
+    ) -> KeyFSConnWithClosing:
         conn = self._storage.get_connection(closing=False, write=write, timeout=timeout)
-        conn = IStorageConnection3(conn)
+        conn = IStorageConnection4(conn)
         if closing:
             return contextlib.closing(conn)
         return conn
@@ -316,9 +346,10 @@ class KeyFS(object):
                 return
 
             def iter_rel_renames() -> Iterable[str]:
-                from .fileutil import loads
-
-                yield from loads(conn.get_raw_changelog_entry(serial))[1]
+                rel_renames = conn.get_rel_renames(serial)
+                if rel_renames is None:
+                    return
+                yield from rel_renames
 
             def iter_file_path_infos(relpaths: Iterable[str]) -> Iterable[FilePathInfo]:
                 return (FilePathInfo(relpath) for relpath in relpaths)
@@ -935,6 +966,8 @@ class Transaction(object):
         try:
             if hasattr(self.conn, 'rollback'):
                 self.conn.rollback()
+            if self.keyfs.io_file_factory is not None:
+                self.io_file.rollback()
             threadlog.debug("transaction rollback at %s" % (self.at_serial))
         finally:
             result = self._close()

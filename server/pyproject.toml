@@ -102,7 +102,6 @@ exclude = [
     "devpi_server/config.py",
     "devpi_server/exceptions.py",
     "devpi_server/filestore.py",
-    "devpi_server/filestore_fs.py",
     "devpi_server/fileutil.py",
     "devpi_server/fsck.py",
     "devpi_server/genconfig.py",

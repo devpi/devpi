@@ -81,9 +81,7 @@ class TestRenameFileLogic:
 
         _commit_renames = mock.Mock()
         _commit_renames.return_value = ([], [])
-        monkeypatch.setattr(
-            "devpi_server.keyfs_sqlite_fs.commit_renames", _commit_renames
-        )
+        monkeypatch.setattr("devpi_server.filestore_fs.commit_renames", _commit_renames)
         xom = makexom(opts=("--serverdir", str(tmp_path)))
         content = b"foo"
         hashes = get_hashes(content)

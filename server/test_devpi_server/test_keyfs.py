@@ -3,6 +3,7 @@ from devpi_server.keyfs import Transaction
 from devpi_server.keyfs_types import FilePathInfo
 from devpi_server.mythread import ThreadPool
 from devpi_server.readonly import is_deeply_readonly
+from functools import partial
 import contextlib
 import py
 import pytest
@@ -894,9 +895,9 @@ def test_crash_recovery(caplog, keyfs, storage_info):
         pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
     content = b'foo'
     with keyfs.write_transaction() as tx:
-        tx.conn.io_file_set('foo', content)
+        tx.io_file.set_content(FilePathInfo("foo"), content)
     with keyfs.read_transaction() as tx:
-        path = Path(tx.conn.io_file_os_path('foo'))
+        path = Path(tx.io_file.os_path(FilePathInfo("foo")))
         raw_changelog_entry = tx.conn.get_raw_changelog_entry(tx.at_serial)
         changelog_entry = loads(raw_changelog_entry)
         tmpname = changelog_entry[1][0]
@@ -914,7 +915,7 @@ def test_crash_recovery(caplog, keyfs, storage_info):
     assert path.exists()
     assert not tmppath.exists()
     with keyfs.write_transaction() as tx:
-        tx.conn.io_file_delete('foo')
+        tx.io_file.delete(FilePathInfo("foo"))
     assert not path.exists()
     assert not tmppath.exists()
     # put file back in place
@@ -929,7 +930,7 @@ def test_crash_recovery(caplog, keyfs, storage_info):
     assert not path.exists()
     assert not tmppath.exists()
     with keyfs.write_transaction() as tx:
-        tx.conn.io_file_set('foo', content)
+        tx.io_file.set_content(FilePathInfo("foo"), content)
     path.unlink()
     # due to the remove file we get an unrecoverable error
     with pytest.raises(OSError, match="missing file"):
@@ -956,11 +957,12 @@ def test_keyfs_sqlite(gen_path, sorted_serverdir):
 
 def test_keyfs_sqlite_fs(gen_path, sorted_serverdir):
     from devpi_server import keyfs_sqlite_fs
-    from devpi_server.filestore_db import DBIOFile
+    from devpi_server.filestore_fs import fsiofile_factory
 
     tmp = gen_path()
     storage = keyfs_sqlite_fs.Storage
-    keyfs = KeyFS(tmp, storage, io_file_factory=DBIOFile)
+    io_file_factory = partial(fsiofile_factory, settings={})
+    keyfs = KeyFS(tmp, storage, io_file_factory=io_file_factory)
     file_path_info = FilePathInfo("foo")
     with keyfs.write_transaction() as tx:
         assert tx.io_file.os_path(file_path_info) == str(tmp / "foo")

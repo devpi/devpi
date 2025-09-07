@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from .config import hookimpl
 from .filestore_fs import LazyChangesFormatter
 from .fileutil import dumps
 from .fileutil import loads
-from .interfaces import IStorageConnection2
+from .interfaces import IStorageConnection4
+from .interfaces import IWriter2
 from .keyfs import KeyfsTimeoutError
 from .keyfs import get_relpath_at
 from .keyfs_types import RelpathInfo
@@ -19,12 +22,18 @@ from devpi_common.types import cached_property
 from io import BytesIO
 from repoze.lru import LRUCache
 from tempfile import SpooledTemporaryFile as SpooledTemporaryFileBase
+from typing import TYPE_CHECKING
 from zope.interface import implementer
 import contextlib
 import os
 import shutil
 import sqlite3
 import time
+
+
+if TYPE_CHECKING:
+    from .keyfs_types import Record
+    from collections.abc import Iterable
 
 
 class SpooledTemporaryFile(SpooledTemporaryFileBase):
@@ -191,6 +200,13 @@ class BaseConnection:
             self._changelog_cache.put(serial, changes)
         return changes
 
+    def get_rel_renames(self, serial):
+        if serial == -1:
+            return None
+        data = self.get_raw_changelog_entry(serial)
+        (_changes, rel_renames) = loads(data)
+        return rel_renames
+
     def get_relpath_at(self, relpath, serial):
         result = self._relpath_cache.get((serial, relpath), absent)
         if result is absent:
@@ -238,7 +254,7 @@ class BaseConnection:
         return Writer(self.storage, self)
 
 
-@implementer(IStorageConnection2)
+@implementer(IStorageConnection4)
 class Connection(BaseConnection):
     def io_file_os_path(self, path):
         return None
@@ -335,10 +351,7 @@ class Connection(BaseConnection):
         q = "DELETE FROM files WHERE path = ?"
         self.fetchone(q, (path,))
 
-    def _get_rel_renames(self):
-        return []
-
-    def _write_dirty_files(self, rel_renames):
+    def _write_dirty_files(self):
         files_del = []
         files_commit = []
         for path, f in self.dirty_files.items():
@@ -351,13 +364,9 @@ class Connection(BaseConnection):
         self.dirty_files.clear()
         return (files_commit, files_del)
 
-    def _drop_dirty_files(self):
-        return
-
     def commit_files_without_increasing_serial(self):
         try:
-            rel_renames = self._get_rel_renames()
-            (files_commit, files_del) = self._write_dirty_files(rel_renames)
+            (files_commit, files_del) = self._write_dirty_files()
             if files_commit or files_del:
                 threadlog.debug(
                     "wrote files without increasing serial: %s",
@@ -602,11 +611,13 @@ def devpiserver_metrics(request):
     return result
 
 
+@implementer(IWriter2)
 class Writer:
     def __init__(self, storage, conn):
         self.conn = conn
         self.storage = storage
         self.changes = {}
+        self.rel_renames = []
 
     def record_set(self, typedkey, value=None, back_serial=None):
         """ record setting typedkey to value (None means it's deleted) """
@@ -615,6 +626,13 @@ class Writer:
         # so we protect here against the caller modifying the value later
         value = get_mutable_deepcopy(value)
         self.changes[typedkey.relpath] = (typedkey.name, back_serial, value)
+
+    def records_set(self, records: Iterable[Record]) -> None:
+        for record in records:
+            self.record_set(record.key, record.value, record.back_serial)
+
+    def set_rel_renames(self, rel_renames):
+        self.rel_renames = rel_renames
 
     def __enter__(self):
         self.commit_serial = self.conn.last_changelog_serial + 1
@@ -653,14 +671,12 @@ class Writer:
             data.append((relpath, keyname, commit_serial))
         self.conn.db_write_typedkeys(data)
         del data
-        rel_renames = self.conn._get_rel_renames()
-        entry = (self.changes, rel_renames)
+        entry = (self.changes, self.rel_renames)
         self.conn.write_changelog_entry(commit_serial, entry)
-        (files_commit, files_del) = self.conn._write_dirty_files(rel_renames)
+        (files_commit, files_del) = self.conn._write_dirty_files()
         self.conn.commit()
         self.storage.last_commit_timestamp = time.time()
         return LazyChangesFormatter(self.changes, files_commit, files_del)
 
     def rollback(self):
-        self.conn._drop_dirty_files()
         self.conn.rollback()

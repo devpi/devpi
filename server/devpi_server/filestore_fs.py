@@ -1,67 +1,83 @@
-from .fileutil import get_write_file_ensure_dir
+from __future__ import annotations
+
+from .filestore_fs_base import FSIOFileBase
 from .fileutil import rename
+from .interfaces import IIOFileFactory
 from .log import threadlog
+from contextlib import closing
 from contextlib import suppress
-from hashlib import sha256
-from zope.interface import Interface
+from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import cast
+from zope.interface import provider
 import os
 import re
-import shutil
-import sys
-import threading
 
 
-class IStorageFile(Interface):
-    """ Marker interface. """
+if TYPE_CHECKING:
+    from .keyfs import KeyFSConn
+    from .keyfs import KeyFSConnWithClosing
+    from .keyfs_types import FilePathInfo
+    from collections.abc import Callable
+    from collections.abc import Iterable
 
 
-class DirtyFile:
-    def __init__(self, path):
-        self.path = path
-        # use hash of path, pid and thread id to prevent conflicts
-        key = f"{path}{os.getpid()}{threading.current_thread().ident}"
-        digest = sha256(key.encode('utf-8')).hexdigest()
-        if sys.platform == 'win32':
-            # on windows we have to shorten the digest, otherwise we reach
-            # the 260 chars file path limit too quickly
-            digest = digest[:8]
-        self.tmppath = f"{path}-{digest}-tmp"
+class FSIOFile(FSIOFileBase):
+    def _commit(self, msg: str) -> None:
+        rel_renames = self.iter_rel_renames()
+        (files_commit, files_del) = self.write_dirty_files(rel_renames)
+        if files_commit or files_del:
+            threadlog.debug(msg, LazyChangesFormatter({}, files_commit, files_del))
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self.path}>"
+    def _make_path(self, path: FilePathInfo) -> str:
+        return str(self.basedir / path.relpath)
 
-    @classmethod
-    def from_content(cls, path, content_or_file):
-        self = DirtyFile(path)
-        if hasattr(content_or_file, "devpi_srcpath"):
-            dirname = os.path.dirname(self.tmppath)
-            if not os.path.exists(dirname):
-                # ignore file exists errors
-                # one reason for that error is a race condition where
-                # another thread tries to create the same folder
-                with suppress(FileExistsError):
-                    os.makedirs(dirname)
-            os.link(content_or_file.devpi_srcpath, self.tmppath)
-        else:
-            with get_write_file_ensure_dir(self.tmppath) as f:
-                if isinstance(content_or_file, bytes):
-                    f.write(content_or_file)
-                else:
-                    assert content_or_file.seekable()
-                    content_or_file.seek(0)
-                    shutil.copyfileobj(content_or_file, f)
-        return self
+    def iter_pending_renames(self) -> Iterable[tuple[str | None, str]]:
+        for path, dirty_file in self._dirty_files.items():
+            if dirty_file is None:
+                yield (None, path)
+            else:
+                yield (dirty_file.tmppath, path)
+
+    def iter_rel_renames(self) -> Iterable[str]:
+        return make_rel_renames(str(self.basedir), self.iter_pending_renames())
+
+    def perform_crash_recovery(
+        self,
+        iter_rel_renames: Callable[[], Iterable[str]],
+        iter_file_path_infos: Callable[[Iterable[str]], Iterable[FilePathInfo]],  # noqa: ARG002 - API
+    ) -> None:
+        rel_renames = list(iter_rel_renames())
+        if rel_renames:
+            check_pending_renames(str(self.basedir), rel_renames)
+
+    def write_dirty_files(
+        self, rel_renames: Iterable[str]
+    ) -> tuple[list[str], list[str]]:
+        basedir = str(self.basedir)
+        # If we crash in the remainder, the next restart will
+        # - call check_pending_renames which will replay any remaining
+        #   renames from the changelog entry, and
+        # - initialize next_serial from the max committed serial + 1
+        result = commit_renames(basedir, rel_renames)
+        self._dirty_files.clear()
+        return result
 
 
 class LazyChangesFormatter:
-    __slots__ = ('files_commit', 'files_del', 'keys')
+    __slots__ = ("files_commit", "files_del", "keys")
 
-    def __init__(self, changes, files_commit, files_del):
+    def __init__(
+        self,
+        changes: dict,
+        files_commit: Iterable[str],
+        files_del: Iterable[str],
+    ) -> None:
         self.files_commit = files_commit
         self.files_del = files_del
         self.keys = changes.keys()
 
-    def __str__(self):
+    def __str__(self) -> str:
         msg = []
         if self.keys:
             msg.append(f"keys: {','.join(repr(c) for c in self.keys)}")
@@ -72,7 +88,7 @@ class LazyChangesFormatter:
         return ", ".join(msg)
 
 
-def check_pending_renames(basedir, pending_relnames):
+def check_pending_renames(basedir: str, pending_relnames: Iterable[str]) -> None:
     for relpath in pending_relnames:
         path = os.path.join(basedir, relpath)
         suffix = tmpsuffix_for_path(relpath)
@@ -81,17 +97,20 @@ def check_pending_renames(basedir, pending_relnames):
             dst = path[:-suffix_len]
             if os.path.exists(path):
                 rename(path, dst)
-                threadlog.warn("completed file-commit from crashed tx: %s",
-                               dst)
+                threadlog.warn("completed file-commit from crashed tx: %s", dst)
             elif not os.path.exists(dst):
-                raise OSError("missing file %s" % dst)
+                msg = f"missing file {dst}"
+                raise OSError(msg)
         else:
             with suppress(OSError):
                 os.remove(path)  # was already removed
                 threadlog.warn("completed file-del from crashed tx: %s", path)
 
 
-def commit_renames(basedir, pending_renames):
+def commit_renames(
+    basedir: str,
+    pending_renames: Iterable[str],
+) -> tuple[list[str], list[str]]:
     files_del = []
     files_commit = []
     for relpath in pending_renames:
@@ -108,26 +127,34 @@ def commit_renames(basedir, pending_renames):
     return (files_commit, files_del)
 
 
-def make_rel_renames(basedir, pending_renames):
-    # produce a list of strings which are
-    # - paths relative to basedir
-    # - if they have "-tmp" at the end it means they should be renamed
-    #   to the path without the "-tmp" suffix
-    # - if they don't have "-tmp" they should be removed
+@provider(IIOFileFactory)
+def fsiofile_factory(conn: KeyFSConnWithClosing, settings: dict) -> FSIOFile:
+    conn = cast(
+        "KeyFSConn",
+        conn.thing if isinstance(conn, closing) else conn,  # type: ignore[attr-defined]
+    )
+    base_path = Path(conn.storage.basedir)
+    return FSIOFile(base_path, settings)
+
+
+def make_rel_renames(
+    basedir: str,
+    pending_renames: Iterable[tuple[str | None, str]],
+) -> Iterable[str]:
     for source, dest in pending_renames:
         if source is not None:
             assert source.startswith(dest)
             assert source.endswith("-tmp")
-            yield source[len(basedir) + 1:]
+            yield source[len(basedir) + 1 :]
         else:
             assert dest.startswith(basedir)
-            yield dest[len(basedir) + 1:]
+            yield dest[len(basedir) + 1 :]
 
 
 tmp_file_matcher = re.compile(r"(.*?)(-[0-9a-fA-F]{8,64})?(-tmp)$")
 
 
-def tmpsuffix_for_path(path):
+def tmpsuffix_for_path(path: str) -> str | None:
     # ends with -tmp and includes hash since temp files are written directly
     # to disk instead of being kept in memory
     m = tmp_file_matcher.match(path)

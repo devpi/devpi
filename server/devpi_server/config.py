@@ -27,7 +27,8 @@ import warnings
 
 
 if TYPE_CHECKING:
-    from .interfaces import IStorageConnection3
+    from .interfaces import IStorageConnection4
+    from collections.abc import Callable
 
 
 log = threadlog
@@ -677,17 +678,29 @@ class ConfigurationError(Exception):
     """ incorrect configuration or environment settings. """
 
 
-def get_io_file_factory(storage_info: dict) -> IIOFileFactory:  # noqa: ARG001
-    from .filestore_db import DBIOFile
+def get_io_file_factory(storage_info: dict) -> IIOFileFactory:
     from .interfaces import IIOFile
+    from zope.interface import directlyProvides
     from zope.interface import provider
     from zope.interface.verify import verifyObject
 
-    _io_file_factory = DBIOFile
+    _io_file_factory: Callable
+    db_filestore = storage_info.setdefault("db_filestore", True)
+    if db_filestore:
+        from .filestore_db import DBIOFile
+
+        _io_file_factory = DBIOFile
+    else:
+        from .filestore_fs import fsiofile_factory
+
+        settings = storage_info.get("settings", {})
+        storage_info.setdefault("_test_markers", []).append("storage_with_filesystem")
+        _io_file_factory = partial(fsiofile_factory, settings=settings)
+        directlyProvides(_io_file_factory, IIOFileFactory)
     verifyObject(IIOFileFactory, _io_file_factory)
 
     @provider(IIOFileFactory)
-    def io_file_factory(conn: IStorageConnection3) -> IIOFile:
+    def io_file_factory(conn: IStorageConnection4) -> IIOFile:
         result = IIOFile(_io_file_factory(conn))
         verifyObject(IIOFile, result)
         return result

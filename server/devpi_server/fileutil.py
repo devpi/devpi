@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from . import filestore
 from . import readonly
 from io import BytesIO
