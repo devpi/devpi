@@ -8,11 +8,13 @@ from typing import overload
 from zope.interface import Attribute
 from zope.interface import Interface
 from zope.interface import classImplements
+from zope.interface import implementer
 from zope.interface.interface import adapter_hooks
 from zope.interface.verify import verifyObject
 
 
 if TYPE_CHECKING:
+    from .keyfs_types import FilePathInfo
     from .keyfs_types import PTypedKey
     from .keyfs_types import Record
     from .keyfs_types import TypedKey
@@ -34,29 +36,29 @@ class IDBIOFileConnection(Interface):
         """Writes any files which have been changed without
         increasing the serial."""
 
-    def io_file_delete(path: str) -> None:
+    def io_file_delete(path: FilePathInfo) -> None:
         """Deletes the file at path."""
 
-    def io_file_exists(path: str) -> bool:
+    def io_file_exists(path: FilePathInfo) -> bool:
         """Returns True if file at path exists."""
 
-    def io_file_get(path: str) -> bytes:
+    def io_file_get(path: FilePathInfo) -> bytes:
         """Returns binary content of the file at path."""
 
-    def io_file_new_open(path: str) -> IO[bytes]:
+    def io_file_new_open(path: FilePathInfo) -> IO[bytes]:
         """Returns a new open file like object for binary writing."""
 
-    def io_file_open(path: str) -> IO[bytes]:
+    def io_file_open(path: FilePathInfo) -> IO[bytes]:
         """Returns an open file like object for binary reading."""
 
-    def io_file_os_path(path: str) -> str | None:
+    def io_file_os_path(path: FilePathInfo) -> str | None:
         """Returns the real path to the file if the storage is filesystem
         based, otherwise None."""
 
-    def io_file_set(path: str, content_or_file: ContentOrFile) -> None:
+    def io_file_set(path: FilePathInfo, content_or_file: ContentOrFile) -> None:
         """Set the binary content of the file at path."""
 
-    def io_file_size(path: str) -> int | None:
+    def io_file_size(path: FilePathInfo) -> int | None:
         """Returns the size of the file at path."""
 
 
@@ -79,13 +81,13 @@ class IIOFile(Interface):
     def commit() -> None:
         """Commit changed files to storage."""
 
-    def delete(path: str) -> None:
+    def delete(path: FilePathInfo) -> None:
         """Deletes the file at path."""
 
-    def exists(path: str) -> bool:
+    def exists(path: FilePathInfo) -> bool:
         """Returns True if file at path exists."""
 
-    def get_content(path: str) -> bytes:
+    def get_content(path: FilePathInfo) -> bytes:
         """Returns binary content of the file at path."""
 
     def get_rel_renames() -> list[str]:
@@ -94,28 +96,33 @@ class IIOFile(Interface):
     def is_dirty() -> bool:
         """Indicate whether there are any file changes pending."""
 
-    def new_open(path: str) -> IO[bytes]:
+    def is_path_dirty(path: FilePathInfo) -> bool:
+        """Indicate whether the real path to the file, if the storage is
+        filesystem based, is dirty."""
+
+    def new_open(path: FilePathInfo) -> IO[bytes]:
         """Returns a new open file like object for binary writing."""
 
-    def open_read(path: str) -> IO[bytes]:
+    def open_read(path: FilePathInfo) -> IO[bytes]:
         """Returns an open file like object for binary reading."""
 
-    def os_path(path: str) -> str | None:
+    def os_path(path: FilePathInfo) -> str | None:
         """Returns the real path to the file if the storage is filesystem
         based, otherwise None."""
 
     def perform_crash_recovery(
         iter_rel_renames: Callable[[], Iterable[str]],
+        iter_file_path_infos: Callable[[Iterable[str]], Iterable[FilePathInfo]],
     ) -> None:
         """Perform recovery from crash during two phase commit."""
 
     def rollback() -> None:
         """Rollback changes to files."""
 
-    def set_content(path: str, content_or_file: ContentOrFile) -> None:
+    def set_content(path: FilePathInfo, content_or_file: ContentOrFile) -> None:
         """Set the binary content of the file at path."""
 
-    def size(path: str) -> int | None:
+    def size(path: FilePathInfo) -> int | None:
         """Returns the size of the file at path."""
 
 
@@ -280,16 +287,48 @@ def _register_adapter(func: Callable) -> None:
     _adapters[iface] = func
 
 
+@implementer(IDBIOFileConnection)
+class IOFileConnectionAdapter:
+    def __init__(self, conn: Any) -> None:
+        # any storage connection which needs this adapter
+        # is a legacy one and we can get IStorageConnection3 for it
+        self.conn = IStorageConnection3(conn)
+        self.commit_files_without_increasing_serial = (
+            conn.commit_files_without_increasing_serial
+        )
+        self.dirty_files = conn.dirty_files
+        self.storage = conn.storage
+
+    def io_file_delete(self, path: FilePathInfo) -> None:
+        return self.conn.io_file_delete(path.relpath)
+
+    def io_file_exists(self, path: FilePathInfo) -> bool:
+        return self.conn.io_file_exists(path.relpath)
+
+    def io_file_get(self, path: FilePathInfo) -> bytes:
+        return self.conn.io_file_get(path.relpath)
+
+    def io_file_new_open(self, path: FilePathInfo) -> IO[bytes]:
+        return self.conn.io_file_new_open(path.relpath)
+
+    def io_file_open(self, path: FilePathInfo) -> IO[bytes]:
+        return self.conn.io_file_open(path.relpath)
+
+    def io_file_os_path(self, path: FilePathInfo) -> str | None:
+        return self.conn.io_file_os_path(path.relpath)
+
+    def io_file_set(self, path: FilePathInfo, content_or_file: ContentOrFile) -> None:
+        return self.conn.io_file_set(path.relpath, content_or_file)
+
+    def io_file_size(self, path: FilePathInfo) -> int | None:
+        return self.conn.io_file_size(path.relpath)
+
+
 @_register_adapter
 def adapt_idbiofileconnection(iface: IDBIOFileConnection, obj: Any) -> Any:
-    # any storage connection which needs to be adapted to this interface
-    # is a legacy one and we can get IStorageConnection3 for it
-    obj = IStorageConnection3(obj)
-    _obj = unwrap_connection_obj(obj)
-    cls = get_connection_class(_obj)
-    classImplements(cls, iface)  # type: ignore[misc]
-    # make sure the object now actually provides this interface
-    verifyObject(iface, _obj)
+    obj = unwrap_connection_obj(obj)
+    obj = IOFileConnectionAdapter(obj)
+    verifyObject(iface, obj)
     return obj
 
 

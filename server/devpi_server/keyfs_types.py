@@ -41,6 +41,11 @@ class RelpathInfo:
     value: Any
 
 
+@define
+class FilePathInfo:
+    relpath: str
+
+
 class PTypedKey:
     __slots__ = ('keyfs', 'name', 'pattern', 'rex_reverse', 'type')
     rex_braces = re.compile(r'\{(.+?)\}')

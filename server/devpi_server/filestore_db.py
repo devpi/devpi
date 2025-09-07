@@ -10,6 +10,7 @@ from zope.interface.verify import verifyObject
 
 
 if TYPE_CHECKING:
+    from .keyfs_types import FilePathInfo
     from collections.abc import Callable
     from collections.abc import Iterable
     from types import TracebackType
@@ -61,9 +62,13 @@ class DBIOFile:
     def is_dirty(self) -> bool:
         return bool(self._dirty_files)
 
+    def is_path_dirty(self, path: FilePathInfo) -> bool:
+        return path.relpath in self._dirty_files
+
     def perform_crash_recovery(
         self,
         iter_rel_renames: Callable[[], Iterable[str]],  # noqa: ARG002 - API
+        iter_file_path_infos: Callable[[Iterable[str]], Iterable[FilePathInfo]],  # noqa: ARG002 - API
     ) -> None:
         if self._perform_crash_recovery is not None:
             self._perform_crash_recovery()

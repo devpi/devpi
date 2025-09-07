@@ -69,10 +69,7 @@ class Connection(BaseConnection):
         drop_dirty_files(self.dirty_files)
 
     def io_file_os_path(self, path):
-        path = self._basedir.join(path).strpath
-        if path in self.dirty_files:
-            raise RuntimeError("Can't access file %s directly during transaction" % path)
-        return path
+        return self._basedir.join(path).strpath
 
     def io_file_exists(self, path):
         path = self._basedir.join(path).strpath

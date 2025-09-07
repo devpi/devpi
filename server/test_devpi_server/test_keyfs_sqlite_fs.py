@@ -1,6 +1,8 @@
 from devpi_server.filestore_fs import check_pending_renames
 from devpi_server.filestore_fs import commit_renames
 from devpi_server.filestore_fs import make_rel_renames
+from devpi_server.keyfs_types import FilePathInfo
+from pathlib import Path
 import os
 import pytest
 
@@ -63,7 +65,7 @@ class TestRenameFileLogic:
     @pytest.mark.notransaction
     def test_dirty_files_removed_on_rollback(self, keyfs):
         with pytest.raises(RuntimeError), keyfs.read_transaction() as tx:  # noqa: PT012
-            tx.io_file.set_content("foo", b"foo")
+            tx.io_file.set_content(FilePathInfo("foo"), b"foo")
             tmppath = tx.io_file._dirty_files[str(keyfs.base_path / "foo")].tmppath
             assert os.path.exists(tmppath)
             # abort transaction
@@ -96,7 +98,7 @@ class TestRenameFileLogic:
             )
             entry = MutableFileEntry(key)
             entry.file_set_content(content, hashes=hashes)
-            path = xom.config.server_path.joinpath(entry._storepath)
+            path = Path(tx.io_file.os_path(entry.file_path_info))
             (rel_rename,) = tx.io_file.get_rel_renames()
         assert _commit_renames.called
         # due to the monkeypatch above the file renames shouldn't be done yet

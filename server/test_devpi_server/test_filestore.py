@@ -136,8 +136,8 @@ class TestFileStore:
         link1 = gen.pypi_package_link("pytest-1.2.zip", md5=md5_1)
         entry1 = filestore.maplink(link1, "root", "pypi", "pytest")
         # write a wrong file outside the transaction
-        filepath = xom.config.server_path.joinpath(entry1._storepath)
-        py.path.local(filepath).dirpath().ensure(dir=1)
+        filepath = py.path.local(entry1.file_os_path())
+        filepath.dirpath().ensure(dir=1)
         with filepath.open("w") as f:
             f.write('othercontent')
         filestore.keyfs.rollback_transaction_in_thread()
@@ -360,7 +360,7 @@ def test_cache_remote_file(filestore, http, gen, xom):
 
 @pytest.mark.notransaction
 @pytest.mark.storage_with_filesystem
-def test_file_tx_commit(filestore, gen, xom):
+def test_file_tx_commit(filestore, gen):
     filestore.keyfs.begin_transaction_in_thread(write=True)
     link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
     entry = filestore.maplink(link, "root", "pypi", "pytest")
@@ -368,22 +368,23 @@ def test_file_tx_commit(filestore, gen, xom):
     content = b"123"
     entry.file_set_content(content, hashes=get_hashes(content))
     assert entry.file_exists()
-    assert not xom.config.server_path.joinpath(entry._storepath).exists()
+    filepath = py.path.local(entry.file_os_path(_raises=False))
+    assert not filepath.exists()
     assert entry.file_get_content() == content
     # commit existing data and start new transaction
     filestore.keyfs.commit_transaction_in_thread()
     filestore.keyfs.begin_transaction_in_thread(write=True)
-    assert xom.config.server_path.joinpath(entry._storepath).exists()
+    assert filepath.exists()
     entry.file_delete()
-    assert xom.config.server_path.joinpath(entry._storepath).exists()
+    assert filepath.exists()
     assert not entry.file_exists()
     filestore.keyfs.commit_transaction_in_thread()
-    assert not xom.config.server_path.joinpath(entry._storepath).exists()
+    assert not filepath.exists()
 
 
 @pytest.mark.notransaction
 @pytest.mark.storage_with_filesystem
-def test_file_tx_rollback(filestore, gen, xom):
+def test_file_tx_rollback(filestore, gen):
     filestore.keyfs.begin_transaction_in_thread(write=True)
     link = gen.pypi_package_link("pytest-1.8.zip", md5=False)
     entry = filestore.maplink(link, "root", "pypi", "pytest")
@@ -391,10 +392,11 @@ def test_file_tx_rollback(filestore, gen, xom):
     content = b"123"
     entry.file_set_content(content, hashes=get_hashes(content))
     assert entry.file_exists()
-    assert not xom.config.server_path.joinpath(entry._storepath).exists()
+    filepath = py.path.local(entry.file_os_path(_raises=False))
+    assert not filepath.exists()
     assert entry.file_get_content() == content
     filestore.keyfs.rollback_transaction_in_thread()
-    assert not xom.config.server_path.joinpath(entry._storepath).exists()
+    assert not filepath.exists()
 
 
 @pytest.mark.notransaction

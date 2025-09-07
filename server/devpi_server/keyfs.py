@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from . import mythread
 from .filestore import FileEntry
+from .filestore import FilePathInfo
 from .fileutil import read_int_from_file
 from .fileutil import write_int_to_file
 from .interfaces import IStorage
@@ -319,8 +320,11 @@ class KeyFS(object):
 
                 yield from loads(conn.get_raw_changelog_entry(serial))[1]
 
+            def iter_file_path_infos(relpaths: Iterable[str]) -> Iterable[FilePathInfo]:
+                return (FilePathInfo(relpath) for relpath in relpaths)
+
             io_file = self.io_file_factory(conn)
-            io_file.perform_crash_recovery(iter_rel_renames)
+            io_file.perform_crash_recovery(iter_rel_renames, iter_file_path_infos)
 
     def import_changes(self, serial, changes):
         with contextlib.ExitStack() as cstack:

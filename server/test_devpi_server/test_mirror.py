@@ -1,3 +1,4 @@
+from devpi_server.keyfs_types import FilePathInfo
 from devpi_server.mirror import ProjectNamesCache
 from devpi_server.mirror import ProjectUpdateCache
 from devpi_server.mirror import URL
@@ -1427,23 +1428,23 @@ def test_redownload_locally_removed_release(mapp, simpypi):
     simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
     simpypi.add_file('/pkg/pkg-1.0.zip', content)
     result = mapp.getreleaseslist("pkg")
-    file_relpath = '+files' + URL(result[0]).path
+    file_path_info = FilePathInfo(f"+files{URL(result[0]).path}")
     assert len(result) == 1
     r = mapp.downloadrelease(200, result[0])
     assert r == content
     with mapp.xom.keyfs.read_transaction() as tx:
-        assert tx.io_file.exists(file_relpath)
+        assert tx.io_file.exists(file_path_info)
     # now remove the local copy
     with mapp.xom.keyfs.write_transaction() as tx:
-        tx.io_file.delete(file_relpath)
+        tx.io_file.delete(file_path_info)
     with mapp.xom.keyfs.read_transaction() as tx:
-        assert not tx.io_file.exists(file_relpath)
+        assert not tx.io_file.exists(file_path_info)
     serial = mapp.xom.keyfs.get_current_serial()
     # and download again
     r = mapp.downloadrelease(200, result[0])
     assert r == content
     with mapp.xom.keyfs.read_transaction() as tx:
-        assert tx.io_file.exists(file_relpath)
+        assert tx.io_file.exists(file_path_info)
     # the serial should not have increased
     assert serial == mapp.xom.keyfs.get_current_serial()
 
