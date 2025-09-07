@@ -28,6 +28,7 @@ from devpi_common.validation import normalize_name
 from functools import partial
 from html.parser import HTMLParser
 from pyramid.authentication import b64encode
+from typing import TYPE_CHECKING
 import asyncio
 import json
 import re
@@ -35,6 +36,10 @@ import threading
 import time
 import warnings
 import weakref
+
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 SIMPLE_API_V1_VERSION = parse_version("1.0")
@@ -790,7 +795,7 @@ class MirrorStage(BaseStage):
         else:
             releaselinks = parse_index(response_url, text).releaselinks
         num_releaselinks = len(releaselinks)
-        key_hrefs = [None] * num_releaselinks
+        key_hrefs: list = [None] * num_releaselinks
         requires_python = [None] * num_releaselinks
         yanked = [None] * num_releaselinks
         for index, releaselink in enumerate(releaselinks):
@@ -1028,7 +1033,7 @@ class MirrorStage(BaseStage):
                 DeprecationWarning,
                 stacklevel=2,
             )
-        verdata = {}
+        verdata: dict[str, Any] = {}
         for sm in self.get_simplelinks_perstage(project):
             link_version = sm.version
             if version == link_version:
@@ -1066,6 +1071,9 @@ def devpiserver_get_stage_customizer_classes():
 
 class ProjectNamesCache:
     """ Helper class for maintaining project names from a mirror. """
+
+    _timestamp: float
+
     def __init__(self):
         self._lock = threading.RLock()
         self._timestamp = -1
@@ -1168,6 +1176,10 @@ class ProjectUpdateLock:
 
 class ProjectUpdateCache:
     """ Helper class to manage when we last updated something project specific. """
+
+    _project2lock: weakref.WeakValueDictionary
+    _project2time: dict
+
     def __init__(self):
         self._project2time = {}
         self._project2lock = weakref.WeakValueDictionary()

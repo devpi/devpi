@@ -136,7 +136,7 @@ def set_state_version(config, version=DATABASE_VERSION):
 def main(argv=None):
     """ devpi-server command line entry point. """
     with CommandRunner() as runner:
-        return _main(runner.pluginmanager, argv=argv)
+        runner.return_code = _main(runner.pluginmanager, argv=argv)
     return runner.return_code
 
 
@@ -284,8 +284,8 @@ class XOM:
             self.http = http
         if httpget is not None:
             # overwrite for testing
-            self.httpget = httpget
-            self.async_httpget = httpget.async_httpget
+            self.httpget = httpget  # type: ignore[method-assign]
+            self.async_httpget = httpget.async_httpget  # type: ignore[method-assign]
         self.log = threadlog
         self.polling_replicas = {}
         self._stagecache = {}
@@ -581,11 +581,10 @@ class XOM:
         version_info.sort()
         pyramid_config.registry['devpi_version_info'] = version_info
         pyramid_config.registry['xom'] = self
-        index_classes = {}
-        customizer_classes = functools.reduce(
-            iconcat,
-            self.config.hook.devpiserver_get_stage_customizer_classes(),
-            [])
+        index_classes: dict[str, list] = {}
+        customizer_classes: list[tuple[str, type]] = functools.reduce(
+            iconcat, self.config.hook.devpiserver_get_stage_customizer_classes(), []
+        )
         for ixtype, ixclass in customizer_classes:
             index_classes.setdefault(ixtype, []).append(ixclass)
         for ixtype, ixclasses in index_classes.items():

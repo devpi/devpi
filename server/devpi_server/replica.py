@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from . import mythread
 from .config import hookimpl
 from .exceptions import lazy_format_exception
@@ -9,7 +11,7 @@ from .fileutil import load
 from .fileutil import loads
 from .log import thread_push_log
 from .log import threadlog
-from .main import fatal
+from .main import Fatal
 from .model import UpstreamError
 from .views import FileStreamer
 from .views import H_MASTER_UUID
@@ -25,6 +27,7 @@ from pyramid.httpexceptions import HTTPNotFound
 from pyramid.response import Response
 from pyramid.view import view_config
 from repoze.lru import LRUCache
+from typing import TYPE_CHECKING
 from webob.headers import EnvironHeaders
 from webob.headers import ResponseHeaders
 import contextlib
@@ -37,6 +40,10 @@ import threading
 import time
 import traceback
 import warnings
+
+
+if TYPE_CHECKING:
+    from .keyfs_types import KeyFSTypesRO
 
 
 devpiweb_hookimpl = HookimplMarker("devpiweb")
@@ -63,10 +70,10 @@ notset = object()
 
 class IndexType:
     # class for the index type to get correct sort order
-    def __init__(self, index_type):
+    def __init__(self, index_type: IndexType | str | None) -> None:
         if isinstance(index_type, IndexType):
             index_type = index_type._index_type
-        self._index_type = index_type
+        self._index_type: str | None = index_type
 
     def __hash__(self):
         return hash(self._index_type)
@@ -336,7 +343,7 @@ class PrimaryChangelogRequest:
             raise HTTPNotFound("can only wait for next serial")
         elif serial == next_serial:
             if 'initial_fetch' in self.request.params:
-                timeout = 1
+                timeout = 1.0
             else:
                 timeout = self.MAX_REPLICA_BLOCK_TIME
             arrived = keyfs.wait_tx_serial(serial, timeout=timeout)
@@ -405,6 +412,7 @@ class ReplicaThread:
     H_REPLICA_UUID = H_REPLICA_UUID
     REPLICA_REQUEST_TIMEOUT = REPLICA_REQUEST_TIMEOUT
     ERROR_SLEEP = 50
+    thread: mythread.MyThread
 
     def __init__(self, xom):
         self.xom = xom
@@ -694,14 +702,19 @@ class FileReplicationSharedData:
     ERROR_QUEUE_DELAY_MULTIPLIER = 1.5
     ERROR_QUEUE_REPORT_DELAY = 2 * 60
     ERROR_QUEUE_MAX_DELAY = 60 * 60
+    num_threads: int
 
     def __init__(self, xom):
         from queue import Empty
         from queue import PriorityQueue
         self.Empty = Empty
         self.xom = xom
-        self.queue = PriorityQueue()
-        self.error_queue = PriorityQueue()
+        self.queue: PriorityQueue[tuple[str, int, str, str, KeyFSTypesRO, int]] = (
+            PriorityQueue()
+        )
+        self.error_queue: PriorityQueue[
+            tuple[int, int, str, int, None, str, KeyFSTypesRO, int]
+        ] = PriorityQueue()
         self.deleted = LRUCache(100)
         self.index_types = LRUCache(1000)
         self.errors = ReplicationErrors()
@@ -878,7 +891,7 @@ class FileReplicationSharedData:
 
 @hookimpl
 def devpiserver_metrics(request):
-    result = []
+    result: list[tuple[str, str, object]] = []
     xom = request.registry["xom"]
     replica_thread = getattr(xom, 'replica_thread', None)
     if not isinstance(replica_thread, ReplicaThread):
@@ -947,6 +960,8 @@ def devpiweb_get_status_info(request):
 
 
 class FileReplicationThread:
+    thread: mythread.MyThread
+
     def __init__(self, xom, shared_data):
         self.xom = xom
         self.shared_data = shared_data
@@ -960,9 +975,11 @@ class FileReplicationThread:
             else:
                 self.file_search_path = self.xom.config.replica_file_search_path
             if not os.path.isdir(self.file_search_path):
-                fatal(
-                    "path for existing files doesn't exist: %s",
-                    self.xom.config.replica_file_search_path)
+                msg = (
+                    f"path for existing files doesn't exist: "
+                    f"{self.xom.config.replica_file_search_path}"
+                )
+                raise Fatal(msg)
         self.use_hard_links = self.xom.config.hard_links
 
     def find_pre_existing_file(self, entry):
@@ -994,7 +1011,7 @@ class FileReplicationThread:
         threadlog.info("using matching existing file: %s", path)
         f.seek(0)
         if self.use_hard_links:
-            f.devpi_srcpath = path
+            f.devpi_srcpath = path  # type: ignore[attr-defined]
         return (f, entry.hashes)
 
     def importer(self, serial, key, val, back_serial):  # noqa: PLR0911, PLR0912
@@ -1180,6 +1197,8 @@ class FileReplicationThread:
 
 
 class InitialQueueThread:
+    thread: mythread.MyThread
+
     def __init__(self, xom, shared_data):
         self.xom = xom
         self.shared_data = shared_data

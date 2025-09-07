@@ -51,7 +51,7 @@ class RootFactory:
 
     @cached_property
     def matchdict(self):
-        result = {}
+        result: dict[str, object] = {}
         if not self.request.matchdict:
             return result
         for k, v in self.request.matchdict.items():
@@ -106,14 +106,16 @@ class RootFactory:
         stage = self._stage
         if stage:
             acl.extend(stage.__acl__())
-        acl = tuple(acl)
         all_denials = self.hook.devpiserver_auth_denials(
-            request=self.request, acl=acl, user=self._user, stage=stage)
+            request=self.request, acl=tuple(acl), user=self._user, stage=stage
+        )
         if all_denials:
             denials = set().union(*all_denials)
             if denials:
-                acl = tuple((Deny,) + denial for denial in denials) + acl
-        return acl
+                acl[:0] = [
+                    (Deny, principal, permission) for principal, permission in denials
+                ]
+        return tuple(acl)
 
     def getstage(self, user, index):
         stage = self.model.getstage(user, index)

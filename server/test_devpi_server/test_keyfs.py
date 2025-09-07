@@ -950,7 +950,8 @@ def test_keyfs_sqlite(file_digest, gen_path, sorted_serverdir):
 
     tmp = gen_path()
     storage = keyfs_sqlite.Storage
-    keyfs = KeyFS(tmp, storage, io_file_factory=DBIOFile)
+    io_file_factory = partial(DBIOFile, settings={})
+    keyfs = KeyFS(tmp, storage, io_file_factory=io_file_factory)
     content = b"bar"
     file_path_info = FilePathInfo(RelPath("foo"), file_digest(content))
     with keyfs.write_transaction() as tx:

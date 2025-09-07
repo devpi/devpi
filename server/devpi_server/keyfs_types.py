@@ -13,7 +13,25 @@ import warnings
 
 
 if TYPE_CHECKING:
+    from .readonly import DictViewReadonly
+    from .readonly import ListViewReadonly
+    from .readonly import SetViewReadonly
+    from .readonly import TupleViewReadonly
     from typing import Any
+    from typing import Union
+
+    KeyFSTypesRO = Union[
+        bool,
+        bytes,
+        DictViewReadonly,
+        float,
+        frozenset,
+        int,
+        ListViewReadonly,
+        SetViewReadonly,
+        str,
+        TupleViewReadonly,
+    ]
 
 
 @frozen

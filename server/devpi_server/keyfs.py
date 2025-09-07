@@ -44,6 +44,10 @@ import warnings
 
 
 if TYPE_CHECKING:
+    from .keyfs_types import KeyFSTypesRO
+    from .markers import Absent
+    from .markers import Deleted
+    from .mythread import MyThread
     from collections.abc import Iterable
     from typing import Literal
     from typing import Union
@@ -79,6 +83,9 @@ class MissingFileException(Exception):
 
 
 class TxNotificationThread:
+    _get_ixconfig_cache: dict[tuple[str, str], dict | None]
+    thread: MyThread
+
     def __init__(self, keyfs):
         self.keyfs = keyfs
         self.cv_new_event_serial = mythread.threading.Condition()
@@ -454,6 +461,7 @@ class KeyFS(object):
 
     def add_key(self, name, path, type):
         assert isinstance(path, str)
+        key: PTypedKey | TypedKey
         if "{" in path:
             key = PTypedKey(self, path, type, name)
         else:
@@ -746,7 +754,9 @@ class FileStoreTransaction:
         self._close()
 
 
-class Transaction(object):
+class Transaction:
+    _model: TransactionRootModel | Absent
+
     def __init__(self, keyfs, at_serial=None, write=False):
         if write and at_serial:
             raise RuntimeError(
@@ -793,7 +803,33 @@ class Transaction(object):
             yield (last_serial, val)
             last_serial = back_serial
 
-    def get_last_serial_and_value_at(self, typedkey, at_serial, raise_on_error=True):
+    @overload
+    def get_last_serial_and_value_at(
+        self,
+        typedkey: TypedKey,
+        at_serial: int,
+        *,
+        raise_on_error: Literal[False],
+    ) -> tuple[int, KeyFSTypesRO | None] | None:
+        pass
+
+    @overload
+    def get_last_serial_and_value_at(
+        self,
+        typedkey: TypedKey,
+        at_serial: int,
+        *,
+        raise_on_error: Literal[True] = True,
+    ) -> tuple[int, KeyFSTypesRO | None]:
+        pass
+
+    def get_last_serial_and_value_at(
+        self,
+        typedkey: TypedKey,
+        at_serial: int,
+        *,
+        raise_on_error: bool = True,
+    ) -> tuple[int, KeyFSTypesRO | None] | None:
         relpath = typedkey.relpath
         try:
             (last_serial, back_serial, val) = self.conn.get_relpath_at(relpath, at_serial)
@@ -805,11 +841,11 @@ class Transaction(object):
             raise KeyError(relpath)  # was deleted
         return (last_serial, val)
 
-    def get_value_at(self, typedkey, at_serial):
+    def get_value_at(self, typedkey: TypedKey, at_serial: int) -> KeyFSTypesRO | None:
         (last_serial, val) = self.get_last_serial_and_value_at(typedkey, at_serial)
         return val
 
-    def last_serial(self, typedkey):
+    def last_serial(self, typedkey: TypedKey) -> int:
         (last_serial, val) = self.get_last_serial_and_value_at(typedkey, self.at_serial)
         return last_serial
 
@@ -839,6 +875,7 @@ class Transaction(object):
         if typedkey not in self._original:
             tup = self.get_last_serial_and_value_at(
                 typedkey, self.at_serial, raise_on_error=False)
+            val: Absent | Deleted | KeyFSTypesRO | None
             if tup is None:
                 serial = -1
                 val = absent

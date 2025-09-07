@@ -64,7 +64,7 @@ class IDBIOFileConnection(Interface):
 
 
 class IIOFileFactory(Interface):
-    def __call__(conn: IStorageConnection4) -> IIOFile:
+    def __call__(conn: IStorageConnection4, settings: dict) -> IIOFile:
         pass
 
 

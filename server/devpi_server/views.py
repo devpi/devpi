@@ -417,7 +417,7 @@ def devpiweb_get_status_info(request):
             msgs.append(dict(status="warn", msg="The event processing hasn't been in sync for more than 1 hour"))
         if sync_at is not None and (last_processed is None or (last_processed > 1800)):
             msgs.append(dict(status="fatal", msg="No changes processed by plugins for more than 30 minutes"))
-        elif sync_at is not None and (last_processed > 300):
+        elif sync_at is not None and (last_processed is None or (last_processed > 300)):
             msgs.append(dict(status="warn", msg="No changes processed by plugins for more than 5 minutes"))
     return msgs
 
@@ -1088,7 +1088,7 @@ class PyPIView:
         return apiresult(200, result=results, type="actionlog")
 
     def _push_external(self, name, version, links, metadata, pushdata):
-        results = []
+        results: list = []
         register_project = pushdata.pop("register_project", False)
         posturl = pushdata["posturl"]
         pypiauth = f"{pushdata['username']}:{pushdata['password']}".encode()
@@ -1130,7 +1130,7 @@ class PyPIView:
         )
 
     def _push_external_release(self, link, metadata, posturl, extra_headers):
-        results = []
+        results: list = []
         entry = link.entry
         file_metadata = metadata.copy()
         file_metadata[":action"] = "file_upload"
@@ -1162,7 +1162,7 @@ class PyPIView:
         return results
 
     def _push_external_doczip(self, link, metadata, posturl, extra_headers):
-        results = []
+        results: list = []
         doc_metadata = metadata.copy()
         doc_metadata[":action"] = "doc_upload"
         name = doc_metadata["name"]
@@ -1337,6 +1337,7 @@ class PyPIView:
 
     def _get_versiondata_from_form(self, stage, form, skip_missing=False):
         metadata = {}
+        val: list | str
         for key in stage.metadata_keys:
             if skip_missing and key not in form:
                 continue

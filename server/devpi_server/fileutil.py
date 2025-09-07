@@ -6,9 +6,14 @@ from io import BytesIO
 from struct import error as struct_error
 from struct import pack
 from struct import unpack
+from typing import TYPE_CHECKING
 import errno
 import os.path
 import sys
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 _nodefault = object()
@@ -43,7 +48,7 @@ class LoadError(DataFormatError):
 
 def load(fp, _from_bytes=int.from_bytes, _unpack=unpack):
     read = fp.read
-    stack = []
+    stack: list = []
     stack_append = stack.append
     stack_pop = stack.pop
 
@@ -93,8 +98,8 @@ def load(fp, _from_bytes=int.from_bytes, _unpack=unpack):
             try:
                 value = stack_pop()
                 key = stack_pop()
-            except IndexError:
-                raise LoadError("not enough items for setitem")
+            except IndexError as e:
+                raise LoadError("not enough items for setitem") from e
             stack[-1][key] = value
         elif opcode == b'Q':  # stop
             stopped = True
@@ -104,8 +109,8 @@ def load(fp, _from_bytes=int.from_bytes, _unpack=unpack):
         elif opcode == b'T':  # complex
             stack_append(complex(_unpack("!d", read(8))[0], _unpack("!d", read(8))[0]))
         else:
-            raise LoadError(
-                "unknown opcode %r - wire protocol corruption?" % opcode)
+            msg = f"unknown opcode {opcode!r} - wire protocol corruption?"
+            raise LoadError(msg)
     if not stopped:
         raise LoadError("didn't get STOP")
     if len(stack) != 1:
@@ -177,15 +182,15 @@ def _dump_list(write, obj, _pack=pack):
         write(b'P')
 
 
-def _dump_none(write, obj):
+def _dump_none(write, _obj):
     write(b'L')
 
 
 def _dump_str(write, obj, _pack=pack):
     try:
         obj = obj.encode('utf-8')
-    except UnicodeEncodeError:
-        raise DumpError("strings must be utf-8 encodable")
+    except UnicodeEncodeError as e:
+        raise DumpError("strings must be utf-8 encodable") from e
     write(b'N')
     write(_pack("!i", len(obj)))
     write(obj)
@@ -204,7 +209,7 @@ def _dump_complex(write, obj, _pack=pack):
     write(_pack("!d", obj.imag))
 
 
-_dispatch = {
+_dispatch: dict[type, Callable] = {
     tuple: _dump_tuple,
     readonly.TupleViewReadonly: _dump_tuple,
     bytes: _dump_bytes,
@@ -221,20 +226,23 @@ _dispatch = {
     str: _dump_str,
     set: _dump_set,
     readonly.SetViewReadonly: _dump_set,
-    complex: _dump_complex}
+    complex: _dump_complex,
+}
 
 
 def _dump(write, obj):
     try:
         _dispatch[obj.__class__](write, obj)
     except struct_error as e:
-        val = e.__traceback__.tb_frame.f_locals.get('obj', _nodefault)
         msg = e.args[0]
-        if isinstance(val, int) and val > FOUR_BYTE_INT_MAX:
-            msg = f"int must be less than {FOUR_BYTE_INT_MAX}"
-        raise DumpError(msg)
+        if e.__traceback__ is not None:
+            val = e.__traceback__.tb_frame.f_locals.get("obj", _nodefault)
+            if isinstance(val, int) and val > FOUR_BYTE_INT_MAX:
+                msg = f"int must be less than {FOUR_BYTE_INT_MAX}"
+        raise DumpError(msg) from e
     except KeyError as e:
-        raise DumpError(f"can't serialize {e.args[0]}")
+        msg = f"can't serialize {e.args[0]}"
+        raise DumpError(msg) from e
     write(b'Q')
 
 

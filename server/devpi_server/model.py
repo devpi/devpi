@@ -27,12 +27,19 @@ from pyramid.authorization import Authenticated
 from pyramid.authorization import Everyone
 from time import gmtime
 from time import strftime
+from typing import TYPE_CHECKING
 import functools
 import getpass
 import json
 import posixpath
 import re
 import warnings
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Any
+    from typing import Literal
 
 
 notset = object()
@@ -133,7 +140,8 @@ class MissesVersion(ModelException):
 
 class NonVolatile(ModelException):
     """ A release is overwritten on a non volatile index. """
-    link = None  # the conflicting link
+
+    link: ELink | None = None  # the conflicting link
 
 
 class RootModel:
@@ -190,7 +198,7 @@ class RootModel:
         with user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if index not in indexes:
-                threadlog.info("index %s not exists" % self.index)
+                threadlog.info("index %s not exists", index)
                 return False
             del indexes[index]
             self.xom.del_singletons(f"{username}/{index}")
@@ -268,10 +276,9 @@ def normalize_whitelist_name(name):
 
 
 def get_stage_customizer_classes(xom):
-    customizer_classes = functools.reduce(
-        iconcat,
-        xom.config.hook.devpiserver_get_stage_customizer_classes(),
-        [])
+    customizer_classes: list[tuple[str, type]] = functools.reduce(
+        iconcat, xom.config.hook.devpiserver_get_stage_customizer_classes(), []
+    )
     return dict(customizer_classes)
 
 
@@ -360,7 +367,7 @@ class User:
 
     def _modify(self, password=None, pwhash=None, **kwargs):
         self.validate_config(**kwargs)
-        modified = {}
+        modified: dict[str, object] = {}
         with self.key.update() as userconfig:
             if password is not None or pwhash:
                 self._setpassword(userconfig, password, pwhash=pwhash)
@@ -485,7 +492,7 @@ def get_principals(value):
     return principals
 
 
-class BaseStageCustomizer(object):
+class BaseStageCustomizer:
     readonly = False
 
     def __init__(self, stage):
@@ -618,6 +625,8 @@ class UnknownCustomizer(BaseStageCustomizer):
 @total_ordering
 class SimpleLinks:
     __slots__ = ('_links', 'stale')
+    _links: list
+    stale: bool
 
     def __init__(self, links, stale=False):
         assert links is not None
@@ -771,6 +780,15 @@ class BaseStage(object):
         ixconfig["type"] = index_type
         return (ixconfig, kwargs)
 
+    def get_default_config_items(self) -> Sequence[tuple[str, Any]]:
+        raise NotImplementedError
+
+    def get_possible_indexconfig_keys(self) -> Sequence:
+        raise NotImplementedError
+
+    def normalize_indexconfig_value(self, key: str, value: Any) -> Any:
+        raise NotImplementedError
+
     @cached_property
     def user(self):
         # only few methods need the user object.
@@ -848,6 +866,9 @@ class BaseStage(object):
         assert len(links) < 2
         return links[0] if links else None
 
+    def get_simplelinks_perstage(self, project: str) -> list:
+        raise NotImplementedError
+
     def store_toxresult(
         self, link, content_or_file, *, filename=None, hashes=None, last_modified=None
     ):
@@ -886,6 +907,9 @@ class BaseStage(object):
             versions.update(res)
         return self.filter_versions(project, versions)
 
+    def list_versions_perstage(self, project: str) -> set:
+        raise NotImplementedError
+
     def get_latest_version(self, name, stable=False):
         return get_latest_version(
             self.filter_versions(
@@ -900,7 +924,7 @@ class BaseStage(object):
 
     def get_versiondata(self, project, version):
         assert isinstance(project, str), "project %r not text" % project
-        result = {}
+        result: dict[str, Any] = {}
         if not self.filter_versions(project, [version]):
             return result
         for stage, res in self.op_sro_check_mirror_whitelist(
@@ -1063,7 +1087,8 @@ class BaseStage(object):
         project = normalize_name(kw["project"])
         if not self.filter_projects([project]):
             return
-        whitelisted = private_hit = False
+        whitelisted: BaseStage | Literal[False] = False
+        private_hit: BaseStage | bool = whitelisted
         # the default value if the setting is missing is the old behaviour,
         # so existing indexes work as before
         whitelist_inheritance = self.get_whitelist_inheritance()
@@ -1447,13 +1472,13 @@ class PrivateStage(BaseStage):
         data = self.key_projsimplelinks(project).get()
         links = data.get("links", [])
         requires_python = data.get("requires_python", [])
-        yanked = []  # PEP 592 isn't supported for private stages yet
+        yanked: list = []  # PEP 592 isn't supported for private stages yet
         return self.SimpleLinks(
             join_links_data(links, requires_python, yanked))
 
     def _regen_simplelinks(self, project_input):
         project = normalize_name(project_input)
-        links = []
+        links: list = []
         requires_python = []
         for version in self.list_versions_perstage(project):
             linkstore = self.get_linkstore_perstage(project, version)

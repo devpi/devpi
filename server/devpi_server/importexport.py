@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .filestore import Digests
 from .filestore import get_hashes
 from .log import threadlog
@@ -155,7 +157,7 @@ class Exporter:
         self.config = xom.config
         self.filestore = xom.filestore
 
-        self.export = {}
+        self.export: dict[str, object] = {}
         self.export_users = self.export["users"] = {}
         self.export_indexes = self.export["indexes"] = {}
 
@@ -404,7 +406,7 @@ class Importer:
             raise SystemExit(1)
 
     def iter_projects_normalized(self, projects):
-        project_name_map = {}
+        project_name_map: dict[str, set] = {}
         for project in projects:
             project_name_map.setdefault(normalize_name(project), set()).add(project)
         for project, names in project_name_map.items():
@@ -691,8 +693,8 @@ class IndexTree:
 
     def iternames(self):
         self.validate()
-        pending = [None]
-        created = set()
+        pending: list[str | None] = [None]
+        created: set[str | None] = set()
         while pending:
             name = pending.pop(0)
             for base in self.name2bases.get(name, []):
