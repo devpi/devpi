@@ -49,6 +49,14 @@ class RelpathInfo:
 class FilePathInfo:
     relpath: RelPath
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, FilePathInfo):
+            return self.relpath == other.relpath
+        return False
+
+    def __hash__(self) -> int:
+        return hash(self.relpath)
+
 
 class PTypedKey:
     __slots__ = ('keyfs', 'name', 'pattern', 'rex_reverse', 'type')

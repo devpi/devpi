@@ -890,13 +890,17 @@ class TestSubscriber:
 
 @notransaction
 def test_crash_recovery(caplog, keyfs, storage_info):
+    from devpi_server.filestore import get_hashes
     from devpi_server.fileutil import loads
     from pathlib import Path
     if "storage_with_filesystem" not in storage_info.get("_test_markers", []):
         pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
     content = b'foo'
-    file_path_info = FilePathInfo(RelPath("foo"))
+    hashes = get_hashes(content)
+    key = keyfs.add_key("STAGEFILE", "+f/{path}", dict)
+    file_path_info = FilePathInfo(RelPath("+f/foo"))
     with keyfs.write_transaction() as tx:
+        key(path="foo").set(dict(hash_spec=hashes.get_default_spec()))
         tx.io_file.set_content(file_path_info, content)
     with keyfs.read_transaction() as tx:
         path = Path(tx.io_file.os_path(file_path_info))

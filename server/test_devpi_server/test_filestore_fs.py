@@ -123,7 +123,7 @@ class TestRenameFileLogic:
         with pytest.raises(RuntimeError), keyfs.read_transaction() as tx:  # noqa: PT012
             file_path_info = FilePathInfo(RelPath("foo"))
             tx.io_file.set_content(file_path_info, b"foo")
-            tmppath = tx.io_file._dirty_files[file_path_info.relpath].tmppath
+            tmppath = tx.io_file._dirty_files[file_path_info.relpath].path
             assert os.path.exists(tmppath)
             # abort transaction
             raise RuntimeError
@@ -136,9 +136,11 @@ class TestRenameFileLogic:
         from devpi_server.filestore import get_hashes
         from devpi_server.filestore import make_splitdir
 
-        _commit_renames = mock.Mock()
-        _commit_renames.return_value = ([], [])
-        monkeypatch.setattr("devpi_server.filestore_fs.commit_renames", _commit_renames)
+        _commit = mock.Mock()
+        _commit.return_value = None
+        monkeypatch.setattr(
+            "devpi_server.filestore_fs_base.FSIOFileBase._commit", _commit
+        )
         xom = makexom(opts=("--serverdir", str(tmp_path)))
         content = b"foo"
         hashes = get_hashes(content)
@@ -155,7 +157,7 @@ class TestRenameFileLogic:
             entry.file_set_content(content, hashes=hashes)
             path = Path(tx.io_file.os_path(entry.file_path_info))
             (rel_rename,) = tx.io_file.get_rel_renames()
-        assert _commit_renames.called
+        assert _commit.called
         # due to the monkeypatch above the file renames shouldn't be done yet
         assert not path.exists()
         assert xom.config.server_path.joinpath(rel_rename).exists()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .config import hookimpl
-from .filestore_fs import LazyChangesFormatter
+from .filestore_fs_base import LazyChangesFormatter
 from .fileutil import dumps
 from .fileutil import loads
 from .interfaces import IStorageConnection4
