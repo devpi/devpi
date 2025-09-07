@@ -1,65 +1,120 @@
-from devpi_server.filestore_fs import check_pending_renames
-from devpi_server.filestore_fs import commit_renames
-from devpi_server.filestore_fs import make_rel_renames
+from devpi_server.filestore_fs import FSIOFile
 from devpi_server.keyfs_types import FilePathInfo
+from functools import partial
 from pathlib import Path
 import os
 import pytest
 
 
 class TestRenameFileLogic:
-    def test_new_content_nocrash(self, tmpdir):
-        file1 = tmpdir.join("file1")
-        file1_tmp = file1 + "-tmp"
-        file1.write("hello")
-        file1_tmp.write("this")
-        pending_renames = [(str(file1_tmp), str(file1))]
-        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
-        commit_renames(str(tmpdir), rel_renames)
+    def test_new_content_nocrash(self, caplog, tmpdir):
+        hello_content = b"hello"
+        this_content = b"this"
+        file1 = tmpdir.join("+files", "file1").ensure()
+        file1.write(hello_content)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            assert file1.check()
+            assert file1.read_binary() == hello_content
+            hello_path_info = FilePathInfo("+files/file1")
+            assert fs.os_path(hello_path_info) == str(file1)
+            assert fs.get_content(hello_path_info) == hello_content
+            this_path_info = FilePathInfo("+files/file1")
+            fs.set_content(this_path_info, this_content)
+            (rel_rename,) = list(fs.iter_rel_renames())
+            file1_tmp = tmpdir.join(rel_rename)
+            rel_parts = Path(rel_rename).parts
+            assert rel_parts[0] == "+files"
+            assert rel_parts[1].startswith("file1")
+            assert rel_rename.endswith("-tmp")
+            assert file1_tmp.exists()
         assert file1.check()
-        assert file1.read() == "this"
+        assert file1.read_binary() == this_content
         assert not file1_tmp.exists()
-        check_pending_renames(str(tmpdir), rel_renames)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            caplog.clear()
+            fs.perform_crash_recovery(partial(iter, [rel_rename]), lambda _: [])
+            assert not caplog.getrecords()
         assert file1.check()
-        assert file1.read() == "this"
+        assert file1.read_binary() == this_content
         assert not file1_tmp.exists()
 
-    def test_new_content_crash(self, tmpdir, caplog):
-        file1 = tmpdir.join("file1")
-        file1_tmp = file1 + "-tmp"
-        file1.write("hello")
-        file1_tmp.write("this")
-        pending_renames = [(str(file1_tmp), str(file1))]
-        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
-        # we don't call perform_pending_renames, simulating a crash
-        assert file1.read() == "hello"
+    def test_new_content_crash(self, caplog, mock, monkeypatch, tmpdir):
+        hello_content = b"hello"
+        this_content = b"this"
+        file1 = tmpdir.join("+files", "file1").ensure()
+        file1.write(hello_content)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            assert file1.check()
+            assert file1.read_binary() == hello_content
+            hello_path_info = FilePathInfo("+files/file1")
+            assert fs.os_path(hello_path_info) == str(file1)
+            assert fs.get_content(hello_path_info) == hello_content
+            this_path_info = FilePathInfo("+files/file1")
+            fs.set_content(this_path_info, this_content)
+            (rel_rename,) = list(fs.iter_rel_renames())
+            file1_tmp = tmpdir.join(rel_rename)
+            rel_parts = Path(rel_rename).parts
+            assert rel_parts[0] == "+files"
+            assert rel_parts[1].startswith("file1")
+            assert rel_rename.endswith("-tmp")
+            assert file1_tmp.exists()
+            # simulate a crash
+            _commit = mock.Mock()
+            monkeypatch.setattr(fs, "_commit", _commit)
+        assert file1.read_binary() == hello_content
         assert file1_tmp.exists()
-        check_pending_renames(str(tmpdir), rel_renames)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            caplog.clear()
+            fs.perform_crash_recovery(partial(iter, [rel_rename]), lambda _: [])
+            assert len(caplog.getrecords(".*completed.*file-commit.*")) == 1
         assert file1.check()
-        assert file1.read() == "this"
+        assert file1.read_binary() == this_content
         assert not file1_tmp.exists()
-        assert len(caplog.getrecords(".*completed.*file-commit.*")) == 1
 
-    def test_remove_nocrash(self, tmpdir):
-        file1 = tmpdir.join("file1")
-        file1.write("hello")
-        pending_renames = [(None, str(file1))]
-        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
-        commit_renames(str(tmpdir), rel_renames)
+    def test_remove_nocrash(self, caplog, tmpdir):
+        hello_content = b"hello"
+        file1 = tmpdir.join("+files", "file1").ensure()
+        file1.write(hello_content)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            assert file1.check()
+            assert file1.read_binary() == hello_content
+            hello_path_info = FilePathInfo("+files/file1")
+            assert fs.os_path(hello_path_info) == str(file1)
+            assert fs.get_content(hello_path_info) == hello_content
+            fs.delete(hello_path_info)
+            (rel_rename,) = list(fs.iter_rel_renames())
+            assert tmpdir.join(rel_rename) == str(file1)
+            assert file1.exists()
         assert not file1.exists()
-        check_pending_renames(str(tmpdir), rel_renames)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            caplog.clear()
+            fs.perform_crash_recovery(partial(iter, [rel_rename]), lambda _: [])
+            assert not caplog.getrecords()
         assert not file1.exists()
 
-    def test_remove_crash(self, tmpdir, caplog):
-        file1 = tmpdir.join("file1")
-        file1.write("hello")
-        pending_renames = [(None, str(file1))]
-        rel_renames = make_rel_renames(str(tmpdir), pending_renames)
-        # we don't call perform_pending_renames, simulating a crash
+    def test_remove_crash(self, caplog, mock, monkeypatch, tmpdir):
+        hello_content = b"hello"
+        file1 = tmpdir.join("+files", "file1").ensure()
+        file1.write(hello_content)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            assert file1.check()
+            assert file1.read_binary() == hello_content
+            hello_path_info = FilePathInfo("+files/file1")
+            assert fs.os_path(hello_path_info) == str(file1)
+            assert fs.get_content(hello_path_info) == hello_content
+            fs.delete(hello_path_info)
+            (rel_rename,) = list(fs.iter_rel_renames())
+            assert tmpdir.join(rel_rename) == str(file1)
+            assert file1.exists()
+            # simulate a crash
+            _commit = mock.Mock()
+            monkeypatch.setattr(fs, "_commit", _commit)
         assert file1.exists()
-        check_pending_renames(str(tmpdir), rel_renames)
+        with FSIOFile(Path(tmpdir), {}) as fs:
+            caplog.clear()
+            fs.perform_crash_recovery(partial(iter, [rel_rename]), lambda _: [])
+            assert len(caplog.getrecords(".*completed.*file-del.*")) == 1
         assert not file1.exists()
-        assert len(caplog.getrecords(".*completed.*file-del.*")) == 1
 
     @pytest.mark.storage_with_filesystem
     @pytest.mark.notransaction
