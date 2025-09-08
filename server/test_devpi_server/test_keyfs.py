@@ -898,7 +898,7 @@ def test_crash_recovery(caplog, keyfs, storage_info):
     content = b'foo'
     hashes = get_hashes(content)
     key = keyfs.add_key("STAGEFILE", "+f/{path}", dict)
-    file_path_info = FilePathInfo(RelPath("+f/foo"))
+    file_path_info = FilePathInfo(RelPath("+f/foo"), hashes.get_default_value())
     with keyfs.write_transaction() as tx:
         key(path="foo").set(dict(hash_spec=hashes.get_default_spec()))
         tx.io_file.set_content(file_path_info, content)
@@ -944,25 +944,26 @@ def test_crash_recovery(caplog, keyfs, storage_info):
         keyfs.finalize_init()
 
 
-def test_keyfs_sqlite(gen_path, sorted_serverdir):
+def test_keyfs_sqlite(file_digest, gen_path, sorted_serverdir):
     from devpi_server import keyfs_sqlite
     from devpi_server.filestore_db import DBIOFile
 
     tmp = gen_path()
     storage = keyfs_sqlite.Storage
     keyfs = KeyFS(tmp, storage, io_file_factory=DBIOFile)
-    file_path_info = FilePathInfo(RelPath("foo"))
+    content = b"bar"
+    file_path_info = FilePathInfo(RelPath("foo"), file_digest(content))
     with keyfs.write_transaction() as tx:
         assert tx.io_file.os_path(file_path_info) is None
-        tx.io_file.set_content(file_path_info, b"bar")
+        tx.io_file.set_content(file_path_info, content)
         tx.conn._sqlconn.commit()
     with keyfs.read_transaction() as tx:
         assert tx.io_file.os_path(file_path_info) is None
-        assert tx.io_file.get_content(file_path_info) == b"bar"
+        assert tx.io_file.get_content(file_path_info) == content
     assert sorted_serverdir(tmp) == [".sqlite_db"]
 
 
-def test_keyfs_sqlite_fs(gen_path, sorted_serverdir):
+def test_keyfs_sqlite_fs(file_digest, gen_path, sorted_serverdir):
     from devpi_server import keyfs_sqlite_fs
     from devpi_server.filestore_fs import fsiofile_factory
 
@@ -970,15 +971,16 @@ def test_keyfs_sqlite_fs(gen_path, sorted_serverdir):
     storage = keyfs_sqlite_fs.Storage
     io_file_factory = partial(fsiofile_factory, settings={})
     keyfs = KeyFS(tmp, storage, io_file_factory=io_file_factory)
-    file_path_info = FilePathInfo(RelPath("foo"))
+    content = b"bar"
+    file_path_info = FilePathInfo(RelPath("foo"), file_digest(content))
     with keyfs.write_transaction() as tx:
         assert tx.io_file.os_path(file_path_info) == str(tmp / "+files" / "foo")
-        tx.io_file.set_content(file_path_info, b"bar")
+        tx.io_file.set_content(file_path_info, content)
         tx.conn._sqlconn.commit()
     with keyfs.read_transaction() as tx:
-        assert tx.io_file.get_content(file_path_info) == b"bar"
+        assert tx.io_file.get_content(file_path_info) == content
         with open(tx.io_file.os_path(file_path_info), "rb") as f:
-            assert f.read() == b'bar'
+            assert f.read() == content
     assert sorted_serverdir(tmp) == ["+files", ".sqlite"]
     assert sorted_serverdir(tmp / "+files") == ["foo"]
 

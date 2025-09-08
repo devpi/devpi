@@ -8,18 +8,20 @@ import pytest
 
 
 class TestRenameFileLogic:
-    def test_new_content_nocrash(self, caplog, tmpdir):
+    def test_new_content_nocrash(self, caplog, file_digest, tmpdir):
         hello_content = b"hello"
+        hello_digest = file_digest(hello_content)
         this_content = b"this"
+        this_digest = file_digest(this_content)
         file1 = tmpdir.join("+files", "file1").ensure()
         file1.write(hello_content)
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo(RelPath("file1"))
+            hello_path_info = FilePathInfo(RelPath("file1"), hello_digest)
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
-            this_path_info = FilePathInfo(RelPath("file1"))
+            this_path_info = FilePathInfo(RelPath("file1"), this_digest)
             fs.set_content(this_path_info, this_content)
             (rel_rename,) = list(fs.iter_rel_renames())
             file1_tmp = tmpdir.join(rel_rename)
@@ -39,18 +41,20 @@ class TestRenameFileLogic:
         assert file1.read_binary() == this_content
         assert not file1_tmp.exists()
 
-    def test_new_content_crash(self, caplog, mock, monkeypatch, tmpdir):
+    def test_new_content_crash(self, caplog, file_digest, mock, monkeypatch, tmpdir):
         hello_content = b"hello"
+        hello_digest = file_digest(hello_content)
         this_content = b"this"
+        this_digest = file_digest(this_content)
         file1 = tmpdir.join("+files", "file1").ensure()
         file1.write(hello_content)
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo(RelPath("file1"))
+            hello_path_info = FilePathInfo(RelPath("file1"), hello_digest)
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
-            this_path_info = FilePathInfo(RelPath("file1"))
+            this_path_info = FilePathInfo(RelPath("file1"), this_digest)
             fs.set_content(this_path_info, this_content)
             (rel_rename,) = list(fs.iter_rel_renames())
             file1_tmp = tmpdir.join(rel_rename)
@@ -72,14 +76,15 @@ class TestRenameFileLogic:
         assert file1.read_binary() == this_content
         assert not file1_tmp.exists()
 
-    def test_remove_nocrash(self, caplog, tmpdir):
+    def test_remove_nocrash(self, caplog, file_digest, tmpdir):
         hello_content = b"hello"
+        hello_digest = file_digest(hello_content)
         file1 = tmpdir.join("+files", "file1").ensure()
         file1.write(hello_content)
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo(RelPath("file1"))
+            hello_path_info = FilePathInfo(RelPath("file1"), hello_digest)
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
             fs.delete(hello_path_info)
@@ -93,14 +98,15 @@ class TestRenameFileLogic:
             assert not caplog.getrecords()
         assert not file1.exists()
 
-    def test_remove_crash(self, caplog, mock, monkeypatch, tmpdir):
+    def test_remove_crash(self, caplog, file_digest, mock, monkeypatch, tmpdir):
         hello_content = b"hello"
+        hello_digest = file_digest(hello_content)
         file1 = tmpdir.join("+files", "file1").ensure()
         file1.write(hello_content)
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo(RelPath("file1"))
+            hello_path_info = FilePathInfo(RelPath("file1"), hello_digest)
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
             fs.delete(hello_path_info)
@@ -119,10 +125,12 @@ class TestRenameFileLogic:
 
     @pytest.mark.storage_with_filesystem
     @pytest.mark.notransaction
-    def test_dirty_files_removed_on_rollback(self, keyfs):
+    def test_dirty_files_removed_on_rollback(self, file_digest, keyfs):
+        content = b"foo"
+        content_hash = file_digest(content)
         with pytest.raises(RuntimeError), keyfs.read_transaction() as tx:  # noqa: PT012
-            file_path_info = FilePathInfo(RelPath("foo"))
-            tx.io_file.set_content(file_path_info, b"foo")
+            file_path_info = FilePathInfo(RelPath("foo"), content_hash)
+            tx.io_file.set_content(file_path_info, content)
             tmppath = tx.io_file._dirty_files[file_path_info.relpath].path
             assert os.path.exists(tmppath)
             # abort transaction

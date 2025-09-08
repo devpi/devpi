@@ -48,6 +48,7 @@ class RelpathInfo:
 @define
 class FilePathInfo:
     relpath: RelPath
+    hash_digest: str | None
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, FilePathInfo):

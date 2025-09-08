@@ -9,6 +9,7 @@ independent from any future changes.
 from __future__ import annotations
 
 from . import mythread
+from .filestore import Digests
 from .filestore import FileEntry
 from .filestore import FilePathInfo
 from .fileutil import read_int_from_file
@@ -27,6 +28,7 @@ from .log import threadlog
 from .markers import absent
 from .markers import deleted
 from .model import RootModel
+from .readonly import DictViewReadonly
 from .readonly import ensure_deeply_readonly
 from .readonly import get_mutable_deepcopy
 from .readonly import is_deeply_readonly
@@ -355,7 +357,17 @@ class KeyFS(object):
             def iter_file_path_infos(
                 relpaths: Iterable[RelPath],
             ) -> Iterable[FilePathInfo]:
-                return (FilePathInfo(relpath) for relpath in relpaths)
+                for relpath in relpaths:
+                    (_, _, val) = conn.get_relpath_at(relpath, serial)
+                    if (
+                        isinstance(val, (dict, DictViewReadonly))
+                        and "hash_spec" in val
+                        and isinstance(hash_spec := val["hash_spec"], str)
+                    ):
+                        digests = Digests.from_spec(hash_spec)
+                    else:
+                        digests = Digests()
+                    yield FilePathInfo(relpath, digests.get_default_value(None))
 
             io_file = self.io_file_factory(conn)
             io_file.perform_crash_recovery(iter_rel_renames, iter_file_path_infos)

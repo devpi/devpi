@@ -411,7 +411,7 @@ class BadGateway(Exception):
 
 
 class BaseFileEntry:
-    __slots__ = ("_meta", "basename", "key", "relpath")
+    __slots__ = ("_meta", "_storepath", "basename", "key", "relpath")
 
     BadGateway = BadGateway
     _hash_spec = metaprop("hash_spec")  # e.g. "md5=120938012"
@@ -431,7 +431,7 @@ class BaseFileEntry:
 
     @property
     def file_path_info(self) -> FilePathInfo:
-        return FilePathInfo(self.relpath)
+        return FilePathInfo(self.relpath, self.hashes.get_default_value(None))
 
     @property
     def index(self):
@@ -595,7 +595,9 @@ class BaseFileEntry:
                 DeprecationWarning,
                 stacklevel=2,
             )
-        self.tx.io_file.set_content(self.file_path_info, content_or_file)
+        file_path_info = self.file_path_info
+        file_path_info.hash_digest = hashes[DEFAULT_HASH_TYPE]
+        self.tx.io_file.set_content(file_path_info, content_or_file)
 
     def gethttpheaders(self):
         assert self.file_exists()

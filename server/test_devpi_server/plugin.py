@@ -1655,6 +1655,18 @@ def blank_request():
     return blank_request
 
 
+@pytest.fixture(scope="session")
+def file_digest():
+    from devpi_server import filestore
+
+    def file_digest(content):
+        rh = filestore.RunningHashes(filestore.DEFAULT_HASH_TYPE)
+        rh.update(content)
+        return rh.digests.get_default_value()
+
+    return file_digest
+
+
 @pytest.fixture(params=[None, "tox38"])
 def tox_result_data(request):
     from test_devpi_server.example import tox_result_data
