@@ -964,11 +964,17 @@ class TestImportExport:
     def test_export_hard_links(self, makeimpexp):
         impexp = makeimpexp(options=('--hard-links',))
         mapp1 = impexp.mapp1
+        files_path = mapp1.xom.config.server_path / "+files"
         api = mapp1.create_and_use()
         content = b'content'
-        mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        r = mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        targz_links = files_path.joinpath(URL(r.file_url).path[1:]).stat().st_nlink
         content = zip_dict({"index.html": "<html/>"})
-        mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
+        r = mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
+        doczip_path = files_path.joinpath(URL(r.file_url).path[1:]).with_name(
+            "he-llo-1.0.doc.zip"
+        )
+        doczip_links = doczip_path.stat().st_nlink
 
         # export the data
         impexp.export()
@@ -976,14 +982,12 @@ class TestImportExport:
         # check the number of links of the files in the exported data
         assert impexp.exportdir.joinpath(
             'dataindex.json').stat().st_nlink == 1
-        assert (
-            impexp.exportdir.joinpath("user1", "dev", "he-llo-1.0.doc.zip")
-            .stat()
-            .st_nlink
-            == 2
-        )
         assert impexp.exportdir.joinpath(
-            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().st_nlink == 2
+            "user1", "dev", "he-llo-1.0.doc.zip"
+        ).stat().st_nlink == (doczip_links + 1)
+        assert impexp.exportdir.joinpath(
+            "user1", "dev", "he-llo", "1.0", "he-llo-1.0.tar.gz"
+        ).stat().st_nlink == (targz_links + 1)
 
         # now import the data
         mapp2 = impexp.new_import()
@@ -1006,11 +1010,17 @@ class TestImportExport:
     def test_import_hard_links(self, makeimpexp):
         impexp = makeimpexp()
         mapp1 = impexp.mapp1
+        files_path = mapp1.xom.config.server_path / "+files"
         api = mapp1.create_and_use()
         content = b'content'
-        mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        r = mapp1.upload_file_pypi("he-llo-1.0.tar.gz", content, "he_llo", "1.0")
+        targz_links = files_path.joinpath(URL(r.file_url).path[1:]).stat().st_nlink
         content = zip_dict({"index.html": "<html/>"})
-        mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
+        r = mapp1.upload_doc("he-llo.zip", content, "he-llo", "")
+        doczip_path = files_path.joinpath(URL(r.file_url).path[1:]).with_name(
+            "he-llo-1.0.doc.zip"
+        )
+        doczip_links = doczip_path.stat().st_nlink
 
         # export the data
         impexp.export()
@@ -1037,7 +1047,7 @@ class TestImportExport:
             assert verdata["version"] == "1.0"
             (link,) = stage.get_releaselinks("he_llo")
             assert link.entry.file_get_content() == b'content'
-            assert os.stat(link.entry.file_os_path()).st_nlink == 2
+            assert os.stat(link.entry.file_os_path()).st_nlink == (targz_links + 1)
             doczip = stage.get_doczip("he_llo", "1.0")
             archive = Archive(BytesIO(doczip))
             assert 'index.html' in archive.namelist()
@@ -1046,14 +1056,12 @@ class TestImportExport:
         # and the exported files should now have additional links
         assert impexp.exportdir.joinpath(
             'dataindex.json').stat().st_nlink == 1
-        assert (
-            impexp.exportdir.joinpath("user1", "dev", "he-llo-1.0.doc.zip")
-            .stat()
-            .st_nlink
-            == 2
-        )
         assert impexp.exportdir.joinpath(
-            'user1', 'dev', 'he-llo', '1.0', 'he-llo-1.0.tar.gz').stat().st_nlink == 2
+            "user1", "dev", "he-llo-1.0.doc.zip"
+        ).stat().st_nlink == (doczip_links + 1)
+        assert impexp.exportdir.joinpath(
+            "user1", "dev", "he-llo", "1.0", "he-llo-1.0.tar.gz"
+        ).stat().st_nlink == (targz_links + 1)
 
     def test_uploadtrigger_jenkins_removed_if_not_set(self, impexp):
         mapp1 = impexp.mapp1

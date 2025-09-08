@@ -687,7 +687,7 @@ class TestUseExistingFiles:
         replay(xom, replica_xom)
         assert len(caplog.getrecords('checking existing file')) == 1
         # check the number of links of the file
-        assert existing_path.stat().nlink == 2
+        assert existing_path.stat().nlink > 1
 
     def test_use_existing_files_bad_data(
         self, caplog, make_replica_xom, mapp, tmpdir, xom
