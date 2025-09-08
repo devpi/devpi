@@ -42,5 +42,6 @@ def devpiserver_storage_backend(settings):
         name="sqlite",
         description="SQLite backend with files on the filesystem",
         db_filestore=False,
+        settings=settings,
         _test_markers=["storage_with_filesystem"],
     )

@@ -560,7 +560,9 @@ def devpiserver_storage_backend(settings):
         storage=Storage,
         name="sqlite_db_files",
         description="SQLite backend with files in DB for testing only",
-        hidden=True)
+        hidden=True,
+        settings=settings,
+    )
 
 
 @hookimpl

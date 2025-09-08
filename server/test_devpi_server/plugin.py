@@ -285,8 +285,13 @@ def storage_plugin(request):
 
 
 @pytest.fixture(scope="session")
-def storage_info(storage_plugin):
-    return storage_plugin.devpiserver_storage_backend(settings=None)
+def storage_info(request, storage_plugin):
+    fsbackend = getattr(request.config.option, "devpi_server_storage_fs_backend", None)
+    if fsbackend is None:
+        fsbackend = "fs"
+    return storage_plugin.devpiserver_storage_backend(
+        settings=dict(fsbackend=fsbackend)
+    )
 
 
 @pytest.fixture(scope="session")

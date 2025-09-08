@@ -996,6 +996,31 @@ def test_keyfs_sqlite_fs(file_digest, gen_path, sorted_serverdir):
     assert sorted_serverdir(tmp / "+files") == ["foo"]
 
 
+def test_keyfs_sqlite_hash_hl(file_digest, gen_path, sorted_serverdir):
+    from devpi_server import keyfs_sqlite_fs
+    from devpi_server.filestore_hash_hl import fsiofile_factory
+
+    tmp = gen_path()
+    storage = keyfs_sqlite_fs.Storage
+    io_file_factory = partial(fsiofile_factory, settings={})
+    keyfs = KeyFS(tmp, storage, io_file_factory=io_file_factory)
+    content = b"bar"
+    content_hash = file_digest(content)
+    file_path_info = FilePathInfo(RelPath("foo"), content_hash)
+    with keyfs.write_transaction() as tx:
+        assert tx.io_file.os_path(file_path_info) == str(tmp / "+files" / "foo")
+        tx.io_file.set_content(file_path_info, content)
+        tx.conn._sqlconn.commit()
+    with keyfs.read_transaction() as tx:
+        assert tx.io_file.get_content(file_path_info) == content
+        with open(tx.io_file.os_path(file_path_info), "rb") as f:
+            assert f.read() == content
+    assert sorted_serverdir(tmp) == ["+files", "+h", ".sqlite"]
+    assert sorted_serverdir(tmp / "+files") == ["foo"]
+    assert sorted_serverdir(tmp / "+h") == [content_hash[:3]]
+    assert sorted_serverdir(tmp / "+h" / content_hash[:3]) == [content_hash[3:]]
+
+
 @notransaction
 def test_iter_relpaths_at(keyfs):
     pkey = keyfs.add_key("NAME1", "{name}", int)

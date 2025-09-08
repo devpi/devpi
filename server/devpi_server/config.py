@@ -688,17 +688,19 @@ def get_io_file_factory(storage_info: dict) -> IIOFileFactory:
 
     _io_file_factory: Callable
     db_filestore = storage_info.setdefault("db_filestore", True)
+    settings = storage_info.setdefault("settings", {})
     if db_filestore:
         from .filestore_db import DBIOFile
 
         _io_file_factory = DBIOFile
     else:
-        from .filestore_fs import fsiofile_factory
+        fsbackend = settings.setdefault("fsbackend", "fs")
+        _io_file_factory = __import__(
+            f"filestore_{fsbackend}", globals=globals(), level=1
+        ).fsiofile_factory
 
         storage_info.setdefault("_test_markers", []).append("storage_with_filesystem")
-        _io_file_factory = fsiofile_factory
     verifyObject(IIOFileFactory, _io_file_factory)
-    settings = storage_info.get("settings", {})
 
     @provider(IIOFileFactory)
     def io_file_factory(conn: IStorageConnection4) -> IIOFile:
