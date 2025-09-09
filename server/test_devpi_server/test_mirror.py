@@ -1,4 +1,5 @@
 from devpi_server.keyfs_types import FilePathInfo
+from devpi_server.keyfs_types import RelPath
 from devpi_server.mirror import ProjectNamesCache
 from devpi_server.mirror import ProjectUpdateCache
 from devpi_server.mirror import URL
@@ -1428,7 +1429,7 @@ def test_redownload_locally_removed_release(mapp, simpypi):
     simpypi.add_release('pkg', pkgver='pkg-1.0.zip')
     simpypi.add_file('/pkg/pkg-1.0.zip', content)
     result = mapp.getreleaseslist("pkg")
-    file_path_info = FilePathInfo(f"+files{URL(result[0]).path}")
+    file_path_info = FilePathInfo(RelPath(URL(result[0]).path[1:]))
     assert len(result) == 1
     r = mapp.downloadrelease(200, result[0])
     assert r == content

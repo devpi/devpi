@@ -4,6 +4,7 @@ from devpi_server.fileutil import dumps
 from devpi_server.fileutil import loads
 from devpi_server.keyfs import MissingFileException
 from devpi_server.keyfs_types import FilePathInfo
+from devpi_server.keyfs_types import RelPath
 from devpi_server.log import thread_pop_log
 from devpi_server.log import thread_push_log
 from devpi_server.log import threadlog
@@ -1018,7 +1019,7 @@ class TestFileReplication:
         # first we try to return something wrong
         primary_url = replica_xom.config.primary_url
         (path,) = mapp.get_release_paths('hello')
-        file_path_info = FilePathInfo(f"+files{path}")
+        file_path_info = FilePathInfo(RelPath(path[1:]))
         primary_file_url = primary_url.joinpath(path).url
         replica_xom.frt.http.mockresponse(primary_file_url, content=b"13")
         replay(xom, replica_xom, events=False)

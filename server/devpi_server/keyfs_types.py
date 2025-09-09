@@ -5,6 +5,7 @@ from .markers import Deleted
 from .readonly import ensure_deeply_readonly
 from attrs import define
 from attrs import frozen
+from typing import NewType
 from typing import TYPE_CHECKING
 import contextlib
 import re
@@ -32,9 +33,12 @@ class Record:
             raise TypeError(msg)
 
 
+RelPath = NewType("RelPath", str)
+
+
 @define
 class RelpathInfo:
-    relpath: str
+    relpath: RelPath
     keyname: str
     serial: int
     back_serial: int
@@ -43,7 +47,7 @@ class RelpathInfo:
 
 @define
 class FilePathInfo:
-    relpath: str
+    relpath: RelPath
 
 
 class PTypedKey:
@@ -69,8 +73,7 @@ class PTypedKey:
             if "/" in val:
                 raise ValueError(val)
         relpath = self.pattern.format(**kw)
-        return TypedKey(self.keyfs, relpath, self.type, self.name,
-                        params=kw)
+        return TypedKey(self.keyfs, RelPath(relpath), self.type, self.name, params=kw)
 
     def extract_params(self, relpath):
         m = self.rex_reverse.match(relpath)

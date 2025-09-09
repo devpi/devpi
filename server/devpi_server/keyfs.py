@@ -18,6 +18,7 @@ from .interfaces import IStorageConnection4
 from .interfaces import IWriter2
 from .keyfs_types import PTypedKey
 from .keyfs_types import Record
+from .keyfs_types import RelPath
 from .keyfs_types import TypedKey
 from .log import thread_change_log_prefix
 from .log import thread_pop_log
@@ -351,7 +352,9 @@ class KeyFS(object):
                     return
                 yield from rel_renames
 
-            def iter_file_path_infos(relpaths: Iterable[str]) -> Iterable[FilePathInfo]:
+            def iter_file_path_infos(
+                relpaths: Iterable[RelPath],
+            ) -> Iterable[FilePathInfo]:
                 return (FilePathInfo(relpath) for relpath in relpaths)
 
             io_file = self.io_file_factory(conn)
@@ -442,7 +445,7 @@ class KeyFS(object):
         if "{" in path:
             key = PTypedKey(self, path, type, name)
         else:
-            key = TypedKey(self, path, type, name)
+            key = TypedKey(self, RelPath(path), type, name)
         if name in self._keys:
             raise ValueError("Duplicate registration for key named '%s'" % name)
         self._keys[name] = key

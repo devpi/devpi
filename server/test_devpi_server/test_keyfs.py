@@ -1,6 +1,7 @@
 from devpi_server.keyfs import KeyFS
 from devpi_server.keyfs import Transaction
 from devpi_server.keyfs_types import FilePathInfo
+from devpi_server.keyfs_types import RelPath
 from devpi_server.mythread import ThreadPool
 from devpi_server.readonly import is_deeply_readonly
 from functools import partial
@@ -894,13 +895,15 @@ def test_crash_recovery(caplog, keyfs, storage_info):
     if "storage_with_filesystem" not in storage_info.get("_test_markers", []):
         pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
     content = b'foo'
+    file_path_info = FilePathInfo(RelPath("foo"))
     with keyfs.write_transaction() as tx:
-        tx.io_file.set_content(FilePathInfo("foo"), content)
+        tx.io_file.set_content(file_path_info, content)
     with keyfs.read_transaction() as tx:
-        path = Path(tx.io_file.os_path(FilePathInfo("foo")))
+        path = Path(tx.io_file.os_path(file_path_info))
         raw_changelog_entry = tx.conn.get_raw_changelog_entry(tx.at_serial)
         changelog_entry = loads(raw_changelog_entry)
-        tmpname = changelog_entry[1][0]
+        (rel_rename,) = changelog_entry[1]
+        tmpname = Path(rel_rename).name
     tmppath = path.with_name(tmpname)
     assert path.exists()
     assert not tmppath.exists()
@@ -915,7 +918,7 @@ def test_crash_recovery(caplog, keyfs, storage_info):
     assert path.exists()
     assert not tmppath.exists()
     with keyfs.write_transaction() as tx:
-        tx.io_file.delete(FilePathInfo("foo"))
+        tx.io_file.delete(file_path_info)
     assert not path.exists()
     assert not tmppath.exists()
     # put file back in place
@@ -930,7 +933,7 @@ def test_crash_recovery(caplog, keyfs, storage_info):
     assert not path.exists()
     assert not tmppath.exists()
     with keyfs.write_transaction() as tx:
-        tx.io_file.set_content(FilePathInfo("foo"), content)
+        tx.io_file.set_content(file_path_info, content)
     path.unlink()
     # due to the remove file we get an unrecoverable error
     with pytest.raises(OSError, match="missing file"):
@@ -944,7 +947,7 @@ def test_keyfs_sqlite(gen_path, sorted_serverdir):
     tmp = gen_path()
     storage = keyfs_sqlite.Storage
     keyfs = KeyFS(tmp, storage, io_file_factory=DBIOFile)
-    file_path_info = FilePathInfo("foo")
+    file_path_info = FilePathInfo(RelPath("foo"))
     with keyfs.write_transaction() as tx:
         assert tx.io_file.os_path(file_path_info) is None
         tx.io_file.set_content(file_path_info, b"bar")
@@ -963,16 +966,17 @@ def test_keyfs_sqlite_fs(gen_path, sorted_serverdir):
     storage = keyfs_sqlite_fs.Storage
     io_file_factory = partial(fsiofile_factory, settings={})
     keyfs = KeyFS(tmp, storage, io_file_factory=io_file_factory)
-    file_path_info = FilePathInfo("foo")
+    file_path_info = FilePathInfo(RelPath("foo"))
     with keyfs.write_transaction() as tx:
-        assert tx.io_file.os_path(file_path_info) == str(tmp / "foo")
+        assert tx.io_file.os_path(file_path_info) == str(tmp / "+files" / "foo")
         tx.io_file.set_content(file_path_info, b"bar")
         tx.conn._sqlconn.commit()
     with keyfs.read_transaction() as tx:
         assert tx.io_file.get_content(file_path_info) == b"bar"
         with open(tx.io_file.os_path(file_path_info), "rb") as f:
             assert f.read() == b'bar'
-    assert sorted_serverdir(tmp) == [".sqlite", "foo"]
+    assert sorted_serverdir(tmp) == ["+files", ".sqlite"]
+    assert sorted_serverdir(tmp / "+files") == ["foo"]
 
 
 @notransaction

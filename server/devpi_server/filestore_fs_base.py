@@ -20,6 +20,7 @@ import threading
 
 if TYPE_CHECKING:
     from .interfaces import ContentOrFile
+    from .keyfs_types import RelPath
     from collections.abc import Callable
     from collections.abc import Iterable
     from pathlib import Path
@@ -72,7 +73,7 @@ class DirtyFile:
 
 @implementer(IIOFile)
 class FSIOFileBase:
-    _dirty_files: dict[str, DirtyFile | Deleted]
+    _dirty_files: dict[RelPath, DirtyFile | Deleted]
 
     def __init__(self, base_path: Path, settings: dict) -> None:
         self.settings = settings
@@ -102,30 +103,31 @@ class FSIOFileBase:
 
     def delete(self, path: FilePathInfo) -> None:
         assert isinstance(path, FilePathInfo)
-        _path = self._make_path(path)
-        old = self._dirty_files.get(_path)
+        old = self._dirty_files.get(path.relpath)
         if isinstance(old, DirtyFile):
             os.remove(old.tmppath)
-        self._dirty_files[_path] = deleted
+        self._dirty_files[path.relpath] = deleted
 
     def exists(self, path: FilePathInfo) -> bool:
         assert isinstance(path, FilePathInfo)
-        _path = self._make_path(path)
-        if _path in self._dirty_files:
-            dirty_file = self._dirty_files[_path]
+        if path.relpath in self._dirty_files:
+            dirty_file = self._dirty_files[path.relpath]
             if isinstance(dirty_file, Deleted):
                 return False
             _path = dirty_file.tmppath
+        else:
+            _path = self._make_path(path)
         return os.path.exists(_path)
 
     def get_content(self, path: FilePathInfo) -> bytes:
         assert isinstance(path, FilePathInfo)
-        _path = self._make_path(path)
-        if _path in self._dirty_files:
-            dirty_file = self._dirty_files[_path]
+        if path.relpath in self._dirty_files:
+            dirty_file = self._dirty_files[path.relpath]
             if isinstance(dirty_file, Deleted):
                 raise OSError
             _path = dirty_file.tmppath
+        else:
+            _path = self._make_path(path)
         with open(_path, "rb") as f:
             data = f.read()
             if len(data) > 1048576:
@@ -140,7 +142,7 @@ class FSIOFileBase:
         return bool(self._dirty_files)
 
     def is_path_dirty(self, path: FilePathInfo) -> bool:
-        return self._make_path(path) in self._dirty_files
+        return path.relpath in self._dirty_files
 
     def new_open(self, path: FilePathInfo) -> IO[bytes]:
         assert isinstance(path, FilePathInfo)
@@ -153,35 +155,39 @@ class FSIOFileBase:
 
     def open_read(self, path: FilePathInfo) -> IO[bytes]:
         assert isinstance(path, FilePathInfo)
-        _path = self._make_path(path)
-        if _path in self._dirty_files:
-            dirty_file = self._dirty_files[_path]
+        if path.relpath in self._dirty_files:
+            dirty_file = self._dirty_files[path.relpath]
             if isinstance(dirty_file, Deleted):
                 raise OSError
             _path = dirty_file.tmppath
+        else:
+            _path = self._make_path(path)
         return open(_path, "rb")
 
     def os_path(self, path: FilePathInfo) -> str:
         assert isinstance(path, FilePathInfo)
-        return str(self.basedir / path.relpath)
+        return self._make_path(path)
 
     def set_content(self, path: FilePathInfo, content_or_file: ContentOrFile) -> None:
         assert isinstance(path, FilePathInfo)
         _path = self._make_path(path)
         assert not _path.endswith("-tmp")
         if ITempStorageFile.providedBy(content_or_file):
-            self._dirty_files[_path] = DirtyFile(_path)
+            self._dirty_files[path.relpath] = DirtyFile(_path)
         else:
-            self._dirty_files[_path] = DirtyFile.from_content(_path, content_or_file)
+            self._dirty_files[path.relpath] = DirtyFile.from_content(
+                _path, content_or_file
+            )
 
     def size(self, path: FilePathInfo) -> int | None:
         assert isinstance(path, FilePathInfo)
-        _path = self._make_path(path)
-        if _path in self._dirty_files:
-            dirty_file = self._dirty_files[_path]
+        if path.relpath in self._dirty_files:
+            dirty_file = self._dirty_files[path.relpath]
             if isinstance(dirty_file, Deleted):
                 return None
             _path = dirty_file.tmppath
+        else:
+            _path = self._make_path(path)
         with suppress(OSError):
             return os.path.getsize(_path)
         return None
@@ -202,8 +208,8 @@ class FSIOFileBase:
 
     def perform_crash_recovery(
         self,
-        iter_rel_renames: Callable[[], Iterable[str]],
-        iter_file_path_infos: Callable[[Iterable[str]], Iterable[FilePathInfo]],
+        iter_rel_renames: Callable[[], Iterable[RelPath]],
+        iter_file_path_infos: Callable[[Iterable[RelPath]], Iterable[FilePathInfo]],
     ) -> None:
         raise NotImplementedError
 

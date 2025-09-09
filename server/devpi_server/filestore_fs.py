@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from .keyfs import KeyFSConn
     from .keyfs import KeyFSConnWithClosing
     from .keyfs_types import FilePathInfo
+    from .keyfs_types import RelPath
     from collections.abc import Callable
     from collections.abc import Iterable
 
@@ -31,22 +32,23 @@ class FSIOFile(FSIOFileBase):
             threadlog.debug(msg, LazyChangesFormatter({}, files_commit, files_del))
 
     def _make_path(self, path: FilePathInfo) -> str:
-        return str(self.basedir / path.relpath)
+        return str(self.basedir / "+files" / path.relpath)
 
     def iter_pending_renames(self) -> Iterable[tuple[str | None, str]]:
-        for path, dirty_file in self._dirty_files.items():
+        for relpath, dirty_file in self._dirty_files.items():
+            _path = str(self.basedir / "+files" / relpath)
             if isinstance(dirty_file, Deleted):
-                yield (None, path)
+                yield (None, _path)
             else:
-                yield (dirty_file.tmppath, path)
+                yield (dirty_file.tmppath, _path)
 
     def iter_rel_renames(self) -> Iterable[str]:
         return make_rel_renames(str(self.basedir), self.iter_pending_renames())
 
     def perform_crash_recovery(
         self,
-        iter_rel_renames: Callable[[], Iterable[str]],
-        iter_file_path_infos: Callable[[Iterable[str]], Iterable[FilePathInfo]],  # noqa: ARG002 - API
+        iter_rel_renames: Callable[[], Iterable[RelPath]],
+        iter_file_path_infos: Callable[[Iterable[RelPath]], Iterable[FilePathInfo]],  # noqa: ARG002 - API
     ) -> None:
         rel_renames = list(iter_rel_renames())
         if rel_renames:

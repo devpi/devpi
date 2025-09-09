@@ -431,7 +431,7 @@ class BaseFileEntry:
 
     @property
     def file_path_info(self) -> FilePathInfo:
-        return FilePathInfo(f"+files/{self.relpath}")
+        return FilePathInfo(self.relpath)
 
     @property
     def index(self):

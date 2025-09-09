@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from .keyfs_types import FilePathInfo
     from .keyfs_types import PTypedKey
     from .keyfs_types import Record
+    from .keyfs_types import RelPath
     from .keyfs_types import TypedKey
     from collections.abc import Callable
     from collections.abc import Iterable
@@ -111,8 +112,8 @@ class IIOFile(Interface):
         based, otherwise None."""
 
     def perform_crash_recovery(
-        iter_rel_renames: Callable[[], Iterable[str]],
-        iter_file_path_infos: Callable[[Iterable[str]], Iterable[FilePathInfo]],
+        iter_rel_renames: Callable[[], Iterable[RelPath]],
+        iter_file_path_infos: Callable[[Iterable[RelPath]], Iterable[FilePathInfo]],
     ) -> None:
         """Perform recovery from crash during two phase commit."""
 
@@ -228,7 +229,7 @@ class IStorageConnection4(Interface):
         """Return last stored serial.
         Returns -1 if nothing is stored yet."""
 
-    def db_read_typedkey(relpath: str) -> tuple[str, int]:
+    def db_read_typedkey(relpath: RelPath) -> tuple[str, int]:
         """Return key name and serial for given relpath.
         Raises KeyError if not found."""
 
@@ -241,7 +242,7 @@ class IStorageConnection4(Interface):
     def get_rel_renames(serial: int) -> Iterable | None:
         """Returns deserialized rel_renames for given serial."""
 
-    def get_relpath_at(relpath: str, serial: int) -> tuple[int, int, Any]:
+    def get_relpath_at(relpath: RelPath, serial: int) -> tuple[int, int, Any]:
         """Get tuple of (last_serial, back_serial, value) for given relpath
         at given serial.
         Raises KeyError if not found."""

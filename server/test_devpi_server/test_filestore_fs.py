@@ -1,5 +1,6 @@
 from devpi_server.filestore_fs import FSIOFile
 from devpi_server.keyfs_types import FilePathInfo
+from devpi_server.keyfs_types import RelPath
 from functools import partial
 from pathlib import Path
 import os
@@ -15,10 +16,10 @@ class TestRenameFileLogic:
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo("+files/file1")
+            hello_path_info = FilePathInfo(RelPath("file1"))
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
-            this_path_info = FilePathInfo("+files/file1")
+            this_path_info = FilePathInfo(RelPath("file1"))
             fs.set_content(this_path_info, this_content)
             (rel_rename,) = list(fs.iter_rel_renames())
             file1_tmp = tmpdir.join(rel_rename)
@@ -46,10 +47,10 @@ class TestRenameFileLogic:
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo("+files/file1")
+            hello_path_info = FilePathInfo(RelPath("file1"))
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
-            this_path_info = FilePathInfo("+files/file1")
+            this_path_info = FilePathInfo(RelPath("file1"))
             fs.set_content(this_path_info, this_content)
             (rel_rename,) = list(fs.iter_rel_renames())
             file1_tmp = tmpdir.join(rel_rename)
@@ -78,7 +79,7 @@ class TestRenameFileLogic:
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo("+files/file1")
+            hello_path_info = FilePathInfo(RelPath("file1"))
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
             fs.delete(hello_path_info)
@@ -99,7 +100,7 @@ class TestRenameFileLogic:
         with FSIOFile(Path(tmpdir), {}) as fs:
             assert file1.check()
             assert file1.read_binary() == hello_content
-            hello_path_info = FilePathInfo("+files/file1")
+            hello_path_info = FilePathInfo(RelPath("file1"))
             assert fs.os_path(hello_path_info) == str(file1)
             assert fs.get_content(hello_path_info) == hello_content
             fs.delete(hello_path_info)
@@ -120,8 +121,9 @@ class TestRenameFileLogic:
     @pytest.mark.notransaction
     def test_dirty_files_removed_on_rollback(self, keyfs):
         with pytest.raises(RuntimeError), keyfs.read_transaction() as tx:  # noqa: PT012
-            tx.io_file.set_content(FilePathInfo("foo"), b"foo")
-            tmppath = tx.io_file._dirty_files[str(keyfs.base_path / "foo")].tmppath
+            file_path_info = FilePathInfo(RelPath("foo"))
+            tx.io_file.set_content(file_path_info, b"foo")
+            tmppath = tx.io_file._dirty_files[file_path_info.relpath].tmppath
             assert os.path.exists(tmppath)
             # abort transaction
             raise RuntimeError
