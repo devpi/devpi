@@ -546,7 +546,9 @@ def parseoptions(pluginmanager, argv, parser=None):
         config_options=config_options,
         environ=os.environ)
     parser.post_process_actions(defaultget=defaultget)
-    if args.help is True:
+    # the getattr is a workaround for a problem with 3.14t-dev
+    # weirdly enough it does not happen with 3.14-dev
+    if getattr(args, "help", False) is True:
         parser.print_help()
         parser.exit()
     args = parser.parse_args(argv[1:])
