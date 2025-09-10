@@ -116,7 +116,7 @@ class Flake8:
             project,
         ]
         p = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)
-        (out, err) = await p.communicate()
+        (out, _err) = await p.communicate()
         await p.wait()
         return LintResults(base, self[project], out.decode())
 

@@ -213,7 +213,7 @@ class TestIndexTree:
 
 
 class TestImportExport:
-    @pytest.fixture()
+    @pytest.fixture
     def makeimpexp(self, makemapp, gen_path, storage_args):
         class ImpExp:
             def __init__(self, options=()):

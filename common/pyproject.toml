@@ -82,6 +82,8 @@ extend-ignore = [
     "PT018", # maybe cleanup later - composite assert
     "RET503", # maybe cleanup later - missing return
     "RUF005", # cleanup later
+    "RUF043", # cleanup later - pytest.raises match regexp
+    "RUF059", # cleanup later - unpacked variable unused
     "SIM105", # cleanup soon
     "SIM108", # cleanup later
     "UP008", # cleanup later - super

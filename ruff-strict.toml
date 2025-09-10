@@ -4,9 +4,9 @@ exclude = [
 
 
 [lint]
+future-annotations = true
 select = ["ALL"]
 ignore = [
-    "A003", # ignore - class attribute name shadows builtin
     "ANN", # maybe cleanup later - annotations
     "C408", # ignore - dict call
     "C901", # ignore - complex structure
@@ -20,10 +20,8 @@ ignore = [
     "PERF203", # ignore (false positive?) - try-except in loop
     "PLC0415", # ignore - import at top-level of file
     "PLR0913", # ignore - too many arguments
-    "PLR0915", # maybe cleanup later
+    "PLR0915", # ignore - too many statements
     "PLR2004", # ignore - magic value comparison
-    "PT001", # ignore - pytest.fixture
-    "PT023", # ignore - pytest.mark.nomocking
     "PTH", # ignore - pathlib
     "Q", # ignore - quotes style
     "S101", # ignore - asserts
@@ -31,7 +29,6 @@ ignore = [
     "TD", # ignore - todos
     "TRY003", # ignore - raise vanilla args
     "UP031", # maybe cleanup later - printf string formatting
-    "UP036", # maybe cleanup later - version check obsolete for target version
 ]
 
 pyupgrade.keep-runtime-typing = true
@@ -64,6 +61,7 @@ order-by-type = false
     "INP001", # ignore - implicit namespace package
     "S603", # ignore - subprocess untrusted input
     "T201", # ignore - print found
+    "UP036", # maybe cleanup later - version check obsolete for target version
 ]
 "server/devpi_server/hookspecs.py" = [
     "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
@@ -72,14 +70,8 @@ order-by-type = false
     "S603", # ignore - subprocess untrusted input
     "T201", # ignore - print found
 ]
-"web/**.py" = [
-    "COM812", # ignore - ruff format
-]
 "web/devpi_web/hookspecs.py" = [
     "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
-]
-"web/devpi_web/macroregistry.py" = [
-    "COM812", # ignore - ruff format
 ]
 "web/tests/conftest.py" = [
     "INP001", # ignore - implicit namespace package
@@ -87,10 +79,6 @@ order-by-type = false
 "*/pytest_devpi_postgresql/__init__.py" = [
     "S603", # ignore - subprocess untrusted input
     "S607", # ignore - subprocess partial executable path
-]
-"setup.py" = [
-    "INP001", # ignore - implicit namespace package
-    "SIM905", # cleanup later
 ]
 "test_*" = [
     "INP001", # ignore - implicit namespace package

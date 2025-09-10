@@ -67,6 +67,7 @@ extend-ignore = [
     "RET504", # maybe cleanup later - unnecessary assignment before return
     "RET506", # maybe cleanup later - unnecessary elif after raise
     "RUF012", # cleanup later
+    "RUF059", # cleanup later - unpacked variable unused
     "RSE102", # maybe cleanup later
     "UP024", # maybe cleanup later - aliased errors
     "UP032", # cleanup later - f-string instead of format

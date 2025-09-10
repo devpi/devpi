@@ -126,7 +126,7 @@ def TimeoutQueue():
     return _TimeoutQueue
 
 
-@pytest.fixture()
+@pytest.fixture
 def caplog(caplog):
     import logging
     """ enrich the pytest-catchlog funcarg. """
