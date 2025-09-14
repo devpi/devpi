@@ -1412,6 +1412,7 @@ class PrivateStage(BaseStage):
             projects.remove(project)
         threadlog.info("deleting project %s", project)
         self.key_projversions(project).delete()
+        self.key_projsimplelinks(project).delete()
 
     def del_versiondata(self, project, version, cleanup=True):
         project = normalize_name(project)
@@ -1428,9 +1429,9 @@ class PrivateStage(BaseStage):
         self.key_projversion(project, version).delete()
         self.key_projversions(project).set(versions)
         if cleanup:
+            self._regen_simplelinks(project)
             if not versions:
                 self.del_project(project)
-            self._regen_simplelinks(project)
 
     def del_entry(self, entry, cleanup=True):
         # we need to store project and version for use in cleanup part below
