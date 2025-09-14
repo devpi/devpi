@@ -42,12 +42,6 @@ extend-ignore = [
 ]
 
 
-[tool.ruff.lint.extend-per-file-ignores]
-"devpi_debugging/main.py" = [
-    "I001", # maybe cleanup later - import block unsorted
-]
-
-
 [tool.setuptools]
 packages = [
     'devpi_debugging',

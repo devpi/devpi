@@ -1,14 +1,21 @@
-from devpi_server.log import threadlog
+from __future__ import annotations
+
 from devpi_server.log import thread_push_log
+from devpi_server.log import threadlog
 from devpi_server.main import Fatal
 from pluggy import HookimplMarker
 from pyramid.events import NewRequest
 from pyramid.events import subscriber
+from typing import TYPE_CHECKING
 import os
 import signal
 import sys
 import threading
 import time
+
+
+if TYPE_CHECKING:
+    from devpi_server.mythread import MyThread
 
 
 hookimpl = HookimplMarker("devpiserver")
@@ -168,6 +175,8 @@ def show_stacks(signal, stack):  # noqa: ARG001, PLR0912
 
 
 class PokingThread:
+    thread: MyThread
+
     def __init__(self, xom):
         self.xom = xom
         self.thread_ids = {threading.get_ident()}
@@ -217,20 +226,24 @@ class PokingThread:
                 stack.append(f"    {co.co_filename}:{f.f_lineno} {co.co_name}")
             if skipped:
                 continue
-            stack = '\n'.join(reversed(stack))
+            stack_str = "\n".join(reversed(stack))
+            del stack
             if request is not None:
                 delta = time.time() - request._devpi_debugging_start_time
                 if delta < request._devpi_debugging_next_time_delta:
                     continue
                 next_delta = request._devpi_debugging_next_time_delta * 1.25
                 request._devpi_debugging_next_time_delta += next_delta
-                stack = stack + f"\n  Next poke in {next_delta} for {request.method} {request.url} from {request.client_addr} ({request.user_agent})"
+                stack_str = (
+                    stack_str
+                    + f"\n  Next poke in {next_delta} for {request.method} {request.url} from {request.client_addr} ({request.user_agent})"
+                )
             thread_name = self.thread_names.get(thread_id)
             if thread_name is None:
                 thread_name = f"{thread_id}"
             else:
                 thread_name = f"{thread_name} ({thread_id})"
-            threadlog.info(f"Thread {thread_name} is in:\n{stack}")
+            threadlog.info(f"Thread {thread_name} is in:\n{stack_str}")
 
     def thread_run(self):
         self.thread_ids.add(threading.get_ident())

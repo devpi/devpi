@@ -40,7 +40,7 @@ def keyfs_view(request):
         raise HTTPForbidden("+keyfs views disabled")
     storage = xom.keyfs._storage
     query = request.params.get('query')
-    serials = []
+    serials: list[int] = []
     if query:
         bquery = query.encode('ascii')
         q = "SELECT serial, data FROM changelog"

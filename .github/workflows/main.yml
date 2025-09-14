@@ -879,6 +879,9 @@ jobs:
           - project: "common"
             python-version: "3.7"
             os: "ubuntu-22.04"
+          - project: "debugging"
+            python-version: "3.9"
+            os: "ubuntu-latest"
           - project: "postgresql"
             python-version: "3.9"
             os: "ubuntu-latest"
@@ -952,6 +955,7 @@ jobs:
           export FAILED="0"
           pushd client; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
           pushd common; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
+          pushd debugging; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
           pushd postgresql; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
           pushd server; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
           pushd web; flake8 --format '::error file=%(path)s,line=%(row)d,col=%(col)d,title=%(code)s::%(text)s' --config .flake8 $(pwd) || export FAILED="1"; popd
