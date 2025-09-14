@@ -89,6 +89,9 @@ def keyfs_changelog_view(request):
     xom = request.registry['xom']
     if not xom.config.args.debug_keyfs:
         raise HTTPForbidden("+keyfs views disabled")
+    html_key_types_map = {
+        k: str(v.type).replace(" ", "\xa0") for k, v in xom.keyfs._keys.items()
+    }
     storage = xom.keyfs._storage
     serial = request.matchdict['serial']
     query = request.params.get('query')
@@ -108,10 +111,12 @@ def keyfs_changelog_view(request):
             diffed = diff(prev_formatted, formatted)
             (_, latest_serial) = conn.db_read_typedkey(k)
             changes[k] = dict(
-                type=v[0],
+                name=v[0],
+                type=html_key_types_map[v[0]],
                 previous_serial=v[1],
                 latest_serial=latest_serial,
-                diffed=diffed)
+                diffed=diffed,
+            )
     return dict(
         changes=changes,
         rel_renames=rel_renames,

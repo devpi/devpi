@@ -78,7 +78,7 @@
                 <tr tal:repeat="change sorted(changes.items())">
                     <td tal:define="key change[0];
                                     change change[1];">
-                        <div><a name="${key}"><strong>${key}</strong>&nbsp;<code>${change.type}</code></a></div>
+                        <div><a name="${key}"><strong>${change.name} ${key}</strong>&nbsp;<code>${change.type}</code></a></div>
                         <div class="serial">Previous serial<span><a href="${request.route_url('keyfs_changelog', serial=change.previous_serial, _query=dict(query=query)) + '#' + key}" tal:omit-tag="change.previous_serial < 0">${change.previous_serial}</a></span></div>
                         <div class="serial">Latest serial<span><a href="${request.route_url('keyfs_changelog', serial=change.latest_serial, _query=dict(query=query)) + '#' + key}" tal:omit-tag="change.latest_serial < 0">${change.latest_serial}</a></span></div>
                     </td>
