@@ -35,11 +35,9 @@ exclude = [
 
 [tool.ruff.lint]
 extend-ignore = [
-    "ARG001", # maybe cleanup later - unused function argument
     "B007", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
     "PERF401", # maybe cleanup later - list comprehension
-    "PLR0912", # maybe cleanup later
     "SIM102", # maybe cleanup later
 ]
 

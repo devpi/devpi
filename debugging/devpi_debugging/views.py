@@ -1,10 +1,33 @@
+from __future__ import annotations
+
 from devpi_server.fileutil import loads
 from difflib import SequenceMatcher
-from functools import partial
+from functools import singledispatch
 from itertools import chain
 from pyramid.httpexceptions import HTTPForbidden
 from pyramid.view import view_config
+from typing import TYPE_CHECKING
 import json
+
+
+if TYPE_CHECKING:
+    from typing import Any
+
+
+@singledispatch
+def pformat(val: Any) -> str:
+    msg = f"don't know how to handle type {type(val)!r}"
+    raise TypeError(msg)
+
+
+@pformat.register
+def _(val: None) -> str:  # noqa: ARG001
+    return "<deleted>"
+
+
+@pformat.register
+def _(val: object) -> str:
+    return json.dumps(val, indent=4, default=sorted, sort_keys=True)
 
 
 @view_config(
@@ -66,7 +89,6 @@ def keyfs_changelog_view(request):
     xom = request.registry['xom']
     if not xom.config.args.debug_keyfs:
         raise HTTPForbidden("+keyfs views disabled")
-    pformat = partial(json.dumps, indent=4, default=sorted, sort_keys=True)
     storage = xom.keyfs._storage
     serial = request.matchdict['serial']
     query = request.params.get('query')

@@ -80,7 +80,7 @@ def iter_frame_stack_info(frame):
         frame = frame.f_back
 
 
-def iter_current_threads(skip_thread_ids):
+def iter_current_threads(skip_thread_ids):  # noqa: PLR0912
     frames = sys._current_frames()
     for thread_id, frame in frames.items():
         for f, co, name, path, basename, filename in iter_frame_stack_info(frame):
@@ -124,7 +124,7 @@ def iter_current_threads(skip_thread_ids):
             break
 
 
-def show_stacks(signal, stack):
+def show_stacks(signal, stack):  # noqa: ARG001, PLR0912
     output = ["=" * 80]
     skip = {threading.get_ident()}
     for thread_id, frame, status, status_src in iter_current_threads(skip):
@@ -173,7 +173,7 @@ class PokingThread:
         self.thread_ids = {threading.get_ident()}
         self.thread_names = {}
 
-    def tick(self):
+    def tick(self):  # noqa: PLR0912
         for thread_id, frame, status, status_src in iter_current_threads(self.thread_ids):
             if status in {"known_waiting", "skipped"}:
                 continue
