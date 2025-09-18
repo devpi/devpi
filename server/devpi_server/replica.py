@@ -327,6 +327,7 @@ class PrimaryChangelogRequest:
             for serial in range(start_serial, devpi_serial + 1):
                 with keyfs.get_connection() as conn:
                     raw = conn.get_raw_changelog_entry(serial)
+                threadlog.debug("Sending serial %s", serial)
                 with self.update_replica_status(serial, streaming=True):
                     yield dumps(serial)
                     yield raw
