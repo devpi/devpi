@@ -1152,32 +1152,35 @@ class ProjectUpdateLock:
     # this is a wrapper around ProjectUpdateInnerLock to allow
     # the WeakValueDictionary to work correctly
 
-    def __init__(self, project, lock):
+    lock: ProjectUpdateInnerLock | None
+    project: str
+
+    def __init__(self, project: str, lock: ProjectUpdateInnerLock) -> None:
         self.lock = lock
         self.locked = lock.locked
         self.project = project
 
-    def acquire(self, timeout):
+    def acquire(self, timeout: float) -> bool:
         threadlog.debug("Acquiring lock (%r) for %r", self.lock, self.project)
-        result = self.lock.acquire(timeout=timeout)
-        return result
+        assert self.lock is not None
+        return self.lock.acquire(timeout=timeout)
 
-    def defer(self):
+    def defer(self) -> ProjectUpdateInnerLock | None:
         lock = self.lock
         self.lock = None
         return lock
 
-    def is_from_current_thread(self):
+    def is_from_current_thread(self) -> bool:
         if self.lock is not None:
             return self.lock.is_from_current_thread()
         return False
 
-    def release(self):
+    def release(self) -> None:
         if self.lock is not None:
             self.lock.release()
             self.lock = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__} project={self.project!r} lock={self.lock!r}>"
 
 
