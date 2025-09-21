@@ -9,6 +9,7 @@ from .fileutil import buffered_iterator
 from .fileutil import dumps
 from .fileutil import load
 from .fileutil import loads
+from .httpclient import FatalResponse
 from .log import thread_push_log
 from .log import threadlog
 from .main import Fatal
@@ -43,7 +44,10 @@ import warnings
 
 
 if TYPE_CHECKING:
+    from .httpclient import GetResponse
+    from .httpclient import HTTPClient
     from .keyfs_types import KeyFSTypesRO
+    from contextlib import ExitStack
 
 
 devpiweb_hookimpl = HookimplMarker("devpiweb")
@@ -354,7 +358,9 @@ class PrimaryChangelogRequest:
         return serial
 
 
-class HTTPClient:
+class ReplicaHTTPClient:
+    http: HTTPClient
+
     def __init__(self, xom):
         self.config = xom.config
         self.http = xom.new_http_client("replica")
@@ -367,7 +373,14 @@ class HTTPClient:
     def close(self):
         self.http.close()
 
-    def get(self, url, *, allow_redirects, timeout=None, extra_headers=None):
+    def get(
+        self,
+        url: URL | str,
+        *,
+        allow_redirects: bool,
+        timeout: float | None = None,
+        extra_headers: dict | None = None,
+    ) -> GetResponse:
         extra_headers = self.get_extra_headers(extra_headers)
         return self.http.get(
             URL(url).url,
@@ -394,8 +407,15 @@ class HTTPClient:
         return extra_headers
 
     def stream(
-        self, cstack, method, url, *, allow_redirects, timeout=None, extra_headers=None
-    ):
+        self,
+        cstack: ExitStack,
+        method: str,
+        url: URL | str,
+        *,
+        allow_redirects: bool,
+        timeout: float | None = None,
+        extra_headers: dict | None = None,
+    ) -> GetResponse:
         extra_headers = self.get_extra_headers(extra_headers)
         return self.http.stream(
             cstack,
@@ -441,7 +461,7 @@ class ReplicaThread:
         self.update_from_primary_at = None
         # set whenever the primary serial and current replication serial match
         self.replica_in_sync_at = None
-        self.http = HTTPClient(xom)
+        self.http = ReplicaHTTPClient(xom)
         self.initial_fetch = True
 
     def get_master_serial(self):
@@ -552,16 +572,23 @@ class ReplicaThread:
                 log.error("error fetching %s: %s", url, msg)  # noqa: TRY400
                 return False
 
-            if r.status_code in (301, 302):
+            if r.status_code in (301, 302) and not isinstance(r, FatalResponse):
                 log.error(
                     "%s %s: redirect detected at %s to %s",
-                    r.status_code, r.reason, url, r.headers.get('Location'))
+                    r.status_code,
+                    r.reason_phrase,
+                    url,
+                    r.headers.get("Location"),
+                )
                 return False
 
             if r.status_code not in (200, 202):
-                log.error("%s %s: failed fetching %s", r.status_code, r.reason, url)
+                log.error(
+                    "%s %s: failed fetching %s", r.status_code, r.reason_phrase, url
+                )
                 return False
 
+            assert not isinstance(r, FatalResponse)
             # we check that the remote instance
             # has the same UUID we saw last time
             primary_uuid = config.get_primary_uuid()
@@ -965,7 +992,7 @@ class FileReplicationThread:
     def __init__(self, xom, shared_data):
         self.xom = xom
         self.shared_data = shared_data
-        self.http = HTTPClient(xom)
+        self.http = ReplicaHTTPClient(xom)
         self.file_search_path = None
         if self.xom.config.replica_file_search_path is not None:
             search_path = os.path.join(
@@ -1105,11 +1132,11 @@ class FileReplicationThread:
                 threadlog.error(
                     "error downloading '%s' from primary, will be retried later: %s",
                     relpath,
-                    r.reason,
+                    r.reason_phrase,
                 )
                 # add the error for the UI
                 self.shared_data.errors.add(
-                    dict(url=r.url, message=r.reason, relpath=entry.relpath)
+                    dict(url=r.url, message=r.reason_phrase, relpath=entry.relpath)
                 )
                 # and raise for retrying later
                 raise FileReplicationError(r, relpath)
@@ -1129,7 +1156,7 @@ class FileReplicationThread:
                     threadlog.error(
                         "checksum mismatch for '%s', will be retried later: %s",
                         relpath,
-                        r.reason,
+                        r.reason_phrase,
                     )
                 self.shared_data.errors.add(
                     dict(url=r.url, message=str(err), relpath=entry.relpath)
@@ -1423,10 +1450,6 @@ class FileReplicationError(Exception):
     def __init__(self, response, relpath, message=None):
         self.url = response.url
         self.status_code = response.status_code
-        self.reason = response.reason
+        self.reason_phrase = response.reason_phrase
         self.relpath = relpath
         self.message = message or "failed"
-
-    def __str__(self):
-        return "FileReplicationError with %s, code=%s, reason=%s, relpath=%s, message=%s" % (
-               self.url, self.status_code, self.reason, self.relpath, self.message)

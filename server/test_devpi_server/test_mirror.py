@@ -1235,7 +1235,7 @@ async def test_async_get_error(exc, xom, monkeypatch):
         raise exc
 
     monkeypatch.setattr(httpx.AsyncClient, "get", async_get)
-    r = await xom.http.async_get("http://notexists.qwe", allow_redirects=False)
+    (r, _t) = await xom.http.async_get("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 
 
@@ -1262,7 +1262,7 @@ async def test_async_httpget_error(exc, xom, monkeypatch):
         raise exc
 
     monkeypatch.setattr(httpx.AsyncClient, "get", async_httpget)
-    r = await xom.async_httpget("http://notexists.qwe", allow_redirects=False)
+    (r, _t) = await xom.async_httpget("http://notexists.qwe", allow_redirects=False)
     assert r.status_code == -1
 
 

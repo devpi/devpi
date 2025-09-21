@@ -10,6 +10,7 @@ from .config import hookimpl
 from .exceptions import lazy_format_exception
 from .filestore import key_from_link
 from .htmlpage import HTMLPage
+from .httpclient import FatalResponse
 from .log import threadlog
 from .markers import unknown
 from .model import BaseStage
@@ -40,6 +41,8 @@ import weakref
 
 
 if TYPE_CHECKING:
+    from .httpclient import AsyncGetResponse
+    from .httpclient import HTTPClient
     from .keyfs_types import PTypedKey
     from .normalized import NormalizedName
     from typing import Any
@@ -194,15 +197,22 @@ def parse_index_v1_json(disturl, text):
     return result
 
 
-class HTTPClient:
+class MirrorHTTPClient:
+    http: HTTPClient
+
     def __init__(self, http, get_extra_headers, update_auth_candidates):
         self.http = http
         self.get_extra_headers = get_extra_headers
         self.update_auth_candidates = update_auth_candidates
 
     async def async_get(
-        self, url, *, allow_redirects, timeout=None, extra_headers=None
-    ):
+        self,
+        url: URL | str,
+        *,
+        allow_redirects: bool,
+        timeout: float | None = None,
+        extra_headers: dict | None = None,
+    ) -> AsyncGetResponse:
         extra_headers = self.get_extra_headers(extra_headers)
         response, text = await self.http.async_get(
             url=URL(url).url,
@@ -212,8 +222,12 @@ class HTTPClient:
         )
         # if we get an auth problem, see if we can try an alternative credential
         # to access the resource
-        if response.status_code in (401, 403) and self.update_auth_candidates(
-            response.headers.get("WWW-Authenticate", ""),
+        if (
+            response.status_code in (401, 403)
+            and not isinstance(response, FatalResponse)
+            and self.update_auth_candidates(
+                response.headers.get("WWW-Authenticate", ""),
+            )
         ):
             return await self.async_get(
                 url,
@@ -233,8 +247,12 @@ class HTTPClient:
         )
         # if we get an auth problem, see if we can try an alternative credential
         # to access the resource
-        if response.status_code in (401, 403) and self.update_auth_candidates(
-            response.headers.get("WWW-Authenticate", ""),
+        if (
+            response.status_code in (401, 403)
+            and not isinstance(response, FatalResponse)
+            and self.update_auth_candidates(
+                response.headers.get("WWW-Authenticate", ""),
+            )
         ):
             return self.get(
                 url,
@@ -258,8 +276,12 @@ class HTTPClient:
         )
         # if we get an auth problem, see if we can try an alternative credential
         # to access the resource
-        if response.status_code in (401, 403) and self.update_auth_candidates(
-            response.headers.get("WWW-Authenticate", ""),
+        if (
+            response.status_code in (401, 403)
+            and not isinstance(response, FatalResponse)
+            and self.update_auth_candidates(
+                response.headers.get("WWW-Authenticate", ""),
+            )
         ):
             return self.stream(
                 cstack,
@@ -287,7 +309,7 @@ class MirrorStage(BaseStage):
         self._offline_logging = set()
 
     @cached_property
-    def http(self):
+    def http(self) -> MirrorHTTPClient:
         if self.xom.is_replica():
             (uuid, primary_uuid) = self.xom.config.nodeinfo.make_uuid_headers()
             get_extra_headers = self.xom.replica_thread.http.get_extra_headers
@@ -301,7 +323,7 @@ class MirrorStage(BaseStage):
                     extra_headers["Authorization"] = auth
                 return extra_headers
 
-        return HTTPClient(
+        return MirrorHTTPClient(
             self.xom.http, get_extra_headers, self._update_auth_candidates
         )
 
@@ -567,10 +589,14 @@ class MirrorStage(BaseStage):
             raise self.UpstreamNotModified(
                 f"{response.status_code} status on GET {self.mirror_url!r}", etag=etag
             )
-        if response.status_code != 200:
+        if response.status_code != 200 or isinstance(response, FatalResponse):
             raise self.UpstreamError(
                 "URL %r returned %s %s",
-                self.mirror_url, response.status_code, response.reason)
+                self.mirror_url,
+                response.status_code,
+                response.reason_phrase,
+            )
+        assert text is not None
         parser: ProjectHTMLParser | ProjectJSONv1Parser
         if response.headers.get('content-type') == SIMPLE_API_V1_JSON:
             parser = ProjectJSONv1Parser(response.url)
@@ -751,7 +777,7 @@ class MirrorStage(BaseStage):
             raise self.UpstreamNotModified(
                 "%s status on GET %r" % (response.status_code, url),
                 etag=etag)
-        elif response.status_code != 200:
+        if response.status_code != 200 or isinstance(response, FatalResponse):
             if response.status_code == 404:
                 # immediately cache the not found with no ETag
                 self.cache_retrieve_times.refresh(project, None)
@@ -792,7 +818,7 @@ class MirrorStage(BaseStage):
         assert project == normalize_name(url.asfile().basename)
 
         # make sure we don't store credential in the database
-        response_url = URL(response.url).replace(username=None, password=None)
+        response_url = URL(str(response.url)).replace(username=None, password=None)
         # parse simple index's link
         if response.headers.get('content-type') == SIMPLE_API_V1_JSON:
             releaselinks = parse_index_v1_json(response_url, text)

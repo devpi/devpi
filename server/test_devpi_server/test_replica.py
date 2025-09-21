@@ -892,7 +892,6 @@ class TestFileReplication:
     @pytest.mark.slow
     @pytest.mark.mock_frt_http
     def test_fetch_pypi_nomd5(self, gen, xom, replica_xom):
-        (frthread,) = replica_xom.replica_thread.file_replication_threads
         replay(xom, replica_xom)
         content1 = b'hello'
         link = gen.pypi_package_link("some-1.8.zip", hash_spec=False)
@@ -1010,7 +1009,6 @@ class TestFileReplication:
         # this test might seem to be doing the same as test_fetch above, but
         # test_fetch creates a new transaction for the same file, which doesn't
         # happen 'in real life'™
-        (frthread,) = replica_xom.replica_thread.file_replication_threads
         app = maketestapp(xom)
         mapp = makemapp(app)
         api = mapp.create_and_use()
@@ -1036,6 +1034,59 @@ class TestFileReplication:
                    "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
                    "content-type": "application/zip",
                    "X-DEVPI-SERIAL": str(xom.keyfs.get_current_serial())}
+        replica_xom.http.mockresponse(
+            primary_file_url, code=200, content=content1, headers=headers
+        )
+        with replica_xom.keyfs.read_transaction() as tx:
+            assert not tx.io_file.exists(file_path_info)
+        r = r_app.get(path)
+        assert r.status_code == 200
+        assert r.body == content1
+        with replica_xom.keyfs.read_transaction() as tx:
+            assert tx.io_file.exists(file_path_info)
+        replication_errors = replica_xom.replica_thread.shared_data.errors
+        assert list(replication_errors.errors.keys()) == []
+
+    @pytest.mark.mock_frt_http
+    def test_bad_response_handling(
+        self, caplog, file_digest, xom, replica_xom, maketestapp, makemapp
+    ):
+        # this test might seem to be doing the same as test_fetch above, but
+        # test_fetch creates a new transaction for the same file, which doesn't
+        # happen 'in real life'™
+        app = maketestapp(xom)
+        mapp = makemapp(app)
+        api = mapp.create_and_use()
+        content1 = mapp.makepkg("hello-1.0.zip", b"content1", "hello", "1.0")
+        mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
+        r_app = maketestapp(replica_xom)
+        # first we try to return something wrong
+        primary_url = replica_xom.config.primary_url
+        (path,) = mapp.get_release_paths("hello")
+        file_path_info = FilePathInfo(RelPath(path[1:]), file_digest(content1))
+        primary_file_url = primary_url.joinpath(path).url
+        caplog.clear()
+        replica_xom.frt.http.mockresponse(primary_file_url, code=500, content=content1)
+        replay(xom, replica_xom, events=False)
+        replica_xom.replica_thread.wait()
+        assert xom.keyfs.get_current_serial() == replica_xom.keyfs.get_current_serial()
+        replication_errors = replica_xom.replica_thread.shared_data.errors
+        (error_key,) = replication_errors.errors.keys()
+        assert error_key.startswith(f"{api.stagename}/+f/")
+        assert error_key.endswith("/hello-1.0.zip")
+        (record,) = caplog.getrecords(
+            r"devpi_server\.replica\.FileReplicationError: \(<mockresponse"
+        )
+        assert "Error during file replication" in record.message
+        assert "DeprecationWarning" not in record.message
+        # the primary and replica are in sync, so getting the file on the
+        # replica needs to fetch it again
+        headers = {
+            "content-length": "8",
+            "last-modified": "Thu, 25 Nov 2010 20:00:27 GMT",
+            "content-type": "application/zip",
+            "X-DEVPI-SERIAL": str(xom.keyfs.get_current_serial()),
+        }
         replica_xom.http.mockresponse(
             primary_file_url, code=200, content=content1, headers=headers
         )

@@ -1902,7 +1902,7 @@ def test_delete_mirror(mapp, monkeypatch, simpypi, testapp, xom):
     async def async_get(url, **kwargs):  # noqa: ARG001 - testing
         class Response:
             status_code = 503
-            reason = "Service Unavailable"
+            reason = reason_phrase = "Service Unavailable"
         return (Response(), None)
 
     monkeypatch.setattr(xom.http, "async_get", async_get)
