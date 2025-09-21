@@ -21,6 +21,8 @@ from .model import join_links_data
 from .normalized import normalize_name
 from .readonly import ensure_deeply_readonly
 from .views import SIMPLE_API_V1_JSON
+from asyncio import Future
+from attrs import frozen
 from devpi_common.metadata import BasenameMeta
 from devpi_common.metadata import is_archive_of_project
 from devpi_common.metadata import parse_version
@@ -30,6 +32,7 @@ from functools import partial
 from html.parser import HTMLParser
 from pyramid.authentication import b64encode
 from typing import TYPE_CHECKING
+from typing import TypedDict
 from typing import cast
 import asyncio
 import json
@@ -44,8 +47,38 @@ if TYPE_CHECKING:
     from .httpclient import AsyncGetResponse
     from .httpclient import HTTPClient
     from .keyfs_types import PTypedKey
+    from .model import JoinedLinkList
+    from .model import LinksList
+    from .model import RequiresPythonList
+    from .model import SimpleLinks
+    from .model import YankedList
     from .normalized import NormalizedName
+    from collections.abc import Callable
     from typing import Any
+    from typing_extensions import NotRequired
+
+    ReleaseLinks = list["Link"]
+
+    class CacheLinks(TypedDict):
+        links: LinksList
+        requires_python: RequiresPythonList
+        yanked: YankedList
+        serial: int
+        etag: NotRequired[str | None]
+
+
+@frozen
+class NewLinks:
+    serial: int
+    releaselinks: ReleaseLinks
+    key_hrefs: LinksList
+    requires_python: RequiresPythonList
+    yanked: YankedList
+    devpi_serial: str | None
+    etag: str | None
+
+
+NewLinksFuture = Future[NewLinks]
 
 
 SIMPLE_API_V1_VERSION = parse_version("1.0")
@@ -142,7 +175,7 @@ class IndexParser:
             threadlog.debug("indexparser: ignoring candidate link %s", newlink)
 
     @property
-    def releaselinks(self):
+    def releaselinks(self) -> ReleaseLinks:
         # the BasenameMeta wrapping essentially does link validation
         return [BasenameMeta(x).obj for x in self.basename2link.values()]
 
@@ -171,7 +204,7 @@ def parse_index(disturl, html):
     return parser
 
 
-def parse_index_v1_json(disturl, text):
+def parse_index_v1_json(disturl: URL | str, text: str) -> ReleaseLinks:
     if not isinstance(disturl, URL):
         disturl = URL(disturl)
     data = json.loads(text)
@@ -695,11 +728,19 @@ class MirrorStage(BaseStage):
         """ return True if we have some cached simpelinks information. """
         return self.key_projsimplelinks(project).exists()
 
-    def _save_cache_links(self, project, links, requires_python, yanked, serial, etag):
+    def _save_cache_links(
+        self,
+        project: NormalizedName | str,
+        links: LinksList,
+        requires_python: RequiresPythonList,
+        yanked: YankedList,
+        serial: int,
+        etag: str | None,
+    ) -> None:
         assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
-        data = {
+        data: CacheLinks = {
             "etag": etag,
             "links": links,
             "requires_python": requires_python,
@@ -707,10 +748,10 @@ class MirrorStage(BaseStage):
             "yanked": yanked,
         }
         key = self.key_projsimplelinks(project)
-        old = key.get()
+        old = cast("CacheLinks", key.get())
         if old != data:
             threadlog.debug("saving changed simplelinks for %s: %s", project, data)
-            key.set(data)
+            key.set(cast("dict", data))
             # maintain list of currently cached project names to enable
             # deletion and offline mode
             self.add_project_name(project)
@@ -724,13 +765,14 @@ class MirrorStage(BaseStage):
 
         self.keyfs.tx.on_commit_success(on_commit)
 
-    def _load_cache_links(self, project):
+    def _load_cache_links(
+        self, project: NormalizedName | str
+    ) -> tuple[bool, list | None, int, str | None]:
         (is_expired, links_with_data, serial, etag) = (True, None, -1, None)
 
-        cache = self.key_projsimplelinks(project).get()
+        cache = cast("CacheLinks", self.key_projsimplelinks(project).get())
         if cache:
             is_expired = self.cache_retrieve_times.is_expired(project, self.cache_expiry)
-            assert isinstance(cache["serial"], int)
             serial = cache["serial"]
             etag = cache.get("etag", None)
             links_with_data = join_links_data(
@@ -760,8 +802,13 @@ class MirrorStage(BaseStage):
         threadlog.debug("cleared cache for %s", project)
 
     async def _async_fetch_releaselinks(
-        self, newlinks_future, project, cache_serial, etag, _key_from_link
-    ):
+        self,
+        newlinks_future: NewLinksFuture,
+        project: NormalizedName | str,
+        cache_serial: int,
+        etag: str | None,
+        _key_from_link: Callable,
+    ) -> None:
         # get the simple page for the project
         url = self.mirror_url.joinpath(project).asdir()
         get_url = self.mirror_url_without_auth.joinpath(project).asdir()
@@ -817,6 +864,7 @@ class MirrorStage(BaseStage):
         # check returned url has the same normalized name
         assert project == normalize_name(url.asfile().basename)
 
+        assert text is not None
         # make sure we don't store credential in the database
         response_url = URL(str(response.url)).replace(username=None, password=None)
         # parse simple index's link
@@ -826,8 +874,8 @@ class MirrorStage(BaseStage):
             releaselinks = parse_index(response_url, text).releaselinks
         num_releaselinks = len(releaselinks)
         key_hrefs: list = [None] * num_releaselinks
-        requires_python = [None] * num_releaselinks
-        yanked = [None] * num_releaselinks
+        requires_python: RequiresPythonList = [None] * num_releaselinks
+        yanked: YankedList = [None] * num_releaselinks
         for index, releaselink in enumerate(releaselinks):
             key = _key_from_link(releaselink)
             href = key.relpath
@@ -836,22 +884,35 @@ class MirrorStage(BaseStage):
             key_hrefs[index] = (releaselink.basename, href)
             requires_python[index] = releaselink.requires_python
             yanked[index] = None if releaselink.yanked is False else releaselink.yanked
-        newlinks_future.set_result(dict(
-            serial=serial,
-            releaselinks=releaselinks,
-            key_hrefs=key_hrefs,
-            requires_python=requires_python,
-            yanked=yanked,
-            devpi_serial=response.headers.get("X-DEVPI-SERIAL"),
-            etag=response.headers.get("ETag")))
+        newlinks_future.set_result(
+            NewLinks(
+                serial=serial,
+                releaselinks=releaselinks,
+                key_hrefs=key_hrefs,
+                requires_python=requires_python,
+                yanked=yanked,
+                devpi_serial=response.headers.get("X-DEVPI-SERIAL"),
+                etag=response.headers.get("ETag"),
+            )
+        )
 
-    def _update_simplelinks(self, project, info, links, newlinks):
+    def _update_simplelinks(
+        self,
+        project: NormalizedName | str,
+        info: NewLinks,
+        links: JoinedLinkList | None,
+        newlinks: JoinedLinkList,
+    ) -> SimpleLinks:
         if self.xom.is_replica():
             # on the replica we wait for the changes to arrive (changes were
             # triggered by our http request above) because we have no direct
             # writeaccess to the db other than through the replication thread
             # and we need the current data of the new entries
-            devpi_serial = int(info["devpi_serial"])
+            _devpi_serial = info.devpi_serial
+            if _devpi_serial is None:
+                msg = f"no serial header from primary for {project}"
+                raise self.UpstreamError(msg)
+            devpi_serial = int(_devpi_serial)
             threadlog.debug("get_simplelinks pypi: waiting for devpi_serial %r",
                             devpi_serial)
             links = None
@@ -864,8 +925,9 @@ class MirrorStage(BaseStage):
                     project
                 )
             if links is not None:
-                self.keyfs.tx.on_commit_success(partial(
-                    self.cache_retrieve_times.refresh, project, info["etag"]))
+                self.keyfs.tx.on_commit_success(
+                    partial(self.cache_retrieve_times.refresh, project, info.etag)
+                )
                 return self.SimpleLinks(links)
             raise self.UpstreamError("no cache links from primary for %s" %
                                      project)
@@ -877,25 +939,32 @@ class MirrorStage(BaseStage):
                 user=self.user.name, index=self.index, project=project)
             existing_info = set(links or ())
             # calling mapkey on the links creates the entries in the database
-            for newinfo, link in zip(newlinks, info["releaselinks"]):
+            for newinfo, link in zip(newlinks, info.releaselinks):
                 if newinfo in existing_info:
                     continue
                 maplink(link)
             # this stores the simple links info
             self._save_cache_links(
                 project,
-                info["key_hrefs"], info["requires_python"], info["yanked"],
-                info["serial"],
-                info["etag"])
+                info.key_hrefs,
+                info.requires_python,
+                info.yanked,
+                info.serial,
+                info.etag,
+            )
             return self.SimpleLinks(newlinks)
 
-    async def _update_simplelinks_in_future(self, newlinks_future, project, lock):
+    async def _update_simplelinks_in_future(
+        self,
+        newlinks_future: NewLinksFuture,
+        project: NormalizedName | str,
+        lock: ProjectUpdateInnerLock,
+    ) -> None:
         threadlog.debug("Awaiting simple links for %r", project)
         info = await newlinks_future
         threadlog.debug("Got simple links for %r", project)
 
-        newlinks = join_links_data(
-            info["key_hrefs"], info["requires_python"], info["yanked"])
+        newlinks = join_links_data(info.key_hrefs, info.requires_python, info.yanked)
         with self.keyfs.write_transaction():
             self.keyfs.tx.on_finished(lock.release)
             # fetch current links
@@ -908,7 +977,7 @@ class MirrorStage(BaseStage):
             else:
                 threadlog.debug("Unchanged simplelinks for %r", project)
 
-    def get_simplelinks_perstage(self, project):
+    def get_simplelinks_perstage(self, project: NormalizedName | str) -> SimpleLinks:  # noqa: PLR0911, PLR0912
         """ return all releaselinks from the index, returning cached entries
         if we have a recent enough request stored locally.
 
@@ -935,7 +1004,7 @@ class MirrorStage(BaseStage):
 
         if self.offline and links is None:
             raise self.UpstreamError("offline mode")
-        if self.offline or not is_expired:
+        if links is not None and (self.offline or not is_expired):
             if self.offline and project not in self._offline_logging:
                 threadlog.debug(
                     "using stale links for %r due to offline mode", project)
@@ -958,7 +1027,7 @@ class MirrorStage(BaseStage):
                     raise self.UpstreamNotFoundError(
                         "project %s not found" % project)
 
-        newlinks_future = self.xom.create_future()
+        newlinks_future = cast("NewLinksFuture", self.xom.create_future())
         # we need to set this up here, as these access the database and
         # the async loop has no transaction
         _key_from_link = partial(
@@ -1009,11 +1078,10 @@ class MirrorStage(BaseStage):
 
         info = newlinks_future.result()
 
-        newlinks = join_links_data(
-            info["key_hrefs"], info["requires_python"], info["yanked"])
+        newlinks = join_links_data(info.key_hrefs, info.requires_python, info.yanked)
         if links is not None and set(links) == set(newlinks):
             # no changes
-            self.cache_retrieve_times.refresh(project, info["etag"])
+            self.cache_retrieve_times.refresh(project, info.etag)
             return self.SimpleLinks(links)
 
         return self._update_simplelinks(project, info, links, newlinks)

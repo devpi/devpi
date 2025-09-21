@@ -46,6 +46,15 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import Any
     from typing import Literal
+    from typing import Union
+
+    LinksList = list[tuple[str, str]]
+    RequiresPython = Union[str, None]
+    RequiresPythonList = list[RequiresPython]
+    Yanked = Union[Literal[True], str, None]
+    YankedList = list[Yanked]
+    JoinedLink = tuple[str, str, RequiresPython, Yanked]
+    JoinedLinkList = list[JoinedLink]
 
 
 notset = object()
@@ -57,13 +66,16 @@ class Rel(StrEnum):
     ToxResult = "toxresult"
 
 
-def join_links_data(links, requires_python, yanked):
+def join_links_data(
+    links: LinksList, requires_python: RequiresPythonList, yanked: YankedList
+) -> JoinedLinkList:
     # build list of (key, href, require_python, yanked) tuples
     result = []
-    links = zip_longest(links, requires_python, yanked, fillvalue=None)
-    for link, require_python, link_yanked in links:
-        key, href = link
-        result.append((key, href, require_python, link_yanked))
+    for link, require_python, link_yanked in zip_longest(
+        links, requires_python, yanked, fillvalue=None
+    ):
+        assert link is not None
+        result.append((*link, require_python, link_yanked))
     return result
 
 
@@ -637,10 +649,12 @@ class UnknownCustomizer(BaseStageCustomizer):
 @total_ordering
 class SimpleLinks:
     __slots__ = ('_links', 'stale')
-    _links: list
+    _links: list[SimplelinkMeta]
     stale: bool
 
-    def __init__(self, links, stale=False):
+    def __init__(
+        self, links: Sequence[JoinedLink] | SimpleLinks, *, stale: bool = False
+    ) -> None:
         assert links is not None
         if isinstance(links, SimpleLinks):
             self._links = links._links
@@ -682,18 +696,6 @@ class SimpleLinks:
 
 class BaseStage:
     keyfs: KeyFS
-
-    InvalidIndex = InvalidIndex
-    InvalidIndexconfig = InvalidIndexconfig
-    InvalidUser = InvalidUser
-    NotFound = NotFound
-    UpstreamError = UpstreamError
-    UpstreamNotFoundError = UpstreamNotFoundError
-    UpstreamNotModified = UpstreamNotModified
-    MissesRegistration = MissesRegistration
-    MissesVersion = MissesVersion
-    NonVolatile = NonVolatile
-    SimpleLinks = SimpleLinks
 
     def __init__(self, xom, username, index, ixconfig, customizer_cls):
         self.xom = xom
@@ -832,7 +834,7 @@ class BaseStage:
         except self.UpstreamNotFoundError:
             return []
 
-    def get_releaselinks_perstage(self, project):
+    def get_releaselinks_perstage(self, project: NormalizedName | str) -> list[ELink]:
         # compatibility access method for devpi-findlinks and possibly other plugins
         project = normalize_name(project)
         return [self._make_elink(project, link_info)
@@ -884,7 +886,7 @@ class BaseStage:
         assert len(links) < 2
         return links[0] if links else None
 
-    def get_simplelinks_perstage(self, project: str) -> list:
+    def get_simplelinks_perstage(self, project: NormalizedName | str) -> SimpleLinks:
         raise NotImplementedError
 
     def store_toxresult(
@@ -1223,6 +1225,18 @@ class BaseStage:
                     acl.append((Allow, principal, 'pypi_submit'))
         return acl
 
+    InvalidIndex = InvalidIndex
+    InvalidIndexconfig = InvalidIndexconfig
+    InvalidUser = InvalidUser
+    NotFound = NotFound
+    UpstreamError = UpstreamError
+    UpstreamNotFoundError = UpstreamNotFoundError
+    UpstreamNotModified = UpstreamNotModified
+    MissesRegistration = MissesRegistration
+    MissesVersion = MissesVersion
+    NonVolatile = NonVolatile
+    SimpleLinks = SimpleLinks
+
 
 class PrivateStage(BaseStage):
     metadata_keys = (
@@ -1493,11 +1507,11 @@ class PrivateStage(BaseStage):
             return get_mutable_deepcopy(result)
         return result
 
-    def get_simplelinks_perstage(self, project):
+    def get_simplelinks_perstage(self, project: NormalizedName | str) -> SimpleLinks:
         data = self.key_projsimplelinks(project).get()
-        links = data.get("links", [])
-        requires_python = data.get("requires_python", [])
-        yanked: list = []  # PEP 592 isn't supported for private stages yet
+        links = cast("LinksList", data.get("links", []))
+        requires_python = cast("RequiresPythonList", data.get("requires_python", []))
+        yanked: YankedList = []  # PEP 592 isn't supported for private stages yet
         return self.SimpleLinks(
             join_links_data(links, requires_python, yanked))
 
@@ -1978,7 +1992,7 @@ class SimplelinkMeta:
         "yanked",
     )
 
-    def __init__(self, link_info):
+    def __init__(self, link_info: tuple[str, str, RequiresPython, Yanked]) -> None:
         self.__basename = notset
         self.__cmpval = notset
         self.__ext = notset
