@@ -15,6 +15,7 @@ import pytest
 
 
 if TYPE_CHECKING:
+    from devpi_server.keyfs import KeyChangeEvent
     from devpi_server.keyfs_types import PTypedKey
 
 
@@ -753,15 +754,18 @@ class TestSubscriber:
         event = queue.get()
         assert event.typedkey == key1
 
-    @pytest.mark.xfail(reason="test monkeypatching wrong thing after refactoring")
-    def test_persistent(
+    def test_notifications_retried_after_exception(
         self, tmpdir, queue, monkeypatch, storage, storage_io_file_factory
     ):
         @contextlib.contextmanager
         def make_keyfs():
             keyfs = KeyFS(tmpdir, storage, io_file_factory=storage_io_file_factory)
             key1 = keyfs.add_key("NAME1", "hello", int)
-            keyfs.notifier.on_key_change(key1, queue.put)
+
+            def subscriber(ev: KeyChangeEvent) -> None:
+                queue.put(ev)
+
+            keyfs.notifier.on_key_change(key1, subscriber)
             pool = ThreadPool()
             pool.register(keyfs.notifier)
             pool.start()
@@ -770,16 +774,13 @@ class TestSubscriber:
             finally:
                 pool.kill()
 
-        with make_keyfs() as key1:
-            monkeypatch.setattr(key1.keyfs._storage, "_notify_on_commit",
-                                lambda x: 0/0)
+        with make_keyfs() as key1, monkeypatch.context() as m:
+            m.setattr(key1.keyfs._storage, "_notify_on_commit", lambda _x: 0 / 0)
             # we prevent the hooks from getting called
-            with pytest.raises(ZeroDivisionError):
-                with key1.keyfs.write_transaction():
-                    key1.set(1)
+            with pytest.raises(ZeroDivisionError), key1.keyfs.write_transaction():
+                key1.set(1)
             assert key1.keyfs.get_next_serial() == 1
             assert key1.keyfs.notifier.read_event_serial() == -1
-            monkeypatch.undo()
 
         # and then we restart keyfs and see if the hook still gets called
         with make_keyfs() as key1:
