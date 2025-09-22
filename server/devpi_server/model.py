@@ -214,18 +214,22 @@ class RootModel:
 
     def delete_stage(self, username, index):
         user = self.get_user(username)
+        if user is None:
+            threadlog.info("user %s does not exist", username)
+            return
         with user.key.update() as userconfig:
             indexes = userconfig.get("indexes", {})
             if index not in indexes:
-                threadlog.info("index %s not exists", index)
-                return False
+                threadlog.info("index %s/%s does not exist", username, index)
+                return
             del indexes[index]
             self.xom.del_singletons(f"{username}/{index}")
 
-    def get_user(self, name):
+    def get_user(self, name: str) -> User | None:
         user = User(self, name)
         if user.key.exists():
             return user
+        return None
 
     def get_userlist(self):
         return [
@@ -246,7 +250,7 @@ class RootModel:
             assert isinstance(index, str)
         return user, index
 
-    def getstage(self, user, index=None):
+    def getstage(self, user: str, index: str | None = None) -> BaseStage | None:
         (username, indexname) = self._get_user_and_index(user, index)
         _user = self.get_user(username)
         if _user is None:
@@ -436,7 +440,9 @@ class User:
         # delete all projects on the index
         userconfig = self.get()
         for name in list(userconfig.get("indexes", {})):
-            self.getstage(name).delete()
+            stage = self.getstage(name)
+            assert stage is not None
+            stage.delete()
         # delete the user information itself
         self.key.delete()
         self.parent.delete_user(self.name)
@@ -487,13 +493,15 @@ class User:
             ixconfig=ixconfig,
             customizer_cls=customizer_cls)
 
-    def getstage(self, indexname):
+    def getstage(self, indexname: str) -> BaseStage | None:
         return self.parent.getstage(self.name, indexname)
 
-    def getstages(self):
+    def getstages(self) -> list[BaseStage]:
         stages = []
         for index in self.get()["indexes"]:
-            stages.append(self.getstage(index))
+            stage = self.getstage(index)
+            assert stage is not None
+            stages.append(stage)
         return stages
 
 
