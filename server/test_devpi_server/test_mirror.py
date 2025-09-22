@@ -1416,6 +1416,34 @@ def test_ProjectUpdateCache(monkeypatch):
 
 
 @pytest.mark.notransaction
+@pytest.mark.nomocking
+def test_cleanup_after_last_entry_deletion(mapp, simpypi):
+    mapp.create_and_login_user("mirror")
+    indexconfig = dict(
+        type="mirror", mirror_url=simpypi.simpleurl, mirror_cache_expiry=0
+    )
+    mapp.create_index("mirror", indexconfig=indexconfig)
+    mapp.use("mirror/mirror")
+    content = b"14"
+    simpypi.add_release("pkg", pkgver="pkg-1.0.zip")
+    simpypi.add_file("/pkg/pkg-1.0.zip", content)
+    (release,) = mapp.getreleaseslist("pkg")
+    r = mapp.downloadrelease(200, release)
+    assert r == content
+    with mapp.xom.keyfs.write_transaction():
+        stage = mapp.xom.model.getstage("mirror/mirror")
+        assert stage.key_projects.get() == {"pkg"}
+        assert stage.key_projsimplelinks("pkg").exists()
+        ls = stage.get_linkstore_perstage("pkg", "1.0")
+        (link,) = ls.get_links()
+        stage.del_entry(link.entry)
+    with mapp.xom.keyfs.read_transaction():
+        stage = mapp.xom.model.getstage("mirror/mirror")
+        assert not stage.key_projects.get()
+        assert not stage.key_projsimplelinks("pkg").exists()
+
+
+@pytest.mark.notransaction
 @pytest.mark.with_notifier
 @pytest.mark.nomocking
 def test_redownload_locally_removed_release(file_digest, mapp, simpypi):

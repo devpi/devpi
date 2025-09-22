@@ -581,6 +581,7 @@ class MirrorStage(BaseStage):
             if project in projects:
                 projects.remove(project)
                 self.key_projects.set(projects)
+            self.key_projsimplelinks(project).delete()
 
     @property
     def _list_projects_perstage_lock(self):
