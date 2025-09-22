@@ -574,17 +574,16 @@ class MirrorStage(BaseStage):
         if not entry.file_exists():
             raise self.NotFound("entry has no file data %r" % entry)
         entry.delete()
-        (is_expired, links, cache_serial, etag) = self._load_cache_links(project)
-        if links is not None:
-            has_links = any(self._is_file_cached(x) for x in links)
-        else:
-            has_links = False
-        if not has_links and cleanup:
-            projects = self.key_projects.get_mutable()
-            if project in projects:
-                projects.remove(project)
-                self.key_projects.set(projects)
-            self.key_projsimplelinks(project).delete()
+        if cleanup:
+            (_is_expired, links, _cache_serial, _etag) = self._load_cache_links(project)
+            if links is None:
+                return
+            if not any(self._is_file_cached(x) for x in links):
+                projects = self.key_projects.get_mutable()
+                if project in projects:
+                    projects.remove(project)
+                    self.key_projects.set(projects)
+                self.key_projsimplelinks(project).delete()
 
     @property
     def _list_projects_perstage_lock(self):
