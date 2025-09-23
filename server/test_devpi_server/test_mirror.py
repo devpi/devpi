@@ -733,6 +733,64 @@ class TestExtPYPIDB:
         assert 'Expires' in r.headers
         assert r.headers['Pragma'] == 'no-cache'
 
+    @pytest.mark.notransaction
+    def test_removed_release_for_version(self, pypistage, testapp):
+        pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz"></a>')
+        r = testapp.xget(200, "/root/pypi/+simple/foo/")
+        assert ".tar.gz" in r
+        assert ".whl" not in r
+        with pypistage.keyfs.read_transaction():
+            (link,) = pypistage.get_releaselinks("foo")
+            link.basename.endswith(".tar.gz")
+            assert pypistage.list_versions("foo") == {"1.0"}
+        pypistage.mock_simple("foo", text='<a href="foo-1.0-py3-none-any.whl"></a>')
+        r = testapp.xget(200, "/root/pypi/+simple/foo/")
+        assert ".tar.gz" not in r
+        assert ".whl" in r
+        with pypistage.keyfs.read_transaction():
+            (link,) = pypistage.get_releaselinks("foo")
+            link.basename.endswith(".whl")
+            assert pypistage.list_versions("foo") == {"1.0"}
+
+    @pytest.mark.notransaction
+    def test_new_release_for_version(self, pypistage, testapp):
+        pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz"></a>')
+        testapp.xget(200, "/root/pypi/+simple/foo/")
+        with pypistage.keyfs.read_transaction():
+            assert len(pypistage.get_releaselinks("foo")) == 1
+            assert pypistage.list_versions("foo") == {"1.0"}
+        pypistage.mock_simple(
+            "foo",
+            text='<a href="foo-1.0.tar.gz"></a><a href="foo-1.0-py3-none-any.whl"></a>',
+        )
+        testapp.xget(200, "/root/pypi/+simple/foo/")
+        with pypistage.keyfs.read_transaction():
+            assert len(pypistage.get_releaselinks("foo")) == 2
+            assert pypistage.list_versions("foo") == {"1.0"}
+
+    @pytest.mark.notransaction
+    def test_yanked_release(self, pypistage, testapp):
+        pypistage.mock_simple("foo", text='<a href="foo-1.0.tar.gz"></a>')
+        r = testapp.xget(200, "/root/pypi/+simple/foo/")
+        assert "yanked" not in r.text
+        with pypistage.keyfs.read_transaction():
+            versiondata = pypistage.get_versiondata("foo", "1.0")
+            assert "yanked" not in versiondata
+            assert len(versiondata["+elinks"]) == 1
+            assert len(pypistage.get_releaselinks("foo")) == 1
+            assert pypistage.list_versions("foo") == {"1.0"}
+        pypistage.mock_simple(
+            "foo", text='<a href="foo-1.0.tar.gz" data-yanked="brownbag"></a>'
+        )
+        r = testapp.xget(200, "/root/pypi/+simple/foo/")
+        assert "yanked" in r.text
+        with pypistage.keyfs.read_transaction():
+            versiondata = pypistage.get_versiondata("foo", "1.0")
+            assert versiondata["yanked"] == "brownbag"
+            assert len(versiondata["+elinks"]) == 1
+            assert len(pypistage.get_releaselinks("foo")) == 1
+            assert pypistage.list_versions("foo") == {"1.0"}
+
 
 class TestMirrorStageprojects:
     @pytest.mark.asyncio
