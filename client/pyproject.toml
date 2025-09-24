@@ -66,16 +66,13 @@ target-version = "py37"
 
 [tool.ruff.format]
 exclude = [
-    "devpi/__main__.py",
     "devpi/getjson.py",
-    "devpi/hookspecs.py",
     "devpi/index.py",
     "devpi/install.py",
     "devpi/list_remove.py",
     "devpi/login.py",
     "devpi/main.py",
     "devpi/push.py",
-    "devpi/pypirc.py",
     "devpi/refresh.py",
     "devpi/test.py",
     "devpi/upload.py",

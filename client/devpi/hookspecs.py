@@ -14,7 +14,7 @@ def devpiclient_get_password(url, username):
 
 @hookspec()
 def devpiclient_subcommands():
-    """ Called to discover subcommands for devpi-client.
+    """Called to discover subcommands for devpi-client.
 
     Returns a list of 3 item tuples.
 
