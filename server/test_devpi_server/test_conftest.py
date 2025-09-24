@@ -24,6 +24,7 @@ def test_gen_path_unique(gen_path):
 
 def test_gentmp_suffix_raises(gentmp):
     import py
+
     t = gentmp("source")
     assert not t.listdir()
     pytest.raises(py.error.EEXIST, lambda: gentmp("source"))

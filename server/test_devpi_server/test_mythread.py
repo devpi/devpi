@@ -1,4 +1,3 @@
-
 from devpi_server import mythread
 import pytest
 
