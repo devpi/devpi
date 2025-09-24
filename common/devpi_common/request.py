@@ -7,18 +7,15 @@ import sys
 
 class RetrySession(Session):
     def __init__(self, max_retries):
-        super(RetrySession, self).__init__()
+        super().__init__()
         if max_retries is not None:
-            self.mount('https://', HTTPAdapter(max_retries=max_retries))
-            self.mount('http://', HTTPAdapter(max_retries=max_retries))
+            self.mount("https://", HTTPAdapter(max_retries=max_retries))
+            self.mount("http://", HTTPAdapter(max_retries=max_retries))
 
 
 def new_requests_session(agent=None, max_retries=None):
-    if agent is None:
-        agent = "devpi"
-    else:
-        agent = "devpi-%s/%s" % agent
-    agent += " (py%s; %s)" % (sys.version.split()[0], sys.platform)
+    agent_name = "devpi" if agent is None else f"devpi-{'/'.join(agent)}"
+    agent = f"{agent_name} (py{sys.version.split()[0]}; {sys.platform})"
     session = RetrySession(max_retries)
     session.headers["user-agent"] = agent
     session.ConnectionError = ConnectionError  # type: ignore[attr-defined]
