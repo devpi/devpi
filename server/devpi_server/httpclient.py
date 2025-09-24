@@ -15,6 +15,9 @@ import sys
 import warnings
 
 
+AGENT_PYTHON_VERSION = f"(py{sys.version.split()[0]}; {sys.platform})"
+
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from contextlib import ExitStack
@@ -74,7 +77,9 @@ class HTTPClient:
     )
 
     def __init__(self, *, component_name: str, timeout: float | None) -> None:
-        self.headers = {"User-Agent": f"devpi-{component_name}/{server_version}"}
+        self.headers = {
+            "User-Agent": f"devpi-{component_name}/{server_version} {AGENT_PYTHON_VERSION}"
+        }
         self.client = httpx.Client(headers=self.headers, verify=self._ssl_context)
         self.timeout = timeout
 

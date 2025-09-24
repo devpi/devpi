@@ -1276,12 +1276,12 @@ def test_http_user_agent(monkeypatch, server_version, simpypi, xom):
     simpypi.requests.clear()
     xom.http.post(simpypi.simpleurl)
     ((_, headers), *_) = simpypi.requests
-    assert headers["User-Agent"] == f"devpi-server/{server_version}"
+    assert headers["User-Agent"].startswith(f"devpi-server/{server_version}")
     simpypi.requests.clear()
     with contextlib.ExitStack() as cstack:
         xom.http.stream(cstack, "GET", simpypi.simpleurl, allow_redirects=False).read()
     ((_, headers), *_) = simpypi.requests
-    assert headers["User-Agent"] == f"devpi-server/{server_version}"
+    assert headers["User-Agent"].startswith(f"devpi-server/{server_version}")
     simpypi.requests.clear()
 
 
@@ -1304,7 +1304,7 @@ async def test_http_async_user_agent(server_version, simpypi, xom):
     simpypi.add_release("pkg", pkgver="pkg-1.0.zip")
     await xom.http.async_get(simpypi.simpleurl, allow_redirects=False)
     ((_, headers), *_) = simpypi.requests
-    assert headers["User-Agent"] == f"devpi-server/{server_version}"
+    assert headers["User-Agent"].startswith(f"devpi-server/{server_version}")
     simpypi.requests.clear()
 
 
