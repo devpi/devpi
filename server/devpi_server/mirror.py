@@ -44,6 +44,7 @@ import weakref
 
 
 if TYPE_CHECKING:
+    from .filestore import FileEntry
     from .httpclient import AsyncGetResponse
     from .httpclient import HTTPClient
     from .keyfs_types import PTypedKey
@@ -538,10 +539,11 @@ class MirrorStage(BaseStage):
             raise KeyError("project not found")
         (is_expired, links, cache_serial, etag) = self._load_cache_links(project)
         if links is not None:
-            entries = (self._entry_from_href(x[1]) for x in links)
-            entries = (x for x in entries if x.file_exists())
-            for entry in entries:
-                entry.delete()
+            for entry in (self._entry_from_href(x[1]) for x in links):
+                if entry is None:
+                    continue
+                if entry.file_exists():
+                    entry.delete()
         self.key_projsimplelinks(project).delete()
         projects = self.key_projects.get_mutable()
         if project in projects:
@@ -559,10 +561,11 @@ class MirrorStage(BaseStage):
         # for the possibility to re-download a release
         (is_expired, links, cache_serial, etag) = self._load_cache_links(project)
         if links is not None:
-            entries = list(self._entry_from_href(x[1]) for x in links)
-            entries = list(x for x in entries if x.version == version and x.file_exists())
-            for entry in entries:
-                entry.delete_file_only()
+            for entry in (self._entry_from_href(x[1]) for x in links):
+                if entry is None:
+                    continue
+                if entry.version == version and entry.file_exists():
+                    entry.delete_file_only()
 
     def del_entry(self, entry, cleanup=True):
         project = entry.project
@@ -786,7 +789,7 @@ class MirrorStage(BaseStage):
 
         return (is_expired, links_with_data, serial, etag)
 
-    def _entry_from_href(self, href):
+    def _entry_from_href(self, href: str) -> FileEntry | None:
         # extract relpath from href by cutting of the hash
         relpath = re.sub(r"#.*$", "", href)
         return self.filestore.get_file_entry(relpath)

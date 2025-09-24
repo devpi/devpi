@@ -38,6 +38,7 @@ import warnings
 
 
 if TYPE_CHECKING:
+    from .filestore import FileStore
     from .keyfs import KeyFS
     from .keyfs_types import PTypedKey
     from .keyfs_types import TypedKey
@@ -1832,6 +1833,8 @@ class ELink:
 
 
 class LinkStore:
+    filestore: FileStore
+
     def __init__(self, stage, project, version):
         self.stage = stage
         self.filestore = stage.filestore

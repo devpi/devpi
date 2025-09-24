@@ -401,7 +401,7 @@ class FileStore:
             return None
         return key
 
-    def get_file_entry(self, relpath):
+    def get_file_entry(self, relpath: RelPath) -> FileEntry | None:
         key = self.get_key_from_relpath(relpath)
         if key is None:
             return None

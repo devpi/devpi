@@ -175,7 +175,6 @@ extend-ignore = [
     "B007", # maybe cleanup later
     "B904", # maybe cleanup later
     "BLE001", # cleanup soon - blind exception
-    "C400", # maybe cleanup later - rewrite as list comprehension
     "C401", # maybe cleanup later - rewrite as set comprehension
     "C402", # maybe cleanup later - rewrite as dict comprehension
     "C405", # cleanup soon - set literal instead of set call
