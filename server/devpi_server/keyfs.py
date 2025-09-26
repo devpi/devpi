@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from .markers import Deleted
     from .mythread import MyThread
     from collections.abc import Iterable
+    from collections.abc import Iterator
     from typing import Literal
     from typing import Union
 
@@ -492,7 +493,7 @@ class KeyFS:
     def get_key(self, name):
         return self._keys.get(name)
 
-    def get_key_instance(self, keyname, relpath):
+    def get_key_instance(self, keyname: str, relpath: RelPath) -> TypedKey:
         key = self.get_key(keyname)
         if isinstance(key, PTypedKey):
             key = key(**key.extract_params(relpath))
@@ -504,7 +505,11 @@ class KeyFS:
         at_serial = getattr(tx, "at_serial", "")
         return "[%stx%s]" % (mode, at_serial)
 
-    def begin_transaction_in_thread(self, write=False, at_serial=None):
+    def begin_transaction_in_thread(
+        self,
+        write: bool = False,  # noqa: FBT001, FBT002
+        at_serial: int | None = None,
+    ) -> Transaction:
         if write and self._readonly:
             raise self.ReadOnly()
         assert not hasattr(self._threadlocal, "tx")
@@ -553,7 +558,7 @@ class KeyFS:
             self.clear_transaction()
 
     @contextlib.contextmanager
-    def _filestore_transaction(self):
+    def _filestore_transaction(self) -> Iterator[FileStoreTransaction]:
         tx = FileStoreTransaction(self)
         self._threadlocal.tx = tx
         prefix = self._tx_prefix(filestore=True)
@@ -574,7 +579,7 @@ class KeyFS:
             thread_pop_log(prefix)
 
     @contextlib.contextmanager
-    def filestore_transaction(self):
+    def filestore_transaction(self) -> Iterator[FileStoreTransaction | Transaction]:
         """Guarantees a transaction able to directly write files.
 
         An existing transaction is reused.
@@ -587,7 +592,9 @@ class KeyFS:
                 yield tx
 
     @contextlib.contextmanager
-    def _transaction(self, *, write=False, at_serial=None):
+    def _transaction(
+        self, *, write: bool = False, at_serial: int | None = None
+    ) -> Iterator[Transaction]:
         tx = self.begin_transaction_in_thread(write=write, at_serial=at_serial)
         try:
             yield tx
@@ -597,7 +604,9 @@ class KeyFS:
         self.commit_transaction_in_thread()
 
     @contextlib.contextmanager
-    def read_transaction(self, *, at_serial=None, allow_reuse=False):
+    def read_transaction(
+        self, *, at_serial: int | None = None, allow_reuse: bool = False
+    ) -> Iterator[Transaction]:
         tx = getattr(self._threadlocal, 'tx', None)
         if tx is not None:
             if not allow_reuse:
@@ -616,7 +625,11 @@ class KeyFS:
                 yield tx
 
     @contextlib.contextmanager
-    def transaction(self, write=False, at_serial=None):
+    def transaction(
+        self,
+        write: bool = False,  # noqa: FBT001, FBT002
+        at_serial: int | None = None,
+    ) -> Iterator[Transaction]:
         warnings.warn(
             "The 'transaction' method is deprecated, "
             "use 'read_transaction' or 'write_transaction' instead.",
@@ -626,7 +639,9 @@ class KeyFS:
             yield tx
 
     @contextlib.contextmanager
-    def write_transaction(self, *, allow_restart=False):
+    def write_transaction(
+        self, *, allow_restart: bool = False
+    ) -> Iterator[Transaction]:
         """ Get a write transaction.
 
         If ``allow_restart`` is ``True`` then an existing read-only transaction is restarted as a write transaction.
