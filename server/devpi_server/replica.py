@@ -174,7 +174,7 @@ class ReadableIterabel(io.RawIOBase):
 
     def readinto(self, b):
         if self.chunk is None:
-            self.chunk = next(self.iterable)
+            self.chunk = next(self.iterable, b"")
             self.chunk_pos = 0
             self.chunk_size = len(self.chunk)
         chunk_remaining = self.chunk_size - self.chunk_pos
