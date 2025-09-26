@@ -13,6 +13,8 @@ from .httpclient import FatalResponse
 from .log import thread_push_log
 from .log import threadlog
 from .main import Fatal
+from .markers import Absent
+from .markers import absent
 from .model import UpstreamError
 from .normalized import normalize_name
 from .views import FileStreamer
@@ -47,6 +49,8 @@ if TYPE_CHECKING:
     from .httpclient import GetResponse
     from .httpclient import HTTPClient
     from .keyfs_types import KeyFSTypesRO
+    from .keyfs_types import TypedKey
+    from .main import XOM
     from contextlib import ExitStack
 
 
@@ -67,9 +71,6 @@ REPLICA_AUTH_MAX_AGE = REPLICA_REQUEST_TIMEOUT + 0.1
 REPLICA_CONTENT_TYPE = "application/x-devpi-replica-changes"
 REPLICA_ACCEPT_STREAMING = f"{REPLICA_CONTENT_TYPE}, application/octet-stream; q=0.9"
 MAX_REPLICA_CHANGES_SIZE = 5 * 1024 * 1024
-
-
-notset = object()
 
 
 class IndexType:
@@ -362,7 +363,7 @@ class PrimaryChangelogRequest:
 class ReplicaHTTPClient:
     http: HTTPClient
 
-    def __init__(self, xom):
+    def __init__(self, xom: XOM) -> None:
         self.config = xom.config
         self.http = xom.new_http_client("replica")
         self.outside_url = xom.config.outside_url
@@ -433,9 +434,15 @@ class ReplicaThread:
     H_REPLICA_UUID = H_REPLICA_UUID
     REPLICA_REQUEST_TIMEOUT = REPLICA_REQUEST_TIMEOUT
     ERROR_SLEEP = 50
+    _primary_serial: int | None
+    _primary_serial_timestamp: float | None
+    primary_contacted_at: float | None
+    replica_in_sync_at: float | None
+    started_at: float | None
     thread: mythread.MyThread
+    update_from_primary_at: float | None
 
-    def __init__(self, xom):
+    def __init__(self, xom: XOM) -> None:
         self.xom = xom
         self.shared_data = FileReplicationSharedData(xom)
         keyfs = self.xom.keyfs
@@ -730,16 +737,20 @@ class FileReplicationSharedData:
     ERROR_QUEUE_DELAY_MULTIPLIER = 1.5
     ERROR_QUEUE_REPORT_DELAY = 2 * 60
     ERROR_QUEUE_MAX_DELAY = 60 * 60
+    last_added: float | None
+    last_errored: float | None
+    last_processed: float | None
     num_threads: int
+    skip_indexes: set[str]
 
-    def __init__(self, xom):
+    def __init__(self, xom: XOM) -> None:
         from queue import Empty
         from queue import PriorityQueue
         self.Empty = Empty
         self.xom = xom
-        self.queue: PriorityQueue[tuple[str, int, str, str, KeyFSTypesRO, int]] = (
-            PriorityQueue()
-        )
+        self.queue: PriorityQueue[
+            tuple[IndexType, int, str, str, KeyFSTypesRO, int]
+        ] = PriorityQueue()
         self.error_queue: PriorityQueue[
             tuple[int, int, str, int, None, str, KeyFSTypesRO, int]
         ] = PriorityQueue()
@@ -842,13 +853,15 @@ class FileReplicationSharedData:
             (ts, delay, index_type, serial, key, keyname, value, back_serial))
         self.last_errored = time.time()
 
-    def get_index_name_for(self, key):
+    def get_index_name_for(self, key: TypedKey) -> str:
         return f"{key.params['user']}/{key.params['index']}"
 
-    def get_index_type_for(self, key, default=notset):
-        result = self.index_types.get(self.get_index_name_for(key), notset)
-        if result is notset:
-            if default is notset:
+    def get_index_type_for(
+        self, key: TypedKey, default: IndexType | Absent = absent
+    ) -> IndexType:
+        result = self.index_types.get(self.get_index_name_for(key), absent)
+        if isinstance(result, Absent):
+            if isinstance(default, Absent):
                 raise KeyError
             return IndexType(default)
         return result
@@ -970,7 +983,7 @@ def devpiweb_get_status_info(request):
         now = time.time()
         qsize = shared_data.queue.qsize()
         if qsize:
-            last_activity_seconds = 0
+            last_activity_seconds = 0.0
             if shared_data.last_processed is None and shared_data.last_added:
                 last_activity_seconds = (now - shared_data.last_added)
             elif shared_data.last_processed:
@@ -990,7 +1003,7 @@ def devpiweb_get_status_info(request):
 class FileReplicationThread:
     thread: mythread.MyThread
 
-    def __init__(self, xom, shared_data):
+    def __init__(self, xom: XOM, shared_data: FileReplicationSharedData) -> None:
         self.xom = xom
         self.shared_data = shared_data
         self.http = ReplicaHTTPClient(xom)
@@ -1227,7 +1240,7 @@ class FileReplicationThread:
 class InitialQueueThread:
     thread: mythread.MyThread
 
-    def __init__(self, xom, shared_data):
+    def __init__(self, xom: XOM, shared_data: FileReplicationSharedData) -> None:
         self.xom = xom
         self.shared_data = shared_data
 
@@ -1271,7 +1284,7 @@ class InitialQueueThread:
                         "Skipping %s because %r in %s.", key, index_name, skip_indexes
                     )
                     continue
-                index_type = self.shared_data.get_index_type_for(key, None)
+                index_type = self.shared_data.get_index_type_for(key, IndexType(None))
                 if index_type != IndexType(None) and str(index_type) in skip_indexes:
                     threadlog.debug(
                         "Skipping %s because %r in %s.", key, index_type, skip_indexes
@@ -1294,7 +1307,8 @@ class InitialQueueThread:
 class SimpleLinksChanged:
     """ Event executed in notification thread based on a pypi link change.
     It allows a replica to sync up the local full projectnames list."""
-    def __init__(self, xom):
+
+    def __init__(self, xom: XOM) -> None:
         self.xom = xom
 
     def __call__(self, ev):
