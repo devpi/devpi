@@ -71,6 +71,21 @@ class TestChangelog:
         r = testapp.get("/+api", expect_errors=False)
         return int(r.headers["X-DEVPI-SERIAL"])
 
+    def test_accept_header(self, testapp):
+        from devpi_server.replica import REPLICA_ACCEPT_STREAMING
+        from devpi_server.replica import REPLICA_CONTENT_TYPE
+
+        r = testapp.get("/+changelog/0")
+        assert r.content_type == "application/octet-stream"
+        r = testapp.get("/+changelog/0", headers={"Accept": "foo"})
+        assert r.content_type == "application/octet-stream"
+        r = testapp.get("/+changelog/0", headers={"Accept": "foo/bar"})
+        assert r.content_type == "application/octet-stream"
+        r = testapp.get("/+changelog/0", headers={"Accept": REPLICA_CONTENT_TYPE})
+        assert r.content_type == "application/octet-stream"
+        r = testapp.get("/+changelog/0", headers={"Accept": REPLICA_ACCEPT_STREAMING})
+        assert r.content_type == "application/octet-stream"
+
     def test_get_latest_serial(self, testapp, mapp):
         latest_serial = self.get_latest_serial(testapp)
         assert latest_serial >= -1
@@ -145,6 +160,21 @@ class TestMultiChangelog:
         r = testapp.get("/+api", expect_errors=False)
         return int(r.headers["X-DEVPI-SERIAL"])
 
+    def test_accept_header(self, testapp):
+        from devpi_server.replica import REPLICA_ACCEPT_STREAMING
+        from devpi_server.replica import REPLICA_CONTENT_TYPE
+
+        r = testapp.get("/+changelog/0-")
+        assert r.content_type == "application/octet-stream"
+        r = testapp.get("/+changelog/0-", headers={"Accept": "foo"})
+        assert r.content_type == "application/octet-stream"
+        r = testapp.get("/+changelog/0-", headers={"Accept": "foo/bar"})
+        assert r.content_type == "application/octet-stream"
+        r = testapp.get("/+changelog/0-", headers={"Accept": REPLICA_CONTENT_TYPE})
+        assert r.content_type == REPLICA_CONTENT_TYPE
+        r = testapp.get("/+changelog/0-", headers={"Accept": REPLICA_ACCEPT_STREAMING})
+        assert r.content_type == REPLICA_CONTENT_TYPE
+
     @pytest.mark.usefixtures("noiter")
     def test_multiple_changes(self, mapp, reqchangelogs, testapp):
         mapp.create_user("this", password="p")
@@ -212,6 +242,34 @@ class TestReplicaThread:
             rt.http.mockresponse(url, code=code, content=data, headers=headers)
 
         return mockchangelog
+
+    def test_fetch_accept(self, makexom, mock, monkeypatch):
+        from devpi_server.replica import REPLICA_CONTENT_TYPE
+        from webob.acceptparse import create_accept_header
+
+        xom = makexom(["--primary-url=http://localhost"])
+        rt = xom.replica_thread
+        stream = mock.Mock()
+        monkeypatch.setattr(rt.http, "stream", stream)
+        monkeypatch.setattr(rt.thread, "sleep", lambda _x: 0 / 0)
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert stream.called
+        (call,) = stream.call_args_list
+        accept = create_accept_header(call.kwargs["extra_headers"]["Accept"])
+        assert REPLICA_CONTENT_TYPE in accept
+
+    def test_fetch_accept_no_streaming(self, makexom, mock, monkeypatch):
+        xom = makexom(["--primary-url=http://localhost", "--no-replica-streaming"])
+        rt = xom.replica_thread
+        stream = mock.Mock()
+        monkeypatch.setattr(rt.http, "stream", stream)
+        monkeypatch.setattr(rt.thread, "sleep", lambda _x: 0 / 0)
+        with pytest.raises(ZeroDivisionError):
+            rt.thread_run()
+        assert stream.called
+        (call,) = stream.call_args_list
+        assert "Accept" not in call.kwargs["extra_headers"]
 
     def test_thread_run_fail(self, rt, mockchangelog, caplog):
         rt.thread.sleep = lambda _x: 0 / 0
