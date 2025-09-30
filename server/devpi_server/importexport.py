@@ -24,7 +24,6 @@ import itertools
 import json
 import logging
 import os
-import posixpath
 import shutil
 import sys
 
@@ -640,17 +639,17 @@ class Importer:
                 project, version, f, hashes=hashes, last_modified=last_modified)
             entry = link.entry
         elif filedesc["type"] == Rel.ToxResult:
-            linkstore = stage.get_linkstore_perstage(
-                filedesc["projectname"], filedesc["version"])
+            linkstore = stage.get_linkstore_perstage(project, filedesc["version"])
             # we can not search for the full relative path because
             # it might use a different checksum
-            basename = posixpath.basename(filedesc["for_entrypath"])
+            for_basename = Path(filedesc["for_entrypath"]).name
             # toxresults didn't always have entrymapping in export dump
             last_modified = mapping.get("last_modified")
-            link, = linkstore.get_links(basename=basename)
+            (link,) = linkstore.get_links(basename=for_basename)
+            filename = Path(filedesc["relpath"]).name
             link = stage.store_toxresult(
-                link, f, filename=posixpath.basename(filedesc["relpath"]),
-                hashes=hashes, last_modified=last_modified)
+                link, f, filename=filename, hashes=hashes, last_modified=last_modified
+            )
             entry = link.entry
         else:
             msg = f"unknown file type: {type}"

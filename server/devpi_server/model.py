@@ -22,6 +22,7 @@ from devpi_common.validation import validate_metadata
 from functools import total_ordering
 from itertools import zip_longest
 from operator import iconcat
+from pathlib import Path
 from pyramid.authorization import Allow
 from pyramid.authorization import Authenticated
 from pyramid.authorization import Everyone
@@ -32,7 +33,6 @@ from typing import cast
 import functools
 import getpass
 import json
-import posixpath
 import re
 import warnings
 
@@ -1784,7 +1784,7 @@ class ELink:
     def basename(self):
         _basename = getattr(self, "_basename", None)
         if _basename is None:
-            _basename = self._basename = posixpath.basename(self.relpath)
+            _basename = self._basename = Path(self.relpath).name
         return _basename
 
     @property
