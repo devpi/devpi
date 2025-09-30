@@ -313,6 +313,12 @@ def format_timestamp(ts, unset_value=None):
     return ts
 
 
+def format_when(when):
+    if isinstance(when, str):
+        return when.replace("T", " ").rstrip("Z")
+    return format_timetuple(when)
+
+
 _what_map = dict(
     overwrite="Replaced",
     push="Pushed",
@@ -324,7 +330,7 @@ def make_history_view_item(request, log_item):
     result['what'] = _what_map.get(log_item['what'], log_item['what'])
     result['who'] = log_item['who']
     if log_item['what'] != 'overwrite':
-        result['when'] = format_timetuple(log_item['when'])
+        result["when"] = format_when(log_item["when"])
     for key in ('dst', 'src'):
         if key in log_item:
             result[key] = dict(
