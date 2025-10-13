@@ -45,7 +45,7 @@ async def main(args):  # noqa: PLR0912
     if not args.no_flake8:
         tasks.append(asyncio.create_task(ci.flake8.strict_output(*ci.PROJECTS)))
     if not args.no_ruff:
-        tasks.append(asyncio.create_task(ci.ruff.strict_output(*ci.PROJECTS)))
+        tasks.append(asyncio.create_task(ci.ruff.strict_output(".ci", *ci.PROJECTS)))
     results = sorted(
         (
             item
@@ -54,8 +54,8 @@ async def main(args):  # noqa: PLR0912
         ),
         key=lambda i: i[0] or "",
     )
-    seen_ruff_rules = set()
     for project, result in results:
+        seen_ruff_rules = set()
         rules = result.rules
         linter = result.linter()
         ignore = linter.ignore

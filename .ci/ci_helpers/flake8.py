@@ -124,4 +124,4 @@ class Flake8:
         results = await asyncio.gather(
             *(self._strict_output(self.base, p, color=color) for p in projects)
         )
-        return dict(zip(projects, results))
+        return dict(zip(projects, results, strict=True))

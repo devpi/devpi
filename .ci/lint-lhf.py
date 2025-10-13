@@ -16,7 +16,7 @@ async def main(args):
         )
     if not args.no_ruff:
         tasks.append(
-            asyncio.create_task(ci.ruff.strict_output(*ci.PROJECTS, color=True))
+            asyncio.create_task(ci.ruff.strict_output(".ci", *ci.PROJECTS, color=True))
         )
     results = defaultdict(list)
     for _results in asyncio.as_completed(tasks):

@@ -280,30 +280,30 @@ class Ruff:
                 format_diffs.add(format_diff)
 
     async def strict_output(self, *projects, color=False):
-        cmd = [
-            self._ruff,
-            "check",
-            "--config",
-            "ruff-strict.toml",
-            "--output-format",
-            "concise",
-        ]
-        env = ({"FORCE_COLOR": "1"} | os.environ) if color else None
-        p = await asyncio.create_subprocess_exec(
-            *cmd, env=env, stdout=asyncio.subprocess.PIPE
-        )
-        (out, err) = await p.communicate()
-        rc = await p.wait()
-        if rc not in (0, 1):
-            raise subprocess.CalledProcessError(rc, cmd, out, err)
-        paths = {p: self.base / p for p in projects if p is not None}
-        paths[None] = self.base
         results = defaultdict(list)
-        for result in LintResults(self.base, self[None], out.decode()).results:
-            for project, path in paths.items():
+        for project in projects:
+            path = self.base if project is None else self.base / project
+            cmd = [
+                self._ruff,
+                "check",
+                "--config",
+                "ruff-strict.toml",
+                "--output-format",
+                "concise",
+                *self[project].target_version_args,
+                path,
+            ]
+            env = ({"FORCE_COLOR": "1"} | os.environ) if color else None
+            p = await asyncio.create_subprocess_exec(
+                *cmd, env=env, stdout=asyncio.subprocess.PIPE
+            )
+            (out, err) = await asyncio.wait_for(p.communicate(), timeout=120)
+            rc = await asyncio.wait_for(p.wait(), timeout=120)
+            if rc not in (0, 1):
+                raise subprocess.CalledProcessError(rc, cmd, out, err)
+            for result in LintResults(self.base, self[project], out.decode()).results:
                 if result["path"].is_relative_to(path):
                     results[project].append(result["raw_line"])
-                    break
         return {
             p: LintResults(self.base, self[p], "\n".join(lines))
             for p, lines in results.items()
