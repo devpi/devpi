@@ -187,6 +187,8 @@ class RootModel:
             threadlog.info("created user %r with email %r" % (username, kwargs["email"]))
         else:
             threadlog.info("created user %r" % username)
+        # Call any user created hooks, passing along the newly created user object.
+        self.xom.config.hook.devpiserver_user_created(user=user)
         return user
 
     def create_stage(self, user, index, type="stage", **kwargs):

@@ -99,6 +99,14 @@ def devpiserver_mirror_initialnames(stage, projectnames):
 
 
 @hookspec
+def devpiserver_user_created(user):
+    """called when a user was successfully created.
+
+    - user is an instance of model.User
+    """
+
+
+@hookspec
 def devpiserver_stage_created(stage):
     """ called when a stage was successfully created. (both for replica and a primary)
     """
