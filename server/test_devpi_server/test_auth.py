@@ -219,3 +219,35 @@ class TestAuthPlugins:
             status='ok', groups=['common', 'group2'])
         assert plugin1.results == []  # all results used
         assert plugin2.results == []  # all results used
+
+
+class TestAuthAutocreateUser:
+    @pytest.fixture
+    def plugin(self):
+        class Plugin:
+            @hookimpl
+            def devpiserver_auth_request(self, request, userdict, username, password):  # noqa: ARG002
+                return self.results.pop()
+        return Plugin()
+
+    @pytest.fixture
+    def xom(self, makexom, plugin):
+        # Activate the autocreate users feature for this test.
+        xom = makexom(plugins=[plugin], opts=("--autocreate-users",))
+        return xom
+
+    @pytest.fixture
+    def auth(self, xom):
+        from devpi_server.views import Auth
+        return Auth(xom, "probably-ldap")
+
+    def test_auth_plugin_autocreate_user(self, auth, plugin):
+        username, password = "newuser", "world"
+        # Ensure newuser doesn't exist yet.
+        assert auth.xom.model.get_user(username) is None
+        # A successful authentication via plugin.
+        plugin.results = [dict(status="ok")]
+        assert auth._get_auth_status(username, password) == dict(status='ok')
+        # Find newuser was created successfully.
+        user = auth.xom.model.get_user(username)
+        assert user.name == "newuser"
