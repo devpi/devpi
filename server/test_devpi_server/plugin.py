@@ -1120,7 +1120,8 @@ class Mapp(MappMixin):
         r = self.testapp.post("/%s/" % indexname,
             {":action": "file_upload", "name": name, "version": version,
              "content": Upload(basename, content)}, expect_errors=True)
-        assert r.status_code == code
+        if code is not None:
+            assert r.status_code == code
         if waithooks:
             self._wait_for_serial_in_result(r)
 
@@ -1543,6 +1544,7 @@ http {
     default_type  application/octet-stream;
     sendfile        on;
     keepalive_timeout 0;
+    client_body_temp_path client_body_temp;
     include nginx-devpi.conf;
 }
 """

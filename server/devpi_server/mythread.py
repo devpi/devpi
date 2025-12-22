@@ -157,6 +157,7 @@ class ThreadPool:
 
 def _interrupt_thread(tid):
     '''Raises KeyboardInterrupt in the threads with id tid'''
+    threadlog.info("Killing thread %s", tid)
     res = PyThreadState_SetAsyncExc(
         c_long(tid), py_object(KeyboardInterrupt))
     if res == 0:

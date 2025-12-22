@@ -252,6 +252,25 @@ class TestIndexThings:
         assert res["type"] == "indexconfig"
         assert res["result"]["projects"] == []
 
+    @pytest.mark.nomocking
+    @pytest.mark.skipif(
+        "test_devpi_server" not in __name__,
+        reason="test only works in devpi-server",
+    )
+    def test_large_upload(self, mapp):
+        from devpi_server.replica import REPLICA_CHUNK_SIZE
+
+        mapp.create_and_use("cuser3/dev")
+        content1 = b"content1" * (REPLICA_CHUNK_SIZE // 8 + 1)
+        assert len(content1) > REPLICA_CHUNK_SIZE
+        content1_pkg = mapp.makepkg("hello-1.0.tar.gz", content1, "hello", "1.0")
+        r = mapp.upload_file_pypi(
+            "hello-1.0.tar.gz", content1_pkg, "hello", "1.0", code=None
+        )
+        assert r.status_code == 200
+        (pkg_url,) = mapp.getreleaseslist("hello")
+        assert ".tar.gz" in pkg_url
+
     def test_non_volatile_cannot_be_deleted(self, mapp):
         mapp.create_and_login_user("cuser4")
         mapp.create_index("dev", indexconfig={"volatile": False})
@@ -391,9 +410,9 @@ class TestProjectThings:
         force_delete_fix_version = parse_version("6.12.1dev")
         if server_version < force_delete_fix_version:
             pytest.skip("devpi-server without force delete via replica fix")
-        mapp.create_and_login_user("cuser3")
+        mapp.create_and_login_user("pruser3")
         mapp.create_index("dev", indexconfig={"volatile": False})
-        mapp.use("cuser3/dev")
+        mapp.use("pruser3/dev")
         content = mapp.makepkg("hello-1.0.tar.gz", b"content", "hello", "1.0")
         mapp.upload_file_pypi("hello-1.0.tar.gz", content, "hello", "1.0")
         mapp.delete_project("hello", code=403)

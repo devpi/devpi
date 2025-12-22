@@ -68,6 +68,7 @@ REPLICA_USER_NAME = "+replica"
 REPLICA_REQUEST_TIMEOUT = MAX_REPLICA_BLOCK_TIME * 1.25
 REPLICA_MULTIPLE_TIMEOUT = REPLICA_REQUEST_TIMEOUT / 2
 REPLICA_AUTH_MAX_AGE = REPLICA_REQUEST_TIMEOUT + 0.1
+REPLICA_CHUNK_SIZE = 65536
 REPLICA_CONTENT_TYPE = "application/x-devpi-replica-changes"
 REPLICA_ACCEPT_STREAMING = f"{REPLICA_CONTENT_TYPE}, application/octet-stream; q=0.9"
 MAX_REPLICA_CHANGES_SIZE = 5 * 1024 * 1024
@@ -668,8 +669,12 @@ class ReplicaThread:
     def handler_multi(self, response):
         if response.headers.get("content-type", "") == REPLICA_CONTENT_TYPE:
             with contextlib.closing(response):
-                readableiterable = ReadableIterabel(response.iter_bytes(65536))
-                stream = io.BufferedReader(readableiterable, buffer_size=65536)
+                readableiterable = ReadableIterabel(
+                    response.iter_bytes(REPLICA_CHUNK_SIZE)
+                )
+                stream = io.BufferedReader(
+                    readableiterable, buffer_size=REPLICA_CHUNK_SIZE
+                )
                 try:
                     while True:
                         serial = load(stream)
@@ -1392,7 +1397,11 @@ def proxy_request_to_primary(xom, request, cstack):
         headers = clean_request_headers(request)
 
         def body():
-            yield request.body_file.read(65536)
+            while True:
+                chunk = request.body_file.read(REPLICA_CHUNK_SIZE)
+                if not chunk:
+                    return
+                yield chunk
 
         return http.stream(
             cstack,

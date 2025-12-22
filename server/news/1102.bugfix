@@ -1,0 +1,1 @@
+Fix #1102: The data stream was cut off after 64k when proxying from replica to primary after switching to httpx.
