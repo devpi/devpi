@@ -24,6 +24,7 @@ class Auth:
         self.serializer = itsdangerous.TimedSerializer(secret)
         self.hook = xom.config.hook.devpiserver_auth_request
         self.legacy_hook = xom.config.hook.devpiserver_auth_user
+        self.autocreate_users = xom.config.autocreate_users
 
     @property
     def model(self):
@@ -55,6 +56,15 @@ class Auth:
             return dict(status="ok", groups=sorted(
                 set(itertools.chain.from_iterable(groups))))
 
+    def _autocreate_user(self, authuser):
+        if self.model.get_user(authuser) is None:
+            # Autocreated users will be authenticated via plugin, and so no
+            # valid password should be stored.
+            user = self.model.create_user(authuser, None)
+            # Set an invalid pwhash to prevent local authentication.
+            user.modify(pwhash="*")
+            threadlog.debug("autocreated user %r", authuser)
+
     def _validate(self, authuser, authpassword, request=None):
         """ Validates user credentials.
 
@@ -65,6 +75,8 @@ class Auth:
             On success a list of group names the user is member of will be
             returned. If the plugins don't return any groups, then the list
             will be empty.
+            If autocreate-users is enabled, the new user is created, if it
+            doesn't already exist.
             The 'root' user is always authenticated with the devpi-server
             credentials, never by plugins.
         """
@@ -77,6 +89,8 @@ class Auth:
             if result is not None:
                 if result["status"] != "ok":
                     return dict(status="reject")
+                if self.autocreate_users:
+                    self._autocreate_user(authuser)
                 # plugins may never return from_user_object
                 result.pop('from_user_object', None)
                 return result
