@@ -404,6 +404,20 @@ def add_permission_options(parser, pluginmanager):
              "explicitly if wanted.")
 
 
+def add_autocreate_users_options(
+    parser,
+    pluginmanager,  # noqa: ARG001 - call convention
+):
+    parser.addoption(
+        "--autocreate-users",
+        action="store_true",
+        default=False,
+        help="when using an authentication plugin, automatically create new "
+        "users that authenticate, but don't already exist. This is "
+        "helpful for deployments making use of LDAP authentication.",
+    )
+
+
 def addoptions(parser, pluginmanager):
     add_help_option(parser, pluginmanager)
     add_configfile_option(parser, pluginmanager)
@@ -442,6 +456,9 @@ def addoptions(parser, pluginmanager):
     add_permission_options(
         parser.addgroup("permission options"),
         pluginmanager)
+    add_autocreate_users_options(
+        parser.addgroup("autocreate users options"), pluginmanager
+    )
 
 
 def try_argcomplete(parser):
@@ -1005,6 +1022,10 @@ class Config:
         if rm is not None:
             rm = frozenset(x.strip() for x in rm.split(','))
         return rm
+
+    @property
+    def autocreate_users(self):
+        return getattr(self.args, "autocreate_users", False)
 
     @property
     def wait_for_events(self):

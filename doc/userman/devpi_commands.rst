@@ -532,7 +532,8 @@ devpi command reference (server)
                         [--request-timeout NUM] [--offline-mode] [--serverdir DIR]
                         [--storage NAME] [--keyfs-cache-size NUM]
                         [--secretfile path] [--requests-only]
-                        [--restrict-modify SPEC] [--theme THEME] [--debug-macros]
+                        [--restrict-modify SPEC] [--autocreate-users]
+                        [--theme THEME] [--debug-macros]
                         [--documentation-path DOCUMENTATION_PATH]
                         [--keep-docs-packed] [--indexer-backend NAME]
 
@@ -680,6 +681,12 @@ devpi command reference (server)
                             specified users/groups can create and modify users and
                             indices. You have to add root explicitly if wanted.
                             [None]
+
+    autocreate users options:
+      --autocreate-users    when using an authentication plugin, automatically
+                            create new users that authenticate, but don't already
+                            exist. This is helpful for deployments making use of
+                            LDAP authentication. [False]
 
     devpi-web theme options:
       --theme THEME         folder with template and resource overwrites for the
