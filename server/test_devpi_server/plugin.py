@@ -1263,7 +1263,21 @@ class MyFunctionalTestApp(MyTestApp):
         kw = dict(headers=headers)
         if params and params is not webtest.utils.NoDefault:
             if method.lower() in ('post', 'put', 'patch'):
-                kw['data'] = params
+                if isinstance(params, dict):
+                    kw["data"] = data = {}
+                    kw["files"] = files = {}
+                    for k, v in params.items():
+                        if isinstance(v, Upload):
+                            f = BytesIO(v.content)
+                            files[k] = (
+                                (v.filename, f)
+                                if v.content_type is None
+                                else (v.filename, f, v.content_type)
+                            )
+                        else:
+                            data[k] = v
+                else:
+                    kw["data"] = params
             else:
                 kw['params'] = params
         meth = getattr(requests, method.lower())

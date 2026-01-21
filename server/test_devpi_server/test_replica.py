@@ -826,7 +826,7 @@ class TestFileReplication:
         primary_file_path = primary_url.joinpath(entry.relpath).url
         replica_xom.frt.http.mockresponse(primary_file_path, content=b"13")
         replay(xom, replica_xom, events=False)
-        replica_xom.replica_thread.wait(error_queue=True)
+        replica_xom.replica_thread.wait(error_queue=False)
         replication_errors = replica_xom.replica_thread.shared_data.errors
         assert list(replication_errors.errors.keys()) == [
             'root/pypi/+f/5d4/1402abc4b2a76/pytest-1.8.zip']

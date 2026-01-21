@@ -1039,14 +1039,20 @@ class FileReplicationThread:
         # we perform the request with a special header so that
         # the primary can avoid getting "volatile" links
         with contextlib.ExitStack() as cstack:
-            r = self.http.stream(
-                cstack,
-                "GET",
-                url,
-                allow_redirects=False,
-                extra_headers={H_REPLICA_FILEREPL: "YES"},
-                timeout=self.xom.config.args.request_timeout,
-            )
+            try:
+                r = self.http.stream(
+                    cstack,
+                    "GET",
+                    url,
+                    allow_redirects=False,
+                    extra_headers={H_REPLICA_FILEREPL: "YES"},
+                    timeout=self.xom.config.args.request_timeout,
+                )
+            except Exception as err:
+                self.shared_data.errors.add(
+                    dict(url=url, message=str(err), relpath=entry.relpath)
+                )
+                raise
             if r.status_code == 302:
                 r.close()
                 # mirrors might redirect to external file when
@@ -1101,7 +1107,7 @@ class FileReplicationThread:
                 for _chunk in file_streamer:
                     # we only need the data to be written to the file
                     pass
-            except Exception as err:  # noqa: BLE001
+            except Exception as err:
                 if isinstance(err, ChecksumError):
                     threadlog.error(
                         "checksum mismatch for '%s', will be retried later: %s",
@@ -1111,7 +1117,7 @@ class FileReplicationThread:
                 self.shared_data.errors.add(
                     dict(url=r.url, message=str(err), relpath=entry.relpath)
                 )
-                return
+                raise
 
             # in case there were errors before, we can now remove them
             self.shared_data.errors.remove(entry)
