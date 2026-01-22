@@ -556,12 +556,11 @@ def parseoptions(pluginmanager, argv, parser=None):
     return config
 
 
-def get_action_long_name(action):
-    """ extract long name of action
+def get_action_long_option_string(action):
+    """extract long option string of action
 
-        Looks for the first option string that is long enough and
-        starts with two ``prefix_chars``.
-        For example ``--no-events`` would return ``no-events``.
+    Looks for the first option string that is long enough and
+    starts with two ``prefix_chars``.
     """
     for option_string in action.option_strings:
         if not len(option_string) > 2:
@@ -570,7 +569,8 @@ def get_action_long_name(action):
             continue
         if option_string[1] not in action.container.prefix_chars:
             continue
-        return option_string[2:]
+        return option_string
+    return None
 
 
 class MyArgumentParser(argparse.ArgumentParser):
@@ -587,17 +587,25 @@ class MyArgumentParser(argparse.ArgumentParser):
             get the current value if a global or user config file is loaded.
         """
         for action in self._actions:
-            if defaultget is not None:
+            if isinstance(action, argparse._HelpAction):
+                continue
+            default = action.default
+            option_string = get_action_long_option_string(action)
+            if defaultget is not None and option_string is not None:
                 try:
-                    action.default = defaultget(get_action_long_name(action))
+                    default = defaultget(option_string[2:])
                 except KeyError:
                     pass
                 else:
                     if isinstance(action, argparse._StoreTrueAction):
-                        action.default = bool(strtobool(action.default))
+                        default = bool(strtobool(default))
                     elif isinstance(action, argparse._StoreFalseAction):
-                        action.default = not bool(strtobool(action.default))
-            default = action.default
+                        default = not bool(strtobool(default))
+                    else:
+                        temp_args = argparse.Namespace()
+                        action(self, temp_args, default, option_string)
+                        default = getattr(temp_args, action.dest)
+                action.default = default
             if isinstance(action, argparse._StoreFalseAction):
                 default = not default
             if action.help and argparse.SUPPRESS not in (action.help, default):
