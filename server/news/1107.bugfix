@@ -1,1 +1,0 @@
-Fix #1107: retry file downloads if there has been an error during download.

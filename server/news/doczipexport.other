@@ -1,1 +1,0 @@
-The filenames of some exported doczip files change due to normalization of the project name caused by changing the internals during export to allow ``--hard-links`` to work.

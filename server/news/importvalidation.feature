@@ -1,1 +1,0 @@
-Validate hashes of all files during devpi-import, not only releases.

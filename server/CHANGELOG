@@ -2,6 +2,37 @@
 
 .. towncrier release notes start
 
+6.18.0 (2026-01-27)
+===================
+
+Features
+--------
+
+- Store all available hashes of files.
+
+- Validate hashes of all files during devpi-import, not only releases.
+
+Bug Fixes
+---------
+
+- Apply argparse transformations on values read from config file or environment.
+
+- Restore Python and platform info in user agent string after switch to httpx.
+
+- Remove all database entries on project deletion instead of only emptying them.
+
+- Fix error at end of replica streaming caused by changed behavior from switch to httpx.
+
+- Fix #1102: The data stream was cut off after 64k when proxying from replica to primary after switching to httpx.
+
+- Fix #1107: retry file downloads if there has been an error during download.
+
+Other Changes
+-------------
+
+- The filenames of some exported doczip files change due to normalization of the project name caused by changing the internals during export to allow ``--hard-links`` to work.
+
+
 6.17.0 (2025-08-27)
 ===================
 
