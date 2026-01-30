@@ -438,7 +438,7 @@ class ReplicaThread:
     _primary_serial: int | None
     _primary_serial_timestamp: float | None
     primary_contacted_at: float | None
-    replica_in_sync_at: float | None
+    replica_metadata_in_sync_at: float | None
     started_at: float | None
     thread: mythread.MyThread
     update_from_primary_at: float | None
@@ -469,9 +469,17 @@ class ReplicaThread:
         # updated on valid reply or 202 from primary
         self.update_from_primary_at = None
         # set whenever the primary serial and current replication serial match
-        self.replica_in_sync_at = None
+        self.replica_metadata_in_sync_at = None
         self.http = ReplicaHTTPClient(xom)
         self.initial_fetch = True
+
+    @property
+    def replica_files_in_sync_at(self):
+        return self.shared_data.files_in_sync_at
+
+    @property
+    def replica_init_queue_finished_at(self):
+        return self.shared_data.init_queue_finished_at
 
     def get_master_serial(self):
         warnings.warn(
@@ -539,9 +547,9 @@ class ReplicaThread:
         # information about the connection to primary
         self.update_from_primary_at = now
         if update_sync and self.xom.keyfs.get_current_serial() == serial:
-            with self.shared_data._replica_in_sync_cv:
-                self.replica_in_sync_at = now
-                self.shared_data._replica_in_sync_cv.notify_all()
+            with self.shared_data._replica_metadata_in_sync_cv:
+                self.replica_metadata_in_sync_at = now
+                self.shared_data._replica_metadata_in_sync_cv.notify_all()
         if self._primary_serial is not None and serial <= self._primary_serial:
             if serial < self._primary_serial and not ignore_lower:
                 self.log.error(
@@ -742,6 +750,9 @@ class FileReplicationSharedData:
     ERROR_QUEUE_DELAY_MULTIPLIER = 1.5
     ERROR_QUEUE_REPORT_DELAY = 2 * 60
     ERROR_QUEUE_MAX_DELAY = 60 * 60
+    files_in_sync_at: float | None
+    init_queue_finished_at: float | None
+    initial_processed: int | None
     last_added: float | None
     last_errored: float | None
     last_processed: float | None
@@ -762,7 +773,12 @@ class FileReplicationSharedData:
         self.deleted = LRUCache(100)
         self.index_types = LRUCache(1000)
         self.errors = ReplicationErrors()
-        self._replica_in_sync_cv = threading.Condition()
+        # set whenever the download and error queue is empty and the initial
+        # queue thread has finished
+        self.files_in_sync_at = None
+        self._replica_metadata_in_sync_cv = threading.Condition()
+        self.init_queue_finished_at = None
+        self.initial_processed = None
         self.last_added = None
         self.last_errored = None
         self.last_processed = None
@@ -806,7 +822,7 @@ class FileReplicationSharedData:
                 "Skipping %s because %r in %s.", key, index_type, skip_indexes
             )
             return
-        if self.xom.replica_thread.replica_in_sync_at is None:
+        if self.xom.replica_thread.replica_metadata_in_sync_at is None:
             # Don't queue files from mirrors until we have been in sync first.
             # The InitialQueueThread will queue in one go on initial sync
             if index_type == IndexType("mirror"):
@@ -884,6 +900,8 @@ class FileReplicationSharedData:
             # were already/still items in the queue
             info = self.error_queue.get(timeout=self.QUEUE_TIMEOUT)
         except self.Empty:
+            if self.queue.empty() and self.init_queue_finished_at is not None:
+                self.files_in_sync_at = time.time()
             return
         (ts, delay, index_type, serial, key, keyname, value, back_serial) = info
         try:
@@ -947,21 +965,77 @@ def devpiserver_metrics(request):
         return result
     deleted_cache = shared_data.deleted
     indextypes_cache = shared_data.index_types
-    result.extend([
-        ('devpi_server_replica_file_download_queue_size', 'gauge', shared_data.queue.qsize()),
-        ('devpi_server_replica_file_download_error_queue_size', 'gauge', shared_data.error_queue.qsize()),
-        ('devpi_server_replica_deleted_cache_evictions', 'counter', deleted_cache.evictions),
-        ('devpi_server_replica_deleted_cache_hits', 'counter', deleted_cache.hits),
-        ('devpi_server_replica_deleted_cache_lookups', 'counter', deleted_cache.lookups),
-        ('devpi_server_replica_deleted_cache_misses', 'counter', deleted_cache.misses),
-        ('devpi_server_replica_deleted_cache_size', 'gauge', deleted_cache.size),
-        ('devpi_server_replica_deleted_cache_items', 'gauge', len(deleted_cache.data) if deleted_cache.data else 0),
-        ('devpi_server_replica_indextypes_cache_evictions', 'counter', indextypes_cache.evictions),
-        ('devpi_server_replica_indextypes_cache_hits', 'counter', indextypes_cache.hits),
-        ('devpi_server_replica_indextypes_cache_lookups', 'counter', indextypes_cache.lookups),
-        ('devpi_server_replica_indextypes_cache_misses', 'counter', indextypes_cache.misses),
-        ('devpi_server_replica_indextypes_cache_size', 'gauge', indextypes_cache.size),
-        ('devpi_server_replica_indextypes_cache_items', 'gauge', len(indextypes_cache.data) if indextypes_cache.data else 0)])
+    result.extend(
+        [
+            (
+                "devpi_server_replica_file_download_queue_size",
+                "gauge",
+                shared_data.queue.qsize(),
+            ),
+            (
+                "devpi_server_replica_file_download_error_queue_size",
+                "gauge",
+                shared_data.error_queue.qsize(),
+            ),
+            (
+                "devpi_server_replica_deleted_cache_evictions",
+                "counter",
+                deleted_cache.evictions,
+            ),
+            ("devpi_server_replica_deleted_cache_hits", "counter", deleted_cache.hits),
+            (
+                "devpi_server_replica_deleted_cache_lookups",
+                "counter",
+                deleted_cache.lookups,
+            ),
+            (
+                "devpi_server_replica_deleted_cache_misses",
+                "counter",
+                deleted_cache.misses,
+            ),
+            ("devpi_server_replica_deleted_cache_size", "gauge", deleted_cache.size),
+            (
+                "devpi_server_replica_deleted_cache_items",
+                "gauge",
+                len(deleted_cache.data) if deleted_cache.data else 0,
+            ),
+            (
+                "devpi_server_replica_indextypes_cache_evictions",
+                "counter",
+                indextypes_cache.evictions,
+            ),
+            (
+                "devpi_server_replica_indextypes_cache_hits",
+                "counter",
+                indextypes_cache.hits,
+            ),
+            (
+                "devpi_server_replica_indextypes_cache_lookups",
+                "counter",
+                indextypes_cache.lookups,
+            ),
+            (
+                "devpi_server_replica_indextypes_cache_misses",
+                "counter",
+                indextypes_cache.misses,
+            ),
+            (
+                "devpi_server_replica_indextypes_cache_size",
+                "gauge",
+                indextypes_cache.size,
+            ),
+            (
+                "devpi_server_replica_indextypes_cache_items",
+                "gauge",
+                len(indextypes_cache.data) if indextypes_cache.data else 0,
+            ),
+            (
+                "devpi_server_replica_initial_files_processed",
+                "counter",
+                shared_data.initial_processed,
+            ),
+        ]
+    )
     return result
 
 
@@ -1255,11 +1329,11 @@ class InitialQueueThread:
         threadlog.info("Queuing files for possible download from primary")
         keys = (keyfs.get_key('PYPIFILE_NOMD5'), keyfs.get_key('STAGEFILE'))
         last_time = time.time()
-        processed = 0
+        self.shared_data.initial_processed = 0
         queued = 0
         # wait until we are in sync for the first time
-        with self.shared_data._replica_in_sync_cv:
-            self.shared_data._replica_in_sync_cv.wait()
+        with self.shared_data._replica_metadata_in_sync_cv:
+            self.shared_data._replica_metadata_in_sync_cv.wait()
         skip_indexes = self.shared_data.skip_indexes
         if "all" in skip_indexes:
             return
@@ -1280,8 +1354,14 @@ class InitialQueueThread:
                     last_time = time.time()
                     threadlog.info(
                         "Processed a total of %s files (serial %s/%s) and queued %s so far.",
-                        processed, tx.at_serial - item.serial, tx.at_serial, queued)
-                processed = processed + 1
+                        self.shared_data.initial_processed,
+                        tx.at_serial - item.serial,
+                        tx.at_serial,
+                        queued,
+                    )
+                self.shared_data.initial_processed = (
+                    self.shared_data.initial_processed + 1
+                )
                 key = keyfs.get_key_instance(item.keyname, item.relpath)
                 index_name = self.shared_data.get_index_name_for(key)
                 if index_name in skip_indexes:
@@ -1304,9 +1384,12 @@ class InitialQueueThread:
                     index_type, -item.serial, item.relpath,
                     item.keyname, item.value, item.back_serial))
                 queued = queued + 1
+        self.shared_data.init_queue_finished_at = time.time()
         threadlog.info(
             "Queued %s of %s files for possible download from primary",
-            queued, processed)
+            queued,
+            self.shared_data.initial_processed,
+        )
 
 
 class SimpleLinksChanged:

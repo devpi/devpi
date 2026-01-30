@@ -553,10 +553,10 @@ class TestProxyViewToMaster:
 
 
 def replay(xom, replica_xom, events=True):
-    if replica_xom.replica_thread.replica_in_sync_at is None:
+    if replica_xom.replica_thread.replica_metadata_in_sync_at is None:
         # allow on_import to run right away, so we don't need to rely
         # on the initial import thread for tests
-        replica_xom.replica_thread.replica_in_sync_at = 0
+        replica_xom.replica_thread.replica_metadata_in_sync_at = 0
 
     threadlog.info("test: replaying replica")
     for serial in range(replica_xom.keyfs.get_next_serial(),
@@ -1311,7 +1311,7 @@ class TestFileReplicationSharedData:
         from devpi_server.replica import FileReplicationSharedData
         # allow on_import to run right away, so we don't need to rely
         # on the initial import thread for tests
-        replica_xom.replica_thread.replica_in_sync_at = 0
+        replica_xom.replica_thread.replica_metadata_in_sync_at = 0
         shared_data = FileReplicationSharedData(replica_xom)
         # No waiting on empty queues
         shared_data.QUEUE_TIMEOUT = 0.1

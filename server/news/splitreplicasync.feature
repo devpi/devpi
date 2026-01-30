@@ -1,0 +1,1 @@
+Add ``replica-files-in-sync-at``, ``replica-init-queue-finished-at`` and ``replica-metadata-in-sync-at`` to status view, the existing ``replica-in-sync-at`` is now a combination of all three instead of just metadata.

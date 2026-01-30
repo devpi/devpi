@@ -352,7 +352,23 @@ class StatusView:
             status["replica-started-at"] = self.xom.replica_thread.started_at
             status["primary-contacted-at"] = self.xom.replica_thread.primary_contacted_at
             status["update-from-primary-at"] = self.xom.replica_thread.update_from_primary_at
-            status["replica-in-sync-at"] = self.xom.replica_thread.replica_in_sync_at
+            status["replica-files-in-sync-at"] = (
+                self.xom.replica_thread.replica_files_in_sync_at
+            )
+            status["replica-init-queue-finished-at"] = (
+                self.xom.replica_thread.replica_init_queue_finished_at
+            )
+            status["replica-metadata-in-sync-at"] = (
+                self.xom.replica_thread.replica_metadata_in_sync_at
+            )
+            _in_sync = [
+                status["replica-files-in-sync-at"],
+                status["replica-init-queue-finished-at"],
+                status["replica-metadata-in-sync-at"],
+            ]
+            status["replica-in-sync-at"] = (
+                None if any(x is None for x in _in_sync) else max(_in_sync)
+            )
             replication_errors = self.xom.replica_thread.shared_data.errors
             status["replication-errors"] = replication_errors.errors
         else:

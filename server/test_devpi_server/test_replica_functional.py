@@ -132,7 +132,9 @@ def test_frt_exception_handling(
     mapp.upload_file_pypi("hello-1.0.zip", content1, "hello", "1.0")
     replica_xom.thread_pool.start_one(replica_xom.replica_thread)
     tries = 0
-    while replica_xom.replica_thread.replica_in_sync_at is None and tries < 100:
+    while (
+        replica_xom.replica_thread.replica_metadata_in_sync_at is None and tries < 100
+    ):
         time.sleep(0.1)
         tries += 1
     # test exception during initial connection

@@ -150,7 +150,9 @@ class TestStatusInfoPlugin:
         assert xom.is_replica()
         # fake first serial processed
         xom.replica_thread.update_primary_serial(0)
-        xom.replica_thread.replica_in_sync_at = now
+        xom.replica_thread.replica_metadata_in_sync_at = now
+        xom.replica_thread.shared_data.files_in_sync_at = now
+        xom.replica_thread.shared_data.init_queue_finished_at = now
         # no report in the first minute
         result = plugin(request)
         assert result == []
@@ -177,7 +179,9 @@ class TestStatusInfoPlugin:
         assert xom.is_replica()
         # fake first serial processed
         xom.replica_thread.update_primary_serial(0)
-        xom.replica_thread.replica_in_sync_at = now
+        xom.replica_thread.replica_metadata_in_sync_at = now
+        xom.replica_thread.shared_data.files_in_sync_at = now
+        xom.replica_thread.shared_data.init_queue_finished_at = now
         # nothing if events never processed directly after startup
         monkeypatch.setattr(devpi_server.views, "time", lambda: now + 30)
         result = plugin(request)
