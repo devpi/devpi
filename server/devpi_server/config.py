@@ -6,7 +6,6 @@ from .interfaces import IIOFileFactory
 from .log import threadlog
 from devpi_common.types import cached_property
 from devpi_common.url import URL
-from functools import partial
 from operator import itemgetter
 from pathlib import Path
 from pluggy import HookimplMarker
@@ -29,6 +28,8 @@ import warnings
 if TYPE_CHECKING:
     from .interfaces import IStorageConnection4
     from collections.abc import Callable
+    from collections.abc import MutableMapping
+    from typing import Any
 
 
 log = threadlog
@@ -514,21 +515,31 @@ def load_config_file(config_file):
         return config.data
 
 
-def default_getter(name, config_options, environ):
-    if name is None:
-        return
-    if name == "serverdir":
-        if "DEVPI_SERVERDIR" in environ:
+class ArgumentDefaultGetter:
+    used_config_options: set[str]
+
+    def __init__(
+        self, *, config_options: dict[str, Any], environ: MutableMapping[str, Any]
+    ):
+        self.config_options = config_options
+        self.environ = environ
+        self.used_config_options = set()
+
+    def __call__(self, name: str | None) -> Any | None:
+        if name is None:
+            return None
+        if name == "serverdir" and "DEVPI_SERVERDIR" in self.environ:
             log.warning(
                 "Using deprecated DEVPI_SERVERDIR environment variable. "
                 "You should switch to use DEVPISERVER_SERVERDIR.")
-            return environ["DEVPI_SERVERDIR"]
-    envname = "DEVPISERVER_%s" % name.replace('-', '_').upper()
-    if envname in environ:
-        value = environ[envname]
-        if value:
-            return value
-    return config_options[name]
+            return self.environ["DEVPI_SERVERDIR"]
+        envname = f"DEVPISERVER_{name.replace('-', '_').upper()}"
+        if envname in self.environ:
+            value = self.environ[envname]
+            if value:
+                return value
+        self.used_config_options.add(name)
+        return self.config_options[name]
 
 
 def parseoptions(pluginmanager, argv, parser=None):
@@ -553,10 +564,9 @@ def parseoptions(pluginmanager, argv, parser=None):
             "Error in config file '%s':\n  %s", config_file, e
         )
         sys.exit(4)
-    defaultget = partial(
-        default_getter,
-        config_options=config_options,
-        environ=os.environ)
+    defaultget = ArgumentDefaultGetter(
+        config_options=config_options, environ=os.environ
+    )
     parser.post_process_actions(defaultget=defaultget)
     # the getattr is a workaround for a problem with 3.14t-dev
     # weirdly enough it does not happen with 3.14-dev
@@ -564,6 +574,11 @@ def parseoptions(pluginmanager, argv, parser=None):
         parser.print_help()
         parser.exit()
     args = parser.parse_args(argv[1:])
+    if unknown_keys := set(config_options).difference(defaultget.used_config_options):
+        exec_name = Path(argv[0]).name or "unknown"
+        for unknown_key in unknown_keys:
+            msg = f"Unknown {exec_name} option {unknown_key!r} in {config_file}"
+            log.warning(msg)
     config = Config(args, pluginmanager=pluginmanager)
     return config
 

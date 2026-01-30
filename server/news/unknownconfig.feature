@@ -1,0 +1,1 @@
+Warn when an unknown option is found in config file to detect typos. Be aware that some commands don't use all the options, that is why this only warns instead of exiting.

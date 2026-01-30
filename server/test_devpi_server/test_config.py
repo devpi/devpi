@@ -522,6 +522,16 @@ class TestConfigFile:
         assert xom.config.storage_info["name"] == "foo"
         assert plugin.settings == {"bar": "ham"}
 
+    def test_unknown_option(self, caplog, make_yaml_config):
+        yaml_path = make_yaml_config(
+            textwrap.dedent("""\
+            devpi-server:
+              foo: bar""")
+        )
+        make_config(["devpi-server", "-c", yaml_path])
+        (record,) = caplog.getrecords("Unknown devpi-server option")
+        assert "Unknown devpi-server option 'foo' in" in record.message
+
 
 @pytest.mark.parametrize(
     ("nodeinfo", "expected"),
