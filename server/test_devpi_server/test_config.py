@@ -472,6 +472,17 @@ class TestConfigFile:
         (out, err) = capsys.readouterr()
         assert "argument --port: invalid int value: 'foo'" in err
 
+    def test_listen_option_as_list(self, make_yaml_config):
+        yaml_path = make_yaml_config(
+            textwrap.dedent("""\
+            devpi-server:
+              listen:
+                - 127.0.0.1:3141
+                - 192.168.1.1:3141""")
+        )
+        config = make_config(["devpi-server", "-c", yaml_path])
+        assert config.waitress_info
+
     def test_requests_only(self, make_yaml_config):
         yaml_path = make_yaml_config(textwrap.dedent("""\
             devpi-server:

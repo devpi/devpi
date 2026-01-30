@@ -609,7 +609,11 @@ class MyArgumentParser(argparse.ArgumentParser):
                 except KeyError:
                     pass
                 else:
-                    if isinstance(action, argparse._StoreTrueAction):
+                    if isinstance(action, argparse._AppendAction) and isinstance(
+                        default, list
+                    ):
+                        pass
+                    elif isinstance(action, argparse._StoreTrueAction):
                         default = bool(strtobool(default))
                     elif isinstance(action, argparse._StoreFalseAction):
                         default = not bool(strtobool(default))
