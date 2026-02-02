@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from . import mythread
 from .config import hookimpl
+from .exceptions import format_exception_only
 from .exceptions import lazy_format_exception
 from .filestore import ChecksumError
 from .filestore import FileEntry
@@ -1186,8 +1187,9 @@ class FileReplicationThread:
                     timeout=self.xom.config.args.request_timeout,
                 )
             except Exception as err:
+                msg = f"error on connection: {format_exception_only(err)}"
                 self.shared_data.errors.add(
-                    dict(url=url, message=str(err), relpath=entry.relpath)
+                    dict(url=url, message=msg, relpath=entry.relpath)
                 )
                 raise
             if r.status_code == 302:
@@ -1251,8 +1253,9 @@ class FileReplicationThread:
                         relpath,
                         r.reason_phrase,
                     )
+                msg = f"error while downloading: {format_exception_only(err)}"
                 self.shared_data.errors.add(
-                    dict(url=r.url, message=str(err), relpath=entry.relpath)
+                    dict(url=r.url, message=msg, relpath=entry.relpath)
                 )
                 raise
 

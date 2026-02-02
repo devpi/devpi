@@ -8,8 +8,7 @@ class LazyExceptionFormatter:
         self.e = e
 
     def __str__(self):
-        return ''.join(traceback.format_exception(
-            self.e.__class__, self.e, self.e.__traceback__)).strip()
+        return format_exception(self.e)
 
 
 class LazyExceptionOnlyFormatter:
@@ -19,8 +18,15 @@ class LazyExceptionOnlyFormatter:
         self.e = e
 
     def __str__(self):
-        return ''.join(traceback.format_exception_only(
-            self.e.__class__, self.e)).strip()
+        return format_exception_only(self.e)
+
+
+def format_exception(e):
+    return "".join(traceback.format_exception(e.__class__, e, e.__traceback__)).strip()
+
+
+def format_exception_only(e):
+    return "".join(traceback.format_exception_only(e.__class__, e)).strip()
 
 
 def lazy_format_exception(e):
