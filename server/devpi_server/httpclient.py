@@ -41,9 +41,10 @@ def get_caller_location(stacklevel: int = 2) -> str:
 
 class FatalResponse:
     status_code = -1
+    url: str
 
     def __init__(self, url: URL | str, reason: str):
-        self.url = url
+        self.url = str(url)
         self.reason_phrase = reason
         self.status = self.status_code
 
