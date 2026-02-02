@@ -1770,6 +1770,10 @@ class TestPluginPermissions:
         assert "pluginuser" not in mapp.getuserlist()
         mapp.create_index("pluginuser/dev")
         assert "pluginuser" in mapp.getuserlist()
+        with mapp.xom.keyfs.read_transaction():
+            user = mapp.xom.model.get_user("pluginuser")
+            config = user.get(credentials=True)
+            assert "pwhash" not in config
         assert sorted(mapp.getindexlist("pluginuser")) == ['pluginuser/dev']
         # the plugin passes through if the password doesn't match
         # that case failed, because there is no password hash stored
