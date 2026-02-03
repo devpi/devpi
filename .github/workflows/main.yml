@@ -82,7 +82,7 @@ jobs:
           popd
       - name: "Diff documentation"
         run: |
-          git diff --exit-code || echo "::warning::The generated documentation has differences"
+          git diff --color --exit-code --ws-error-highlight=all || echo "::warning::The generated documentation has differences"
 
   common-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}

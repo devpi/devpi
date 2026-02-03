@@ -130,25 +130,30 @@ devpi install: installing a package
 We can now use the ``devpi`` command line client to trigger a ``pip
 install`` of a pypi package using the index from our already running server::
 
-    $ devpi install pytest==6.2.4 attrs==23.1.0 iniconfig==2.0.0 pluggy==0.13.1 py==1.11.0 toml==0.10.2
+    $ devpi install pytest==8.3.5 attrs==23.1.0 exceptiongroup==1.3.1 iniconfig==2.0.0 pluggy==1.6.0 py==1.11.0 toml==0.10.2 typing_extensions==4.15.0
     --> .$ /tmp/docenv/bin/pip --version
-    --> .$ /tmp/docenv/bin/pip install -U pytest==6.2.4 attrs==23.1.0 iniconfig==2.0.0 pluggy==0.13.1 py==1.11.0 toml==0.10.2  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/'),PIP_PRE='1',PIP_USE_WHEEL='1']
+    --> .$ /tmp/docenv/bin/pip install -U pytest==8.3.5 attrs==23.1.0 exceptiongroup==1.3.1 iniconfig==2.0.0 pluggy==1.6.0 py==1.11.0 toml==0.10.2 typing_extensions==4.15.0  [PIP_INDEX_URL=URL('http://****:****@localhost:3141/testuser/dev/+simple/'),PIP_PRE='1',PIP_USE_WHEEL='1']
     Looking in indexes: http://testuser:****@localhost:3141/testuser/dev/+simple/
-    Collecting pytest==6.2.4
-      Downloading http://localhost:3141/root/pypi/%2Bf/91e/f2131a9bd6be8/pytest-6.2.4-py3-none-any.whl (280 kB)
+    Collecting pytest==8.3.5
+      Downloading http://localhost:3141/root/pypi/%2Bf/c69/214aa47deac29/pytest-8.3.5-py3-none-any.whl (343 kB)
     Collecting attrs==23.1.0
       Downloading http://localhost:3141/root/pypi/%2Bf/1f2/8b4522cdc2fb4/attrs-23.1.0-py3-none-any.whl (61 kB)
+    Collecting exceptiongroup==1.3.1
+      Downloading http://localhost:3141/root/pypi/%2Bf/a7a/39a3bd276781e/exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
     Collecting iniconfig==2.0.0
       Downloading http://localhost:3141/root/pypi/%2Bf/b6a/85871a79d2e3b/iniconfig-2.0.0-py3-none-any.whl (5.9 kB)
-    Collecting pluggy==0.13.1
-      Downloading http://localhost:3141/root/pypi/%2Bf/966/c145cd83c9650/pluggy-0.13.1-py2.py3-none-any.whl (18 kB)
+    Collecting pluggy==1.6.0
+      Downloading http://localhost:3141/root/pypi/%2Bf/e92/0276dd6813095/pluggy-1.6.0-py3-none-any.whl (20 kB)
     Collecting py==1.11.0
       Downloading http://localhost:3141/root/pypi/%2Bf/607/c53218732647d/py-1.11.0-py2.py3-none-any.whl (98 kB)
     Collecting toml==0.10.2
       Downloading http://localhost:3141/root/pypi/%2Bf/806/143ae5bfb6a3c/toml-0.10.2-py2.py3-none-any.whl (16 kB)
-    Requirement already satisfied: packaging in /tmp/docenv/lib/python3.9/site-packages (from pytest==6.2.4) (25.0)
-    Installing collected packages: toml, py, pluggy, iniconfig, attrs, pytest
-    Successfully installed attrs-23.1.0 iniconfig-2.0.0 pluggy-0.13.1 py-1.11.0 pytest-6.2.4 toml-0.10.2
+    Collecting typing_extensions==4.15.0
+      Downloading http://localhost:3141/root/pypi/%2Bf/f0f/a19c6845758ab/typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+    Requirement already satisfied: packaging in /tmp/docenv/lib/python3.9/site-packages (from pytest==8.3.5) (26.0)
+    Requirement already satisfied: tomli>=1 in /tmp/docenv/lib/python3.9/site-packages (from pytest==8.3.5) (2.4.0)
+    Installing collected packages: typing_extensions, toml, py, pluggy, iniconfig, attrs, exceptiongroup, pytest
+    Successfully installed attrs-23.1.0 exceptiongroup-1.3.1 iniconfig-2.0.0 pluggy-1.6.0 py-1.11.0 pytest-8.3.5 toml-0.10.2 typing_extensions-4.15.0
 
 The ``devpi install`` command configured a pip call, using the
 pypi-compatible ``+simple/`` page on our ``testuser/dev`` index for
@@ -158,7 +163,7 @@ in the ``PATH`` and found in ``docenv/bin/pip``.
 Let's check that ``pytest`` was installed correctly::
 
     $ py.test --version
-    pytest 6.2.4
+    pytest 8.3.5
 
 You may invoke the ``devpi install`` command a second time which will
 even work when you have no network.
