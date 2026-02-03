@@ -150,7 +150,14 @@ class HTTPResponse(HTTPSuccessful):
         Exception.__init__(self)
 
 
-def apiresult(code, message=None, result=None, type=None):  # noqa: A002
+def apiresult(
+    code,
+    message=None,
+    *,
+    result=None,
+    type=None,  # noqa: A002
+    warnings=None,
+):
     d = dict()
     if result is not None:
         assert type is not None
@@ -158,13 +165,22 @@ def apiresult(code, message=None, result=None, type=None):  # noqa: A002
         d["type"] = type
     if message:
         d["message"] = message
+    if warnings:
+        d["warnings"] = warnings
     data = json.dumps(d, indent=2) + "\n"
     headers = {"content-type": "application/json"}
     return HTTPResponse(body=data, status=code, headers=headers)
 
 
-def apireturn(code, message=None, result=None, type=None):  # noqa: A002
-    raise apiresult(code, message=message, result=result, type=type)
+def apireturn(
+    code,
+    message=None,
+    *,
+    result=None,
+    type=None,  # noqa: A002
+    warnings=None,
+):
+    raise apiresult(code, message=message, result=result, type=type, warnings=warnings)
 
 
 def json_preferred(request):
