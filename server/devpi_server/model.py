@@ -788,12 +788,13 @@ class BaseStage:
                     % (index_type, ", ".join(sorted(conflicting))))
             for key, value in defaults.items():
                 new_value = kwargs.pop(key, value)
-                if isinstance(value, bool):
-                    new_value = ensure_boolean(new_value)
-                elif isinstance(value, ACLList):
-                    new_value = ensure_acl_list(new_value)
-                elif isinstance(value, (list, tuple, set)):
-                    new_value = ensure_list(new_value)
+                if new_value is not RemoveValue:
+                    if isinstance(value, bool):
+                        new_value = ensure_boolean(new_value)
+                    elif isinstance(value, ACLList):
+                        new_value = ensure_acl_list(new_value)
+                    elif isinstance(value, (list, tuple, set)):
+                        new_value = ensure_list(new_value)
                 ixconfig.setdefault(key, new_value)
         # XXX backward compatibility for old exports where these could appear
         # on mirror indexes

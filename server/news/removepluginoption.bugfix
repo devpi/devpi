@@ -1,0 +1,1 @@
+Fix removal with ``-=`` of index options with default values from ``devpiserver_indexconfig_defaults`` hooks.
