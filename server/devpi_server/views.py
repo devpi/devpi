@@ -959,9 +959,12 @@ class PyPIView:
     def index_modify(self):
         stage = self.context.stage
         json = getjson(self.request)
+        keep_unknown = False
         if isinstance(json, list):
+            used_ops = set()
             ixconfig = stage.get()
             for op, key, value in get_actions(json):
+                used_ops.add(op)
                 if op == 'del':
                     if value not in ixconfig[key]:
                         apireturn(
@@ -983,6 +986,8 @@ class PyPIView:
                     ixconfig[key] = RemoveValue
                 else:
                     raise ValueError("Unknown operator '%s'." % op)
+            if not used_ops.difference({"add", "del", "drop"}):
+                keep_unknown = True
             json = ixconfig
         if json.get('type') == 'indexconfig' and 'result' in json:
             json = json['result']
@@ -990,7 +995,7 @@ class PyPIView:
         if 'error_on_noop' in self.request.params and oldconfig == json:
             apireturn(400, message="The requested modifications resulted in no changes")
         try:
-            ixconfig = stage.modify(**json)
+            ixconfig = stage.modify(**json, _keep_unknown=keep_unknown)
         except InvalidIndexconfig as e:
             apireturn(400, message=", ".join(e.messages))
         try:
