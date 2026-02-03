@@ -38,9 +38,11 @@ LOWER_ARGON2_TIME_COST = 1
 
 
 class API:
+    index: str
     login: str
     user: str
     password: str
+    pypisubmit: str
     simpleindex: str
     stagename: str
 

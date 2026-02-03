@@ -402,15 +402,13 @@ def replica_xom(makexom, secretfile):
 @pytest.fixture
 def makefunctionaltestapp():
     def makefunctionaltestapp(host_port):
-        mt = MyFunctionalTestApp(host_port)
-        mt.xom = None
-        return mt
+        return MyFunctionalTestApp(host_port)
     return makefunctionaltestapp
 
 
 @pytest.fixture
-def maketestapp():
-    def maketestapp(xom):
+def maketestapp() -> Callable:
+    def maketestapp(xom: XOM) -> MyTestApp:
         app = xom.create_app()
         mt = MyTestApp(app)
         mt.xom = xom
@@ -419,12 +417,13 @@ def maketestapp():
 
 
 @pytest.fixture
-def makemapp(maketestapp, makexom):
-    def makemapp(testapp=None, options=()):
+def makemapp(maketestapp: Callable, makexom: Callable) -> Callable:
+    def makemapp(testapp: MyTestApp | None = None, options: tuple = ()) -> Mapp:
         if testapp is None:
             testapp = maketestapp(makexom(options))
         m = Mapp(testapp)
-        m.xom = testapp.xom
+        if hasattr(testapp, "xom"):
+            m.xom = testapp.xom
         return m
     return makemapp
 
@@ -1201,7 +1200,8 @@ def noiter(monkeypatch):
 
 
 class MyTestApp(TApp):
-    auth = None
+    auth: tuple[str, str] | None = None
+    xom: XOM
 
     def __init__(self, *args, **kwargs):
         super(MyTestApp, self).__init__(*args, **kwargs)
