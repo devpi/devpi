@@ -1,3 +1,43 @@
+[dependency-groups]
+dev = [
+    "PdbEditorSupport",
+    "Sphinx",
+    "beautifulsoup4 != 4.12.1",
+    "certauth",
+    "execnet",
+    "furo",
+    "match-diff-lines; python_version >= '3.9'",
+    "mock",
+    "mr.laforge",
+    "mypy",
+    "mypy-zope>=1.0.5",
+    "pypitoken",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-icdiff",
+    "pytest-instafail",
+    "pytest-pdb",
+    "pytest-sugar",
+    "pytest-timeout",
+    "regendoc",
+    "setuptools_changelog_shortener",
+    "supervisor",
+    "towncrier>=21.9.0",
+    "tox",
+    "types-WebOb",
+    "types-beautifulsoup4",
+    "types-defusedxml",
+    "types-passlib",
+    "types-requests",
+    "types-urllib3",
+    "types-waitress",
+    "wcmatch",
+    "webtest",
+    "wheel",
+]
+
+
 [tool.ruff]
 extend = "ruff-strict.toml"
 

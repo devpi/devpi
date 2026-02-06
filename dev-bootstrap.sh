@@ -15,4 +15,4 @@ else
 fi
 
 $UNINSTALL_COMMAND devpi-{common,client,server,web}
-$INSTALL_COMMAND -U -r dev-requirements.txt
+$INSTALL_COMMAND -U --group dev -e common -e client -e postgresql -e server -e web
