@@ -2,6 +2,35 @@
 
 .. towncrier release notes start
 
+6.19.0 (2026-02-06)
+===================
+
+Features
+--------
+
+- Add ``--autocreate-users`` server option.
+  Automatically creates users that don't exist in devpi, but have successfully authenticated via an authentication plugin.
+  A typical example of when to enable this would be when authenticating via an LDAP directory.
+  Automatically created users do not have passwords, and have no password hash to prevent local authentication.
+
+- Add ``replica-files-in-sync-at``, ``replica-init-queue-finished-at`` and ``replica-metadata-in-sync-at`` to status view, the existing ``replica-in-sync-at`` is now a combination of all three instead of just metadata.
+
+- Warn when an unknown option is found in config file to detect typos. Be aware that some commands don't use all the options, that is why this only warns instead of exiting.
+
+- Add new ``devpiserver_user_created`` hook which can be used to create default indexes or other setup for newly created users.
+
+Bug Fixes
+---------
+
+- Fix ``+status`` json encoding errors by making sure the ``FatalResponse.url`` attribute is a string.
+
+- Ignore existing unknown index options from uninstalled plugins when patching other options with ``+=`` and ``-=``.
+
+- Fix removal with ``-=`` of index options with default values from ``devpiserver_indexconfig_defaults`` hooks.
+
+- Fix #1110: a list for the ``listen`` option in a config file stopped working in 6.18.0.
+
+
 6.18.0 (2026-01-27)
 ===================
 

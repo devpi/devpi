@@ -1,1 +1,0 @@
-Fix ``+status`` json encoding errors by making sure the ``FatalResponse.url`` attribute is a string.
