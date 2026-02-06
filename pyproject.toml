@@ -6,7 +6,7 @@ dev = [
     "certauth",
     "execnet",
     "furo",
-    "match-diff-lines; python_version >= '3.9'",
+    "match-diff-lines",
     "mock",
     "mr.laforge",
     "mypy",
