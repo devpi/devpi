@@ -41,9 +41,3 @@ dev = [
 
 [tool.ruff]
 extend = "ruff-strict.toml"
-
-
-[tool.ruff.format]
-exclude = [
-    ".ci/cleanup_devpi_indices.py",
-]

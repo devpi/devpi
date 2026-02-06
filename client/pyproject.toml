@@ -110,8 +110,10 @@ extend-ignore = [
     "ERA001", # cleanup soon
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx
+    "FURB110", # maybe cleanup later - or instead of ternary
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0912", # maybe cleanup later
+    "PLW0108", # maybe cleanup later - lamba unnecessary
     "PLW2901", # maybe cleanup later
     "PT006", # maybe cleanup later - wrong type for pytest.mark.parametrize
     "PT007", # maybe cleanup later - wrong type for pytest.mark.parametrize
@@ -177,6 +179,7 @@ extend-ignore = [
 ]
 "testing/test_upload.py" = [
     "I001", # maybe cleanup later - import block unsorted
+    "RUF061", # cleanup later - context manager form of pytest.raises
 ]
 "testing/test_use.py" = [
     "I001", # maybe cleanup later - import block unsorted

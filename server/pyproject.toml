@@ -180,6 +180,7 @@ extend-ignore = [
     "FBT002", # cleanup soon - boolean positional argument
     "FIX003", # cleanup later - xxx
     "FLY002", # maybe cleanup later - f-string instead of join
+    "FURB110", # maybe cleanup later - or instead of ternary
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0911", # cleanup later
     "PLR0912", # maybe cleanup later
@@ -210,6 +211,18 @@ extend-ignore = [
     "UP024", # maybe cleanup later - aliased errors
     "UP025", # maybe cleanup later - unicode literals
     "UP032", # cleanup later - f-string instead of format
+]
+
+
+[tool.ruff.lint.extend-per-file-ignores]
+"test_devpi_server/test_conftest.py" = [
+    "RUF061", # cleanup later - context manager form of pytest.raises
+]
+"test_devpi_server/test_keyfs.py" = [
+    "RUF061", # cleanup later - context manager form of pytest.raises
+]
+"test_devpi_server/test_replica.py" = [
+    "PLW0108", # maybe cleanup later - lamba unnecessary
 ]
 
 
