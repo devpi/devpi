@@ -740,7 +740,6 @@ class MirrorStage(BaseStage):
         serial: int,
         etag: str | None,
     ) -> None:
-        assert links != ()  # we don't store the old "Not Found" marker anymore
         assert isinstance(serial, int)
         assert project == normalize_name(project), project
         data: CacheLinks = {
