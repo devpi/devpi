@@ -2,6 +2,16 @@
 
 .. towncrier release notes start
 
+6.19.1 (2026-02-09)
+===================
+
+Bug Fixes
+---------
+
+- Pin setuptools as pyramid still requires pkg_resources.
+
+- Always allow replicas to access deleted releases to get the proper ``410 Gone`` instead of ``403 Forbidden`` when ``devpi-lockdown`` is in use.
+
 6.19.0 (2026-02-06)
 ===================
 

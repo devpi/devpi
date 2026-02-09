@@ -1,1 +1,0 @@
-Implement missing __hash__ for Version and CompareMixin classes.

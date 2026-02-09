@@ -1,1 +1,0 @@
-Fix ``py.typed`` to properly export type information.

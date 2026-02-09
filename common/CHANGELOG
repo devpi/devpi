@@ -2,6 +2,16 @@
 
 .. towncrier release notes start
 
+4.1.1 (2026-02-09)
+==================
+
+Bug Fixes
+---------
+
+- Implement missing __hash__ for Version and CompareMixin classes.
+
+- Fix ``py.typed`` to properly export type information.
+
 4.1.0 (2025-05-18)
 ==================
 
