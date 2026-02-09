@@ -6,6 +6,7 @@ from devpi_server.config import hookimpl
 from devpi_server.config import traced_pluggy_call
 from devpi_server.model import BaseStage
 from devpi_server.model import UpstreamError
+from devpi_server.replica import REPLICA_USER_NAME
 from devpi_server.views import abort
 from pyramid.authorization import ACLHelper
 from pyramid.authorization import Allow
@@ -62,7 +63,10 @@ class RootFactory:
 
     @cached_property
     def __acl__(self):
-        acl = [(Allow, Everyone, 'user_login')]
+        acl = [
+            (Allow, Everyone, "user_login"),
+            (Allow, REPLICA_USER_NAME, "pkg_read"),
+        ]
         if self.restrict_modify is None:
             acl.extend(
                 [

@@ -1305,6 +1305,125 @@ def test_replica_user_auth_before_other_plugins(makexom):
             auth._get_auth_status(replica.REPLICA_USER_NAME, '')
 
 
+def test_pkg_read_permission(makemapp, maketestapp, makexom):
+    from devpi_common.types import ensure_unicode
+    from devpi_server.config import hookimpl
+    from devpi_server.model import ACLList
+    from webob.headers import ResponseHeaders
+    import itsdangerous
+
+    class Plugin:
+        @hookimpl
+        def devpiserver_indexconfig_defaults(self, index_type):  # noqa: ARG002
+            return {"acl_pkg_read": ACLList(["root"])}
+
+        @hookimpl
+        def devpiserver_stage_get_principals_for_pkg_read(self, ixconfig):
+            return ixconfig.get("acl_pkg_read", None)
+
+    plugin = Plugin()
+    xom = makexom(plugins=[plugin])
+    xom.config.nodeinfo["role"] = "primary"
+    testapp = maketestapp(xom)
+    mapp = makemapp(testapp)
+    auth_serializer = itsdangerous.TimedSerializer(mapp.xom.config.get_replica_secret())
+    uuid = "111"
+    api = mapp.create_and_use("someuser/dev")
+    mapp.upload_file_pypi("hello-1.0.tar.gz", b"content", "hello", "1.0")
+    (path,) = mapp.get_release_paths("hello")
+    # replica should be able to access the release
+    testapp.xget(
+        200,
+        "/+authcheck",
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "X-Original-URI": path,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+    testapp.xget(
+        200,
+        path,
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+    # after project deletion the file is marked as gone
+    mapp.delete_project("hello")
+    testapp.xget(
+        200,
+        "/+authcheck",
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "X-Original-URI": path,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+    testapp.xget(
+        410,
+        path,
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+    # after index deletion the file is still marked as gone
+    mapp.delete_index(api.stagename)
+    testapp.xget(
+        200,
+        "/+authcheck",
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "X-Original-URI": path,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+    testapp.xget(
+        410,
+        path,
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+    # also after user deletion
+    mapp.delete_user(api.user)
+    testapp.xget(
+        200,
+        "/+authcheck",
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "X-Original-URI": path,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+    testapp.xget(
+        410,
+        path,
+        headers=ResponseHeaders(
+            {
+                H_REPLICA_UUID: uuid,
+                "Authorization": f"Bearer {ensure_unicode(auth_serializer.dumps(uuid))}",
+            }
+        ),
+    )
+
+
 class TestFileReplicationSharedData:
     @pytest.fixture
     def shared_data(self, replica_xom):

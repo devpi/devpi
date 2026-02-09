@@ -269,7 +269,6 @@ def test_package_filters(makemapp, maketestapp, makexom):
 
 def test_pkg_read_permission(makemapp, maketestapp, makexom):
     from devpi_server.model import ACLList
-    from devpi_server.replica import REPLICA_USER_NAME
     from webob.headers import ResponseHeaders
     import json
 
@@ -341,16 +340,6 @@ def test_pkg_read_permission(makemapp, maketestapp, makexom):
     req = dict(name="hello", version="1.0", targetindex="otheruser/dev")
     r = testapp.push("/someuser/dev", json.dumps(req))
     assert r.status_code == 403
-    with xom.keyfs.read_transaction():
-        stage = xom.model.getstage(api1.stagename)
-        # by default get_principals_for_pkg_read returns just the set principals
-        assert stage.customizer.get_principals_for_pkg_read() == {
-            'root', 'someuser'}
-        # but if the server acts as a primary for replicas,
-        # then the special replica user is included
-        xom.config.nodeinfo['role'] = 'primary'
-        assert set(stage.customizer.get_principals_for_pkg_read()) == {
-            'root', 'someuser', REPLICA_USER_NAME}
 
 
 def test_sro_skip_plugin(makemapp, maketestapp, makexom, pypistage):

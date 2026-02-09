@@ -546,9 +546,6 @@ class BaseStageCustomizer:
             principals = {':ANONYMOUS:'}
         else:
             principals = set(principals)
-        if self.stage.xom.is_primary():
-            # replicas always need to be able to download packages
-            principals.add("+replica")
         # admins should always be able to read the packages
         if restrict_modify is None:
             principals.add("root")

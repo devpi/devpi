@@ -1,0 +1,1 @@
+Always allow replicas to access deleted releases to get the proper ``410 Gone`` instead of ``403 Forbidden`` when ``devpi-lockdown`` is in use.
