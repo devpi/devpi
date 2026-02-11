@@ -874,22 +874,22 @@ jobs:
       matrix:
         include:
           - project: "client"
-            python-version: "3.7"
+            python-version: "3.11"
             os: "ubuntu-22.04"
           - project: "common"
-            python-version: "3.7"
+            python-version: "3.11"
             os: "ubuntu-22.04"
           - project: "debugging"
-            python-version: "3.9"
+            python-version: "3.11"
             os: "ubuntu-latest"
           - project: "postgresql"
-            python-version: "3.9"
+            python-version: "3.11"
             os: "ubuntu-latest"
           - project: "server"
-            python-version: "3.9"
+            python-version: "3.11"
             os: "ubuntu-latest"
           - project: "web"
-            python-version: "3.9"
+            python-version: "3.11"
             os: "ubuntu-latest"
 
     env:
