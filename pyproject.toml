@@ -12,7 +12,7 @@ dev = [
     "mypy",
     "mypy-zope>=1.0.5",
     "pip",
-    "pypitoken",
+    "pypitoken; python_version < '3.15'",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
