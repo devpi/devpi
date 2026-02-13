@@ -42,6 +42,7 @@ repository = "https://github.com/devpi/devpi"
 
 [tool.ruff]
 extend = "../pyproject.toml"
+target-version = "py37"
 
 
 [tool.ruff.format]
