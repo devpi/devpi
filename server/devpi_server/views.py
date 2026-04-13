@@ -1865,6 +1865,10 @@ def iter_cache_remote_file(stage, entry, url):
         except Exception as err:
             threadlog.error(str(err))
             raise
+        except GeneratorExit:
+            threadlog.error("client disconnected, still continue update cache")
+            for _ in file_streamer:
+                pass
 
         if not entry.has_existing_metadata():
             with xom.keyfs.write_transaction(allow_restart=True):
