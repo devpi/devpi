@@ -656,7 +656,9 @@ class MirrorStage(BaseStage):
             )
         assert text is not None
         parser: ProjectHTMLParser | ProjectJSONv1Parser
-        if response.headers.get('content-type') == SIMPLE_API_V1_JSON:
+        if (
+            response.headers.get("content-type") == SIMPLE_API_V1_JSON
+        ) or text.startswith("{"):
             parser = ProjectJSONv1Parser(response.url)
             parser.feed(json.loads(text))
         else:
