@@ -1804,6 +1804,12 @@ def _headers_from_response(r):
 
 
 class FileStreamer:
+    _data_iter: Iterator[bytes] | None
+    _running_hashes: RunningHashes | None
+    _file_size: int
+    _content_size: int | None
+    _download_completed: bool
+
     def __init__(self, f, entry, response):
         self.hash_type = entry.best_available_hash_type
         self.hash_types = entry.default_hash_types
@@ -1812,32 +1818,58 @@ class FileStreamer:
         self.response = response
         self.error = None
         self.f = f
+        self._data_iter = None
+        self._running_hashes = None
+        self._file_size = 0
+        self._content_size = None
+        self._download_completed = False
 
     def __iter__(self):
-        filesize = 0
+        self._file_size = 0
         running_hashes = RunningHashes(self.hash_type, *self.hash_types)
+        self._running_hashes = running_hashes
         running_hashes.start()
-        content_size = self.response.headers.get("content-length")
+        self._content_size = self.response.headers.get("content-length")
 
         yield _headers_from_response(self.response)
 
         data_iter = self.response.iter_raw(10240)
+        self._data_iter = data_iter
         while 1:
             data = next(data_iter, None)
             if data is None:
                 break
-            filesize += len(data)
+            self._file_size += len(data)
             for rh in running_hashes._running_hashes:
                 rh.update(data)
             self.f.write(data)
             yield data
 
-        self.hashes = running_hashes.digests
+        self.save_file_and_gen_hash()
 
-        if content_size and int(content_size) != filesize:
+    def save_file_and_gen_hash(self):
+        if self._download_completed:
+            return
+
+        running_hashes = self._running_hashes
+        data_iter = self._data_iter
+        while 1 and (data_iter is not None):
+            data = next(data_iter, None)
+            if data is None:
+                break
+            self._file_size += len(data)
+            for rh in running_hashes._running_hashes:
+                rh.update(data)
+            self.f.write(data)
+
+        self.hashes = running_hashes.digests
+        content_size = self._content_size
+        self._download_completed = True
+
+        if content_size and int(content_size) != self._file_size:
             raise ValueError(
                 "%s: got %s bytes of %r from remote, expected %s" % (
-                    self.relpath, filesize, self.response.url, content_size))
+                    self.relpath, self._file_size, self.response.url, content_size))
         if self._hashes:
             err = self.hashes.exception_for(self._hashes, self.relpath)
             if err is not None:
@@ -1867,8 +1899,7 @@ def iter_cache_remote_file(stage, entry, url):
             raise
         except GeneratorExit:
             threadlog.error("client disconnected, still continue update cache")
-            for _ in file_streamer:
-                pass
+            file_streamer.save_file_and_gen_hash()
 
         if not entry.has_existing_metadata():
             with xom.keyfs.write_transaction(allow_restart=True):

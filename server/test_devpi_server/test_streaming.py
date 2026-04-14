@@ -1,8 +1,17 @@
+from __future__ import annotations
+
+from time import sleep
 import base64
 import contextlib
 import httpx
 import pytest
 import sys
+import typing
+
+
+if typing.TYPE_CHECKING:
+    from testing.simpypi import SimPyPI
+    import pathlib
 
 
 pytestmark = [
@@ -58,17 +67,9 @@ class TestStreaming(object):
     @pytest.mark.slow
     @pytest.mark.parametrize("length,pkg_version,pkg_name", [
         (None, '1.0', 'pkg1'), (False, '1.1', 'pkg2')])
-    def test_streaming_download(
-        self,
-        content_digest,
-        files_path,
-        length,
-        pkg_version,
-        pkg_name,
-        server_url_session,
-        simpypi,
-    ):
-        from time import sleep
+    def test_streaming_download(self, content_digest, files_path, length, pkg_version, pkg_name, server_url_session, simpypi, storage_info):
+        if "storage_with_filesystem" not in storage_info.get('_test_markers', []):
+            pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
         (content, digest) = content_digest
         (url, s) = server_url_session
         pkgzip = f"{pkg_name}-{pkg_version}.zip"
@@ -139,3 +140,55 @@ class TestStreaming(object):
         pkg_file = files_path.joinpath(
             'root', 'pypi', '+f', digest[:3], digest[3:16], pkgzip)
         assert not pkg_file.exists()
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize(
+        "length,pkg_version,pkg_name,disconnect_at_length", [(None, "1.0", "pkg1", 10), (False, "1.1", "pkg2", -1025)]
+    )
+    def test_disconnect_while_streaming(
+        self,
+        content_digest: tuple[bytes, bytes],
+        files_path: pathlib.Path,
+        length: bool | None,  # noqa: FBT001
+        pkg_version: str,
+        pkg_name: str,
+        server_url_session: tuple[str, httpx.Client],
+        simpypi: SimPyPI,
+        storage_info: dict,
+        disconnect_at_length: int
+    ):
+        from time import sleep
+
+        if "storage_with_filesystem" not in storage_info.get("_test_markers", []):
+            pytest.skip("The storage doesn't have marker 'storage_with_filesystem'.")
+        (content, digest) = content_digest
+        (url, s) = server_url_session
+        pkgzip = f"{pkg_name}-{pkg_version}.zip"
+        simpypi.add_release(pkg_name, pkgver="%s#sha256=%s" % (pkgzip, digest))
+        simpypi.add_file(f"/{pkg_name}/{pkgzip}", content, stream=True, length=length)
+        with contextlib.closing(s.get(url + f"root/mirror/{pkg_name}")) as r:
+            r = r.json()
+        assert pkg_version in r["result"], r
+        href = r["result"][pkg_version]["+links"][0]["href"]
+        data = b''
+        receive_bytes_len = 0
+        disconnect_len = disconnect_at_length if disconnect_at_length > 0 else len(content) + disconnect_at_length
+        with httpx.stream("get", href) as r:
+            stream = r.iter_bytes(1024)
+            while True:
+                streaming_data = next(stream)
+                data += streaming_data
+                if len(data) >= disconnect_len:
+                    break
+
+        assert data != content
+
+        pkg_file = files_path.joinpath(
+            "root", "mirror", "+f", digest[:3], digest[3:16], pkgzip
+        )
+        # this is sometimes delayed a bit, so we check for a while
+        for i in range(50):
+            if pkg_file.exists():
+                break
+            sleep(0.1)
+        assert pkg_file.exists()
