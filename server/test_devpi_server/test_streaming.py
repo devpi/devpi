@@ -192,3 +192,4 @@ class TestStreaming(object):
                 break
             sleep(0.1)
         assert pkg_file.exists()
+        assert pkg_file.read_bytes() == content
