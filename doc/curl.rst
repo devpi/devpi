@@ -56,12 +56,73 @@ Looking at list of projects in ``alice/dev`` index::
      $ curl -H "Accept: application/json" -s \
            -X GET http://localhost:3141/alice/dev/
      {
-       "status": 200, 
-       "type": "list:projectconfig", 
+       "status": 200,
+       "type": "list:projectconfig",
        "result": [
          "example"
        ]
      }
+
+The project list supports several optional query parameters:
+
+``?q=<substring>``
+    Filter project names by substring match::
+
+        $ curl -H "Accept: application/json" -s \
+              http://localhost:3141/root/pypi?q=flask
+        {
+          "result": {"projects": ["flask", "flask-login", "flask-wtf"]}
+        }
+
+``?total=1``
+    Include the total count of (filtered) projects in the response::
+
+        $ curl -H "Accept: application/json" -s \
+              "http://localhost:3141/root/pypi?q=flask&total=1"
+        {
+          "result": {"projects": ["flask", "flask-login"], "total": 2}
+        }
+
+``?cached=1``
+    Include a ``cached`` list — projects that have locally cached metadata
+    (mirror indexes only)::
+
+        $ curl -H "Accept: application/json" -s \
+              http://localhost:3141/root/pypi?cached=1
+        {
+          "result": {
+            "projects": ["flask", "django", "requests"],
+            "cached": ["flask"]
+          }
+        }
+
+``?limit=<n>&offset=<n>``
+    Paginate the project list. When ``limit`` is present, ``offset`` and
+    ``limit`` are included in the response. ``offset`` defaults to 0::
+
+        $ curl -H "Accept: application/json" -s \
+              "http://localhost:3141/root/pypi?limit=2&offset=0"
+        {
+          "result": {
+            "projects": ["aiohttp", "attrs"],
+            "limit": 2,
+            "offset": 0
+          }
+        }
+
+All parameters can be combined freely::
+
+    $ curl -H "Accept: application/json" -s \
+          "http://localhost:3141/root/pypi?q=flask&cached=1&total=1&limit=10&offset=0"
+    {
+      "result": {
+        "projects": ["flask", "flask-login", "flask-wtf"],
+        "cached": ["flask"],
+        "total": 3,
+        "limit": 10,
+        "offset": 0
+      }
+    }
 
 Registering release files and docs (Unimplemented)
 -----------------------------------------------------------------

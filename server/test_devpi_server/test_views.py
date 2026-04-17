@@ -766,6 +766,124 @@ def test_indexroot_root_pypi(testapp, xom):
     assert "projects" not in r.json["result"]
 
 
+def test_index_get_q_filter(pypistage, testapp):
+    pypistage.mock_simple_projects(["flask", "flask-login", "django", "requests"])
+    r = testapp.get_json("/root/pypi?q=flask")
+    assert r.status_code == 200
+    assert r.json["result"]["projects"] == ["flask", "flask-login"]
+
+
+def test_index_get_q_filter_no_match(pypistage, testapp):
+    pypistage.mock_simple_projects(["flask", "django"])
+    r = testapp.get_json("/root/pypi?q=nonexistent")
+    assert r.status_code == 200
+    assert r.json["result"]["projects"] == []
+
+
+def test_index_get_total(pypistage, testapp):
+    pypistage.mock_simple_projects(["flask", "django", "requests"])
+    r = testapp.get_json("/root/pypi?total=1")
+    assert r.status_code == 200
+    assert r.json["result"]["total"] == 3
+    assert "total" not in testapp.get_json("/root/pypi").json["result"]
+
+
+def test_index_get_total_with_q(pypistage, testapp):
+    pypistage.mock_simple_projects(["flask", "flask-login", "django"])
+    r = testapp.get_json("/root/pypi?q=flask&total=1")
+    assert r.status_code == 200
+    assert r.json["result"]["total"] == 2
+    assert r.json["result"]["projects"] == ["flask", "flask-login"]
+
+
+def test_index_get_pagination(pypistage, testapp):
+    pypistage.mock_simple_projects(["aaa", "bbb", "ccc", "ddd", "eee"])
+    r = testapp.get_json("/root/pypi?limit=2&offset=0")
+    assert r.status_code == 200
+    result = r.json["result"]
+    assert result["projects"] == ["aaa", "bbb"]
+    assert result["limit"] == 2
+    assert result["offset"] == 0
+
+
+def test_index_get_pagination_second_page(pypistage, testapp):
+    pypistage.mock_simple_projects(["aaa", "bbb", "ccc", "ddd", "eee"])
+    r = testapp.get_json("/root/pypi?limit=2&offset=2")
+    assert r.status_code == 200
+    assert r.json["result"]["projects"] == ["ccc", "ddd"]
+
+
+def test_index_get_pagination_last_page(pypistage, testapp):
+    pypistage.mock_simple_projects(["aaa", "bbb", "ccc", "ddd", "eee"])
+    r = testapp.get_json("/root/pypi?limit=2&offset=4")
+    assert r.status_code == 200
+    assert r.json["result"]["projects"] == ["eee"]
+
+
+def test_index_get_pagination_invalid(pypistage, testapp):
+    r = testapp.get_json("/root/pypi?limit=abc", expect_errors=True)
+    assert r.status_code == 400
+
+
+def test_index_get_limit_without_offset(pypistage, testapp):
+    pypistage.mock_simple_projects(["aaa", "bbb", "ccc"])
+    r = testapp.get_json("/root/pypi?limit=2")
+    assert r.status_code == 200
+    result = r.json["result"]
+    assert result["projects"] == ["aaa", "bbb"]
+    assert result["offset"] == 0
+
+
+def test_index_get_cached(pypistage, testapp):
+    pypistage.mock_simple_projects(["flask", "django", "requests"])
+    # access flask to populate simplelinks cache
+    pypistage.mock_simple("flask", text='<a href="/flask-1.0.tar.gz"/>')
+    testapp.get("/root/pypi/+simple/flask/")
+    r = testapp.get_json("/root/pypi?cached=1")
+    assert r.status_code == 200
+    result = r.json["result"]
+    assert "cached" in result
+    assert "flask" in result["cached"]
+    assert "django" not in result["cached"]
+    assert "requests" not in result["cached"]
+
+
+def test_index_get_cached_with_q(pypistage, testapp):
+    pypistage.mock_simple_projects(["flask", "flask-login", "django"])
+    pypistage.mock_simple("flask", text='<a href="/flask-1.0.tar.gz"/>')
+    pypistage.mock_simple("flask-login", text='<a href="/flask-login-1.0.tar.gz"/>')
+    testapp.get("/root/pypi/+simple/flask/")
+    testapp.get("/root/pypi/+simple/flask-login/")
+    r = testapp.get_json("/root/pypi?q=flask&cached=1")
+    assert r.status_code == 200
+    result = r.json["result"]
+    assert result["projects"] == ["flask", "flask-login"]
+    assert set(result["cached"]) == {"flask", "flask-login"}
+
+
+def test_index_get_cached_not_on_non_mirror(testapp, model, xom):
+    with xom.keyfs.write_transaction():
+        user = model.create_user("user", "123")
+        user.create_stage("index")
+    r = testapp.get_json("/user/index?cached=1")
+    assert r.status_code == 200
+    assert "cached" not in r.json["result"]
+
+
+def test_index_get_combined(pypistage, testapp):
+    pypistage.mock_simple_projects(["aaa", "bbb", "ccc", "ddd", "eee"])
+    pypistage.mock_simple("bbb", text='<a href="/bbb-1.0.tar.gz"/>')
+    testapp.get("/root/pypi/+simple/bbb/")
+    r = testapp.get_json("/root/pypi?total=1&cached=1&limit=3&offset=0")
+    assert r.status_code == 200
+    result = r.json["result"]
+    assert result["total"] == 5
+    assert result["projects"] == ["aaa", "bbb", "ccc"]
+    assert result["cached"] == ["bbb"]
+    assert result["limit"] == 3
+    assert result["offset"] == 0
+
+
 @pytest.mark.parametrize("url", [
     '/root/pypi/{name}',
     '/root/pypi/{name}/2.6',

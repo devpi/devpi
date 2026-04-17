@@ -769,6 +769,12 @@ class MirrorStage(BaseStage):
         """ return True if we have some cached simpelinks information. """
         return self.key_projsimplelinks(project).exists()
 
+    def get_cached_projects(self) -> frozenset[str]:
+        """Return normalized names of projects that have cached simplelinks."""
+        return frozenset(
+            project for project in self._stale_list_projects_perstage()
+            if self.key_projsimplelinks(project).exists())
+
     def _save_cache_links(
         self,
         project: NormalizedName | str,

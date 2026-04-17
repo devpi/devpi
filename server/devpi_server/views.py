@@ -1657,7 +1657,36 @@ class PyPIView:
         # double negation :(
         add_projects = 'no_projects' not in self.request.GET
         if add_projects:
-            result['projects'] = sorted(stage.list_projects_perstage())
+            GET = self.request.GET
+            projects = sorted(stage.list_projects_perstage())
+
+            q = GET.get('q', '').strip()
+            if q:
+                projects = [p for p in projects if q in p]
+
+            if 'total' in GET:
+                result['total'] = len(projects)
+
+            if 'cached' in GET and hasattr(stage, 'get_cached_projects'):
+                cached = stage.get_cached_projects()
+                result['cached'] = sorted(p for p in projects if p in cached)
+
+            limit = offset = None
+            try:
+                if 'limit' in GET:
+                    limit = int(GET['limit'])
+                if 'offset' in GET:
+                    offset = int(GET['offset'])
+            except ValueError:
+                abort(self.request, 400, "limit and offset must be integers")
+
+            if limit is not None:
+                offset = offset or 0
+                result['offset'] = offset
+                result['limit'] = limit
+                projects = projects[offset:offset + limit]
+
+            result['projects'] = projects
         apireturn(200, type="indexconfig", result=result)
 
     @view_config(route_name="/{user}/{index}", accept="application/vnd.pypi.simple.v1+json", request_method="GET")
