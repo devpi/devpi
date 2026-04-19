@@ -330,7 +330,8 @@ class PrimaryChangelogRequest:
         start_serial = int(self.request.matchdict["serial"])
 
         keyfs = self.xom.keyfs
-        self._wait_for_serial(start_serial)
+        with self.update_replica_status(start_serial):
+            self._wait_for_serial(start_serial)
         devpi_serial = keyfs.tx.conn.last_changelog_serial
         threadlog.info("Streaming from %s to %s", start_serial, devpi_serial)
 
