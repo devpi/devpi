@@ -66,6 +66,9 @@ order-by-type = false
     "T201", # ignore - print found
     "UP036", # maybe cleanup later - version check obsolete for target version
 ]
+"debugging/tests/conftest.py" = [
+    "INP001", # ignore - implicit namespace package
+]
 "server/devpi_server/hookspecs.py" = [
     "ARG001", # unused function argument on hookspecs https://github.com/astral-sh/ruff/issues/9803
 ]

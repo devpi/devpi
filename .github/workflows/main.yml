@@ -348,6 +348,54 @@ jobs:
           python -m tox -a -vv
           PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
 
+  debugging-tests:
+    if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
+    name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
+    needs: "web-tests"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: "debugging"
+            python-version: "3.11"
+            os: "ubuntu-latest"
+            tox-envs: "py311"
+          - project: "debugging"
+            python-version: "3.14"
+            os: "ubuntu-latest"
+            tox-envs: "py314"
+
+    env:
+      PY_COLORS: 1
+      PROJECT: "${{ matrix.project }}"
+
+    permissions:
+      contents: read
+      actions: read
+
+    runs-on: "${{ matrix.os }}"
+
+    steps:
+      - uses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405" # v6.2.0
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
+        run: |
+          set -xe -o nounset
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel tox
+      - name: "Run tox targets for ${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }} on ${{ matrix.os }}"
+        run: |
+          set -xe -o nounset
+          source .ci/set-index-env.sh
+          cd $PROJECT
+          python -m tox -a -vv
+          PIP_PRE=1 python -m tox -v -e ${{ matrix.tox-envs }} -- -v --color=yes
+
   nightly-tests:
     if: ${{ true && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'actions')) }}
     name: "${{ matrix.project }} (${{ matrix.tox-envs }}) with ${{ matrix.python-version }}"
