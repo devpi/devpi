@@ -11,6 +11,8 @@ import json
 
 
 if TYPE_CHECKING:
+    from devpi_server.main import XOM
+    from pyramid.request import Request
     from typing import Any
 
 
@@ -34,8 +36,8 @@ def _(val: object) -> str:
     route_name="keyfs",
     request_method="GET",
     renderer="templates/keyfs.pt")
-def keyfs_view(request):
-    xom = request.registry['xom']
+def keyfs_view(request: Request) -> dict:
+    xom: XOM = request.registry["xom"]
     if not xom.config.args.debug_keyfs:
         raise HTTPForbidden("+keyfs views disabled")
     storage = xom.keyfs._storage
@@ -85,8 +87,8 @@ def diff(prev, current):
     route_name="keyfs_changelog",
     request_method="GET",
     renderer="templates/keyfs_changelog.pt")
-def keyfs_changelog_view(request):
-    xom = request.registry['xom']
+def keyfs_changelog_view(request: Request) -> dict:
+    xom: XOM = request.registry["xom"]
     if not xom.config.args.debug_keyfs:
         raise HTTPForbidden("+keyfs views disabled")
     html_key_types_map = {
