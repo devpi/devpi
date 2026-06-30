@@ -1631,11 +1631,18 @@ class PyPIView:
             return apireturn(502, e.args[0])
 
         if is_metadata:
-            metadata_filename = (
-                f"{entry.project.replace('-', '_')}-{entry.version}.dist-info/METADATA"
-            )
             with entry.file_open_read() as f, ZipFile(f) as zf:
-                wheel_metadata_contents = zf.read(metadata_filename)
+                # find the single .dist-info/METADATA in the wheel,
+                # as the dirname may not match the normalized project name
+                # (e.g. jaraco.classes keeps the dot)
+                candidates = [
+                    n for n in zf.namelist()
+                    if n.endswith(".dist-info/METADATA")
+                    and n.count("/") == 1
+                ]
+                if not candidates:
+                    abort(request, 404, "no METADATA in wheel")
+                wheel_metadata_contents = zf.read(candidates[0])
             return Response(
                 body=wheel_metadata_contents,
                 content_type="application/octet-stream",
