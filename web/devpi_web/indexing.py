@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from devpi_common.metadata import get_sorted_versions
 from devpi_common.types import ensure_unicode
 from devpi_common.validation import normalize_name
+from devpi_server.log import threadlog as log
 from devpi_web.config import get_pluginmanager
 from devpi_web.doczip import Docs
 from typing import TYPE_CHECKING
@@ -33,7 +34,7 @@ def preprocess_project(project: ProjectIndexingInfo) -> dict | None:
     user = ensure_unicode(user)
     index = ensure_unicode(index)
     result: dict[str, object]
-    if stage.ixconfig["type"] in {"mirror", "remote"}:
+    if project.is_from_mirror:
         stage.offline = True
         if not stage.is_project_cached(name):
             # only index basic info for projects with no downloads
@@ -53,6 +54,8 @@ def preprocess_project(project: ProjectIndexingInfo) -> dict | None:
         if i == 0:
             verdata = stage.get_versiondata_perstage(project.name, version)
             result.update(verdata)
+        if project.is_from_mirror:
+            break
         links = stage.get_linkstore_perstage(name, version).get_links(rel="doczip")
         if links:
             docs = Docs(stage, project.name, version)
@@ -108,10 +111,19 @@ def iter_projects(xom, *, offline=True):
         stage = xom.model.getstage(username, index)
         if stage is None:  # this is async, so the stage may be gone
             continue
-        names = stage.list_projects_perstage()
+        index_type = stage.ixconfig["type"]
         # only go offline after we got the projects list
-        if stage.ixconfig["type"] in {"mirror", "remote"}:
+        if index_type in {"mirror", "remote"}:
             stage.offline = offline
+        if index_type == "remote" and not stage.ixconfig.get(
+            "remote_include_in_search", False
+        ):
+            log.info(
+                "skipping '%s' remote because 'remote_include_in_search' is False",
+                stage.name,
+            )
+            return
+        names = stage.list_projects_perstage()
         if isinstance(names, Mapping):
             # since devpi-server 6.6.0 mirrors return a mapping where
             # the un-normalized names are in the values

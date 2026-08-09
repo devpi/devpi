@@ -57,12 +57,15 @@ def test_devpi_mirror_initialnames_original_name(caplog, pypistage):
         assert data1['name'] == project
 
 
-def test_devpi_stage_created(monkeypatch, pypistage, mock):
+def test_devpi_stage_created(monkeypatch, pypistage, remote_index_info, mock):
     from devpi_web.main import devpiserver_stage_created
     list_projects_perstage = mock.MagicMock()
     list_projects_perstage.return_value = []
     monkeypatch.setattr(
         pypistage.__class__, "list_projects_perstage", list_projects_perstage)
+    if remote_index_info.remote_search_option:
+        with pypistage.keyfs.write_transaction():
+            pypistage.modify(**{remote_index_info.remote_search_option: True})
     with pypistage.keyfs.read_transaction():
         devpiserver_stage_created(pypistage)
     assert list_projects_perstage.called

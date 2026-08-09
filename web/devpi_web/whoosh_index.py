@@ -280,7 +280,7 @@ class IndexingSharedData(object):
             self.last_added = time.time()
 
     def queue_projects(self, projects, at_serial, searcher):
-        log.debug("Queuing projects for index update")
+        log.info("Queuing projects for index update")
         queued_counter = itertools.count()
         queued = next(queued_counter)
         last_time = time.time()
@@ -289,7 +289,7 @@ class IndexingSharedData(object):
         for processed, project in enumerate(projects, start=1):
             if time.time() - last_time > 5:
                 last_time = time.time()
-                log.debug(
+                log.info(
                     "Processed a total of %s/%s projects and queued %s so far. "
                     "Currently in %s",
                     processed,

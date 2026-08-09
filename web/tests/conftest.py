@@ -1,3 +1,4 @@
+from devpi_common.metadata import parse_version
 from textwrap import dedent
 import pytest
 
@@ -58,3 +59,40 @@ def bs_text():
         return ' '.join(''.join(x.text for x in resultset).split())
 
     return bs_text
+
+
+@pytest.fixture
+def pypistage(pypistage, remote_index_info):
+    if remote_index_info.remote_search_option:
+        if isinstance(pypistage.ixconfig, dict):
+            pypistage.ixconfig[remote_index_info.remote_search_option] = True
+        else:
+            pypistage.ixconfig._data[remote_index_info.remote_search_option] = True
+    return pypistage
+
+
+@pytest.fixture
+def remote_index_info(server_version):
+    if server_version < parse_version("7.0.0.dev2"):
+
+        class MirrorInfo:
+            merge_all_option = "mirror_whitelist"
+            merge_all_value = "*"
+            refresh_option = "mirror_cache_expiry"
+            remote_search_option = None
+            type = "mirror"
+            url_fmt_option = "mirror_web_url_fmt"
+            url_option = "mirror_url"
+
+        return MirrorInfo()
+
+    class RemoteInfo:
+        merge_all_option = "project_inheritance_rules"
+        merge_all_value = ("allow all",)
+        refresh_option = "remote_refresh_delay"
+        remote_search_option = "remote_include_in_search"
+        type = "remote"
+        url_fmt_option = "remote_web_url_fmt"
+        url_option = "remote_url"
+
+    return RemoteInfo()

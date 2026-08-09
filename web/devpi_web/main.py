@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from chameleon.config import AUTO_RELOAD
 from chameleon.config import DEBUG_MODE
 from collections.abc import Mapping
@@ -12,8 +14,16 @@ from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
 from pluggy import HookimplMarker
 from pyramid_chameleon.renderer import ChameleonRendererLookup
+from typing import TYPE_CHECKING
 import os
 import sys
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from devpi_server.model.config import (  # type: ignore[import-not-found, unused-ignore]
+        ConfigField,
+    )
 
 
 hookimpl = HookimplMarker("devpiweb")
@@ -273,6 +283,20 @@ def devpiserver_add_parser_options(parser):
 
 
 @devpiserver_hookimpl(optionalhook=True)
+def devpiserver_indexconfig_fields(index_type: str) -> Sequence[ConfigField]:
+    if index_type == "remote":
+        from devpi_server.model.config import ConfigField
+        from devpi_server.model.config import ensure_boolean
+
+        return [
+            ConfigField(
+                name="remote_include_in_search", normalize=ensure_boolean, type=bool
+            ),
+        ]
+    return []
+
+
+@devpiserver_hookimpl(optionalhook=True)
 def devpiserver_mirror_initialnames(stage, projectnames):
     devpiserver_remote_initialnames(stage, projectnames)
 
@@ -280,6 +304,14 @@ def devpiserver_mirror_initialnames(stage, projectnames):
 @devpiserver_hookimpl(optionalhook=True)
 def devpiserver_remote_initialnames(stage, projectnames):
     ix = get_indexer(stage.xom)
+    if stage.ixconfig["type"] == "remote" and not stage.ixconfig.get(
+        "remote_include_in_search", False
+    ):
+        threadlog.info(
+            "skipping '%s' remote because 'remote_include_in_search' is False",
+            stage.name,
+        )
+        return
     threadlog.info(
         "indexing '%s' mirror with %s projects",
         stage.name,
@@ -304,7 +336,10 @@ def devpiserver_stage_created(stage):
     if stage is None:
         # the stage was deleted
         return
-    if stage.ixconfig["type"] in {"mirror", "remote"}:
+    index_type = stage.ixconfig["type"]
+    if index_type == "mirror" or (
+        index_type == "remote" and stage.ixconfig.get("remote_include_in_search", False)
+    ):
         threadlog.info("triggering load of initial projectnames for %s", stage.name)
         stage.list_projects_perstage()
 

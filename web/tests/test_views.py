@@ -11,25 +11,6 @@ devpi_server_version = parse_version(_devpi_server_version)
 pytestmark = [pytest.mark.notransaction]
 
 
-@pytest.fixture
-def remote_index_info(server_version):
-    if server_version < parse_version("7.0.0.dev2"):
-
-        class MirrorInfo:
-            merge_all_option = "mirror_whitelist"
-            merge_all_value = "*"
-            type = "mirror"
-
-        return MirrorInfo()
-
-    class RemoteInfo:
-        merge_all_option = "project_inheritance_rules"
-        merge_all_value = ("allow all",)
-        type = "remote"
-
-    return RemoteInfo()
-
-
 def compareable_text(text):
     return re.sub(r'\s+', ' ', text.strip())
 

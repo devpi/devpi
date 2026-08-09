@@ -1,0 +1,1 @@
+With devpi-server 7.x remote indexes are only included in search if the new ``remote_include_in_search`` index option is set to ``true``.

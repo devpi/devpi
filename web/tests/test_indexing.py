@@ -8,10 +8,13 @@ import pytest
 pytestmark = [pytest.mark.notransaction]
 
 
-def test_original_project_name(pypistage):
+def test_original_project_name(pypistage, remote_index_info):
     xom = pypistage.xom
     projects = set(["Django", "pytest", "ploy_ansible"])
     result = set()
+    if remote_index_info.remote_search_option:
+        with pypistage.keyfs.write_transaction():
+            pypistage.modify(**{remote_index_info.remote_search_option: True})
     with xom.keyfs.read_transaction():
         pypistage.mock_simple_projects(projects)
         for project in iter_projects(xom, offline=False):
