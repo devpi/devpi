@@ -7,6 +7,7 @@ from devpi.use import get_keyvalues, out_index_list
 import pytest
 import re
 import requests.exceptions
+import sys
 import urllib3.exceptions
 
 
@@ -1024,9 +1025,14 @@ def test_uvconf_default_location(tmpdir, monkeypatch):
 
 
 class TestCfgParsing:
-    @pytest.fixture(scope="class", params=[DistutilsCfg, PipCfg, BuildoutCfg, UvConf])
-    def cfgclass(self, request):
+    def cfgclass(cls, request):
         return request.param
+
+    if sys.version_info >= (3, 10):
+        cfgclass = classmethod(cfgclass)
+    cfgclass = pytest.fixture(
+        cfgclass, scope="class", params=[DistutilsCfg, PipCfg, BuildoutCfg, UvConf]
+    )
 
     def test_empty(self, cfgclass, tmpdir):
         p = tmpdir.join("cfg")

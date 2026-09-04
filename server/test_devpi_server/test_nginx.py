@@ -6,6 +6,7 @@ from urllib.request import build_opener
 import json
 import pytest
 import re
+import sys
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -47,8 +48,7 @@ def test_outside_url_nginx(headers, path, expected, nginx_host_port):
 
 
 class TestWithOutsideURLHeader:
-    @pytest.fixture(scope="class")
-    def adjust_nginx_conf_content(self):
+    def adjust_nginx_conf_content(cls):
         def adjust_nginx_conf_content(content):
             return re.sub(
                 'proxy_set_header X-outside-url.*$',
@@ -56,6 +56,10 @@ class TestWithOutsideURLHeader:
                 content,
                 flags=re.IGNORECASE | re.MULTILINE)
         return adjust_nginx_conf_content
+
+    if sys.version_info >= (3, 10):
+        adjust_nginx_conf_content = classmethod(adjust_nginx_conf_content)  # type: ignore[arg-type, assignment]
+    adjust_nginx_conf_content = pytest.fixture(adjust_nginx_conf_content, scope="class")
 
     @pytest.mark.slow
     def test_outside_url_nginx(self, nginx_host_port):
@@ -69,8 +73,7 @@ class TestWithOutsideURLHeader:
 
 
 class TestWithOutsideURLSubPathHeader:
-    @pytest.fixture(scope="class")
-    def adjust_nginx_conf_content(self):
+    def adjust_nginx_conf_content(cls):
         def adjust_nginx_conf_content(content):
             return re.sub(
                 'proxy_set_header X-outside-url.*$',
@@ -78,6 +81,10 @@ class TestWithOutsideURLSubPathHeader:
                 content,
                 flags=re.IGNORECASE | re.MULTILINE)
         return adjust_nginx_conf_content
+
+    if sys.version_info >= (3, 10):
+        adjust_nginx_conf_content = classmethod(adjust_nginx_conf_content)  # type: ignore[arg-type, assignment]
+    adjust_nginx_conf_content = pytest.fixture(adjust_nginx_conf_content, scope="class")
 
     @pytest.mark.slow
     def test_outside_url_nginx(self, nginx_host_port):

@@ -44,16 +44,21 @@ def uploadhub(request, tmpdir):
 
 @pytest.mark.skipif("config.option.fast")
 class TestCheckout:
-    @pytest.fixture(scope="class", params=[".", "setupdir"])
-    def setupdir_rel(self, request):
+    def setupdir_rel(cls, request):
         return request.param
 
-    @pytest.fixture(scope="class")
-    def setupdir(self, repo, setupdir_rel):
+    if sys.version_info >= (3, 10):
+        setupdir_rel = classmethod(setupdir_rel)
+    setupdir_rel = pytest.fixture(setupdir_rel, scope="class", params=[".", "setupdir"])
+
+    def setupdir(cls, repo, setupdir_rel):
         return repo.join(setupdir_rel)
 
-    @pytest.fixture(scope="class", params=["hg", "git"])
-    def repo(self, request, setupdir_rel, tmpdir_factory):
+    if sys.version_info >= (3, 10):
+        setupdir = classmethod(setupdir)
+    setupdir = pytest.fixture(setupdir, scope="class")
+
+    def repo(cls, request, setupdir_rel, tmpdir_factory):
         repo = tmpdir_factory.mktemp("repo", numbered=True)
         setupdir = repo.ensure_dir(setupdir_rel)
         file = setupdir.join("file")
@@ -93,6 +98,10 @@ class TestCheckout:
                                                       unicode_fn))
             runproc("git commit -m message")
         return repo
+
+    if sys.version_info >= (3, 10):
+        repo = classmethod(repo)
+    repo = pytest.fixture(repo, scope="class", params=["hg", "git"])
 
     def test_vcs_export(self, uploadhub, repo, setupdir, tmpdir):
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
