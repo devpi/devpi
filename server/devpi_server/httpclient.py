@@ -88,7 +88,7 @@ class HTTPClient:
     @cached_property
     def _ssl_context(self) -> ssl.SSLContext:
         # create an SSLContext object that uses the same CA certs as requests
-        cafile = (
+        cafile: str | None = (
             os.environ.get("REQUESTS_CA_BUNDLE")
             or os.environ.get("CURL_CA_BUNDLE")
             or DEFAULT_CA_BUNDLE_PATH
