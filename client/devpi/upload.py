@@ -377,8 +377,13 @@ class Checkout:
             srcrepo = self.rootpath / self.hasvcs
             assert srcrepo.exists(), srcrepo
             destrepo = newrepo / self.hasvcs
-            source = self.rootpath / self.hasvcs
-            shutil.copytree(srcrepo, destrepo)
+            # Submodule / worktree checkouts store a gitfile at .git instead of
+            # a directory; copytree only accepts directories.
+            if srcrepo.is_dir() and not srcrepo.is_symlink():
+                shutil.copytree(srcrepo, destrepo)
+            else:
+                destrepo.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(srcrepo, destrepo, follow_symlinks=False)
             self.hub.info("copied repo", srcrepo, "to", destrepo)
         self.hub.debug(
             "%s-exported project to %s -> new CWD" % (self.hasvcs, newrepo))
