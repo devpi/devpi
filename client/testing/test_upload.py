@@ -118,6 +118,37 @@ class TestCheckout:
         assert not readonly.exists()
         assert not uploadbase.exists()
 
+    def test_vcs_export_gitfile(self, uploadhub, tmpdir):
+        """Submodule-style .git files must be copied, not copytree'd (#1092)."""
+        if not shutil.which("git"):
+            pytest.skip("'git' command not found")
+        repo = tmpdir.mkdir("gitfile-repo")
+        setupdir = repo
+        setupdir.join("setup.py").write(
+            "from setuptools import setup; setup(name='gf', version='1.0')\n"
+        )
+        setupdir.join("file").write("hello")
+        with chdir(repo):
+            runproc("git init")
+            runproc("git config user.email 'you@example.com'")
+            runproc("git config user.name 'you'")
+            runproc("git add setup.py file")
+            runproc("git commit -m message")
+        # Convert .git directory into a gitfile pointing at the relocated dir
+        # (same layout git uses for submodules / some worktrees).
+        git_path = Path(repo.join(".git").strpath)
+        relocated = Path(tmpdir.join("relocated-git").strpath)
+        shutil.move(str(git_path), str(relocated))
+        git_path.write_text("gitdir: %s\n" % relocated, encoding="utf-8")
+        checkout = Checkout(uploadhub, uploadhub.args, Path(setupdir.strpath))
+        assert checkout.hasvcs == ".git"
+        newrepo = Path(tmpdir.mkdir("newrepo").strpath)
+        result = checkout.export(newrepo)
+        assert result.rootpath.joinpath("file").exists()
+        exported_git = newrepo / repo.basename / ".git"
+        assert exported_git.is_file()
+        assert "gitdir:" in exported_git.read_text(encoding="utf-8")
+
     def test_vcs_export_setupdironly(self, uploadhub, setupdir, tmpdir, monkeypatch):
         monkeypatch.setattr(uploadhub.args, "setupdironly", True)
         checkout = Checkout(uploadhub, uploadhub.args, setupdir)
