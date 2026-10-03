@@ -1,0 +1,4 @@
+Ignore ``Content-Type`` media-type parameters when detecting PEP 691 simple
+JSON responses from mirrors (for example Azure DevOps ``api-version=...``).
+Also parse project simple pages as JSON when the body starts with ``{``,
+matching the existing project-list fallback from #1112.

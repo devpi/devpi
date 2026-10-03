@@ -96,6 +96,19 @@ SIMPLE_API_ACCEPT = ", ".join((
     "text/html;q=0.01"))
 
 
+def _content_type_is_simple_api_v1_json(content_type: str | None) -> bool:
+    """Return True if media type is simple v1 JSON, ignoring parameters.
+
+    Azure DevOps and similar feeds append parameters such as
+    ``; api-version=7.2-preview.1``. Exact equality against
+    ``SIMPLE_API_V1_JSON`` would miss those and fall back to HTML parsing.
+    """
+    if not content_type:
+        return False
+    media_type = content_type.split(";", 1)[0].strip()
+    return media_type == SIMPLE_API_V1_JSON
+
+
 class Link(URL):
     def __init__(self, url="", *args, **kwargs):
         self.requires_python = kwargs.pop('requires_python', None)
@@ -667,8 +680,11 @@ class MirrorStage(BaseStage):
         assert text is not None
         parser: ProjectHTMLParser | ProjectJSONv1Parser
         if (
-            response.headers.get("content-type") == SIMPLE_API_V1_JSON
-        ) or text.startswith("{"):
+            _content_type_is_simple_api_v1_json(
+                response.headers.get("content-type")
+            )
+            or text.startswith("{")
+        ):
             parser = ProjectJSONv1Parser(response.url)
             parser.feed(json.loads(text))
         else:
@@ -919,7 +935,12 @@ class MirrorStage(BaseStage):
         # make sure we don't store credential in the database
         response_url = URL(str(response.url)).replace(username=None, password=None)
         # parse simple index's link
-        if response.headers.get('content-type') == SIMPLE_API_V1_JSON:
+        if (
+            _content_type_is_simple_api_v1_json(
+                response.headers.get("content-type")
+            )
+            or text.startswith("{")
+        ):
             releaselinks = parse_index_v1_json(response_url, text)
         else:
             releaselinks = parse_index(response_url, text).releaselinks

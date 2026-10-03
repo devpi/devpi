@@ -294,6 +294,48 @@ class TestExtPYPIDB:
         assert link.yanked is None
         assert link.require_python is None
 
+    def test_parse_pep691_content_type_with_parameter(self, pypistage):
+        """Azure DevOps appends ; api-version=... to Content-Type (#1130)."""
+        pypistage.mock_simple_projects(["devpi"])
+        pypistage.xom.http.mockresponse(
+            URL(pypistage.mirror_url).joinpath("devpi").asdir().url,
+            code=200,
+            content_type=(
+                "application/vnd.pypi.simple.v1+json; api-version=7.2-preview.1"
+            ),
+            text="""{
+                "meta": {"api-version": "1.0"},
+                "name": "devpi",
+                "files": [
+                    {
+                        "filename":"devpi-0.9.tar.gz",
+                        "hashes":{
+                            "sha256":"b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e"},
+                        "requires-python":null,
+                        "url":"https://files.pythonhosted.org/packages/40/b6/45e98504eba446c8e97ce946760893072cdf3bf6cdd18c296394a55621f9/devpi-0.9.tar.gz",
+                        "yanked":false}]}""",
+        )
+        (link,) = pypistage.get_releaselinks("devpi")
+        assert (
+            link.best_available_hash_spec
+            == "sha256=b89846ad42cfee0e44934ef77f28ad44e90b7e744041ace91047dd4c7892cc5e"
+        )
+
+    def test_content_type_is_simple_api_v1_json_ignores_parameters(self):
+        from devpi_server.mirror import _content_type_is_simple_api_v1_json
+        from devpi_server.views import SIMPLE_API_V1_JSON
+
+        assert _content_type_is_simple_api_v1_json(SIMPLE_API_V1_JSON)
+        assert _content_type_is_simple_api_v1_json(
+            "application/vnd.pypi.simple.v1+json; api-version=7.2-preview.1"
+        )
+        assert _content_type_is_simple_api_v1_json(
+            "application/vnd.pypi.simple.v1+json;charset=utf-8"
+        )
+        assert not _content_type_is_simple_api_v1_json("text/html")
+        assert not _content_type_is_simple_api_v1_json(None)
+        assert not _content_type_is_simple_api_v1_json("")
+
     def test_parse_pep691_data(self, pypistage):
         pypistage.mock_simple_projects(["devpi"])
         pypistage.xom.http.mockresponse(
@@ -897,7 +939,11 @@ class TestMirrorStageprojects:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "content_type",
-        ["application/vnd.pypi.simple.v1+json", "application/octet-stream"],
+        [
+            "application/vnd.pypi.simple.v1+json",
+            "application/vnd.pypi.simple.v1+json; api-version=7.2-preview.1",
+            "application/octet-stream",
+        ],
     )
     async def test_get_remote_projects_pep691_json(self, content_type, pypistage):
         pypistage.xom.http.mockresponse(
