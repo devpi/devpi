@@ -268,12 +268,20 @@ def test_get_updated(pypistage):
 
 
 class TestExtPYPIDB:
-    def test_parse_pep691(self, pypistage):
+    @pytest.mark.parametrize(
+        "content_type",
+        [
+            "application/vnd.pypi.simple.v1+json; api-version=7.2-preview.1",
+            "application/vnd.pypi.simple.v1+json",
+            "application/octet-stream",
+        ],
+    )
+    def test_parse_pep691(self, content_type, pypistage):
         pypistage.mock_simple_projects(["devpi"])
         pypistage.xom.http.mockresponse(
             URL(pypistage.mirror_url).joinpath("devpi").asdir().url,
             code=200,
-            content_type="application/vnd.pypi.simple.v1+json",
+            content_type=content_type,
             text="""{
                 "meta": {"api-version": "1.0"},
                 "name": "devpi",
@@ -294,12 +302,20 @@ class TestExtPYPIDB:
         assert link.yanked is None
         assert link.require_python is None
 
-    def test_parse_pep691_data(self, pypistage):
+    @pytest.mark.parametrize(
+        "content_type",
+        [
+            "application/vnd.pypi.simple.v1+json; api-version=7.2-preview.1",
+            "application/vnd.pypi.simple.v1+json",
+            "application/octet-stream",
+        ],
+    )
+    def test_parse_pep691_data(self, content_type, pypistage):
         pypistage.mock_simple_projects(["devpi"])
         pypistage.xom.http.mockresponse(
             URL(pypistage.mirror_url).joinpath("devpi").asdir().url,
             code=200,
-            content_type="application/vnd.pypi.simple.v1+json",
+            content_type=content_type,
             text="""{
                 "meta": {"api-version": "1.0"},
                 "name": "devpi",
@@ -321,12 +337,20 @@ class TestExtPYPIDB:
         assert link.yanked == "brownbag"
         assert link.require_python == ">=3.6"
 
-    def test_parse_pep691_md5(self, pypistage):
+    @pytest.mark.parametrize(
+        "content_type",
+        [
+            "application/vnd.pypi.simple.v1+json; api-version=7.2-preview.1",
+            "application/vnd.pypi.simple.v1+json",
+            "application/octet-stream",
+        ],
+    )
+    def test_parse_pep691_md5(self, content_type, pypistage):
         pypistage.mock_simple_projects(["devpi"])
         pypistage.xom.http.mockresponse(
             URL(pypistage.mirror_url).joinpath("devpi").asdir().url,
             code=200,
-            content_type="application/vnd.pypi.simple.v1+json",
+            content_type=content_type,
             text="""{
                 "meta": {"api-version": "1.0"},
                 "name": "devpi",
@@ -897,7 +921,11 @@ class TestMirrorStageprojects:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "content_type",
-        ["application/vnd.pypi.simple.v1+json", "application/octet-stream"],
+        [
+            "application/vnd.pypi.simple.v1+json; api-version=7.2-preview.1",
+            "application/vnd.pypi.simple.v1+json",
+            "application/octet-stream",
+        ],
     )
     async def test_get_remote_projects_pep691_json(self, content_type, pypistage):
         pypistage.xom.http.mockresponse(

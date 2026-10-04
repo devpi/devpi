@@ -29,6 +29,7 @@ from devpi_common.metadata import is_archive_of_project
 from devpi_common.metadata import parse_version
 from devpi_common.types import cached_property
 from devpi_common.url import URL
+from email.message import Message
 from functools import partial
 from html.parser import HTMLParser
 from pyramid.authentication import b64encode
@@ -47,6 +48,7 @@ import weakref
 if TYPE_CHECKING:
     from .filestore import FileEntry
     from .httpclient import AsyncGetResponse
+    from .httpclient import GetResponse
     from .httpclient import HTTPClient
     from .keyfs_types import PTypedKey
     from .main import XOM
@@ -94,6 +96,13 @@ SIMPLE_API_ACCEPT = ", ".join((
     "application/vnd.pypi.simple.v1+html;q=0.2",
     SIMPLE_API_V1_JSON,
     "text/html;q=0.01"))
+
+
+def is_json_v1_api(response: GetResponse, text: str) -> bool:
+    m = Message()
+    m["content-type"] = response.headers.get("content-type", "application/octet-stream")
+    content_type = m.get_content_type()
+    return content_type == SIMPLE_API_V1_JSON or text.startswith("{")
 
 
 class Link(URL):
@@ -666,9 +675,7 @@ class MirrorStage(BaseStage):
             )
         assert text is not None
         parser: ProjectHTMLParser | ProjectJSONv1Parser
-        if (
-            response.headers.get("content-type") == SIMPLE_API_V1_JSON
-        ) or text.startswith("{"):
+        if is_json_v1_api(response, text):
             parser = ProjectJSONv1Parser(response.url)
             parser.feed(json.loads(text))
         else:
@@ -919,7 +926,7 @@ class MirrorStage(BaseStage):
         # make sure we don't store credential in the database
         response_url = URL(str(response.url)).replace(username=None, password=None)
         # parse simple index's link
-        if response.headers.get('content-type') == SIMPLE_API_V1_JSON:
+        if is_json_v1_api(response, text):
             releaselinks = parse_index_v1_json(response_url, text)
         else:
             releaselinks = parse_index(response_url, text).releaselinks

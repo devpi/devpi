@@ -1,0 +1,1 @@
+Fix #1130: correctly compare content type header to ignore added parameters for API v1 JSON responses.
