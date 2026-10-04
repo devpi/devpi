@@ -272,7 +272,8 @@ class TestImportExport:
                     *options,
                     self.exportdir]
                 pm = get_pluginmanager()
-                pm.register(plugin)
+                if plugin is not None:
+                    pm.register(plugin)
                 assert import_(pluginmanager=pm, argv=argv) == 0
                 mapp2 = makemapp(options=["--serverdir", serverdir])
                 if plugin is not None:
