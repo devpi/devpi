@@ -184,6 +184,7 @@ extend-ignore = [
     "FIX003", # cleanup later - xxx
     "FLY002", # maybe cleanup later - f-string instead of join
     "FURB110", # maybe cleanup later - or instead of ternary
+    "ICN001", # datetime as dt
     "PERF401", # maybe cleanup later - list comprehension
     "PLR0911", # cleanup later
     "PLR0912", # maybe cleanup later

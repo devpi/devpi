@@ -13,9 +13,7 @@ import time
 
 
 try:
-    from .functional import (  # type: ignore[attr-defined]  # noqa: F401
-        TestRemoteIndexThings,
-    )
+    from .functional import TestRemoteIndexThings  # type: ignore[attr-defined]  # noqa: F401
 except ImportError:
     from .functional import TestMirrorIndexThings  # noqa: F401
 

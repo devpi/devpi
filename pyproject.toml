@@ -18,7 +18,7 @@ docs = [
 lint = [
     "flake8",
     "lint-roller>=0.2.0",
-    "ruff",
+    "ruff>=0.17",
     "zizmor",
 ]
 mypy = [

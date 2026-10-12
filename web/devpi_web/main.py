@@ -21,9 +21,7 @@ import sys
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from devpi_server.model.config import (  # type: ignore[import-not-found, unused-ignore]
-        ConfigField,
-    )
+    from devpi_server.model.config import ConfigField  # type: ignore[import-not-found, unused-ignore]
 
 
 hookimpl = HookimplMarker("devpiweb")
