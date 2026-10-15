@@ -1,10 +1,10 @@
+from .compat import devpithread
 from collections import defaultdict
 from devpi_common.validation import normalize_name
 from devpi_server.log import threadlog as log
 from devpi_server.log import thread_push_log
 from devpi_server.main import Fatal
 from devpi_server.readonly import get_mutable_deepcopy
-from devpi_server import mythread
 from devpi_web.indexing import iter_projects
 from devpi_web.indexing import ProjectIndexingInfo
 from devpi_web.indexing import is_project_cached
@@ -483,11 +483,10 @@ class IndexerThread(object):
                     # be nice to everything else
                     self.thread.sleep(1.0)
                 self.tick()
-            except mythread.Shutdown:
+            except devpithread.Shutdown:
                 raise
             except Exception:
-                log.exception(
-                    "Unhandled exception in indexer thread.")
+                log.exception("Unhandled exception in indexer thread.")
                 self.thread.sleep(1.0)
 
 

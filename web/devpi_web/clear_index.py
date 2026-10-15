@@ -1,5 +1,5 @@
+from .compat import DevpiArgumentParser
 from devpi_common.terminal import TerminalWriter
-from devpi_server.config import MyArgumentParser
 from devpi_server.config import add_configfile_option
 from devpi_server.config import add_help_option
 from devpi_server.config import add_storage_options
@@ -21,9 +21,9 @@ def clear_index(argv=None):
         argv = [str(x) for x in argv]
     pluginmanager = get_pluginmanager()
     try:
-        parser = MyArgumentParser(
-            description="Clear project search index.",
-            add_help=False)
+        parser = DevpiArgumentParser(
+            description="Clear project search index.", add_help=False
+        )
         add_help_option(parser, pluginmanager)
         add_configfile_option(parser, pluginmanager)
         add_storage_options(parser, pluginmanager)
