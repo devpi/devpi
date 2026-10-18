@@ -1,10 +1,6 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <metal:head use-macro="request.macros['head']" />
-        <title>Serial ${serial}/${last_changelog_serial}</title>
-    </head>
-    <body>
+<metal:main use-macro="main_template">
+    <metal:title fill-slot="title">Serial ${serial}/${last_changelog_serial}</metal:title>
+    <metal:body fill-slot="body">
         <h1>Serial ${serial}/${last_changelog_serial}</h1>
         <ul class="nav">
             <li><a href="${request.route_url('keyfs', _query=dict(query=query))}">Back to search</a></li>
@@ -43,5 +39,5 @@
                 </tr>
             </tbody>
         </table>
-    </body>
-</html>
+    </metal:body>
+</metal:main>
