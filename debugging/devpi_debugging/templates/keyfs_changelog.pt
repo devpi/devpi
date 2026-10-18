@@ -14,7 +14,7 @@
         </ul>
         <h3>Renames</h3>
         <ul>
-            <li tal:repeat="rename rel_renames"><code>${rename}<code></li>
+            <li tal:repeat="rename rel_renames"><code>${rename}</code></li>
         </ul>
         <h3>Changes</h3>
         <ul>
