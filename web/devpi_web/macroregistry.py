@@ -287,6 +287,8 @@ def add_theme(config, theme_path):
 
 def add_renderer_globals(event):
     request = event.get("request")
+    renderer = get_renderer("templates/main_template.pt")
+    event["main_template"] = renderer.template
     if request is None:
         return
     event["macros"] = request.registry["macros"]
