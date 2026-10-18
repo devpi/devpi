@@ -68,6 +68,7 @@ def devpiserver_pyramid_configure(config, pyramid_config):
 
 
 def includeme(config):
+    config.add_static_view("+debugging", "static")
     config.add_route(
         "keyfs",
         "/+keyfs")

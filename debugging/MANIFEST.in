@@ -1,0 +1,4 @@
+include .flake8 *.ini LICENSE
+recursive-include devpi_debugging/static *
+recursive-include devpi_debugging/templates *
+recursive-include tests *.py

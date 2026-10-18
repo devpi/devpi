@@ -117,6 +117,7 @@ def keyfs_changelog_view(request):
                 latest_serial=latest_serial,
                 diffed=diffed,
             )
+    request.add_static_css("devpi_debugging:static/debugging.css")
     return dict(
         changes=changes,
         rel_renames=rel_renames,

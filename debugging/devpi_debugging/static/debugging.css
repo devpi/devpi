@@ -1,0 +1,45 @@
+body {
+    margin: 1em;
+}
+ul.nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+ul.nav li {
+    display: inline-block;
+    padding: 0;
+    margin: 0.5em;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+table tr:nth-child(even) {
+    background: #f4f4f4;
+}
+table td {
+    vertical-align: top;
+    padding: 0.5em;
+}
+table div.serial span {
+    text-align: right;
+    padding-right: 2em;
+}
+table div.serial span,
+table div.serial a {
+    display: block;
+    width: 100%;
+}
+table td pre {
+    margin: 0;
+}
+table td pre span.remove {
+    background: #ffdddd;
+}
+table td pre span.insert {
+    background: #ddffdd;
+}
+:target {
+    background-color: #ffa;
+}
