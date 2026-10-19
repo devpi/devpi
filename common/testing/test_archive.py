@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 from devpi_common.archive import Archive
 from devpi_common.archive import UnsupportedArchive
 from devpi_common.archive import zip_dict
 from devpi_common.archive import zip_dir
 from io import BytesIO
-from subprocess import PIPE
-from subprocess import Popen
+from tarfile import TarFile
+from tarfile import TarInfo
+import os
 import pytest
-import shutil
-import sys
 
 
 def check_files(tmpdir):
@@ -15,41 +16,54 @@ def check_files(tmpdir):
     assert tmpdir.join("sub", "1").isfile()
 
 
-def _writedir(tmpdir, contentdict, prefixes=()):
+def _writetar_fromdict(
+    tarfile: TarFile, contentdict: dict, prefixes: tuple = ()
+) -> None:
     for name, val in contentdict.items():
         if isinstance(val, dict):
-            newprefixes = prefixes + (name,)
+            newprefixes = (*prefixes, name)
             if not val:
-                tmpdir.mkdir(*newprefixes)
+                path = os.sep.join(newprefixes) + os.sep
+                tarcontent = None
             else:
-                _writedir(tmpdir, val, newprefixes)
+                _writetar_fromdict(tarfile, val, newprefixes)
+                continue
         else:
-            tmpdir.ensure(*(prefixes + (name,))).write(val)
+            path = os.sep.join((*prefixes, name))
+            tarcontent = BytesIO(val.encode("ascii") if isinstance(val, str) else val)
+        tarinfo = TarInfo(path.replace(os.sep, "/"))
+        if tarcontent is not None:
+            tarinfo.size = len(tarcontent.getvalue())
+        tarfile.addfile(tarinfo, tarcontent)
 
 
-def create_tarfile_fromdict(tmpdir, contentdict):
-    tar = shutil.which("tar")
-    if not tar:
-        pytest.skip("tar command not found")
-    if sys.platform.startswith("win"):
-        pytest.skip("tar command not working properly on Windows")
-    tardir = tmpdir.join("create")
-    _writedir(tardir, contentdict)
-    files = [x.relto(tardir) for x in tardir.visit(lambda x: x.isfile())]
-    with tardir.as_cwd():
-        popen = Popen([str(tar), "cvf", "-"] + files, stdout=PIPE)
-        out, err = popen.communicate()
-    return out
+def create_tarfile_fromdict(contentdict: dict) -> bytes:
+    out = BytesIO()
+    with TarFile.open(fileobj=out, mode="x:gz") as tarfile:
+        _writetar_fromdict(tarfile, contentdict)
+    return out.getvalue()
 
 
 @pytest.fixture(params=["tar", "zip"])
-def archive_path(request, tmpdir):
+def archive_dict(request):
+    kind = request.param
+
+    def archive_dict(contentdict):
+        if kind == "tar":
+            return (kind, create_tarfile_fromdict(contentdict))
+        if kind == "zip":
+            return (kind, zip_dict(contentdict))
+        msg = "Unknown archive kind %s" % kind
+        raise RuntimeError(msg)
+
+    return archive_dict
+
+
+@pytest.fixture
+def archive_path(archive_dict, tmpdir):
     contentdict = {"1": "file1", "sub": {"1": "subfile"}}
-    if request.param == "zip":
-        content = zip_dict(contentdict)
-    else:
-        content = create_tarfile_fromdict(tmpdir, contentdict)
-    p = tmpdir.join("content.%s" % request.param)
+    (kind, content) = archive_dict(contentdict)
+    p = tmpdir.join("content.%s" % kind)
     p.write(content, "wb")
     return p
 
@@ -100,11 +114,10 @@ class TestArchive:
         assert "sub/1" in out
 
 
-def test_tarfile_outofbound(tmpdir):
-    from pathlib import Path
-
-    path = Path(__file__).parent / "data" / "slash.tar.gz"
-    with Archive(path) as archive, pytest.raises(
+@pytest.mark.parametrize("memberpath", ["/hello"])
+def test_outofbound(archive_dict, memberpath, tmpdir):
+    (_kind, content) = archive_dict({memberpath: ""})
+    with Archive(BytesIO(content)) as archive, pytest.raises(
         ValueError, match=r"archive name '.*' out of bound"
     ):
         archive.extract(tmpdir)
