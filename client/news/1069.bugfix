@@ -1,0 +1,1 @@
+Clarify version requirement syntax in ``devpi remove`` help, including exact versions and shell quoting.

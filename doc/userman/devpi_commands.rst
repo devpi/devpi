@@ -265,10 +265,12 @@ remove
     It will ask interactively for confirmation before performing the actual removals.
 
     positional arguments:
-      spec_or_url      describes project/version/release file(s) to release from
-                       the current index. If the spec starts with 'http://' or
-                       'https://', it is considered as a request to delete a
-                       single file.
+      spec_or_url      describes project/version/release file(s) to remove from
+                       the current index. Use a project name to remove all
+                       versions, or a version requirement such as 'project==1.0'
+                       to remove a specific version. Do not use 'project-1.0'. If
+                       the spec starts with 'http://' or 'https://', it is
+                       considered as a request to delete a single file.
 
     options:
       -h, --help       show this help message and exit
@@ -285,7 +287,9 @@ remove
     examples:
       devpi remove pytest
 
-      devpi remove pytest>=2.3.5
+      devpi remove 'pytest==2.3.5'
+
+      devpi remove 'pytest>=2.3.5'
 
       devpi remove https://mydevpi.org/dev/+f/1cf/3d6eaa6cbc5fa/pytest-1.0.zip
 
