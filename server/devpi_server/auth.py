@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .log import threadlog
 from .markers import notset
+from hashlib import sha256
 from passlib.context import CryptContext
 from typing import TYPE_CHECKING
 import itertools
@@ -24,7 +25,9 @@ class Auth:
 
     def __init__(self, xom: XOM, secret: str) -> None:
         self.xom = xom
-        self.serializer = itsdangerous.TimedSerializer(secret)
+        self.serializer = itsdangerous.TimedSerializer(
+            secret, signer_kwargs={"digest_method": sha256}
+        )
         self.hook = xom.config.hook.devpiserver_auth_request
         self.legacy_hook = xom.config.hook.devpiserver_auth_user
         self.autocreate_users = xom.config.autocreate_users
