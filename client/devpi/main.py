@@ -922,7 +922,9 @@ def remove(parser):
         help="remove even on non-volatile index (with devpi-server >= 6.0.0)")
     parser.add_argument("spec_or_url",
         help="""\
-        describes project/version/release file(s) to release from the current index.
+        describes project/version/release file(s) to remove from the current index.
+        Use a project name to remove all versions, or a version requirement such as
+        'project==1.0' to remove a specific version. Do not use 'project-1.0'.
         If the spec starts with 'http://' or 'https://',
         it is considered as a request to delete a single file.""")
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
@@ -931,7 +933,9 @@ def remove(parser):
         examples:
           devpi remove pytest
 
-          devpi remove pytest>=2.3.5
+          devpi remove 'pytest==2.3.5'
+
+          devpi remove 'pytest>=2.3.5'
 
           devpi remove https://mydevpi.org/dev/+f/1cf/3d6eaa6cbc5fa/pytest-1.0.zip""")
 
