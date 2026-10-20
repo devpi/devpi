@@ -261,10 +261,8 @@ class Requirement(BaseRequirement):
             for spec in self.specifier._specs]
 
     def __contains__(self, version):
-        return self.specifier.contains(version)
+        return self.specifier.contains(version, prereleases=True)
 
 
 def parse_requirement(s):
-    req = Requirement(s)
-    req.specifier.prereleases = True
-    return req
+    return Requirement(s)

@@ -195,6 +195,7 @@ class TestBasenameMeta:
 def test_parse_requirement():
     req = parse_requirement("hello>=1.0")
     assert req.project_name == "hello"
+    assert req.specifier.prereleases == type(req)("hello>=1.0").specifier.prereleases
     assert "1.0" in req
     assert "1.1.dev0" in req
     assert "1.0.dev0" not in req
