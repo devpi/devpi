@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from . import filestore
 from . import readonly
+from .keyfs_types import RelPath
 from .markers import nodefault as _nodefault
 from .normalized import NormalizedName
 from io import BytesIO
@@ -227,6 +228,7 @@ _dispatch: dict[type, Callable] = {
     readonly.SetViewReadonly: _dump_set,
     complex: _dump_complex,
     NormalizedName: _dump_str,
+    RelPath: _dump_str,
 }
 
 

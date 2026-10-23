@@ -7,12 +7,12 @@ from attrs import define
 from attrs import frozen
 from collections.abc import Hashable
 from typing import Generic
-from typing import NewType
 from typing import TYPE_CHECKING
 from typing import TypeVar
 from typing import Union
 from typing import overload
 import contextlib
+import os.path
 import re
 import warnings
 
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import Any
     from typing import Literal
+    from typing_extensions import Self
 
     KeyFSTypesRO = Union[
         bool,
@@ -66,7 +67,23 @@ class Record(Generic[KeyType]):
                 raise TypeError(msg)
 
 
-RelPath = NewType("RelPath", str)
+class InvalidRelPathError(ValueError):
+    pass
+
+
+class RelPath(str):
+    __slots__ = ()
+
+    def __new__(cls, relpath: Self | str) -> Self:
+        if os.path.isabs(relpath):
+            raise InvalidRelPathError("RelPath must be relative")
+        if {".", ".."}.intersection(os.path.split(relpath)):
+            raise InvalidRelPathError("RelPath must not contain '.' or '..'")
+        return super().__new__(cls, relpath)
+
+    def __repr__(self) -> str:
+        orig = super().__repr__()
+        return f"<{self.__class__.__name__} {orig!r}>"
 
 
 @define
