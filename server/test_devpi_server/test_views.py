@@ -59,6 +59,8 @@ def get_pypi_project_names(testapp):
         ("foo~bar42", "fatal"),
         (":foobar", "fatal"),
         (":foobar:", "fatal"),
+        (".", "fatal"),
+        ("..", "fatal"),
         ("föö", "ok"),
         ("\N{GRINNING FACE}", "ok"),
     ],

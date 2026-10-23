@@ -347,7 +347,7 @@ name_char_blocklist_regexp = re.compile(
 
 
 def is_valid_name(name: str) -> bool:
-    return not name_char_blocklist_regexp.search(name)
+    return not (name in {".", ".."} or name_char_blocklist_regexp.search(name))
 
 
 class InvalidUserconfig(Exception):
