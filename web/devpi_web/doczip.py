@@ -9,6 +9,7 @@ from devpi_server.log import threadlog
 from pathlib import Path
 import itertools
 import json
+import os.path
 import shutil
 
 
@@ -23,7 +24,7 @@ def get_unpack_path(stage, name, version):
     path = stage.keyfs.base_path if path is None else Path(path)
     return path.joinpath(
         stage.user.name, stage.index, normalize_name(name), version, "+doc"
-    )
+    ).resolve(strict=False)
 
 
 @contextmanager
@@ -62,20 +63,20 @@ def docs_file_content(stage, name, version, entry, relpath):
     if not keep_docs_packed(stage.xom.config):
         return None
     with entry.file_open_read() as f, Archive(f) as archive:
-        return archive.read(relpath)
+        return archive.read(norm_doc_relpath(relpath))
 
 
 def docs_file_exists(stage, name, version, entry, relpath):
     if keep_docs_packed(stage.xom.config):
         with entry.file_open_read() as f, Archive(f) as archive:
             try:
-                if archive.getfile(relpath):
+                if archive.getfile(norm_doc_relpath(relpath)):
                     return True
             except archive.FileNotExist:
                 return False
     else:
-        doc_path = unpack_docs(stage, name, version, entry)
-        if doc_path.joinpath(relpath).is_file():
+        path = unpacked_docs_path(stage, name, version, entry, relpath)
+        if path.is_file():
             return True
     return False
 
@@ -83,8 +84,14 @@ def docs_file_exists(stage, name, version, entry, relpath):
 def docs_file_path(stage, name, version, entry, relpath):
     if keep_docs_packed(stage.xom.config):
         return None
-    doc_path = unpack_docs(stage, name, version, entry)
-    return doc_path.joinpath(relpath)
+    return unpacked_docs_path(stage, name, version, entry, relpath)
+
+
+def norm_doc_relpath(relpath):
+    target_path = os.path.normpath(relpath)
+    if os.path.isabs(target_path) or ".." in os.path.split(target_path):
+        raise ValueError("Docs path out of bounds.")
+    return target_path
 
 
 def unpack_docs(stage, name, version, entry):
@@ -109,6 +116,14 @@ def unpack_docs(stage, name, version, entry):
         threadlog.debug("%s: unpacked %s-%s docs to %s",
                         stage.name, name, version, unpack_path)
         return unpack_path
+
+
+def unpacked_docs_path(stage, name, version, entry, relpath):
+    doc_path = unpack_docs(stage, name, version, entry)
+    target_path = doc_path.joinpath(relpath).resolve(strict=False)
+    if not target_path.is_relative_to(doc_path):
+        raise ValueError(f"document sub path {relpath!r} out of bound")
+    return target_path
 
 
 class PackedEntry:

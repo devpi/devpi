@@ -1,0 +1,1 @@
+Fix out of bounds path traversal when serving documentation files.

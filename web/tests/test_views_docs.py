@@ -58,6 +58,20 @@ def test_docs_raw_view(mapp, testapp):
 
 
 @pytest.mark.with_notifier
+def test_docs_raw_view_out_of_bounds(mapp, testapp):
+    api = mapp.create_and_use()
+    content = zip_dict({"index.html": "<html/>"})
+    mapp.set_versiondata({"name": "pkg1", "version": "2.6"})
+    mapp.upload_doc("pkg1.zip", content, "pkg1", "2.6", code=200, waithooks=True)
+    r = testapp.xget(200, f"{api.index}/pkg1/2.6/+doc/index.html")
+    assert r.text == "<html/>"
+    r = testapp.xget(200, f"{api.index}/pkg1/2.6/+doc/foo/../index.html")
+    assert r.text == "<html/>"
+    testapp.xget(400, f"{api.index}/pkg1/2.6/+doc//etc/passwd")
+    testapp.xget(400, f"{api.index}/pkg1/2.6/+doc/../secret")
+
+
+@pytest.mark.with_notifier
 def test_docs_view(mapp, testapp):
     api = mapp.create_and_use()
     content = zip_dict({"index.html": "<html/>"})

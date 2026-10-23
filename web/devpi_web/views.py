@@ -30,6 +30,7 @@ from operator import attrgetter
 from operator import itemgetter
 from pyramid.decorator import reify
 from pyramid.httpexceptions import HTTPBadGateway
+from pyramid.httpexceptions import HTTPBadRequest
 from pyramid.httpexceptions import HTTPError
 from pyramid.httpexceptions import HTTPFound
 from pyramid.httpexceptions import HTTPNotFound
@@ -163,8 +164,12 @@ def get_doc_info(context, request, version=None, check_content=True):
             raise HTTPNotFound("No stable documentation available.")
         raise HTTPNotFound("No documentation available.")
     if check_content:
-        relpath_exists = docs_file_exists(
-            context.stage, name, doc_version, entry, relpath)
+        try:
+            relpath_exists = docs_file_exists(
+                context.stage, name, doc_version, entry, relpath
+            )
+        except ValueError as e:
+            raise HTTPBadRequest(f"File path {relpath!r} out of bounds.") from e
         if not relpath_exists:
             raise HTTPNotFound("File %s not found in documentation." % relpath)
     result = dict(
