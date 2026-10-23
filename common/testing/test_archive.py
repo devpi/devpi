@@ -4,6 +4,7 @@ from devpi_common.archive import Archive
 from devpi_common.archive import UnsupportedArchive
 from devpi_common.archive import zip_dict
 from devpi_common.archive import zip_dir
+from devpi_common.contextlib import chdir
 from io import BytesIO
 from tarfile import TarFile
 from tarfile import TarInfo
@@ -108,19 +109,29 @@ class TestArchive:
         assert target.join("1").read() == "file1"
         assert target.join("sub/1").read() == "subfile"
 
+    def test_extract_relative(self, archive, tmp_path):
+        with chdir(tmp_path):
+            archive.extract("extract")
+        assert tmp_path.joinpath("extract", "1").read_text() == "file1"
+        assert tmp_path.joinpath("extract", "sub/1").read_text() == "subfile"
+
     def test_printdir(self, archive, capsys):
         archive.printdir()
         out, err = capsys.readouterr()
         assert "sub/1" in out
 
 
-@pytest.mark.parametrize("memberpath", ["/hello"])
+@pytest.mark.parametrize("memberpath", ["/hello", "../hello"])
 def test_outofbound(archive_dict, memberpath, tmpdir):
     (_kind, content) = archive_dict({memberpath: ""})
     with Archive(BytesIO(content)) as archive, pytest.raises(
         ValueError, match=r"archive name '.*' out of bound"
     ):
         archive.extract(tmpdir)
+    with Archive(BytesIO(content)) as archive, pytest.raises(
+        ValueError, match=r"archive name '.*' out of bound"
+    ), chdir(tmpdir):
+        archive.extract()
 
 
 def test_zip_dict(tmpdir):
