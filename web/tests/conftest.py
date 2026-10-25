@@ -42,7 +42,12 @@ def tox_result_data(request):
     return tox_result_data
 
 
-@pytest.fixture(params=[True, False])
+@pytest.fixture(
+    params=[
+        pytest.param(True, id="keep_docs_packed"),
+        pytest.param(False, id="keep_docs_unpacked"),
+    ]
+)
 def keep_docs_packed(monkeypatch, request):
     value = request.param
 
