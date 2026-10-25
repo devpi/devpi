@@ -1,0 +1,1 @@
+Use sha256 for login token signing. Existing tokens will be invalidated, but they are valid for only 10 hours anyway.
