@@ -20,6 +20,8 @@ Bug Fixes
 ---------
 
 - Fix logic error which allowed unauthorized fetching of replication data.
+  CVE-2026-54723 reported by Pavel Revak [pavelrevak]
+  https://github.com/devpi/devpi/security/advisories/GHSA-m5pq-69xg-vcq3
 
 
 6.20.1 (2026-05-11)
