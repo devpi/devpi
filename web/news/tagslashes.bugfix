@@ -1,1 +1,0 @@
-favicon.pt, header_search.pt, html_head_css.pt, status.pt: Remove slashes from self-closing br, link and input tags.

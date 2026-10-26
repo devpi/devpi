@@ -1,1 +1,0 @@
-main_template.pt: added new main_template for use by plugins and eventually all devpi-web pages.

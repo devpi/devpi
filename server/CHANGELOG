@@ -2,6 +2,24 @@
 
 .. towncrier release notes start
 
+6.21.0 (2026-10-26)
+===================
+
+Features
+--------
+
+- Use sha256 for login token signing. Existing tokens will be invalidated, but they are valid for only 10 hours anyway.
+
+Bug Fixes
+---------
+
+- Block ``.`` and ``..`` as user and index names.
+  Reported by Zachariah Mithani [zachariah-mithani] (AploSec)
+  https://github.com/devpi/devpi/security/advisories/GHSA-w72q-5vww-p2rh
+
+- Fix #1130: correctly compare content type header to ignore added parameters for API v1 JSON responses.
+
+
 6.20.3 (2026-06-30)
 ===================
 

@@ -2,6 +2,26 @@
 
 .. towncrier release notes start
 
+5.2.0 (2026-10-26)
+==================
+
+Features
+--------
+
+- main_template.pt: added new main_template for use by plugins and eventually all devpi-web pages.
+
+- With devpi-server 7.x remote indexes are only included in search if the new ``remote_include_in_search`` index option is set to ``true``.
+
+Bug Fixes
+---------
+
+- Fix out of bounds path traversal when serving documentation files.
+  Reported by Zachariah Mithani [zachariah-mithani] (AploSec)
+  https://github.com/devpi/devpi/security/advisories/GHSA-w72q-5vww-p2rh
+
+- favicon.pt, header_search.pt, html_head_css.pt, status.pt: Remove slashes from self-closing br, link and input tags.
+
+
 5.1.1 (2026-07-02)
 ==================
 
