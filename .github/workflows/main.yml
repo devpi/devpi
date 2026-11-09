@@ -158,7 +158,7 @@ jobs:
             tox-envs: "py37-setuptools6920"
           - project: "web"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-server6130"
 
     env:
@@ -250,15 +250,15 @@ jobs:
         include:
           - project: "server"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39"
           - project: "server"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-hash_hl"
           - project: "server"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-keyfs_sqlite"
           - project: "server"
             python-version: "3.14"
@@ -306,11 +306,11 @@ jobs:
         include:
           - project: "web"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39"
           - project: "web"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-keyfs"
           - project: "web"
             python-version: "3.14"
@@ -518,7 +518,7 @@ jobs:
         include:
           - project: "postgresql"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-server680"
 
     env:
@@ -565,11 +565,11 @@ jobs:
         include:
           - project: "server"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39"
           - project: "web"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39"
 
     env:
@@ -620,19 +620,19 @@ jobs:
         include:
           # - project: "postgresql"
           #   python-version: "3.9"
-          #   os: "ubuntu-latest"
+          #   os: "ubuntu-24.04"
           #   tox-envs: "py39-postgresql"
           - project: "postgresql"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-server"
           # - project: "postgresql"
           #   python-version: "3.9"
-          #   os: "ubuntu-latest"
+          #   os: "ubuntu-24.04"
           #   tox-envs: "py39-server_postgresql_ssl"
           - project: "postgresql"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-dont_use_copy-server"
           # - project: "postgresql"
           #   python-version: "3.14"
@@ -703,7 +703,7 @@ jobs:
         include:
           - project: "postgresql"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-web"
           - project: "postgresql"
             python-version: "3.14"
@@ -715,7 +715,7 @@ jobs:
             tox-envs: "pypy3-web"
           - project: "postgresql"
             python-version: "3.9"
-            os: "ubuntu-latest"
+            os: "ubuntu-24.04"
             tox-envs: "py39-dont_use_copy-web"
 
     env:
