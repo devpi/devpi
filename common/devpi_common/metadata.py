@@ -81,7 +81,7 @@ _legacy_nameversion_re = re.compile(
 
 def get_pyversion_filetype(basename):
     _, _, suffix = splitbasename(basename)
-    if suffix in (".zip", ".tar.gz", ".tgz", "tar.bz2"):
+    if suffix in (".zip", ".tar.gz", ".tgz", ".tar.bz2"):
         return ("source", "sdist")
     m = _pyversion_type_rex.search(suffix)
     if not m:

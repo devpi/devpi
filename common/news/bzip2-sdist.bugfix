@@ -1,0 +1,1 @@
+Classify .tar.bz2 source distributions as sdist instead of bdist_dumb when reporting archive types.
