@@ -45,6 +45,10 @@ def test_splitbasename(releasename, expected):
 
 @pytest.mark.parametrize(("releasename", "expected"), [
     ("x-2.3.zip", ("source", "sdist")),
+    ("x-2.3.tar.gz", ("source", "sdist")),
+    ("x-2.3.tgz", ("source", "sdist")),
+    ("x-2.3.tar.bz2", ("source", "sdist")),
+    ("greenlet-0.4.0.linux-x86_64.tar.bz2", ("any", "bdist_dumb")),
     ("x-2.3-0.4.0.win32-py3.1.exe", ("3.1", "bdist_wininst")),
     ("x-2.3-py27.egg", ("2.7", "bdist_egg")),
     ("wheel-0.21.0-py2.py3-none-any.whl", ("2.7", "bdist_wheel")),
